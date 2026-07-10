@@ -8,10 +8,13 @@ import { CardRepository } from './CardRepository';
 import { MockCardRepository } from './CardRepository.mock';
 import { StatsRepository } from './StatsRepository';
 import { MockStatsRepository } from './StatsRepository.mock';
+import { SystemRepository } from './SystemRepository';
+import { MockSystemRepository } from './SystemRepository.mock';
 
 import type { IAuthRepository } from '../../domain/repositories/IAuthRepository';
 import type { ICardRepository } from '../../domain/repositories/ICardRepository';
 import type { IStatsRepository } from '../../domain/repositories/IStatsRepository';
+import type { ISystemRepository } from '../../domain/repositories/ISystemRepository';
 
 export const authRepository: IAuthRepository = env.useMockData
   ? new MockAuthRepository()
@@ -24,3 +27,7 @@ export const cardRepository: ICardRepository = env.useMockData
 export const statsRepository: IStatsRepository = env.useMockData
   ? new MockStatsRepository()
   : new StatsRepository();
+
+export const systemRepository: ISystemRepository = env.useMockData
+  ? new MockSystemRepository()
+  : new SystemRepository();

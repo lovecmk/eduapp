@@ -10,6 +10,7 @@ const MOCK_USER: User = {
   email: 'kim@example.com',
   org: '안전관리본부',
   jobTitle: '현장 안전관리자',
+  membership: 'premium',
   createdAt: new Date('2025-01-01'),
   isActive: true,
 };

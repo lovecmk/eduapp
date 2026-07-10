@@ -5,6 +5,7 @@ export interface UserDTO {
   email_addr: string;
   org_nm?: string;
   job_title?: string;
+  membership_cd?: 'BASIC' | 'PREMIUM' | 'VIP';
   created_at: string;
   status_cd: 'A' | 'I' | 'D';
 }

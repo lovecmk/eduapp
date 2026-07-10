@@ -14,6 +14,12 @@ interface SettingsState {
     dailyReminderTime: string;
     reviewAlerts: boolean;
     weeklyReport: boolean;
+    /** 인앱 푸시 알림 */
+    inApp: boolean;
+    /** 이메일 알림 */
+    email: boolean;
+    /** 마케팅 정보 수신 동의 */
+    marketing: boolean;
   };
   biometricLoginEnabled: boolean;
   dailyTarget: number;
@@ -35,21 +41,35 @@ interface SettingsState {
   toggleKeepScreenOn: () => void;
   toggleOfflineMode: () => void;
   setProfileImage: (uri: string | null) => void;
+  /** 로컬 저장 데이터를 초기화하고 기본 설정으로 되돌린다(방어적 초기화). */
+  resetAll: () => void;
 }
+
+const DEFAULT_SETTINGS = {
+  themeMode: 'system' as ThemeMode,
+  fontScale: 'medium' as FontScale,
+  highContrast: false,
+  notifications: {
+    enabled: true,
+    dailyReminderTime: '09:00',
+    reviewAlerts: true,
+    weeklyReport: true,
+    inApp: true,
+    email: false,
+    marketing: false,
+  },
+  biometricLoginEnabled: false,
+  dailyTarget: 10,
+  shuffleCards: true,
+  keepScreenOn: false,
+  offlineMode: false,
+  profileImage: null as string | null,
+};
 
 export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
-      themeMode: 'system',
-      fontScale: 'medium',
-      highContrast: false,
-      notifications: { enabled: true, dailyReminderTime: '09:00', reviewAlerts: true, weeklyReport: true },
-      biometricLoginEnabled: false,
-      dailyTarget: 10,
-      shuffleCards: true,
-      keepScreenOn: false,
-      offlineMode: false,
-      profileImage: null,
+      ...DEFAULT_SETTINGS,
 
       setThemeMode: (mode) => set({ themeMode: mode }),
       setFontScale: (scale) => set({ fontScale: scale }),
@@ -62,8 +82,22 @@ export const useSettingsStore = create<SettingsState>()(
       toggleKeepScreenOn: () => set((s) => ({ keepScreenOn: !s.keepScreenOn })),
       toggleOfflineMode: () => set((s) => ({ offlineMode: !s.offlineMode })),
       setProfileImage: (uri) => set({ profileImage: uri }),
+      resetAll: () => set({ ...DEFAULT_SETTINGS }),
     }),
-    { name: 'app-settings', storage: createJSONStorage(() => AsyncStorage) },
+    {
+      name: 'app-settings',
+      version: 2,
+      storage: createJSONStorage(() => AsyncStorage),
+      // 구버전 저장소에 새 notifications 필드가 없어도 병합해 안전하게 복원한다.
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<SettingsState>;
+        return {
+          ...current,
+          ...p,
+          notifications: { ...current.notifications, ...(p.notifications ?? {}) },
+        };
+      },
+    },
   ),
 );
 

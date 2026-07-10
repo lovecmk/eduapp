@@ -10,6 +10,7 @@ import { Button } from '../../src/components/ui/Button';
 import { fontMono, fontCute } from '../../src/theme/tokens';
 import { ROUTES } from '../../src/constants/routes';
 import { useAllCards } from '../../src/hooks/useCards';
+import { MEMBERSHIP_META } from '../../src/domain/models/User';
 
 export default function MyPageScreen() {
   const { theme, fontScale: fs } = useTheme();
@@ -58,14 +59,25 @@ export default function MyPageScreen() {
             </Text>
           </View>
         )}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <View>
-            <Text style={{ color: c.textPrimary, fontSize: 18 * fs, fontWeight: '800', fontFamily: fontCute }}>{user?.name ?? '현장 작업자'}</Text>
-            <Text style={{ color: c.textSecondary, fontSize: 12, fontFamily: fontCute }}>탭하여 프로필 사진 변경</Text>
+        <View style={{ flex: 1, gap: 4 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Text style={{ color: c.textPrimary, fontSize: 18 * fs, fontWeight: '800', fontFamily: fontCute }} numberOfLines={1}>{user?.name ?? '현장 작업자'}</Text>
+            {user ? (() => {
+              const meta = MEMBERSHIP_META[user.membership];
+              return (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: meta.accent + '1A', borderColor: meta.accent + '55', borderWidth: 1, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 }}>
+                  <Ionicons name={meta.icon as never} size={11} color={meta.accent} />
+                  <Text style={{ color: meta.accent, fontSize: 11, fontWeight: '800', fontFamily: fontCute }}>{meta.label}</Text>
+                </View>
+              );
+            })() : null}
           </View>
-          <Pressable onPress={() => setLinkModal(true)} style={{ backgroundColor: c.surfaceAlt, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, borderWidth: 1, borderColor: c.border }}>
-            <Text style={{ color: c.textSecondary, fontSize: 11, fontWeight: '600', fontFamily: fontCute }}>변경</Text>
-          </Pressable>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Text style={{ color: c.textSecondary, fontSize: 12, fontFamily: fontCute }}>탭하여 프로필 사진 변경</Text>
+            <Pressable onPress={() => setLinkModal(true)} style={{ backgroundColor: c.surfaceAlt, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1, borderColor: c.border }}>
+              <Text style={{ color: c.textSecondary, fontSize: 11, fontWeight: '600', fontFamily: fontCute }}>닉네임</Text>
+            </Pressable>
+          </View>
         </View>
       </Pressable>
 
