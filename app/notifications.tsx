@@ -1,81 +1,294 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, ScrollView, Pressable, RefreshControl } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { View, Text, ScrollView, Pressable, RefreshControl, Modal, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, { FadeInDown, FadeIn, LinearTransition } from 'react-native-reanimated';
 import { useTheme } from '../src/theme/ThemeProvider';
 import { ScreenHeader } from '../src/components/ui/ScreenHeader';
-import { ErrorState } from '../src/components/ui/ErrorState';
-import { fontCute } from '../src/theme/tokens';
-import { useNotificationStore, type NotificationType } from '../src/store/notificationStore';
+import { CenterModal } from '../src/components/ui/CenterModal';
+import { Button } from '../src/components/ui/Button';
+import { fontDisplay, fontBody, fontMono } from '../src/theme/tokens';
+import {
+  useNotificationStore, NOTIFICATION_TYPE_META, timeAgoLabel, timeGroup,
+  type NotificationType, type AppNotification, type TimeGroup,
+} from '../src/store/notificationStore';
 
-const TYPE_ICON: Record<NotificationType, keyof typeof Ionicons.glyphMap> = {
-  new: 'book',
-  remind: 'alarm',
-  achievement: 'trophy',
-  system: 'construct',
-};
-
-const INITIAL_COUNT = 7;
+const FILTERS: { key: 'all' | NotificationType; label: string }[] = [
+  { key: 'all', label: '전체' },
+  { key: 'remind', label: '리마인더' },
+  { key: 'new', label: '새 컨텐츠' },
+  { key: 'achievement', label: '성취' },
+  { key: 'system', label: '공지' },
+];
 
 export default function NotificationsScreen() {
-  const { theme, fontScale } = useTheme();
+  const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
-  const fs = fontScale;
+
   const items = useNotificationStore((s) => s.items);
+  const mutedTypes = useNotificationStore((s) => s.mutedTypes);
   const markAllRead = useNotificationStore((s) => s.markAllRead);
-  const [showAll, setShowAll] = useState(false);
+  const markRead = useNotificationStore((s) => s.markRead);
+  const remove = useNotificationStore((s) => s.remove);
+  const clearAll = useNotificationStore((s) => s.clearAll);
+  const setMute = useNotificationStore((s) => s.setMute);
+  const refresh = useNotificationStore((s) => s.refresh);
+
+  const [filter, setFilter] = useState<'all' | NotificationType>('all');
   const [refreshing, setRefreshing] = useState(false);
+  const [sheetItem, setSheetItem] = useState<AppNotification | null>(null);
+  const [muteTarget, setMuteTarget] = useState<NotificationType | null>(null);
+  const [suggestionDismissed, setSuggestionDismissed] = useState(false);
+  const [headerMenu, setHeaderMenu] = useState(false);
 
-  useEffect(() => {
-    markAllRead();
-  }, []);
-
-  const onRefresh = useCallback(async () => {
+  const onRefresh = async () => {
     setRefreshing(true);
-    await new Promise((r) => setTimeout(r, 800));
+    refresh();
+    await new Promise((r) => setTimeout(r, 600));
     setRefreshing(false);
-  }, []);
+  };
 
-  const displayed = showAll ? items : items.slice(0, INITIAL_COUNT);
+  const filtered = useMemo(
+    () => (filter === 'all' ? items : items.filter((n) => n.type === filter)),
+    [items, filter],
+  );
+
+  // 시간대별 그룹핑
+  const groups = useMemo(() => {
+    const map: Record<TimeGroup, AppNotification[]> = { '오늘': [], '이번 주': [], '이전': [] };
+    for (const n of filtered) map[timeGroup(n.minutesAgo)].push(n);
+    return (['오늘', '이번 주', '이전'] as TimeGroup[]).map((g) => ({ group: g, items: map[g] })).filter((s) => s.items.length > 0);
+  }, [filtered]);
+
+  // 스마트 제안: 안 읽은 알림이 가장 많은(2개+) 종류를 추천
+  const suggestion = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const n of items) if (!n.read && !mutedTypes[n.type]) counts[n.type] = (counts[n.type] ?? 0) + 1;
+    const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0];
+    return top && top[1] >= 2 ? { type: top[0] as NotificationType, count: top[1] } : null;
+  }, [items, mutedTypes]);
+
+  const mutedList = (Object.keys(mutedTypes) as NotificationType[]).filter((t) => mutedTypes[t]);
+  const mutedFilterCount = filtered.length;
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
-      <ScreenHeader title="알림" />
+      <ScreenHeader
+        title="알림"
+        right={
+          <Pressable onPress={() => setHeaderMenu(true)} hitSlop={8} style={{ padding: 4 }}>
+            <Ionicons name="ellipsis-horizontal" size={20} color={c.textPrimary} />
+          </Pressable>
+        }
+      />
+
+      {/* 필터 칩 */}
+      <View style={{ borderBottomWidth: 1, borderBottomColor: c.border }}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 12, gap: 8 }}>
+          {FILTERS.map((f) => {
+            const active = f.key === filter;
+            const unread = f.key === 'all'
+              ? items.filter((n) => !n.read).length
+              : items.filter((n) => n.type === f.key && !n.read).length;
+            return (
+              <Pressable key={f.key} onPress={() => setFilter(f.key)}
+                style={[styles.chip, { backgroundColor: active ? c.primary : c.surfaceAlt, borderColor: active ? c.primary : c.border }]}>
+                <Text style={{ color: active ? c.textOnPrimary : c.textSecondary, fontSize: 12.5 * fs, fontFamily: fontDisplay }}>{f.label}</Text>
+                {unread > 0 && (
+                  <View style={[styles.chipBadge, { backgroundColor: active ? 'rgba(255,255,255,0.3)' : c.error }]}>
+                    <Text style={{ color: '#fff', fontSize: 10, fontFamily: fontMono, fontWeight: '800' }}>{unread}</Text>
+                  </View>
+                )}
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      </View>
 
       <ScrollView
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.primary} />}
-        contentContainerStyle={{ padding: 20, flexGrow: 1 }}
+        contentContainerStyle={{ padding: 20, paddingBottom: 40, flexGrow: 1 }}
       >
-        {items.length === 0 ? (
-          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 60 }}>
-            <Text style={{ fontSize: 48, marginBottom: 12 }}>🔔</Text>
-            <Text style={{ color: c.textSecondary, fontSize: 15 * fs, fontFamily: fontCute, textAlign: 'center' }}>아직 알림이 없어요</Text>
+        {/* 스마트 제안 배너 */}
+        {suggestion && !suggestionDismissed && (
+          <Animated.View entering={FadeInDown.duration(300)} style={[styles.suggestion, { backgroundColor: c.primary + '12', borderColor: c.primary + '33' }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <Ionicons name="bulb" size={16} color={c.primary} />
+              <Text style={{ color: c.textPrimary, fontSize: 13.5 * fs, fontFamily: fontDisplay, flex: 1 }}>
+                이런 알림, 자주 오지 않나요?
+              </Text>
+            </View>
+            <Text style={{ color: c.textSecondary, fontSize: 12.5 * fs, lineHeight: 19, fontFamily: fontBody, marginBottom: 12 }}>
+              최근 <Text style={{ color: c.primary, fontFamily: fontDisplay }}>{NOTIFICATION_TYPE_META[suggestion.type].label}</Text> 알림을 {suggestion.count}건 받았어요.
+              이런 알림을 끄고 싶으세요?
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <Pressable onPress={() => setMuteTarget(suggestion.type)} style={[styles.sgBtn, { backgroundColor: c.primary }]}>
+                <Text style={{ color: c.textOnPrimary, fontSize: 12.5, fontFamily: fontDisplay }}>이런 알림 끄기</Text>
+              </Pressable>
+              <Pressable onPress={() => setSuggestionDismissed(true)} style={[styles.sgBtn, { backgroundColor: c.surface, borderWidth: 1, borderColor: c.border }]}>
+                <Text style={{ color: c.textSecondary, fontSize: 12.5, fontFamily: fontDisplay }}>괜찮아요</Text>
+              </Pressable>
+            </View>
+          </Animated.View>
+        )}
+
+        {/* 꺼진 알림 안내 */}
+        {mutedList.length > 0 && (
+          <Animated.View entering={FadeIn} style={[styles.mutedBar, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
+            <Ionicons name="notifications-off" size={15} color={c.textSecondary} />
+            <Text style={{ color: c.textSecondary, fontSize: 12 * fs, flex: 1, fontFamily: fontBody }}>
+              {mutedList.map((t) => NOTIFICATION_TYPE_META[t].label).join(', ')} 알림이 꺼져 있어요
+            </Text>
+            <Pressable onPress={() => mutedList.forEach((t) => setMute(t, false))} hitSlop={6}>
+              <Text style={{ color: c.primary, fontSize: 12 * fs, fontFamily: fontDisplay }}>모두 켜기</Text>
+            </Pressable>
+          </Animated.View>
+        )}
+
+        {mutedFilterCount === 0 ? (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 80 }}>
+            <View style={{ width: 76, height: 76, borderRadius: 38, backgroundColor: c.surfaceAlt, alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
+              <Ionicons name="notifications-outline" size={34} color={c.textSecondary} />
+            </View>
+            <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontFamily: fontDisplay }}>새로운 알림이 없어요</Text>
+            <Text style={{ color: c.textSecondary, fontSize: 12.5 * fs, marginTop: 6, fontFamily: fontBody }}>모두 확인하셨어요 👍</Text>
           </View>
         ) : (
-          <>
-            {displayed.map((n) => (
-              <View key={n.id} style={{ flexDirection: 'row', alignItems: 'flex-start', backgroundColor: c.surface, borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: c.border }}>
-                <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: c.surfaceAlt, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
-                  <Ionicons name={TYPE_ICON[n.type]} size={17} color={c.primary} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Text style={{ color: c.textPrimary, fontSize: 14 * fs, fontWeight: '700', flex: 1, fontFamily: fontCute }}>{n.title}</Text>
-                    <Text style={{ color: c.textSecondary, fontSize: 10, marginLeft: 8 }}>{n.time}</Text>
-                  </View>
-                  <Text style={{ color: c.textSecondary, fontSize: 12, lineHeight: 17, marginTop: 4 }}>{n.desc}</Text>
-                </View>
-              </View>
-            ))}
-
-            {!showAll && items.length > INITIAL_COUNT && (
-              <Pressable onPress={() => setShowAll(true)}
-                style={{ backgroundColor: c.surface, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: c.border, alignItems: 'center' }}>
-                <Text style={{ color: c.primary, fontWeight: '700', fontSize: 13, fontFamily: fontCute }}>더보기 ({items.length - INITIAL_COUNT}개)</Text>
-              </Pressable>
-            )}
-          </>
+          groups.map((section) => (
+            <View key={section.group} style={{ marginBottom: 8 }}>
+              <Text style={[styles.groupLabel, { color: c.textSecondary }]}>{section.group}</Text>
+              {section.items.map((n, i) => {
+                const meta = NOTIFICATION_TYPE_META[n.type];
+                const muted = mutedTypes[n.type];
+                return (
+                  <Animated.View key={n.id} entering={FadeInDown.delay(i * 40).duration(320)} layout={LinearTransition.springify()}>
+                    <Pressable
+                      onPress={() => markRead(n.id)}
+                      style={[styles.item, { backgroundColor: c.surface, borderColor: n.read ? c.border : meta.color + '55' }]}
+                    >
+                      <View style={[styles.itemIcon, { backgroundColor: meta.color + '1A' }]}>
+                        <Ionicons name={meta.icon} size={18} color={meta.color} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <Text numberOfLines={1} style={{ color: c.textPrimary, fontSize: 13.5 * fs, fontFamily: fontDisplay, flex: 1 }}>{n.title}</Text>
+                          {!n.read && <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: meta.color }} />}
+                        </View>
+                        <Text numberOfLines={2} style={{ color: c.textSecondary, fontSize: 12 * fs, lineHeight: 17, marginTop: 3, fontFamily: fontBody }}>{n.desc}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 }}>
+                          <Text style={{ color: c.textSecondary, fontSize: 10.5, fontFamily: fontMono }}>{timeAgoLabel(n.minutesAgo)}</Text>
+                          {muted && (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                              <Ionicons name="notifications-off" size={10} color={c.textSecondary} />
+                              <Text style={{ color: c.textSecondary, fontSize: 10, fontFamily: fontBody }}>꺼짐</Text>
+                            </View>
+                          )}
+                        </View>
+                      </View>
+                      <Pressable onPress={() => setSheetItem(n)} hitSlop={8} style={{ padding: 4, marginLeft: 4 }}>
+                        <Ionicons name="ellipsis-vertical" size={16} color={c.textSecondary} />
+                      </Pressable>
+                    </Pressable>
+                  </Animated.View>
+                );
+              })}
+            </View>
+          ))
         )}
       </ScrollView>
+
+      {/* 헤더 메뉴 */}
+      <ActionSheet visible={headerMenu} onClose={() => setHeaderMenu(false)} title="알림 관리">
+        <SheetRow icon="checkmark-done" label="모두 읽음 처리" onPress={() => { markAllRead(); setHeaderMenu(false); }} />
+        <SheetRow icon="trash-outline" label="전체 삭제" destructive onPress={() => { clearAll(); setHeaderMenu(false); }} />
+      </ActionSheet>
+
+      {/* 항목 액션 시트 — 이런 알림 끄기 */}
+      <ActionSheet
+        visible={sheetItem !== null}
+        onClose={() => setSheetItem(null)}
+        title={sheetItem ? NOTIFICATION_TYPE_META[sheetItem.type].label : ''}
+        subtitle={sheetItem ? NOTIFICATION_TYPE_META[sheetItem.type].desc : ''}
+      >
+        {sheetItem && (
+          <>
+            <SheetRow icon="checkmark-circle-outline" label="읽음으로 표시" onPress={() => { markRead(sheetItem.id); setSheetItem(null); }} />
+            <SheetRow icon="trash-outline" label="이 알림 삭제" onPress={() => { remove(sheetItem.id); setSheetItem(null); }} />
+            <SheetRow
+              icon="notifications-off-outline"
+              label="이런 알림 끄기"
+              highlight
+              onPress={() => { const t = sheetItem.type; setSheetItem(null); setTimeout(() => setMuteTarget(t), 150); }}
+            />
+          </>
+        )}
+      </ActionSheet>
+
+      {/* 끄기 확인 모달 — "이런 알람을 끄고 싶으세요?" */}
+      <CenterModal visible={muteTarget !== null} onClose={() => setMuteTarget(null)} title="이런 알림 끄기" icon="notifications-off-outline">
+        {muteTarget && (
+          <View style={{ alignItems: 'center' }}>
+            <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: NOTIFICATION_TYPE_META[muteTarget].color + '1A', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
+              <Ionicons name={NOTIFICATION_TYPE_META[muteTarget].icon} size={28} color={NOTIFICATION_TYPE_META[muteTarget].color} />
+            </View>
+            <Text style={{ color: c.textPrimary, fontSize: 16 * fs, fontFamily: fontDisplay, marginBottom: 8, textAlign: 'center' }}>
+              {NOTIFICATION_TYPE_META[muteTarget].label} 알림을 끌까요?
+            </Text>
+            <Text style={{ color: c.textSecondary, fontSize: 13 * fs, textAlign: 'center', lineHeight: 20, marginBottom: 22, fontFamily: fontBody }}>
+              {NOTIFICATION_TYPE_META[muteTarget].desc} 알림을{'\n'}더 이상 받지 않아요. 언제든 다시 켤 수 있어요.
+            </Text>
+            <Button label="이런 알림 끄기" colorOverride={c.error} onPress={() => { setMute(muteTarget, true); setMuteTarget(null); setSuggestionDismissed(true); }} style={{ width: '100%' }} />
+            <Pressable onPress={() => setMuteTarget(null)} style={{ paddingVertical: 14 }}>
+              <Text style={{ color: c.textSecondary, fontFamily: fontDisplay }}>유지하기</Text>
+            </Pressable>
+          </View>
+        )}
+      </CenterModal>
     </View>
   );
 }
+
+/** 하단 액션 시트(슬라이드). */
+function ActionSheet({
+  visible, onClose, title, subtitle, children,
+}: { visible: boolean; onClose: () => void; title: string; subtitle?: string; children: React.ReactNode }) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' }} onPress={onClose}>
+        <Pressable onPress={() => {}} style={[styles.sheet, { backgroundColor: c.surface, borderColor: c.border }]}>
+          <View style={[styles.sheetHandle, { backgroundColor: c.border }]} />
+          <Text style={{ color: c.textPrimary, fontSize: 15, fontFamily: fontDisplay }}>{title}</Text>
+          {subtitle ? <Text style={{ color: c.textSecondary, fontSize: 12, marginTop: 2, fontFamily: fontBody }}>{subtitle}</Text> : null}
+          <View style={{ marginTop: 14, gap: 2 }}>{children}</View>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
+function SheetRow({ icon, label, onPress, destructive, highlight }: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void; destructive?: boolean; highlight?: boolean }) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+  const color = destructive ? c.error : highlight ? c.primary : c.textPrimary;
+  return (
+    <Pressable onPress={onPress} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingHorizontal: 4 }}>
+      <Ionicons name={icon} size={19} color={color} />
+      <Text style={{ color, fontSize: 14.5, fontFamily: fontDisplay }}>{label}</Text>
+    </Pressable>
+  );
+}
+
+const styles = StyleSheet.create({
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 7, borderRadius: 999, borderWidth: 1 },
+  chipBadge: { minWidth: 16, height: 16, borderRadius: 8, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center' },
+  suggestion: { borderRadius: 16, borderWidth: 1, padding: 16, marginBottom: 14 },
+  sgBtn: { flex: 1, borderRadius: 10, paddingVertical: 9, alignItems: 'center' },
+  mutedBar: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 12, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 14 },
+  groupLabel: { fontSize: 12, fontFamily: fontDisplay, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8, marginLeft: 2 },
+  item: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, borderRadius: 14, borderWidth: 1, padding: 12, marginBottom: 8 },
+  itemIcon: { width: 36, height: 36, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, borderWidth: 1, padding: 20, paddingBottom: 34 },
+  sheetHandle: { width: 40, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
+});

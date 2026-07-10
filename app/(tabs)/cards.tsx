@@ -103,10 +103,23 @@ export default function CardsScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       {keepScreenOn && (
-        <Pressable onPress={toggleKeepScreenOn} style={{ position: 'absolute', top: 0, right: 20, zIndex: 20, padding: 4 }}>
+        <Pressable onPress={toggleKeepScreenOn} style={{ position: 'absolute', top: 10, right: 20, zIndex: 20, padding: 4 }}>
           <Ionicons name="lock-closed" size={16} color={c.textSecondary} />
         </Pressable>
       )}
+
+      <View style={{ paddingHorizontal: 20, paddingTop: 12 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Ionicons name="school-outline" size={16} color={c.primary} />
+            <Text style={{ color: c.textPrimary, fontSize: 14 * fs, fontFamily: fontCute }}>학습 세션</Text>
+          </View>
+          <Text style={{ color: c.textSecondary, fontSize: 12, fontFamily: 'monospace' }}>{index + 1} / {allCards.length}</Text>
+        </View>
+        <View style={{ height: 6, backgroundColor: c.surfaceAlt, borderRadius: 3, overflow: 'hidden' }}>
+          <View style={{ width: `${Math.round((index / Math.max(allCards.length, 1)) * 100)}%`, height: '100%', backgroundColor: c.primary, borderRadius: 3 }} />
+        </View>
+      </View>
 
       <Animated.View style={{ flex: 1, padding: 20, paddingBottom: 8 }} {...panResponder.panHandlers}>
         <Animated.View

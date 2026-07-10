@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { View, Text, ScrollView } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTheme } from '../../src/theme/ThemeProvider';
 import { Badge } from '../../src/components/ui/Badge';
 import { Button } from '../../src/components/ui/Button';
@@ -59,18 +60,18 @@ export default function ContentDetailScreen() {
         </View>
 
         {card.imageUrl ? (
-          <View style={{ marginBottom: 14 }}>
+          <Animated.View entering={FadeInDown.delay(60).duration(360)} style={{ marginBottom: 14 }}>
             <QuestionImage uri={card.imageUrl} height={200} />
-          </View>
+          </Animated.View>
         ) : null}
 
-        <View style={{ backgroundColor: c.surface, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: c.border, marginBottom: 14 }}>
+        <Animated.View entering={FadeInDown.delay(120).duration(360)} style={{ backgroundColor: c.surface, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: c.border, marginBottom: 14 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 6 }}>
             <Ionicons name="help-circle" size={16} color={c.primary} />
             <Text style={{ color: c.primary, fontSize: 12, fontWeight: '700', fontFamily: fontCute }}>질문</Text>
           </View>
           <Text style={{ color: c.textPrimary, fontSize: 17 * fs, fontWeight: '800', lineHeight: 25, fontFamily: fontCute }}>{card.question}</Text>
-        </View>
+        </Animated.View>
 
         <View style={{ backgroundColor: c.surface, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: c.border, marginBottom: 14 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 6 }}>

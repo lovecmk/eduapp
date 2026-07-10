@@ -7,6 +7,16 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.3.0',
+    date: '2026-07-10',
+    highlights: [
+      '알림 기능 강화: 최근 알림 기반 스마트 on/off("이런 알림 끄기")',
+      '알림 종류별 수신 설정 + 시간대별 알림 내역 + 필터',
+      '전체 컨텐츠 화면 정비: 분야별 진행·난이도 필터·이미지 썸네일·상태 표시',
+      '화면 전환/컴포넌트 진입 애니메이션으로 자연스러운 전환',
+    ],
+  },
+  {
     version: '1.2.0',
     date: '2026-07-10',
     highlights: [

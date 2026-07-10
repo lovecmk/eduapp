@@ -7,6 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../src/theme/ThemeProvider';
 import { useSettingsStore, type ThemeMode, type FontScale } from '../src/store/settingsStore';
 import { useAuthStore } from '../src/store/authStore';
+import { useNotificationStore, NOTIFICATION_TYPE_META, type NotificationType } from '../src/store/notificationStore';
 import { SegmentedControl } from '../src/components/ui/SegmentedControl';
 import { Switch } from '../src/components/ui/Switch';
 import { Button } from '../src/components/ui/Button';
@@ -69,6 +70,8 @@ export default function SettingsScreen() {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const profileImage = useSettingsStore((s) => s.profileImage);
+  const mutedTypes = useNotificationStore((s) => s.mutedTypes);
+  const setMute = useNotificationStore((s) => s.setMute);
 
   const [h, m] = notifications.dailyReminderTime.split(':').map(Number);
   const [editH, setEditH] = useState(h);
@@ -176,6 +179,22 @@ export default function SettingsScreen() {
             description="이벤트·혜택 소식 (선택)"
             right={<Switch value={notifications.marketing} onValueChange={(v) => updateNotificationSetting('marketing', v)} />}
           />
+        </SettingsGroup>
+
+        <SettingsGroup title="알림 종류별 수신">
+          {(Object.keys(NOTIFICATION_TYPE_META) as NotificationType[]).map((t) => {
+            const meta = NOTIFICATION_TYPE_META[t];
+            return (
+              <SettingsItem
+                key={t}
+                icon={meta.icon}
+                iconColor={meta.color}
+                label={meta.label}
+                description={meta.desc}
+                right={<Switch value={!mutedTypes[t]} onValueChange={(v) => setMute(t, !v)} />}
+              />
+            );
+          })}
         </SettingsGroup>
 
         <SettingsGroup title="학습">
