@@ -4,8 +4,6 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../src/theme/ThemeProvider';
 import { useAuthStore } from '../../src/store/authStore';
-import { useCardStore } from '../../src/store/cardStore';
-import { useStatsStore } from '../../src/store/statsStore';
 import { useSettingsStore } from '../../src/store/settingsStore';
 import { Badge } from '../../src/components/ui/Badge';
 import { Card } from '../../src/components/ui/Card';
@@ -16,6 +14,8 @@ import { getCategoryIcon } from '../../src/constants/categories';
 import { getDifficultyMeta } from '../../src/constants/difficulty';
 import { calcEmblems, getAcquiredEmblems } from '../../src/utils/emblems';
 import { ROUTES } from '../../src/constants/routes';
+import { useAllCards, useTodayCards } from '../../src/hooks/useCards';
+import { useStudyStats } from '../../src/hooks/useStats';
 
 function StatPill({ value, label }: { value: string; label: string }) {
   const { theme, fontScale } = useTheme();
@@ -35,26 +35,17 @@ export default function HomeScreen() {
   const fs = fontScale;
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
-  const { entities, todayIds, loading, error: cardError, fetchToday, allIds, fetchAll } = useCardStore();
-  const { stats, loading: statsLoading, error: statsError, fetchStats } = useStatsStore();
   const profileImage = useSettingsStore((s) => s.profileImage);
   const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    fetchToday();
-    fetchAll();
-    fetchStats();
-  }, []);
+  const { data: allCards = [], isLoading: cardsLoading, error: cardsError, refetch: refetchAll } = useAllCards();
+  const { data: todayCards = [], isLoading: todayLoading, error: todayError, refetch: refetchToday } = useTodayCards();
+  const { data: stats, isLoading: statsLoading, error: statsError, refetch: refetchStats } = useStudyStats();
 
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await Promise.all([fetchToday(), fetchAll(), fetchStats()]);
-    setRefreshing(false);
-  }, []);
-
-  const todayCards = todayIds.map((id) => entities[id]).filter(Boolean);
-  const allCards = allIds.map((id) => entities[id]).filter(Boolean);
-  const masteredCount = allCards.filter((c) => c.status === 'mastered').length;
+  const masteredCount = useMemo(
+    () => allCards.filter((c) => c.status === 'mastered').length,
+    [allCards]
+  );
 
   const emblems = useMemo(() => {
     const cardMap = new Map<string, { total: number; mastered: number }>();
@@ -68,14 +59,25 @@ export default function HomeScreen() {
   }, [allCards]);
   const acquired = getAcquiredEmblems(emblems);
 
-  const learnedDates = new Map<string, number>();
-  allCards.filter((c) => c.dueAt).forEach((c) => {
-    const d = new Date(c.dueAt!);
-    const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-    learnedDates.set(key, (learnedDates.get(key) ?? 0) + 1);
-  });
+  const learnedDates = useMemo(() => {
+    const dates = new Map<string, number>();
+    for (const card of allCards) {
+      if (card.dueAt) {
+        const d = new Date(card.dueAt);
+        const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+        dates.set(key, (dates.get(key) ?? 0) + 1);
+      }
+    }
+    return dates;
+  }, [allCards]);
 
-  const isInitialLoading = (loading && todayCards.length === 0 && allCards.length === 0) || (statsLoading && !stats);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([refetchAll(), refetchToday(), refetchStats()]);
+    setRefreshing(false);
+  }, [refetchAll, refetchToday, refetchStats]);
+
+  const isInitialLoading = (cardsLoading && todayLoading && allCards.length === 0) || (statsLoading && !stats);
 
   if (isInitialLoading) {
     return (
@@ -127,8 +129,8 @@ export default function HomeScreen() {
 
         <Card>
           <Text style={{ color: c.textPrimary, fontSize: 14 * fs, fontWeight: '700', marginBottom: 12, fontFamily: fontCute }}>학습 현황</Text>
-          {statsError && !statsLoading ? (
-            <ErrorState message="통계를 불러올 수 없습니다" onRetry={fetchStats} />
+          {statsError ? (
+            <ErrorState message="통계를 불러올 수 없습니다" onRetry={refetchStats} />
           ) : (
             <View style={{ flexDirection: 'row', gap: 8 }}>
               <View style={{ flex: 1, position: 'relative' }}>
@@ -143,7 +145,7 @@ export default function HomeScreen() {
           )}
         </Card>
 
-        <Pressable onPress={() => router.push(ROUTES.cards as any)}
+        <Pressable onPress={() => router.push(ROUTES.cards)}
           style={{ backgroundColor: c.primary, borderRadius: 16, padding: 16, alignItems: 'center', marginBottom: 14 }}>
           <Text style={{ color: c.textOnPrimary, fontSize: 15 * fs, fontWeight: '800', fontFamily: fontCute }}>학습 시작하기</Text>
         </Pressable>
@@ -154,10 +156,9 @@ export default function HomeScreen() {
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
             <Text style={{ color: c.textPrimary, fontSize: 14 * fs, fontWeight: '700', fontFamily: fontCute }}>오늘의 학습</Text>
           </View>
-
-          {cardError && !loading ? (
-            <ErrorState message="카드를 불러올 수 없습니다" onRetry={() => { fetchToday(); fetchAll(); }} />
-          ) : loading && todayCards.length === 0 ? (
+          {todayError ? (
+            <ErrorState message="카드를 불러올 수 없습니다" onRetry={() => { refetchToday(); refetchAll(); }} />
+          ) : todayLoading && todayCards.length === 0 ? (
             <ActivityIndicator color={c.primary} style={{ marginVertical: 16 }} />
           ) : todayCards.length === 0 ? (
             <Text style={{ color: c.textSecondary, lineHeight: 22, fontFamily: fontCute }}>
@@ -181,13 +182,12 @@ export default function HomeScreen() {
         <Card>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
             <Text style={{ color: c.textPrimary, fontSize: 14 * fs, fontWeight: '700', fontFamily: fontCute }}>전체 컨텐츠</Text>
-            <Pressable onPress={() => router.push(ROUTES.contents as any)}>
+            <Pressable onPress={() => router.push(ROUTES.contents)}>
               <Text style={{ color: c.primary, fontSize: 13 * fs, fontWeight: '600' }}>더보기 →</Text>
             </Pressable>
           </View>
-
-          {cardError && !loading ? (
-            <ErrorState message="컨텐츠를 불러올 수 없습니다" onRetry={fetchAll} />
+          {cardsError ? (
+            <ErrorState message="컨텐츠를 불러올 수 없습니다" onRetry={refetchAll} />
           ) : allCards.length === 0 ? (
             <Text style={{ color: c.textSecondary, lineHeight: 22 }}>아직 등록된 컨텐츠가 없습니다</Text>
           ) : (

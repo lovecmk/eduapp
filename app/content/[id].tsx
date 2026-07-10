@@ -3,7 +3,6 @@ import { View, Text, ScrollView } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../src/theme/ThemeProvider';
-import { useCardStore } from '../../src/store/cardStore';
 import { Badge } from '../../src/components/ui/Badge';
 import { Button } from '../../src/components/ui/Button';
 import { ScreenHeader } from '../../src/components/ui/ScreenHeader';
@@ -11,6 +10,7 @@ import { fontCute } from '../../src/theme/tokens';
 import { getCategoryIcon } from '../../src/constants/categories';
 import { getDifficultyMeta } from '../../src/constants/difficulty';
 import { ROUTES } from '../../src/constants/routes';
+import { useAllCards } from '../../src/hooks/useCards';
 
 const statusLabel: Record<string, string> = { new: '새 카드', learning: '학습 중', mastered: '마스터' };
 
@@ -20,10 +20,10 @@ export default function ContentDetailScreen() {
   const fs = fontScale;
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { entities, fetchAll } = useCardStore();
-  const card = entities[id ?? ''];
+  const { data: allCards = [], refetch } = useAllCards();
+  const card = allCards.find((c) => c.id === id);
 
-  useEffect(() => { if (!card) fetchAll(); }, []);
+  useEffect(() => { if (!card) refetch(); }, [card, refetch]);
 
   if (!card) {
     return (
@@ -77,7 +77,7 @@ export default function ContentDetailScreen() {
             {card.highlights.map((h, i) => (
               <View key={i} style={{ flexDirection: 'row', marginBottom: 4 }}>
                 <Text style={{ color: c.primary, fontSize: 13, marginRight: 6 }}>•</Text>
-                    <Text style={{ color: c.textPrimary, fontSize: 13 * fs, lineHeight: 19, flex: 1 }}>{h}</Text>
+                <Text style={{ color: c.textPrimary, fontSize: 13 * fs, lineHeight: 19, flex: 1 }}>{h}</Text>
               </View>
             ))}
           </View>
@@ -108,7 +108,7 @@ export default function ContentDetailScreen() {
       </ScrollView>
 
       <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: 16, paddingBottom: 32, backgroundColor: c.surface, borderTopWidth: 1, borderTopColor: c.border }}>
-        <Button label="이 카드 학습하기" variant="filled" onPress={() => router.push(ROUTES.cards as any)} />
+        <Button label="이 카드 학습하기" variant="filled" onPress={() => router.push(ROUTES.cards)} />
       </View>
     </View>
   );

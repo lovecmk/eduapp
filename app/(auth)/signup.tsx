@@ -26,7 +26,7 @@ export default function SignupScreen() {
     if (!EMAIL_RE.test(email.trim())) next.email = '올바른 이메일 형식이 아닙니다';
     if (pw.length < 4) next.pw = '비밀번호는 4자 이상이어야 합니다';
     setErrors(next);
-    if (Object.keys(next).length === 0) router.replace(ROUTES.home as any);
+    if (Object.keys(next).length === 0) router.replace(ROUTES.home);
   };
 
   return (

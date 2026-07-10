@@ -24,13 +24,13 @@ function MinimalHeader({ title }: { title: string }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const unreadCount = useNotificationStore((s) => s.unreadCount());
 
-  const items: { label: string; icon: IconName; route: string }[] = [
-    { label: '알림', icon: 'notifications-outline', route: ROUTES.notifications },
-    { label: '전체 컨텐츠', icon: 'library-outline', route: ROUTES.contents },
-    { label: '학습카드', icon: 'school-outline', route: ROUTES.cards },
-    { label: '복습', icon: 'refresh-outline', route: ROUTES.review },
-    { label: '통계', icon: 'stats-chart-outline', route: ROUTES.stats },
-    { label: '마이페이지', icon: 'person-circle-outline', route: ROUTES.mypage },
+  const items: { label: string; icon: IconName; route: string; activeMatch: string }[] = [
+    { label: '알림', icon: 'notifications-outline', route: ROUTES.notifications, activeMatch: '/notifications' },
+    { label: '전체 컨텐츠', icon: 'library-outline', route: ROUTES.contents, activeMatch: '/contents' },
+    { label: '학습카드', icon: 'school-outline', route: ROUTES.cards, activeMatch: 'cards' },
+    { label: '복습', icon: 'refresh-outline', route: ROUTES.review, activeMatch: 'review' },
+    { label: '통계', icon: 'stats-chart-outline', route: ROUTES.stats, activeMatch: 'stats' },
+    { label: '마이페이지', icon: 'person-circle-outline', route: ROUTES.mypage, activeMatch: 'mypage' },
   ];
 
   const navigate = (route: string) => {
@@ -65,7 +65,7 @@ function MinimalHeader({ title }: { title: string }) {
           <View style={{ position: 'absolute', top: insets.top + 62, right: 12, backgroundColor: c.surface, borderRadius: 14, paddingVertical: 6, minWidth: 190, borderWidth: 1, borderColor: c.border, boxShadow: '0 4px 12px rgba(0,0,0,0.15)', elevation: 8 }}>
             <ScrollView>
               {items.map((item) => {
-                const active = pathname === item.route || (item.route === '/(tabs)/' + pathname.split('/').pop());
+                const active = pathname.includes(item.activeMatch);
                 return (
                   <Pressable key={item.route} onPress={() => navigate(item.route)}
                     style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 16, backgroundColor: active ? c.surfaceAlt : 'transparent' }}>

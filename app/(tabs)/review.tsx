@@ -1,10 +1,7 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, Pressable, ActivityIndicator, Animated, PanResponder, Dimensions } from 'react-native';
-import { Platform } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import React, { useCallback, useMemo, useState } from 'react';
+import { View, Text, Pressable, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../src/theme/ThemeProvider';
-import { useCardStore } from '../../src/store/cardStore';
 import { useSettingsStore } from '../../src/store/settingsStore';
 import { Button } from '../../src/components/ui/Button';
 import { Badge } from '../../src/components/ui/Badge';
@@ -12,91 +9,42 @@ import { SkeletonLoader } from '../../src/components/ui/SkeletonLoader';
 import { ErrorState } from '../../src/components/ui/ErrorState';
 import { fontCute } from '../../src/theme/tokens';
 import { getCategoryIcon } from '../../src/constants/categories';
-
-const SWIPE_THRESHOLD = 100;
-const { width: SCREEN_W } = Dimensions.get('window');
+import { useAllCards, useMarkCard } from '../../src/hooks/useCards';
+import { useCardSwipe } from '../../src/hooks/useCardSwipe';
 
 export default function ReviewScreen() {
   const { theme, fontScale } = useTheme();
   const c = theme.colors;
   const fs = fontScale;
-  const { entities, allIds, loading, error, fetchAll, markCard } = useCardStore();
-
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
   const [doneCount, setDoneCount] = useState(0);
-  const [exiting, setExiting] = useState(false);
-  const keepScreenOn = useSettingsStore((s) => s.keepScreenOn);
-  const toggleKeepScreenOn = useSettingsStore((s) => s.toggleKeepScreenOn);
 
-  const translateX = useRef(new Animated.Value(0)).current;
-  const rotate = useRef(new Animated.Value(0)).current;
-  const cardOpacity = useRef(new Animated.Value(1)).current;
+  const { data: allCards = [], isLoading, error, refetch } = useAllCards();
+  const markCardMutation = useMarkCard();
 
-  const hapticTriggered = useRef(false);
-
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponderCapture: () => true,
-      onMoveShouldSetPanResponderCapture: (_, g) => Math.abs(g.dx) > 10 && !exiting,
-      onPanResponderMove: (_, g) => {
-        translateX.setValue(g.dx);
-        rotate.setValue(Math.max(-0.4, Math.min(0.4, g.dx / 250)));
-        if (Math.abs(g.dx) > SWIPE_THRESHOLD && !hapticTriggered.current && Platform.OS !== 'web') {
-          hapticTriggered.current = true;
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        }
-        if (Math.abs(g.dx) <= SWIPE_THRESHOLD) hapticTriggered.current = false;
-      },
-      onPanResponderRelease: (_, g) => {
-        if (g.dx > SWIPE_THRESHOLD) completeSwipe('right');
-        else if (g.dx < -SWIPE_THRESHOLD) completeSwipe('left');
-        else resetPosition();
-        hapticTriggered.current = false;
-      },
-    })
-  ).current;
-
-  const fireHaptic = () => {
-    if (Platform.OS === 'web') return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  };
-
-  useEffect(() => { fetchAll(); }, []);
-
-  const reviewCards = allIds
-    .map((id) => entities[id])
-    .filter((card) => card?.status === 'learning');
+  const reviewCards = useMemo(
+    () => allCards.filter((card) => card.status === 'learning'),
+    [allCards]
+  );
 
   const card = reviewCards[index];
 
-  const completeSwipe = (dir: 'left' | 'right') => {
-    if (!card || exiting) return;
-    setExiting(true);
-    fireHaptic();
+  const handleSwipeComplete = useCallback((dir: 'left' | 'right') => {
+    if (!card) return;
+    markCardMutation.mutate({ id: card.id, status: dir === 'right' ? 'mastered' : 'learning' });
+    setDoneCount((n) => n + 1);
+    setFlipped(false);
+    setIndex((i) => i + 1);
+  }, [card, markCardMutation]);
 
-    const targetX = dir === 'right' ? SCREEN_W + 100 : -SCREEN_W - 100;
-    Animated.parallel([
-      Animated.timing(translateX, { toValue: targetX, duration: 250, useNativeDriver: true }),
-      Animated.timing(cardOpacity, { toValue: 0, duration: 200, useNativeDriver: true }),
-    ]).start(() => {
-      markCard(card.id, dir === 'right' ? 'mastered' : 'learning');
-      setDoneCount((n) => n + 1);
-      setFlipped(false);
-      setExiting(false);
-      translateX.setValue(0);
-      rotate.setValue(0);
-      cardOpacity.setValue(1);
-      setIndex((i) => i + 1);
-    });
-  };
+  const { panResponder, translateX, cardOpacity, rotation, exiting, fireHaptic, completeSwipe } =
+    useCardSwipe(handleSwipeComplete);
 
-  const resetPosition = () => {
-    Animated.spring(translateX, { toValue: 0, useNativeDriver: true, friction: 6 }).start();
-    Animated.spring(rotate, { toValue: 0, useNativeDriver: true, friction: 6 }).start();
-  };
+  const keepScreenOn = useSettingsStore((s) => s.keepScreenOn);
+  const toggleKeepScreenOn = useSettingsStore((s) => s.toggleKeepScreenOn);
 
-  if (loading && reviewCards.length === 0 && !error) {
+  if (isLoading && reviewCards.length === 0 && !error) {
     return (
       <View style={{ flex: 1, backgroundColor: c.bg }}>
         <SkeletonLoader count={3} />
@@ -107,7 +55,7 @@ export default function ReviewScreen() {
   if (error && reviewCards.length === 0) {
     return (
       <View style={{ flex: 1, backgroundColor: c.bg, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-        <ErrorState message="복습 카드를 불러올 수 없어요" onRetry={fetchAll} />
+        <ErrorState message="복습 카드를 불러올 수 없어요" onRetry={refetch} />
       </View>
     );
   }
@@ -136,8 +84,6 @@ export default function ReviewScreen() {
       </View>
     );
   }
-
-  const rotation = rotate.interpolate({ inputRange: [-0.4, 0, 0.4], outputRange: ['-10deg', '0deg', '10deg'] });
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>

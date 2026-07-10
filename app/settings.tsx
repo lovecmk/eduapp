@@ -2,11 +2,10 @@ import React, { useState } from 'react';
 import { View, Text, ScrollView, Switch, Alert, Platform, Pressable, Modal } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useQueryClient } from '@tanstack/react-query';
 import { useTheme } from '../src/theme/ThemeProvider';
 import { useSettingsStore, type ThemeMode, type FontScale } from '../src/store/settingsStore';
 import { useAuthStore } from '../src/store/authStore';
-import { useCardStore } from '../src/store/cardStore';
-import { useStatsStore } from '../src/store/statsStore';
 import { SettingRow } from '../src/components/ui/SettingRow';
 import { SegmentedControl } from '../src/components/ui/SegmentedControl';
 import { Button } from '../src/components/ui/Button';
@@ -37,6 +36,7 @@ export default function SettingsScreen() {
   const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [timePickerOpen, setTimePickerOpen] = useState(false);
 
   const {
@@ -48,8 +48,6 @@ export default function SettingsScreen() {
   } = useSettingsStore();
 
   const logout = useAuthStore((s) => s.logout);
-  const resetCards = useCardStore((s) => s.reset);
-  const resetStats = useStatsStore((s) => s.reset);
 
   const [h, m] = notifications.dailyReminderTime.split(':').map(Number);
   const [editH, setEditH] = useState(h);
@@ -81,9 +79,8 @@ export default function SettingsScreen() {
 
   const doLogout = async () => {
     await logout();
-    resetCards();
-    resetStats();
-    router.replace(ROUTES.login as any);
+    queryClient.clear();
+    router.replace(ROUTES.login);
   };
 
   const onLogout = () => {

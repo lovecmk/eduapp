@@ -11,6 +11,7 @@ import { useFonts } from 'expo-font';
 import { ThemeProvider, useTheme } from '../src/theme/ThemeProvider';
 import { useAuthStore } from '../src/store/authStore';
 import { BridgeLogo } from '../src/components/ui/BridgeLogo';
+import { ErrorBoundary } from '../src/components/ui/ErrorBoundary';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
@@ -75,14 +76,16 @@ function RootContent() {
 
 export default function RootLayout() {
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaProvider>
-        <QueryClientProvider client={queryClient}>
-          <ThemeProvider>
-            <RootContent />
-          </ThemeProvider>
-        </QueryClientProvider>
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
+    <ErrorBoundary>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <SafeAreaProvider>
+          <QueryClientProvider client={queryClient}>
+            <ThemeProvider>
+              <RootContent />
+            </ThemeProvider>
+          </QueryClientProvider>
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
+    </ErrorBoundary>
   );
 }

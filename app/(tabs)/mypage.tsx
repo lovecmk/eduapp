@@ -1,26 +1,26 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, ScrollView, Pressable, Image, Alert, Platform, Modal, Linking } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../src/theme/ThemeProvider';
 import { useAuthStore } from '../../src/store/authStore';
-import { useCardStore } from '../../src/store/cardStore';
 import { useSettingsStore } from '../../src/store/settingsStore';
 import { Button } from '../../src/components/ui/Button';
 import { fontMono, fontCute } from '../../src/theme/tokens';
 import { ROUTES } from '../../src/constants/routes';
+import { useAllCards } from '../../src/hooks/useCards';
 
 export default function MyPageScreen() {
   const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
-  const { entities, allIds } = useCardStore();
+  const { data: allCards = [] } = useAllCards();
   const { profileImage, setProfileImage } = useSettingsStore();
-  const allCards = allIds.map((id) => entities[id]).filter(Boolean);
-  const masteredCount = allCards.filter((c) => c.status === 'mastered').length;
   const [linkModal, setLinkModal] = React.useState(false);
+
+  const masteredCount = useMemo(() => allCards.filter((c) => c.status === 'mastered').length, [allCards]);
 
   const pickImage = async () => {
     if (Platform.OS === 'web') return;
@@ -82,7 +82,7 @@ export default function MyPageScreen() {
         ))}
       </View>
 
-      <Pressable onPress={() => router.push(ROUTES.settings as any)}
+      <Pressable onPress={() => router.push(ROUTES.settings)}
         style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: c.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: c.border, marginVertical: 8 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
           <Ionicons name="settings-outline" size={20} color={c.textPrimary} />

@@ -45,12 +45,12 @@ export default function LoginScreen() {
     setFormError(null);
     clearError();
     const ok = await login(id.trim(), pw);
-    if (ok) router.replace(ROUTES.home as any);
+    if (ok) router.replace(ROUTES.home);
   };
 
   const onBiometric = async () => {
     const ok = await tryBiometricLogin();
-    if (ok) router.replace(ROUTES.home as any);
+    if (ok) router.replace(ROUTES.home);
   };
 
   return (
