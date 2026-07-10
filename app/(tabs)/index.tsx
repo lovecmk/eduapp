@@ -10,6 +10,8 @@ import { Card } from '../../src/components/ui/Card';
 import { ErrorState } from '../../src/components/ui/ErrorState';
 import { LivePresenceCard } from '../../src/components/community/LivePresenceCard';
 import { LearningCalendar } from '../../src/components/community/LearningCalendar';
+import { DailyQuestsCard } from '../../src/components/home/DailyQuestsCard';
+import { DailyTipCard } from '../../src/components/home/DailyTipCard';
 import { fontMono, fontCute } from '../../src/theme/tokens';
 import { getCategoryIcon } from '../../src/constants/categories';
 import { getDifficultyMeta } from '../../src/constants/difficulty';
@@ -139,7 +141,11 @@ export default function HomeScreen() {
           <Text style={{ color: c.textOnPrimary, fontSize: 15 * fs, fontWeight: '800', fontFamily: fontCute }}>학습 시작하기</Text>
         </Pressable>
 
+        <DailyQuestsCard />
+
         <LivePresenceCard />
+
+        <DailyTipCard />
 
         <LearningCalendar />
 

@@ -7,6 +7,16 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.5.0',
+    date: '2026-07-10',
+    highlights: [
+      '카드 내용 수정 요청(이의제기) 기능 — 사유 선택 + 상세 설명',
+      '작은 커뮤니티: 카드별 현장 팁 공유·좋아요',
+      '일일 미션(데일리 퀘스트)으로 학습 복귀 유도',
+      '오늘의 안전 상식 — 매일 바뀌는 교육 콘텐츠',
+    ],
+  },
+  {
     version: '1.4.0',
     date: '2026-07-10',
     highlights: [

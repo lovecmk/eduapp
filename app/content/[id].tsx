@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { View, Text, ScrollView } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, ScrollView, Pressable } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -9,11 +9,14 @@ import { Button } from '../../src/components/ui/Button';
 import { ScreenHeader } from '../../src/components/ui/ScreenHeader';
 import { QuestionImage } from '../../src/components/ui/QuestionImage';
 import { CategoryTrail } from '../../src/components/ui/CategoryTrail';
-import { fontCute } from '../../src/theme/tokens';
+import { CardReportModal } from '../../src/components/cards/CardReportModal';
+import { CardTips } from '../../src/components/community/CardTips';
+import { fontCute, fontBody } from '../../src/theme/tokens';
 import { getCategoryIcon } from '../../src/constants/categories';
 import { getDifficultyMeta } from '../../src/constants/difficulty';
 import { ROUTES } from '../../src/constants/routes';
 import { useAllCards } from '../../src/hooks/useCards';
+import { useReportStore } from '../../src/store/reportStore';
 
 const statusLabel: Record<string, string> = { new: '새 카드', learning: '학습 중', mastered: '마스터' };
 
@@ -25,6 +28,8 @@ export default function ContentDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: allCards = [], refetch } = useAllCards();
   const card = allCards.find((c) => c.id === id);
+  const [reportOpen, setReportOpen] = useState(false);
+  const reported = useReportStore((s) => s.hasReported(id ?? ''));
 
   useEffect(() => { if (!card) refetch(); }, [card, refetch]);
 
@@ -43,7 +48,15 @@ export default function ContentDetailScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
-      <ScreenHeader title="컨텐츠 상세" />
+      <ScreenHeader
+        title="컨텐츠 상세"
+        right={
+          <Pressable onPress={() => setReportOpen(true)} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 4, paddingHorizontal: 6, borderRadius: 8 }}>
+            <Ionicons name={reported ? 'flag' : 'flag-outline'} size={16} color={reported ? c.warning : c.textSecondary} />
+            <Text style={{ color: reported ? c.warning : c.textSecondary, fontSize: 12, fontFamily: fontBody }}>{reported ? '요청됨' : '수정 요청'}</Text>
+          </Pressable>
+        }
+      />
 
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 100 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
@@ -118,11 +131,15 @@ export default function ContentDetailScreen() {
             ))}
           </View>
         )}
+
+        <CardTips cardId={card.id} />
       </ScrollView>
 
       <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: 16, paddingBottom: 32, backgroundColor: c.surface, borderTopWidth: 1, borderTopColor: c.border }}>
         <Button label="이 카드 학습하기" variant="filled" onPress={() => router.push(ROUTES.cards)} />
       </View>
+
+      <CardReportModal visible={reportOpen} card={card} onClose={() => setReportOpen(false)} />
     </View>
   );
 }
