@@ -12,6 +12,8 @@ import { ThemeProvider, useTheme } from '../src/theme/ThemeProvider';
 import { useAuthStore } from '../src/store/authStore';
 import { BridgeLogo } from '../src/components/ui/BridgeLogo';
 import { ErrorBoundary } from '../src/components/ui/ErrorBoundary';
+import { UpdatePrompt } from '../src/components/ui/UpdatePrompt';
+import { useAppUpdate } from '../src/hooks/useAppUpdate';
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
@@ -26,6 +28,7 @@ function RootContent() {
   const [fontsLoaded] = useFonts({
     'Jua-Regular': require('../assets/fonts/Jua-Regular.ttf'),
   });
+  const { updateAvailable, remote, apply, dismiss } = useAppUpdate();
 
   useEffect(() => {
     restore();
@@ -70,6 +73,12 @@ function RootContent() {
           </View>
         </Animated.View>
       )}
+      <UpdatePrompt
+        visible={ready && updateAvailable}
+        remote={remote}
+        onUpdate={apply}
+        onDismiss={dismiss}
+      />
     </View>
   );
 }

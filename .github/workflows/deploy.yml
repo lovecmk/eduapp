@@ -1,0 +1,113 @@
+# 완전 자동화 배포 파이프라인 — PART 5.3
+#
+# main 브랜치 푸시 또는 수동 실행 시:
+#  1) Secrets → .env 동적 주입 (없으면 목업 폴백 값)
+#  2) 배포 버전 카운트(+1) 후 version.json 생성
+#  3) 번들에 버전 정보를 구워 웹 빌드(expo export)
+#  4) 산출물을 GitHub Pages 로 배포
+#  5) 갱신된 version.json 을 레포지토리에 자동 커밋/푸시(캐시 버스팅 매니페스트)
+name: Build & Deploy (Web + OTA)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# 테스트용: version.json 자동 푸시와 Pages 배포를 위해 쓰기 권한 부여
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+# 동시 배포 방지 — 진행 중 배포가 있으면 최신 것만 남긴다.
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.pages.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # version.json 커밋을 푸시할 수 있도록 토큰 유지
+          persist-credentials: true
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # --- .env 동적 주입 ------------------------------------------------
+      # Secrets 값이 비어 있어도 빌드가 죽지 않도록 기본값으로 폴백.
+      # (env.ts 가 빈 API 주소를 감지하면 자동으로 목업 데이터로 폴백한다.)
+      - name: Inject .env from Secrets
+        run: |
+          cat > .env <<EOF
+          EXPO_PUBLIC_API_BASE_URL=${{ secrets.EXPO_PUBLIC_API_BASE_URL }}
+          EXPO_PUBLIC_API_TIMEOUT_MS=${{ secrets.EXPO_PUBLIC_API_TIMEOUT_MS || '10000' }}
+          EXPO_PUBLIC_USE_MOCK_DATA=${{ secrets.EXPO_PUBLIC_USE_MOCK_DATA }}
+          EXPO_PUBLIC_SENTRY_DSN=${{ secrets.EXPO_PUBLIC_SENTRY_DSN }}
+          EOF
+          echo ".env 생성 완료 (값은 마스킹됨)"
+
+      # --- 버전 카운트 & 매니페스트 -------------------------------------
+      - name: Bump build version
+        run: node scripts/bump-version.mjs
+
+      # 번들에 구워질 빌드 메타데이터를 .env 에 덧붙인다(런타임 OTA 비교 기준).
+      - name: Append build metadata to .env
+        run: |
+          {
+            echo "EXPO_PUBLIC_BUILD_NUMBER=${APP_BUILD_NUMBER}"
+            echo "EXPO_PUBLIC_APP_VERSION=${APP_VERSION}"
+            echo "EXPO_PUBLIC_COMMIT_SHA=${APP_COMMIT}"
+          } >> .env
+
+      - name: Type check
+        run: npm run typecheck
+
+      # --- 웹 빌드 -------------------------------------------------------
+      # public/version.json 은 expo export 시 dist 루트로 자동 복사된다.
+      - name: Export web bundle
+        run: npx expo export --platform web --output-dir dist
+
+      # SPA 라우팅/직접 진입 대응 (Pages 는 404.html 로 폴백)
+      - name: SPA fallback
+        run: cp dist/index.html dist/404.html || true
+
+      # --- GitHub Pages 배포 --------------------------------------------
+      - name: Setup Pages
+        id: pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v4
+
+      # --- version.json 자동 커밋/푸시 ----------------------------------
+      # 배포된 코드가 참조할 최신 매니페스트를 레포지토리에 기록한다.
+      - name: Commit version manifest
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add version.json public/version.json
+          if git diff --cached --quiet; then
+            echo "변경 사항 없음 — 커밋 스킵"
+          else
+            git commit -m "chore(release): build ${APP_BUILD_NUMBER} (v${APP_VERSION}) [skip ci]"
+            git push origin HEAD:${{ github.ref_name }}
+          fi
