@@ -9,6 +9,7 @@ import { Badge } from '../../src/components/ui/Badge';
 import { Card } from '../../src/components/ui/Card';
 import { Calendar } from '../../src/components/ui/Calendar';
 import { ErrorState } from '../../src/components/ui/ErrorState';
+import { LivePresenceCard } from '../../src/components/community/LivePresenceCard';
 import { fontMono, fontCute } from '../../src/theme/tokens';
 import { getCategoryIcon } from '../../src/constants/categories';
 import { getDifficultyMeta } from '../../src/constants/difficulty';
@@ -149,6 +150,8 @@ export default function HomeScreen() {
           style={{ backgroundColor: c.primary, borderRadius: 16, padding: 16, alignItems: 'center', marginBottom: 14 }}>
           <Text style={{ color: c.textOnPrimary, fontSize: 15 * fs, fontWeight: '800', fontFamily: fontCute }}>학습 시작하기</Text>
         </Pressable>
+
+        <LivePresenceCard />
 
         <Calendar learnedDates={learnedDates} />
 

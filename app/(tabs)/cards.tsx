@@ -8,6 +8,8 @@ import { Button } from '../../src/components/ui/Button';
 import { Badge } from '../../src/components/ui/Badge';
 import { SkeletonLoader } from '../../src/components/ui/SkeletonLoader';
 import { ErrorState } from '../../src/components/ui/ErrorState';
+import { QuestionImage } from '../../src/components/ui/QuestionImage';
+import { CategoryTrail } from '../../src/components/ui/CategoryTrail';
 import { fontCute } from '../../src/theme/tokens';
 import { getCategoryIcon } from '../../src/constants/categories';
 import { ROUTES } from '../../src/constants/routes';
@@ -118,12 +120,23 @@ export default function CardsScreen() {
           <Pressable onPress={() => { if (exiting) return; setFlipped((f) => !f); }} style={{ flex: 1 }}>
             {!flipped ? (
               <>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <Badge label={card.category} />
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+                  <View style={{ flex: 1, paddingRight: 8 }}>
+                    <Badge label={card.category} />
+                    <View style={{ marginTop: 8 }}>
+                      <CategoryTrail category={card.category} subCategory={card.subCategory} topic={card.topic} size="sm" />
+                    </View>
+                  </View>
                   <Text style={{ color: c.textSecondary, fontSize: 11, fontFamily: fontCute }}>{index + 1}/{allCards.length}</Text>
                 </View>
                 <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-                  <Ionicons name={getCategoryIcon(card.category)} size={48 * fs} color={c.primary} style={{ marginBottom: 12, opacity: 0.6 }} />
+                  {card.imageUrl ? (
+                    <View style={{ width: '100%', marginBottom: 18 }}>
+                      <QuestionImage uri={card.imageUrl} height={170} />
+                    </View>
+                  ) : (
+                    <Ionicons name={getCategoryIcon(card.category)} size={48 * fs} color={c.primary} style={{ marginBottom: 12, opacity: 0.6 }} />
+                  )}
                   <Text style={{ color: c.textPrimary, fontSize: 20 * fs, fontWeight: '700', lineHeight: 30, textAlign: 'center', fontFamily: fontCute }}>
                     {card.question}
                   </Text>

@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { TextInput, View, Text, StyleSheet, type TextInputProps } from 'react-native';
 import { useTheme } from '../../theme/ThemeProvider';
-import { radius, fontCute } from '../../theme/tokens';
+import { radius, fontBody, fontDisplay } from '../../theme/tokens';
 
 type FieldStatus = 'default' | 'success' | 'error' | 'disabled';
 
@@ -29,7 +29,7 @@ export function TextField({
 
   return (
     <View style={{ marginBottom: 16 }}>
-      {label && <Text style={[styles.label, { color: c.textPrimary, fontSize: 13 * fontScale, fontFamily: fontCute }]}>{label}</Text>}
+      {label && <Text style={[styles.label, { color: c.textPrimary, fontSize: 13 * fontScale, fontFamily: fontDisplay }]}>{label}</Text>}
       <TextInput
         {...inputProps}
         editable={status !== 'disabled'}
@@ -43,12 +43,12 @@ export function TextField({
             backgroundColor: status === 'disabled' ? c.surfaceAlt : c.surface,
             color: c.textPrimary,
             fontSize: 15 * fontScale,
-            fontFamily: fontCute,
+            fontFamily: fontBody,
           },
         ]}
       />
       {helperText && (
-        <Text style={[styles.helper, { color: status === 'error' ? c.error : c.textSecondary, fontSize: 12 * fontScale, fontFamily: fontCute }]}>
+        <Text style={[styles.helper, { color: status === 'error' ? c.error : c.textSecondary, fontSize: 12 * fontScale, fontFamily: fontBody }]}>
           {helperText}
         </Text>
       )}

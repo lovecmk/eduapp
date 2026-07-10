@@ -14,6 +14,10 @@ import { BridgeLogo } from '../src/components/ui/BridgeLogo';
 import { ErrorBoundary } from '../src/components/ui/ErrorBoundary';
 import { UpdatePrompt } from '../src/components/ui/UpdatePrompt';
 import { useAppUpdate } from '../src/hooks/useAppUpdate';
+import { APP_FONTS } from '../src/theme/tokens';
+import { applyGlobalFont } from '../src/theme/applyGlobalFont';
+
+applyGlobalFont();
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
@@ -25,9 +29,7 @@ function RootContent() {
   const bootstrapped = useAuthStore((s) => s.bootstrapped);
   const [splashDone, setSplashDone] = useState(false);
   const opacity = useRef(new Animated.Value(1)).current;
-  const [fontsLoaded] = useFonts({
-    'Jua-Regular': require('../assets/fonts/Jua-Regular.ttf'),
-  });
+  const [fontsLoaded] = useFonts(APP_FONTS);
   const { updateAvailable, remote, apply, dismiss } = useAppUpdate();
 
   useEffect(() => {

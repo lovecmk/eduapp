@@ -6,6 +6,8 @@ import { useTheme } from '../../src/theme/ThemeProvider';
 import { Badge } from '../../src/components/ui/Badge';
 import { Button } from '../../src/components/ui/Button';
 import { ScreenHeader } from '../../src/components/ui/ScreenHeader';
+import { QuestionImage } from '../../src/components/ui/QuestionImage';
+import { CategoryTrail } from '../../src/components/ui/CategoryTrail';
 import { fontCute } from '../../src/theme/tokens';
 import { getCategoryIcon } from '../../src/constants/categories';
 import { getDifficultyMeta } from '../../src/constants/difficulty';
@@ -43,7 +45,7 @@ export default function ContentDetailScreen() {
       <ScreenHeader title="컨텐츠 상세" />
 
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 100 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
           <Ionicons name={getCategoryIcon(card.category)} size={26} color={c.primary} />
           <Badge label={card.category} />
           <Text style={{ color: diff.color, fontSize: 12, fontWeight: '700', fontFamily: fontCute }}>{diff.label}</Text>
@@ -51,6 +53,16 @@ export default function ContentDetailScreen() {
             <Text style={{ color: c.textSecondary, fontSize: 11, fontWeight: '600', fontFamily: fontCute }}>{statusLabel[card.status]}</Text>
           </View>
         </View>
+
+        <View style={{ marginBottom: 14 }}>
+          <CategoryTrail category={card.category} subCategory={card.subCategory} topic={card.topic} />
+        </View>
+
+        {card.imageUrl ? (
+          <View style={{ marginBottom: 14 }}>
+            <QuestionImage uri={card.imageUrl} height={200} />
+          </View>
+        ) : null}
 
         <View style={{ backgroundColor: c.surface, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: c.border, marginBottom: 14 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 6 }}>

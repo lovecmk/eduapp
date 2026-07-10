@@ -2,11 +2,12 @@ import type { CardDTO } from '../dto/CardDTO';
 import type { LearningCard, CardCategory, CardStatus } from '../../domain/models/LearningCard';
 
 const CATEGORY_MAP: Record<string, CardCategory> = {
-  FIRE: '소방',
+  ARCH: '건축',
+  STRUCT: '구조',
+  MECH: '기계설비',
   ELEC: '전기',
-  FALL: '추락',
-  CHEM: '화학',
-  MACH: '기계',
+  FIRE: '소방',
+  ELEV: '승강기',
 };
 
 const STATUS_MAP: Record<CardDTO['status_cd'], CardStatus> = {
@@ -31,11 +32,14 @@ export class CardMapper {
     }
     return {
       id: dto.id,
-      category: CATEGORY_MAP[dto.category_cd] ?? '소방',
+      category: CATEGORY_MAP[dto.category_cd] ?? '건축',
+      subCategory: dto.sub_category_nm?.trim() ?? '',
+      topic: dto.topic_nm?.trim() ?? '',
       difficulty: DIFFICULTY_MAP[dto.difficulty_cd ?? 'MEDIUM'] ?? 'medium',
       question: dto.question_txt?.trim() ?? '',
       answer: dto.answer_txt?.trim() ?? '',
       explanation: dto.explanation_txt?.trim() ?? '',
+      imageUrl: dto.image_url?.trim() || undefined,
       highlights: dto.highlights,
       standards: dto.standards,
       status: STATUS_MAP[dto.status_cd] ?? 'new',

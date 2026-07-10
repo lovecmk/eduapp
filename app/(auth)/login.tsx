@@ -1,24 +1,79 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, KeyboardAvoidingView, Platform, ScrollView, Pressable, Modal, Linking, Dimensions } from 'react-native';
+import { View, Text, KeyboardAvoidingView, Platform, ScrollView, Pressable, Modal, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, {
+  useSharedValue, useAnimatedStyle, withRepeat, withSequence, withTiming, Easing,
+} from 'react-native-reanimated';
 import { Button } from '../../src/components/ui/Button';
 import { TextField } from '../../src/components/ui/TextField';
 import { SocialButtonRow } from '../../src/components/ui/SocialButton';
 import { BridgeLogo } from '../../src/components/ui/BridgeLogo';
 import { BrandWordmark } from '../../src/components/ui/BrandWordmark';
 import { useTheme } from '../../src/theme/ThemeProvider';
-import { fontMono, fontCute } from '../../src/theme/tokens';
+import { fontMono, fontCute, fontBody, fontDisplay } from '../../src/theme/tokens';
+import { ALL_CATEGORIES, CATEGORY_COLOR, CATEGORY_ICON } from '../../src/constants/categories';
 import { isBiometricAvailable, tryBiometricLogin } from '../../src/data/auth/BiometricAuth';
 import { useAuthStore } from '../../src/store/authStore';
+import { useCommunity } from '../../src/hooks/useCommunity';
 import { ROUTES } from '../../src/constants/routes';
 
-const { width: SCREEN_W } = Dimensions.get('window');
-const GRID_SIZE = 8;
-const GRID_ICONS = ['flame', 'school', 'shield-checkmark', 'trending-up', 'trophy', 'calendar', 'stats-chart', 'bulb',
-  'heart', 'star', 'leaf', 'rocket', 'medal', 'notifications', 'book', 'refresh',
-] as const;
+/** 로그인 화면 상단의 실시간 "함께 학습 중" 배지 — 첫 화면부터 혼자가 아님을 전한다. */
+function LivePresencePill() {
+  const { theme } = useTheme();
+  const c = theme.colors;
+  const { data } = useCommunity();
+  const scale = useSharedValue(1);
+  const opacity = useSharedValue(0.5);
+
+  useEffect(() => {
+    scale.value = withRepeat(withSequence(withTiming(2.2, { duration: 1300, easing: Easing.out(Easing.ease) }), withTiming(1, { duration: 0 })), -1);
+    opacity.value = withRepeat(withSequence(withTiming(0, { duration: 1300 }), withTiming(0.5, { duration: 0 })), -1);
+  }, []);
+  const ring = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }], opacity: opacity.value }));
+
+  if (!data) return null;
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: c.surfaceAlt, borderColor: c.border, borderWidth: 1, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 7, marginTop: 16 }}>
+      <View style={{ width: 8, height: 8, alignItems: 'center', justifyContent: 'center' }}>
+        <Animated.View style={[{ position: 'absolute', width: 8, height: 8, borderRadius: 4, backgroundColor: '#34C759' }, ring]} />
+        <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#34C759' }} />
+      </View>
+      <Text style={{ color: c.textSecondary, fontSize: 12.5, fontFamily: fontBody }}>
+        지금 <Text style={{ color: c.primary, fontFamily: fontDisplay }}>{data.onlineNow.toLocaleString()}명</Text>의 점검자가 함께 학습 중
+      </Text>
+    </View>
+  );
+}
+
+function LinkModal({
+  visible, onClose, title, desc,
+}: { visible: boolean; onClose: () => void; title: string; desc: string }) {
+  const { theme, fontScale } = useTheme();
+  const c = theme.colors;
+  const fs = fontScale;
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' }} onPress={onClose}>
+        <Pressable onPress={() => {}} style={{ backgroundColor: c.surface, borderRadius: 24, padding: 24, marginHorizontal: 32, width: '82%', maxWidth: 340, borderWidth: 1, borderColor: c.border }}>
+          <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: c.primary + '18', alignSelf: 'center', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
+            <Ionicons name="link-outline" size={26} color={c.primary} />
+          </View>
+          <Text style={{ color: c.textPrimary, fontSize: 17 * fs, textAlign: 'center', marginBottom: 8, fontFamily: fontDisplay }}>{title}</Text>
+          <Text style={{ color: c.textSecondary, fontSize: 13 * fs, textAlign: 'center', lineHeight: 20, marginBottom: 16, fontFamily: fontBody }}>{desc}</Text>
+          <View style={{ backgroundColor: c.surfaceAlt, borderRadius: 12, padding: 10, marginBottom: 20, alignItems: 'center' }}>
+            <Text style={{ color: c.primary, fontSize: 12, fontWeight: '600', fontFamily: fontMono }}>bridge.kfpa.or.kr</Text>
+          </View>
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            <View style={{ flex: 1 }}><Button label="취소" variant="outline" onPress={onClose} /></View>
+            <View style={{ flex: 1 }}><Button label="이동하기" variant="filled" onPress={() => { Linking.openURL('https://bridge.kfpa.or.kr/'); onClose(); }} /></View>
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
 
 export default function LoginScreen() {
   const { theme, fontScale } = useTheme();
@@ -56,39 +111,55 @@ export default function LoginScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.bg }}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={{ flexGrow: 1 }} showsVerticalScrollIndicator={false}>
-          <View style={{ alignItems: 'center', paddingTop: 32, paddingBottom: 8 }}>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 6, marginBottom: 20, opacity: 0.15, paddingHorizontal: 20 }}>
-              {Array.from({ length: GRID_SIZE * 2 }).map((_, i) => (
-                <View key={i} style={{
-                  width: (SCREEN_W - 40 - 6 * 7) / 8, aspectRatio: 1,
-                  backgroundColor: c.surfaceAlt, borderRadius: 12,
-                  alignItems: 'center', justifyContent: 'center',
+        <ScrollView contentContainerStyle={{ flexGrow: 1, paddingBottom: 24 }} showsVerticalScrollIndicator={false}>
+          {/* 히어로 */}
+          <View style={{ alignItems: 'center', paddingTop: 40, paddingHorizontal: 24 }}>
+            <View style={{
+              width: 76, height: 76, borderRadius: 22, backgroundColor: c.surface,
+              borderWidth: 1, borderColor: c.border, alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 8px 24px rgba(37,99,235,0.14)', elevation: 4,
+            }}>
+              <BridgeLogo size={48} />
+            </View>
+            <View style={{ marginTop: 16 }}>
+              <BrandWordmark size="md" />
+            </View>
+            <Text style={{ color: c.textPrimary, fontSize: 15 * fs, marginTop: 14, fontFamily: fontDisplay, textAlign: 'center' }}>
+              건물점검, 매일 3분이면 충분합니다
+            </Text>
+            <Text style={{ color: c.textSecondary, fontSize: 12.5 * fs, marginTop: 4, fontFamily: fontBody, textAlign: 'center' }}>
+              점검 실무 지식을 카드로 가볍게 쌓아보세요
+            </Text>
+
+            {/* 학습 분야 칩 */}
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 6, marginTop: 18 }}>
+              {ALL_CATEGORIES.map((cat) => (
+                <View key={cat} style={{
+                  flexDirection: 'row', alignItems: 'center', gap: 4,
+                  backgroundColor: CATEGORY_COLOR[cat] + '14',
+                  borderWidth: 1, borderColor: CATEGORY_COLOR[cat] + '33',
+                  borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5,
                 }}>
-                  <Ionicons name={GRID_ICONS[i % GRID_ICONS.length]} size={14} color={c.textSecondary} />
+                  <Ionicons name={CATEGORY_ICON[cat]} size={12} color={CATEGORY_COLOR[cat]} />
+                  <Text style={{ color: CATEGORY_COLOR[cat], fontSize: 11.5, fontFamily: fontDisplay }}>{cat}</Text>
                 </View>
               ))}
             </View>
 
-            <BridgeLogo size={72} />
-            <View style={{ marginTop: 10 }}>
-              <BrandWordmark size="md" />
-            </View>
-            <Text style={{ color: c.textSecondary, fontSize: 13 * fs, marginTop: 6, fontFamily: fontCute }}>
-              매일 3분, 내일의 안전을
-            </Text>
+            <LivePresencePill />
           </View>
 
+          {/* 로그인 카드 */}
           <View style={{
             backgroundColor: c.surface, marginHorizontal: 20, borderRadius: 24,
-            borderWidth: 1, borderColor: c.border, padding: 20, marginBottom: 16,
-            boxShadow: '0 4px 16px rgba(0,0,0,0.06)', elevation: 3,
+            borderWidth: 1, borderColor: c.border, padding: 22, marginTop: 24, marginBottom: 16,
+            boxShadow: '0 8px 28px rgba(15,23,42,0.08)', elevation: 3,
           }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <Text style={{ color: c.textPrimary, fontSize: 17 * fs, fontWeight: '800', fontFamily: fontCute }}>
-                로그인
-              </Text>
-              <Ionicons name="lock-closed" size={18} color={c.primary} />
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+              <Text style={{ color: c.textPrimary, fontSize: 18 * fs, fontFamily: fontDisplay }}>로그인</Text>
+              <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: c.primary + '14', alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="shield-checkmark" size={17} color={c.primary} />
+              </View>
             </View>
 
             <TextField
@@ -111,18 +182,18 @@ export default function LoginScreen() {
 
             <Button label="로그인" variant="filled" loading={loading} onPress={onLogin} style={{ marginTop: 4 }} />
 
-            <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 14, gap: 20 }}>
-              <Pressable onPress={() => setShowSignupModal(true)}>
-                <Text style={{ color: c.primary, fontSize: 13 * fs, fontWeight: '600', fontFamily: fontCute }}>회원가입</Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 16, gap: 18, alignItems: 'center' }}>
+              <Pressable onPress={() => setShowSignupModal(true)} hitSlop={8}>
+                <Text style={{ color: c.textSecondary, fontSize: 13 * fs, fontFamily: fontBody }}>회원가입</Text>
               </Pressable>
-              <Text style={{ color: c.textSecondary, fontSize: 13 * fs, fontFamily: fontCute }}>|</Text>
-              <Pressable onPress={() => setShowFindPwModal(true)}>
-                <Text style={{ color: c.primary, fontSize: 13 * fs, fontWeight: '600', fontFamily: fontCute }}>비밀번호 찾기</Text>
+              <View style={{ width: 1, height: 12, backgroundColor: c.border }} />
+              <Pressable onPress={() => setShowFindPwModal(true)} hitSlop={8}>
+                <Text style={{ color: c.textSecondary, fontSize: 13 * fs, fontFamily: fontBody }}>비밀번호 찾기</Text>
               </Pressable>
             </View>
 
             {bioAvailable && (
-              <View style={{ marginTop: 10 }}>
+              <View style={{ marginTop: 14 }}>
                 <Button label="생체인증으로 로그인" variant="outline" onPress={onBiometric} />
               </View>
             )}
@@ -130,63 +201,30 @@ export default function LoginScreen() {
 
           <View style={{ flexDirection: 'row', alignItems: 'center', marginHorizontal: 40, marginBottom: 16 }}>
             <View style={{ flex: 1, height: 1, backgroundColor: c.border }} />
-            <Text style={{ marginHorizontal: 14, color: c.textSecondary, fontSize: 12, fontFamily: fontCute }}>또는</Text>
+            <Text style={{ marginHorizontal: 14, color: c.textSecondary, fontSize: 12, fontFamily: fontBody }}>간편 로그인</Text>
             <View style={{ flex: 1, height: 1, backgroundColor: c.border }} />
           </View>
 
           <SocialButtonRow />
 
-          <Text style={{ textAlign: 'center', color: c.textSecondary, fontSize: 11, marginTop: 24, marginBottom: 16, fontFamily: fontCute }}>
+          <Text style={{ textAlign: 'center', color: c.textSecondary, fontSize: 11, marginTop: 22, fontFamily: fontBody }}>
             Bridge와 동일한 계정을 사용합니다
           </Text>
         </ScrollView>
       </KeyboardAvoidingView>
 
-      <Modal visible={showSignupModal} transparent animationType="fade" onRequestClose={() => setShowSignupModal(false)}>
-        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' }} onPress={() => setShowSignupModal(false)}>
-          <Pressable onPress={() => {}} style={{ backgroundColor: c.surface, borderRadius: 20, padding: 24, marginHorizontal: 32, width: '80%', maxWidth: 320, borderWidth: 1, borderColor: c.border }}>
-            <Ionicons name="link-outline" size={28} color={c.primary} style={{ alignSelf: 'center', marginBottom: 8 }} />
-            <Text style={{ color: c.textPrimary, fontSize: 17 * fs, fontWeight: '800', textAlign: 'center', marginBottom: 8, fontFamily: fontCute }}>회원가입</Text>
-            <Text style={{ color: c.textSecondary, fontSize: 13 * fs, textAlign: 'center', lineHeight: 20, marginBottom: 16, fontFamily: fontCute }}>
-              회원가입은{'\n'}브릿지 웹사이트에서 가능합니다
-            </Text>
-            <View style={{ backgroundColor: c.surfaceAlt, borderRadius: 12, padding: 10, marginBottom: 20, alignItems: 'center' }}>
-              <Text style={{ color: c.primary, fontSize: 12, fontWeight: '600', fontFamily: fontMono }}>bridge.kfpa.or.kr</Text>
-            </View>
-            <View style={{ flexDirection: 'row', gap: 10 }}>
-              <View style={{ flex: 1 }}>
-                <Button label="취소" variant="outline" onPress={() => setShowSignupModal(false)} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Button label="이동하기" variant="filled" onPress={() => { Linking.openURL('https://bridge.kfpa.or.kr/'); setShowSignupModal(false); }} />
-              </View>
-            </View>
-          </Pressable>
-        </Pressable>
-      </Modal>
-
-      <Modal visible={showFindPwModal} transparent animationType="fade" onRequestClose={() => setShowFindPwModal(false)}>
-        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' }} onPress={() => setShowFindPwModal(false)}>
-          <Pressable onPress={() => {}} style={{ backgroundColor: c.surface, borderRadius: 20, padding: 24, marginHorizontal: 32, width: '80%', maxWidth: 320, borderWidth: 1, borderColor: c.border }}>
-            <Ionicons name="link-outline" size={28} color={c.primary} style={{ alignSelf: 'center', marginBottom: 8 }} />
-            <Text style={{ color: c.textPrimary, fontSize: 17 * fs, fontWeight: '800', textAlign: 'center', marginBottom: 8, fontFamily: fontCute }}>비밀번호 변경</Text>
-            <Text style={{ color: c.textSecondary, fontSize: 13 * fs, textAlign: 'center', lineHeight: 20, marginBottom: 16, fontFamily: fontCute }}>
-              비밀번호 변경은{'\n'}브릿지 웹사이트에서 가능합니다
-            </Text>
-            <View style={{ backgroundColor: c.surfaceAlt, borderRadius: 12, padding: 10, marginBottom: 20, alignItems: 'center' }}>
-              <Text style={{ color: c.primary, fontSize: 12, fontWeight: '600', fontFamily: fontMono }}>bridge.kfpa.or.kr</Text>
-            </View>
-            <View style={{ flexDirection: 'row', gap: 10 }}>
-              <View style={{ flex: 1 }}>
-                <Button label="취소" variant="outline" onPress={() => setShowFindPwModal(false)} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Button label="이동하기" variant="filled" onPress={() => { Linking.openURL('https://bridge.kfpa.or.kr/'); setShowFindPwModal(false); }} />
-              </View>
-            </View>
-          </Pressable>
-        </Pressable>
-      </Modal>
+      <LinkModal
+        visible={showSignupModal}
+        onClose={() => setShowSignupModal(false)}
+        title="회원가입"
+        desc={'회원가입은\n브릿지 웹사이트에서 가능합니다'}
+      />
+      <LinkModal
+        visible={showFindPwModal}
+        onClose={() => setShowFindPwModal(false)}
+        title="비밀번호 찾기"
+        desc={'비밀번호 변경은\n브릿지 웹사이트에서 가능합니다'}
+      />
     </SafeAreaView>
   );
 }

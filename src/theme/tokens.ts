@@ -72,8 +72,23 @@ export const fontMono = Platform.select({
   android: 'monospace',
   default: 'monospace',
 }) as string;
-export const fontCute = 'Jua-Regular' as const;
-export const fontBody = undefined as string | undefined;
+
+// 타이포그래피 시스템 — 전문적인 건물점검 도구에 맞춰 Pretendard 를 기본으로 사용하고,
+// 브랜드 아이덴티티(로고/워드마크)에만 Jua 를 악센트로 남긴다.
+export const fontCute = 'Jua-Regular' as const; // 브랜드 악센트 전용
+export const fontBody = 'Pretendard-Regular';
+export const fontMedium = 'Pretendard-Medium';
+export const fontDisplay = 'Pretendard-SemiBold'; // 제목/숫자 강조
+export const fontBold = 'Pretendard-Bold';
+
+// expo-font 로 로드할 폰트 맵(단일 소스). _layout 에서 참조.
+export const APP_FONTS = {
+  'Jua-Regular': require('../../assets/fonts/Jua-Regular.ttf'),
+  'Pretendard-Regular': require('../../assets/fonts/Pretendard-Regular.otf'),
+  'Pretendard-Medium': require('../../assets/fonts/Pretendard-Medium.otf'),
+  'Pretendard-SemiBold': require('../../assets/fonts/Pretendard-SemiBold.otf'),
+  'Pretendard-Bold': require('../../assets/fonts/Pretendard-Bold.otf'),
+};
 
 export const dimTheme = {
   mode: 'dim' as const,
