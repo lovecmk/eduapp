@@ -1,0 +1,14 @@
+export const ROUTES = {
+  login: '/(auth)/login',
+  signup: '/(auth)/signup',
+  findPw: '/(auth)/find-pw',
+  home: '/(tabs)',
+  cards: '/(tabs)/cards',
+  review: '/(tabs)/review',
+  stats: '/(tabs)/stats',
+  mypage: '/(tabs)/mypage',
+  notifications: '/notifications',
+  contents: '/contents',
+  settings: '/settings',
+  content: (id: string) => `/content/${id}`,
+} as const;
