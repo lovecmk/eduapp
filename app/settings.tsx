@@ -13,7 +13,6 @@ import { Switch } from '../src/components/ui/Switch';
 import { Button } from '../src/components/ui/Button';
 import { ScreenHeader } from '../src/components/ui/ScreenHeader';
 import { SettingsGroup, SettingsItem } from '../src/components/ui/SettingsGroup';
-import { SystemStatusCard } from '../src/components/ui/SystemStatusCard';
 import { MembershipCard } from '../src/components/settings/MembershipCard';
 import { SupportModal } from '../src/components/settings/SupportModal';
 import { ChangelogModal } from '../src/components/settings/ChangelogModal';
@@ -62,9 +61,10 @@ export default function SettingsScreen() {
   const {
     themeMode, fontScale: fontScaleSetting, highContrast,
     notifications, biometricLoginEnabled, dailyTarget, shuffleCards, keepScreenOn, offlineMode,
+    prioritizeWeakSpots,
     setThemeMode, setFontScale, toggleHighContrast,
     updateNotificationSetting, setBiometricLogin, setDailyTarget,
-    toggleShuffleCards, toggleKeepScreenOn, toggleOfflineMode, resetAll,
+    toggleShuffleCards, toggleKeepScreenOn, toggleOfflineMode, togglePrioritizeWeakSpots, resetAll,
   } = useSettingsStore();
 
   const user = useAuthStore((s) => s.user);
@@ -132,8 +132,6 @@ export default function SettingsScreen() {
             profileImage={profileImage}
           />
         ) : null}
-
-        <SystemStatusCard />
 
         <SettingsGroup title="알림">
           <SettingsItem
@@ -222,6 +220,12 @@ export default function SettingsScreen() {
             icon="shuffle-outline"
             label="카드 순서 섞기"
             right={<Switch value={shuffleCards} onValueChange={toggleShuffleCards} />}
+          />
+          <SettingsItem
+            icon="barbell-outline"
+            label="약점 우선 복습"
+            description="복습 시작 시 자주 잊는 카드를 먼저"
+            right={<Switch value={prioritizeWeakSpots} onValueChange={togglePrioritizeWeakSpots} />}
           />
           <SettingsItem
             icon="sunny-outline"

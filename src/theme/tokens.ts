@@ -73,13 +73,14 @@ export const fontMono = Platform.select({
   default: 'monospace',
 }) as string;
 
-// 타이포그래피 시스템 — 전문적인 건물점검 도구에 맞춰 Pretendard 를 기본으로 사용하고,
-// 브랜드 아이덴티티(로고/워드마크)에만 Jua 를 악센트로 남긴다.
-export const fontCute = 'Jua-Regular' as const; // 브랜드 악센트 전용
+// 타이포그래피 시스템 — 전 화면을 Pretendard 로 통일해 이질감을 없앤다.
+// 브랜드 워드마크/로고(BrandWordmark)만 'Jua-Regular' 문자열을 직접 사용해 아이덴티티를 유지.
 export const fontBody = 'Pretendard-Regular';
 export const fontMedium = 'Pretendard-Medium';
 export const fontDisplay = 'Pretendard-SemiBold'; // 제목/숫자 강조
 export const fontBold = 'Pretendard-Bold';
+/** (레거시 별칭) 과거 Jua 헤딩에 쓰이던 토큰 — 이제 Pretendard 로 통일. */
+export const fontCute = fontDisplay;
 
 // expo-font 로 로드할 폰트 맵(단일 소스). _layout 에서 참조.
 export const APP_FONTS = {

@@ -26,6 +26,8 @@ interface SettingsState {
   shuffleCards: boolean;
   keepScreenOn: boolean;
   offlineMode: boolean;
+  /** 복습 진입 시 약점 카드를 우선 노출 */
+  prioritizeWeakSpots: boolean;
   profileImage: string | null;
 
   setThemeMode: (mode: ThemeMode) => void;
@@ -40,6 +42,7 @@ interface SettingsState {
   toggleShuffleCards: () => void;
   toggleKeepScreenOn: () => void;
   toggleOfflineMode: () => void;
+  togglePrioritizeWeakSpots: () => void;
   setProfileImage: (uri: string | null) => void;
   /** 로컬 저장 데이터를 초기화하고 기본 설정으로 되돌린다(방어적 초기화). */
   resetAll: () => void;
@@ -63,6 +66,7 @@ const DEFAULT_SETTINGS = {
   shuffleCards: true,
   keepScreenOn: false,
   offlineMode: false,
+  prioritizeWeakSpots: false,
   profileImage: null as string | null,
 };
 
@@ -81,6 +85,7 @@ export const useSettingsStore = create<SettingsState>()(
       toggleShuffleCards: () => set((s) => ({ shuffleCards: !s.shuffleCards })),
       toggleKeepScreenOn: () => set((s) => ({ keepScreenOn: !s.keepScreenOn })),
       toggleOfflineMode: () => set((s) => ({ offlineMode: !s.offlineMode })),
+      togglePrioritizeWeakSpots: () => set((s) => ({ prioritizeWeakSpots: !s.prioritizeWeakSpots })),
       setProfileImage: (uri) => set({ profileImage: uri }),
       resetAll: () => set({ ...DEFAULT_SETTINGS }),
     }),

@@ -39,6 +39,25 @@ export function useReview() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allCards, cardsState]);
 
+  /**
+   * 약점 카드 — 기억 강도가 낮거나(박스 0~1) 자주 잊은(lapses≥1) 카드.
+   * 교육적 원리: 취약 지점을 집중 반복하면 학습 효율이 크게 오른다.
+   */
+  const weakCards = useMemo(() => {
+    return allCards
+      .filter((card) => {
+        const st = cardsState[card.id];
+        return st && card.status !== 'mastered' && (st.box <= 1 || st.lapses >= 1);
+      })
+      .sort((a, b) => {
+        const sa = cardsState[a.id]!;
+        const sb = cardsState[b.id]!;
+        return sb.lapses - sa.lapses || sa.box - sb.box;
+      })
+      .slice(0, SESSION_CAP);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allCards, cardsState]);
+
   const dueTodayCount = useMemo(
     () => allCards.filter((c) => { const s = cardsState[c.id]; return s && isDue(s, now); }).length,
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -87,5 +106,5 @@ export function useReview() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allCards, cardsState]);
 
-  return { allCards, dueCards, dueTodayCount, upcoming, nextDueAt, gradeCard, isLoading, error, refetch };
+  return { allCards, dueCards, weakCards, dueTodayCount, upcoming, nextDueAt, gradeCard, isLoading, error, refetch };
 }

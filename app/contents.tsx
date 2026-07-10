@@ -11,11 +11,12 @@ import { SkeletonLoader } from '../src/components/ui/SkeletonLoader';
 import { ErrorState } from '../src/components/ui/ErrorState';
 import { CategoryTrail } from '../src/components/ui/CategoryTrail';
 import { fontDisplay, fontBody, fontMono } from '../src/theme/tokens';
-import { getCategoryIcon, getCategoryColor, ALL_CATEGORIES } from '../src/constants/categories';
+import { getCategoryIcon, getCategoryColor } from '../src/constants/categories';
 import { getDifficultyMeta } from '../src/constants/difficulty';
+import { TRACK_LEVEL_META } from '../src/domain/models/LearningTrack';
 import { ROUTES } from '../src/constants/routes';
-import { useAllCards } from '../src/hooks/useCards';
-import type { LearningCard, CardCategory, CardStatus, CardDifficulty } from '../src/domain/models/LearningCard';
+import { useTracks, type TrackProgress } from '../src/hooks/useTracks';
+import type { LearningCard, CardStatus, CardDifficulty } from '../src/domain/models/LearningCard';
 
 const STATUS_META: Record<CardStatus, { label: string; color: string; icon: keyof typeof Ionicons.glyphMap }> = {
   new: { label: '새 카드', color: '#94A3B8', icon: 'ellipse-outline' },
@@ -23,22 +24,17 @@ const STATUS_META: Record<CardStatus, { label: string; color: string; icon: keyo
   mastered: { label: '마스터', color: '#34C759', icon: 'checkmark-circle' },
 };
 
-const DIFF_FILTERS: { key: 'all' | CardDifficulty; label: string }[] = [
-  { key: 'all', label: '전체' },
-  { key: 'easy', label: '초급' },
-  { key: 'medium', label: '중급' },
-  { key: 'hard', label: '고급' },
-];
+const DIFF_ORDER: CardDifficulty[] = ['easy', 'medium', 'hard'];
 
 export default function ContentsScreen() {
   const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
   const router = useRouter();
-  const { data: allCards = [], isLoading, error, refetch } = useAllCards();
+  const { tracks, allCards, isLoading, error, refetch } = useTracks();
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
-  const [cat, setCat] = useState<CardCategory | null>(null);
-  const [diff, setDiff] = useState<'all' | CardDifficulty>('all');
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [lockedHint, setLockedHint] = useState<string | null>(null);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -46,129 +42,195 @@ export default function ContentsScreen() {
     setRefreshing(false);
   }, [refetch]);
 
-  // 대분류별 진행 집계
-  const catStats = useMemo(() => {
-    const m = new Map<CardCategory, { total: number; mastered: number }>();
-    for (const card of allCards) {
-      const prev = m.get(card.category) ?? { total: 0, mastered: 0 };
-      prev.total += 1;
-      if (card.status === 'mastered') prev.mastered += 1;
-      m.set(card.category, prev);
-    }
-    return m;
-  }, [allCards]);
+  const active = useMemo(() => tracks.find((t) => t.track.id === activeId) ?? null, [tracks, activeId]);
 
-  const filtered = useMemo(() => {
-    let list = allCards;
-    if (cat) list = list.filter((x) => x.category === cat);
-    if (diff !== 'all') list = list.filter((x) => x.difficulty === diff);
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      list = list.filter((x) =>
-        x.question.toLowerCase().includes(q) || x.answer.toLowerCase().includes(q) ||
-        x.topic.toLowerCase().includes(q) || x.subCategory.toLowerCase().includes(q));
-    }
-    return list;
-  }, [allCards, cat, diff, search]);
+  const searchResults = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return null;
+    return allCards.filter((x) =>
+      x.question.toLowerCase().includes(q) || x.answer.toLowerCase().includes(q) ||
+      x.topic.toLowerCase().includes(q) || x.subCategory.toLowerCase().includes(q) || x.category.includes(q));
+  }, [allCards, search]);
 
   if (isLoading && allCards.length === 0 && !error) {
-    return (
-      <View style={{ flex: 1, backgroundColor: c.bg }}>
-        <ScreenHeader title="전체 컨텐츠" />
-        <SkeletonLoader count={6} />
-      </View>
-    );
+    return <View style={{ flex: 1, backgroundColor: c.bg }}><ScreenHeader title="학습 목표" /><SkeletonLoader count={5} /></View>;
   }
   if (error && allCards.length === 0) {
-    return (
-      <View style={{ flex: 1, backgroundColor: c.bg }}>
-        <ScreenHeader title="전체 컨텐츠" />
-        <ErrorState message="컨텐츠를 불러올 수 없어요" onRetry={refetch} />
-      </View>
-    );
+    return <View style={{ flex: 1, backgroundColor: c.bg }}><ScreenHeader title="학습 목표" /><ErrorState message="컨텐츠를 불러올 수 없어요" onRetry={refetch} /></View>;
   }
+
+  const goCard = (id: string) => router.push(ROUTES.content(id) as never);
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
-      <ScreenHeader title="전체 컨텐츠" />
+      <ScreenHeader title="학습 목표" />
       <ScrollView
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.primary} />}
-        contentContainerStyle={{ paddingBottom: 36 }}
+        contentContainerStyle={{ paddingBottom: 40 }}
         showsVerticalScrollIndicator={false}
       >
-        {/* 검색 */}
         <View style={{ paddingHorizontal: 20, paddingTop: 12 }}>
           <SearchBar value={search} onChange={setSearch} placeholder="주제·질문 검색..." />
         </View>
 
-        {/* 대분류 개요(진행) */}
-        <Text style={[styles.sectionLabel, { color: c.textSecondary }]}>분야별 진행</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 10, paddingBottom: 4 }}>
-          <CatCard label="전체" icon="grid" color={c.primary}
-            total={allCards.length} mastered={allCards.filter((x) => x.status === 'mastered').length}
-            active={cat === null} onPress={() => setCat(null)} />
-          {ALL_CATEGORIES.map((k) => {
-            const st = catStats.get(k) ?? { total: 0, mastered: 0 };
-            return (
-              <CatCard key={k} label={k} icon={getCategoryIcon(k)} color={getCategoryColor(k) ?? c.primary}
-                total={st.total} mastered={st.mastered} active={cat === k} onPress={() => setCat(cat === k ? null : k)} />
-            );
-          })}
-        </ScrollView>
-
-        {/* 난이도 필터 */}
-        <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 20, paddingTop: 16, paddingBottom: 6 }}>
-          {DIFF_FILTERS.map((d) => {
-            const active = d.key === diff;
-            return (
-              <Pressable key={d.key} onPress={() => setDiff(d.key)}
-                style={[styles.diffChip, { backgroundColor: active ? c.textPrimary : c.surfaceAlt, borderColor: active ? c.textPrimary : c.border }]}>
-                <Text style={{ color: active ? c.bg : c.textSecondary, fontSize: 12 * fs, fontFamily: fontDisplay }}>{d.label}</Text>
-              </Pressable>
-            );
-          })}
-          <View style={{ flex: 1 }} />
-          <Text style={{ color: c.textSecondary, fontSize: 12, fontFamily: fontMono, alignSelf: 'center' }}>{filtered.length}건</Text>
-        </View>
-
-        {/* 리스트 */}
-        <View style={{ paddingHorizontal: 20, paddingTop: 6 }}>
-          {filtered.length === 0 ? (
-            <Animated.View entering={FadeIn} style={{ alignItems: 'center', paddingVertical: 70 }}>
-              <Ionicons name="search-outline" size={40} color={c.textSecondary} />
-              <Text style={{ color: c.textSecondary, fontSize: 14 * fs, marginTop: 10, fontFamily: fontBody }}>
-                {search ? `"${search}" 검색 결과가 없어요` : '해당 조건의 컨텐츠가 없어요'}
-              </Text>
-            </Animated.View>
-          ) : (
-            filtered.map((card, i) => (
-              <Animated.View key={card.id} entering={FadeInDown.delay(Math.min(i, 8) * 40).duration(320)}>
-                <ContentRow card={card} onPress={() => router.push(ROUTES.content(card.id) as never)} />
+        {searchResults ? (
+          /* --- 검색 결과 --- */
+          <View style={{ paddingHorizontal: 20, paddingTop: 16 }}>
+            <Text style={[styles.sectionLabel, { color: c.textSecondary, marginLeft: 0 }]}>검색 결과 {searchResults.length}건</Text>
+            {searchResults.length === 0 ? (
+              <Animated.View entering={FadeIn} style={{ alignItems: 'center', paddingVertical: 60 }}>
+                <Ionicons name="search-outline" size={40} color={c.textSecondary} />
+                <Text style={{ color: c.textSecondary, fontSize: 14 * fs, marginTop: 10, fontFamily: fontBody }}>"{search}" 검색 결과가 없어요</Text>
               </Animated.View>
-            ))
-          )}
-        </View>
+            ) : searchResults.map((card, i) => (
+              <Animated.View key={card.id} entering={FadeInDown.delay(Math.min(i, 8) * 35).duration(300)}>
+                <ContentRow card={card} onPress={() => goCard(card.id)} />
+              </Animated.View>
+            ))}
+          </View>
+        ) : active ? (
+          /* --- 선택된 과정: 난이도별 문제 --- */
+          <TrackDetail progress={active} onBack={() => setActiveId(null)} onCard={goCard} onStart={() => router.push(ROUTES.cards)} />
+        ) : (
+          /* --- 과정 선택(목표) + 전체 둘러보기 --- */
+          <>
+            <Text style={[styles.sectionLabel, { color: c.textSecondary }]}>학습 목표 (과정)</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 12, paddingBottom: 4 }}>
+              {tracks.map((tp) => (
+                <TrackCard key={tp.track.id} progress={tp}
+                  onPress={() => tp.track.locked ? setLockedHint(tp.track.title) : setActiveId(tp.track.id)} />
+              ))}
+            </ScrollView>
+
+            {lockedHint && (
+              <Animated.View entering={FadeIn} style={{ marginHorizontal: 20, marginTop: 12, backgroundColor: c.surfaceAlt, borderColor: c.border, borderWidth: 1, borderRadius: 12, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Ionicons name="time-outline" size={16} color={c.textSecondary} />
+                <Text style={{ color: c.textSecondary, fontSize: 12.5 * fs, flex: 1, fontFamily: fontBody }}>
+                  <Text style={{ fontFamily: fontDisplay, color: c.textPrimary }}>{lockedHint}</Text> 과정은 준비 중이에요. 곧 만나요!
+                </Text>
+                <Pressable onPress={() => setLockedHint(null)} hitSlop={6}><Ionicons name="close" size={16} color={c.textSecondary} /></Pressable>
+              </Animated.View>
+            )}
+
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, marginTop: 22, marginBottom: 10 }}>
+              <Text style={[styles.sectionLabel, { color: c.textSecondary, marginTop: 0, marginBottom: 0, marginLeft: 0 }]}>전체 둘러보기</Text>
+              <Text style={{ color: c.textSecondary, fontSize: 12, fontFamily: fontMono }}>{allCards.length}건</Text>
+            </View>
+            <View style={{ paddingHorizontal: 20 }}>
+              {allCards.map((card, i) => (
+                <Animated.View key={card.id} entering={FadeInDown.delay(Math.min(i, 8) * 35).duration(300)}>
+                  <ContentRow card={card} onPress={() => goCard(card.id)} />
+                </Animated.View>
+              ))}
+            </View>
+          </>
+        )}
       </ScrollView>
     </View>
   );
 }
 
-function CatCard({ label, icon, color, total, mastered, active, onPress }: {
-  label: string; icon: keyof typeof Ionicons.glyphMap; color: string; total: number; mastered: number; active: boolean; onPress: () => void;
+/* ---------- 과정 상세: 난이도별 섹션 ---------- */
+function TrackDetail({ progress, onBack, onCard, onStart }: {
+  progress: TrackProgress; onBack: () => void; onCard: (id: string) => void; onStart: () => void;
 }) {
+  const { theme, fontScale: fs } = useTheme();
+  const c = theme.colors;
+  const { track, total, mastered, pct, byDifficulty } = progress;
+
+  return (
+    <View>
+      {/* 과정 헤더 */}
+      <Animated.View entering={FadeIn.duration(300)} style={{ paddingHorizontal: 20, paddingTop: 16 }}>
+        <Pressable onPress={onBack} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 12 }}>
+          <Ionicons name="chevron-back" size={16} color={c.primary} />
+          <Text style={{ color: c.primary, fontSize: 13, fontFamily: fontDisplay }}>모든 과정</Text>
+        </Pressable>
+        <View style={[styles.trackHeader, { backgroundColor: track.color + '12', borderColor: track.color + '33' }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <View style={[styles.trackHeaderIcon, { backgroundColor: track.color }]}>
+              <Ionicons name={track.icon as never} size={22} color="#fff" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={{ color: c.textPrimary, fontSize: 17 * fs, fontFamily: fontDisplay }}>{track.title}</Text>
+                <LevelBadge level={track.level} />
+              </View>
+              <Text style={{ color: c.textSecondary, fontSize: 12.5 * fs, marginTop: 2, fontFamily: fontBody }}>{track.goal}</Text>
+            </View>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 14 }}>
+            <View style={{ flex: 1, height: 8, backgroundColor: c.surface, borderRadius: 4, overflow: 'hidden' }}>
+              <View style={{ width: `${pct}%`, height: '100%', backgroundColor: track.color, borderRadius: 4 }} />
+            </View>
+            <Text style={{ color: c.textPrimary, fontSize: 12, fontFamily: fontMono }}>{mastered}/{total} · {pct}%</Text>
+          </View>
+        </View>
+      </Animated.View>
+
+      {/* 난이도별 문제 */}
+      <View style={{ paddingHorizontal: 20, paddingTop: 18 }}>
+        {DIFF_ORDER.map((d) => {
+          const cards = byDifficulty[d];
+          if (cards.length === 0) return null;
+          const meta = getDifficultyMeta(theme, d);
+          return (
+            <View key={d} style={{ marginBottom: 18 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: meta.color }} />
+                <Text style={{ color: c.textPrimary, fontSize: 14 * fs, fontFamily: fontDisplay }}>{meta.label}</Text>
+                <Text style={{ color: c.textSecondary, fontSize: 12, fontFamily: fontMono }}>{cards.length}문제</Text>
+              </View>
+              {cards.map((card, i) => (
+                <Animated.View key={card.id} entering={FadeInDown.delay(Math.min(i, 6) * 40).duration(300)}>
+                  <ContentRow card={card} onPress={() => onCard(card.id)} />
+                </Animated.View>
+              ))}
+            </View>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+function LevelBadge({ level }: { level: TrackProgress['track']['level'] }) {
+  const meta = TRACK_LEVEL_META[level];
+  return (
+    <View style={{ backgroundColor: meta.color + '22', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 }}>
+      <Text style={{ color: meta.color, fontSize: 10.5, fontFamily: fontDisplay }}>{meta.label}</Text>
+    </View>
+  );
+}
+
+function TrackCard({ progress, onPress }: { progress: TrackProgress; onPress: () => void }) {
   const { theme } = useTheme();
   const c = theme.colors;
-  const pct = total > 0 ? Math.round((mastered / total) * 100) : 0;
+  const { track, total, mastered, pct } = progress;
+  const locked = track.locked;
   return (
-    <Pressable onPress={onPress} style={[styles.catCard, { backgroundColor: c.surface, borderColor: active ? color : c.border, borderWidth: active ? 2 : 1 }]}>
-      <View style={[styles.catIcon, { backgroundColor: color + '1A' }]}>
-        <Ionicons name={icon} size={18} color={color} />
+    <Pressable onPress={onPress} style={[styles.trackCard, { backgroundColor: c.surface, borderColor: c.border, opacity: locked ? 0.85 : 1 }]}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <View style={[styles.trackIcon, { backgroundColor: track.color + (locked ? '14' : '1A') }]}>
+          <Ionicons name={(locked ? 'lock-closed' : track.icon) as never} size={20} color={track.color} />
+        </View>
+        <LevelBadge level={track.level} />
       </View>
-      <Text style={{ color: c.textPrimary, fontSize: 13, fontFamily: fontDisplay, marginTop: 8 }}>{label}</Text>
-      <Text style={{ color: c.textSecondary, fontSize: 11, fontFamily: fontMono, marginTop: 2 }}>{mastered}/{total}</Text>
-      <View style={{ height: 4, backgroundColor: c.surfaceAlt, borderRadius: 2, overflow: 'hidden', marginTop: 8, width: '100%' }}>
-        <View style={{ width: `${pct}%`, height: '100%', backgroundColor: color, borderRadius: 2 }} />
-      </View>
+      <Text style={{ color: c.textPrimary, fontSize: 15, fontFamily: fontDisplay, marginTop: 12 }}>{track.title}</Text>
+      <Text style={{ color: c.textSecondary, fontSize: 11.5, marginTop: 2, fontFamily: fontBody }}>{track.subtitle}</Text>
+      {locked ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 14 }}>
+          <Ionicons name="time-outline" size={13} color={c.textSecondary} />
+          <Text style={{ color: c.textSecondary, fontSize: 11.5, fontFamily: fontDisplay }}>준비 중</Text>
+        </View>
+      ) : (
+        <>
+          <View style={{ height: 5, backgroundColor: c.surfaceAlt, borderRadius: 3, overflow: 'hidden', marginTop: 14 }}>
+            <View style={{ width: `${pct}%`, height: '100%', backgroundColor: track.color, borderRadius: 3 }} />
+          </View>
+          <Text style={{ color: c.textSecondary, fontSize: 11, fontFamily: fontMono, marginTop: 6 }}>{mastered}/{total} 마스터</Text>
+        </>
+      )}
     </Pressable>
   );
 }
@@ -215,10 +277,11 @@ function ContentRow({ card, onPress }: { card: LearningCard; onPress: () => void
 }
 
 const styles = StyleSheet.create({
-  sectionLabel: { fontSize: 12, fontFamily: fontDisplay, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 20, marginBottom: 10, marginLeft: 20 },
-  catCard: { width: 108, borderRadius: 16, padding: 12 },
-  catIcon: { width: 34, height: 34, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
-  diffChip: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 999, borderWidth: 1 },
+  sectionLabel: { fontSize: 12, fontFamily: fontDisplay, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 20, marginBottom: 12, marginLeft: 20 },
+  trackCard: { width: 168, borderRadius: 18, borderWidth: 1, padding: 14 },
+  trackIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  trackHeader: { borderRadius: 18, borderWidth: 1, padding: 16 },
+  trackHeaderIcon: { width: 46, height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   row: { flexDirection: 'row', gap: 12, alignItems: 'flex-start', borderRadius: 16, borderWidth: 1, padding: 12, marginBottom: 10 },
   thumb: { width: 56, height: 56, borderRadius: 12 },
 });

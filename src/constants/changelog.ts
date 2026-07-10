@@ -7,6 +7,17 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.4.0',
+    date: '2026-07-10',
+    highlights: [
+      '학습 목표(과정) 도입 — 과정 → 난이도별 문제 구성(자격증·기술사 확장 대비)',
+      '약점 집중 학습 — 자주 잊는 카드를 골라 집중 반복',
+      '설정에 "약점 우선 복습" 추가',
+      '전 화면 Pretendard 통일 등 UI/UX 일관성 정리',
+      '시스템 상태 카드 제거',
+    ],
+  },
+  {
     version: '1.3.0',
     date: '2026-07-10',
     highlights: [

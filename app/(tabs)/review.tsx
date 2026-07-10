@@ -16,6 +16,7 @@ import { getCategoryIcon } from '../../src/constants/categories';
 import { ROUTES } from '../../src/constants/routes';
 import { useReview } from '../../src/hooks/useReview';
 import { useSrsStore } from '../../src/store/srsStore';
+import { useSettingsStore } from '../../src/store/settingsStore';
 import { initialState, predictLabel, humanizeInterval, type Grade } from '../../src/domain/srs';
 import type { LearningCard } from '../../src/domain/models/LearningCard';
 
@@ -31,9 +32,10 @@ export default function ReviewScreen() {
   const c = theme.colors;
   const router = useRouter();
 
-  const { dueCards, upcoming, nextDueAt, gradeCard, isLoading, error, refetch } = useReview();
+  const { dueCards, weakCards, upcoming, nextDueAt, gradeCard, isLoading, error, refetch } = useReview();
   const srsCards = useSrsStore((s) => s.cards);
 
+  const [mode, setMode] = useState<'due' | 'weak'>('due');
   const [session, setSession] = useState<LearningCard[] | null>(null);
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
@@ -41,10 +43,25 @@ export default function ReviewScreen() {
   const [againCount, setAgainCount] = useState(0);
   const [done, setDone] = useState(false);
 
-  // 세션 시작 시 due 카드를 1회 스냅샷(채점 중 재정렬 방지).
+  const prioritizeWeak = useSettingsStore((s) => s.prioritizeWeakSpots);
+  const source = mode === 'weak' ? weakCards : dueCards;
+
+  // 세션 시작 시 대상 카드를 1회 스냅샷(채점 중 재정렬 방지).
+  // "약점 우선" 설정이 켜져 있고 약점 카드가 있으면 약점 모드로 시작.
   useEffect(() => {
-    if (session === null && !isLoading) setSession(dueCards);
-  }, [isLoading, dueCards, session]);
+    if (session !== null || isLoading) return;
+    const preferWeak = prioritizeWeak && weakCards.length > 0;
+    const startMode = preferWeak ? 'weak' : 'due';
+    if (startMode !== mode) setMode(startMode);
+    setSession(startMode === 'weak' ? weakCards : dueCards);
+  }, [isLoading, session, weakCards, dueCards, prioritizeWeak, mode]);
+
+  const switchMode = (m: 'due' | 'weak') => {
+    if (m === mode) return;
+    setMode(m);
+    setSession(m === 'weak' ? weakCards : dueCards);
+    setIndex(0); setFlipped(false); setReviewed(0); setAgainCount(0); setDone(false);
+  };
 
   const card = session?.[index];
   const srsState = card ? srsCards[card.id] ?? initialState() : initialState();
@@ -66,7 +83,7 @@ export default function ReviewScreen() {
   };
 
   const restart = () => {
-    setSession(dueCards);
+    setSession(source);
     setIndex(0); setFlipped(false); setReviewed(0); setAgainCount(0); setDone(false);
   };
 
@@ -96,6 +113,18 @@ export default function ReviewScreen() {
             {nextDueAt ? `다음 복습은 ${humanizeInterval(nextDueAt - Date.now())} 뒤예요.` : '학습 카드에서 새 카드를 학습해보세요.'}
           </Text>
         </View>
+        {weakCards.length > 0 && (
+          <Pressable onPress={() => switchMode('weak')} style={{ marginBottom: 14, backgroundColor: c.warning + '14', borderColor: c.warning + '40', borderWidth: 1, borderRadius: 16, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: c.warning + '22', alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="barbell" size={20} color={c.warning} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: c.textPrimary, fontSize: 14 * fs, fontFamily: fontDisplay }}>약점 집중 학습</Text>
+              <Text style={{ color: c.textSecondary, fontSize: 12 * fs, marginTop: 2, fontFamily: fontBody }}>자주 잊는 {weakCards.length}개 카드를 집중적으로 드릴해요</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={c.warning} />
+          </Pressable>
+        )}
         <UpcomingSchedule days={upcoming} />
         <View style={{ marginTop: 20 }}>
           <Button label="새 카드 학습하기" onPress={() => router.push(ROUTES.cards)} />
@@ -147,15 +176,21 @@ export default function ReviewScreen() {
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       {/* 진행 헤더 */}
       <View style={{ paddingHorizontal: 20, paddingTop: 12 }}>
+        {weakCards.length > 0 && (
+          <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+            <ModePill active={mode === 'due'} label="오늘의 복습" count={dueCards.length} color={c.primary} onPress={() => switchMode('due')} />
+            <ModePill active={mode === 'weak'} label="약점 집중" count={weakCards.length} color={c.warning} icon="barbell" onPress={() => switchMode('weak')} />
+          </View>
+        )}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Ionicons name="albums-outline" size={16} color={c.primary} />
-            <Text style={{ color: c.textPrimary, fontSize: 14 * fs, fontFamily: fontDisplay }}>복습 세션</Text>
+            <Ionicons name={mode === 'weak' ? 'barbell' : 'albums-outline'} size={16} color={mode === 'weak' ? c.warning : c.primary} />
+            <Text style={{ color: c.textPrimary, fontSize: 14 * fs, fontFamily: fontDisplay }}>{mode === 'weak' ? '약점 집중' : '복습 세션'}</Text>
           </View>
           <Text style={{ color: c.textSecondary, fontSize: 12, fontFamily: fontMono }}>{index + 1} / {total}</Text>
         </View>
         <View style={{ height: 6, backgroundColor: c.surfaceAlt, borderRadius: 3, overflow: 'hidden' }}>
-          <View style={{ width: `${progress}%`, height: '100%', backgroundColor: c.primary, borderRadius: 3 }} />
+          <View style={{ width: `${progress}%`, height: '100%', backgroundColor: mode === 'weak' ? c.warning : c.primary, borderRadius: 3 }} />
         </View>
       </View>
 
@@ -249,6 +284,23 @@ export default function ReviewScreen() {
         </Animated.View>
       )}
     </View>
+  );
+}
+
+/** 복습 모드 선택 필(오늘의 복습 / 약점 집중). */
+function ModePill({ active, label, count, color, icon, onPress }: {
+  active: boolean; label: string; count: number; color: string; icon?: keyof typeof Ionicons.glyphMap; onPress: () => void;
+}) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+  return (
+    <Pressable onPress={onPress} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 9, borderRadius: 12, backgroundColor: active ? color : c.surfaceAlt, borderWidth: 1, borderColor: active ? color : c.border }}>
+      {icon && <Ionicons name={icon} size={14} color={active ? '#fff' : color} />}
+      <Text style={{ color: active ? '#fff' : c.textSecondary, fontSize: 12.5, fontFamily: fontDisplay }}>{label}</Text>
+      <View style={{ backgroundColor: active ? 'rgba(255,255,255,0.25)' : c.surface, borderRadius: 8, paddingHorizontal: 6, minWidth: 18, alignItems: 'center' }}>
+        <Text style={{ color: active ? '#fff' : c.textSecondary, fontSize: 11, fontFamily: fontMono }}>{count}</Text>
+      </View>
+    </Pressable>
   );
 }
 
