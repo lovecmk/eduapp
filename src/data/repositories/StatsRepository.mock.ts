@@ -44,11 +44,12 @@ export class MockStatsRepository implements IStatsRepository {
         { label: '일', count: 3 },
       ],
       categoryBreakdown: [
-        { category: '소방', total: 3, mastered: 2, accuracy: 0.8 },
-        { category: '전기', total: 2, mastered: 1, accuracy: 0.5 },
-        { category: '추락', total: 2, mastered: 0, accuracy: 0.3 },
-        { category: '화학', total: 2, mastered: 1, accuracy: 0.6 },
-        { category: '기계', total: 1, mastered: 0, accuracy: 0.4 },
+        { category: '건축', total: 2, mastered: 1, accuracy: 0.7 },
+        { category: '구조', total: 2, mastered: 1, accuracy: 0.6 },
+        { category: '기계설비', total: 2, mastered: 1, accuracy: 0.65 },
+        { category: '전기', total: 2, mastered: 1, accuracy: 0.55 },
+        { category: '소방', total: 2, mastered: 1, accuracy: 0.75 },
+        { category: '승강기', total: 2, mastered: 0, accuracy: 0.5 },
       ],
       rankings: [
         { rank: 1, nickname: '김안전', score: 98 },

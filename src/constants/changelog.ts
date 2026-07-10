@@ -7,8 +7,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    version: '1.1.0',
+    version: '1.2.0',
     date: '2026-07-10',
+    highlights: [
+      '간격 반복(Spaced Repetition) 복습 엔진 도입 — 난이도별 자동 복습 주기',
+      '복습 화면 재설계: 회상 난이도 4단계 채점 + 다음 복습 예측',
+      '학습 히트맵 캘린더 — 연속 학습·복습 예정·날짜별 상세(이미지 포함)',
+      '통계에 기억 강도 분포 및 다가오는 복습 일정 추가',
+    ],
+  },
+  {
+    version: '1.1.0',
+    date: '2026-07-09',
     highlights: [
       '건물점검자 맞춤 콘텐츠 및 대·중·소분류 카테고리 체계 도입',
       '이미지 문제 지원(도해·현장 사진)',

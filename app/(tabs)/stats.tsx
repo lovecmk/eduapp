@@ -7,6 +7,7 @@ import { Button } from '../../src/components/ui/Button';
 import { Card } from '../../src/components/ui/Card';
 import { ErrorState } from '../../src/components/ui/ErrorState';
 import { BottomSheet } from '../../src/components/ui/BottomSheet';
+import { ReviewStatusCard } from '../../src/components/review/ReviewStatusCard';
 import { fontMono, fontCute } from '../../src/theme/tokens';
 import { getCategoryIcon, getCategoryColor } from '../../src/constants/categories';
 import { calcEmblems, emblemRankingMock, EMBLEM_DEFS, type EmblemProgress } from '../../src/utils/emblems';
@@ -163,6 +164,8 @@ export default function StatsScreen() {
           <BigStat value={`${stats?.streakDays ?? 0}일`} label="연속 학습" />
           <BigStat value={`${stats?.bestStreak ?? 0}일`} label="최고 기록" />
         </Card>
+
+        <ReviewStatusCard />
 
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <View>

@@ -7,9 +7,9 @@ import { useAuthStore } from '../../src/store/authStore';
 import { useSettingsStore } from '../../src/store/settingsStore';
 import { Badge } from '../../src/components/ui/Badge';
 import { Card } from '../../src/components/ui/Card';
-import { Calendar } from '../../src/components/ui/Calendar';
 import { ErrorState } from '../../src/components/ui/ErrorState';
 import { LivePresenceCard } from '../../src/components/community/LivePresenceCard';
+import { LearningCalendar } from '../../src/components/community/LearningCalendar';
 import { fontMono, fontCute } from '../../src/theme/tokens';
 import { getCategoryIcon } from '../../src/constants/categories';
 import { getDifficultyMeta } from '../../src/constants/difficulty';
@@ -59,18 +59,6 @@ export default function HomeScreen() {
     return calcEmblems(cardMap);
   }, [allCards]);
   const acquired = getAcquiredEmblems(emblems);
-
-  const learnedDates = useMemo(() => {
-    const dates = new Map<string, number>();
-    for (const card of allCards) {
-      if (card.dueAt) {
-        const d = new Date(card.dueAt);
-        const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-        dates.set(key, (dates.get(key) ?? 0) + 1);
-      }
-    }
-    return dates;
-  }, [allCards]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -153,7 +141,7 @@ export default function HomeScreen() {
 
         <LivePresenceCard />
 
-        <Calendar learnedDates={learnedDates} />
+        <LearningCalendar />
 
         <Card>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
