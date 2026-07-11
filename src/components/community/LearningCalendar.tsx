@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/ThemeProvider';
 import { radius, fontMono, fontDisplay, fontBody } from '../../theme/tokens';
 import { Button } from '../ui/Button';
+import { AnimatedSheet } from '../ui/AnimatedSheet';
 import { getCategoryIcon, getCategoryColor } from '../../constants/categories';
 import { dateKey, dayDiff } from '../../utils/dateKey';
 import { useAllCards } from '../../hooks/useCards';
@@ -223,15 +224,12 @@ function DayDetailSheet({
 }: { visible: boolean; dateKey: string | null; reviewed: LearningCard[]; due: LearningCard[]; onClose: () => void }) {
   const { theme } = useTheme();
   const c = theme.colors;
-  if (!key) return null;
-  const [y, mo, d] = key.split('-').map(Number);
+  const [ , mo, d] = (key ?? '0-0-0').split('-').map(Number);
   const title = `${mo + 1}월 ${d}일`;
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.sheetOverlay} onPress={onClose}>
-        <Pressable onPress={() => {}} style={[styles.sheet, { backgroundColor: c.surface, borderColor: c.border }]}>
-          <View style={[styles.sheetHandle, { backgroundColor: c.border }]} />
+    <AnimatedSheet visible={visible} onClose={onClose}>
+        <View style={{ paddingHorizontal: 20, paddingBottom: 14 }}>
           <View style={styles.sheetHeader}>
             <Text style={{ color: c.textPrimary, fontSize: 17, fontFamily: fontDisplay }}>{title}</Text>
             <Pressable onPress={onClose} hitSlop={10} style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: c.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}>
@@ -253,9 +251,8 @@ function DayDetailSheet({
               </>
             )}
           </ScrollView>
-        </Pressable>
-      </Pressable>
-    </Modal>
+        </View>
+    </AnimatedSheet>
   );
 }
 

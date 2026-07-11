@@ -10,6 +10,7 @@ import { SkeletonLoader } from '../../src/components/ui/SkeletonLoader';
 import { ErrorState } from '../../src/components/ui/ErrorState';
 import { QuestionImage } from '../../src/components/ui/QuestionImage';
 import { CategoryTrail } from '../../src/components/ui/CategoryTrail';
+import { CardTimer, TIME_BY_DIFFICULTY } from '../../src/components/cards/CardTimer';
 import { fontCute } from '../../src/theme/tokens';
 import { getCategoryIcon } from '../../src/constants/categories';
 import { ROUTES } from '../../src/constants/routes';
@@ -153,7 +154,9 @@ export default function CardsScreen() {
                   <Text style={{ color: c.textPrimary, fontSize: 20 * fs, fontWeight: '700', lineHeight: 30, textAlign: 'center', fontFamily: fontCute }}>
                     {card.question}
                   </Text>
-                  <Text style={{ color: c.textSecondary, fontSize: 13 * fs, marginTop: 16 }}>탭하여 정답 확인</Text>
+                  <View style={{ marginTop: 22 }}>
+                    <CardTimer seconds={TIME_BY_DIFFICULTY[card.difficulty]} resetKey={card.id} onExpire={() => setFlipped(true)} />
+                  </View>
                 </View>
               </>
             ) : (

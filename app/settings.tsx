@@ -14,10 +14,11 @@ import { Button } from '../src/components/ui/Button';
 import { ScreenHeader } from '../src/components/ui/ScreenHeader';
 import { SettingsGroup, SettingsItem } from '../src/components/ui/SettingsGroup';
 import { MembershipCard } from '../src/components/settings/MembershipCard';
+import { NotificationPreviewToggle } from '../src/components/settings/NotificationPreviewToggle';
 import { SupportModal } from '../src/components/settings/SupportModal';
 import { ChangelogModal } from '../src/components/settings/ChangelogModal';
 import { CenterModal } from '../src/components/ui/CenterModal';
-import { fontMono, fontCute, fontDisplay } from '../src/theme/tokens';
+import { fontMono, fontCute, fontDisplay, fontBody } from '../src/theme/tokens';
 import { ALL_CATEGORIES, CATEGORY_COLOR, getCategoryIcon } from '../src/constants/categories';
 import { env } from '../src/data/network/env';
 import { ROUTES } from '../src/constants/routes';
@@ -201,21 +202,11 @@ export default function SettingsScreen() {
           />
         </SettingsGroup>
 
-        <SettingsGroup title="알림 종류별 수신">
-          {(Object.keys(NOTIFICATION_TYPE_META) as NotificationType[]).map((t) => {
-            const meta = NOTIFICATION_TYPE_META[t];
-            return (
-              <SettingsItem
-                key={t}
-                icon={meta.icon}
-                iconColor={meta.color}
-                label={meta.label}
-                description={meta.desc}
-                right={<Switch value={!mutedTypes[t]} onValueChange={(v) => setMute(t, !v)} />}
-              />
-            );
-          })}
-        </SettingsGroup>
+        <Text style={{ color: c.textSecondary, fontSize: 12, fontFamily: fontDisplay, textTransform: 'uppercase', letterSpacing: 0.6, marginTop: 22, marginBottom: 6, marginLeft: 4 }}>알림 종류별 수신</Text>
+        <Text style={{ color: c.textSecondary, fontSize: 11.5, fontFamily: fontBody, marginBottom: 10, marginLeft: 4 }}>이런 알림을 받을지 예시를 보고 선택하세요</Text>
+        {(Object.keys(NOTIFICATION_TYPE_META) as NotificationType[]).map((t) => (
+          <NotificationPreviewToggle key={t} type={t} />
+        ))}
 
         <SettingsGroup title="학습">
           <SettingsItem

@@ -6,7 +6,7 @@ export const ROUTES = {
   cards: '/(tabs)/cards',
   review: '/(tabs)/review',
   community: '/(tabs)/community',
-  stats: '/(tabs)/stats',
+  stats: '/stats',
   mypage: '/(tabs)/mypage',
   notifications: '/notifications',
   contents: '/contents',

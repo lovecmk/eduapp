@@ -1,7 +1,8 @@
 import React from 'react';
-import { View, Text, Pressable, Image, Modal, StyleSheet } from 'react-native';
+import { View, Text, Pressable, Image, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { AnimatedSheet } from './AnimatedSheet';
 import { useTheme } from '../../theme/ThemeProvider';
 import { fontDisplay, fontBody, fontMono } from '../../theme/tokens';
 import { useAuthStore } from '../../store/authStore';
@@ -41,11 +42,8 @@ export function HeaderMenuSheet({ visible, onClose }: { visible: boolean; onClos
   const go = (route: string) => { onClose(); setTimeout(() => router.push(route as never), 180); };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
-      <Pressable style={styles.overlay} onPress={onClose}>
-        <Pressable onPress={() => {}} style={[styles.sheet, { backgroundColor: c.bg, borderColor: c.border }]}>
-          <View style={[styles.handle, { backgroundColor: c.border }]} />
-
+    <AnimatedSheet visible={visible} onClose={onClose} rounded={26}>
+        <View style={{ paddingHorizontal: 20 }}>
           {/* 프로필 */}
           {user && (
             <Pressable onPress={() => go(ROUTES.mypage)} style={[styles.profile, { backgroundColor: c.surface, borderColor: c.border }]}>
@@ -103,16 +101,12 @@ export function HeaderMenuSheet({ visible, onClose }: { visible: boolean; onClos
               );
             })}
           </View>
-        </Pressable>
-      </Pressable>
-    </Modal>
+        </View>
+    </AnimatedSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
-  sheet: { borderTopLeftRadius: 26, borderTopRightRadius: 26, borderWidth: 1, paddingTop: 10, paddingHorizontal: 20, paddingBottom: 32 },
-  handle: { width: 40, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
   profile: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 16, borderWidth: 1, padding: 12, marginBottom: 14 },
   avatar: { width: 46, height: 46, borderRadius: 23, borderWidth: 2 },
   avatarFallback: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },

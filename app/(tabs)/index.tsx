@@ -10,6 +10,7 @@ import { Card } from '../../src/components/ui/Card';
 import { ErrorState } from '../../src/components/ui/ErrorState';
 import { DailyQuestsCard } from '../../src/components/home/DailyQuestsCard';
 import { DailyTipCard } from '../../src/components/home/DailyTipCard';
+import { LivePresenceStrip } from '../../src/components/community/LivePresenceStrip';
 import { fontMono, fontDisplay, fontBody } from '../../src/theme/tokens';
 import { getCategoryIcon } from '../../src/constants/categories';
 import { calcEmblems, getAcquiredEmblems } from '../../src/utils/emblems';
@@ -96,6 +97,8 @@ export default function HomeScreen() {
             </View>
           )}
         </View>
+
+        <LivePresenceStrip />
 
         {/* 오늘의 학습 히어로 */}
         <View style={{ borderRadius: 18, backgroundColor: c.primary, padding: 18, marginBottom: 14, boxShadow: `0 8px 24px ${c.primary}44` }}>

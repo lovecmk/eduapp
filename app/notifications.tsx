@@ -5,6 +5,7 @@ import Animated, { FadeInDown, FadeIn, LinearTransition } from 'react-native-rea
 import { useTheme } from '../src/theme/ThemeProvider';
 import { ScreenHeader } from '../src/components/ui/ScreenHeader';
 import { CenterModal } from '../src/components/ui/CenterModal';
+import { AnimatedSheet } from '../src/components/ui/AnimatedSheet';
 import { Button } from '../src/components/ui/Button';
 import { fontDisplay, fontBody, fontMono } from '../src/theme/tokens';
 import {
@@ -248,23 +249,20 @@ export default function NotificationsScreen() {
   );
 }
 
-/** 하단 액션 시트(슬라이드). */
+/** 하단 액션 시트. */
 function ActionSheet({
   visible, onClose, title, subtitle, children,
 }: { visible: boolean; onClose: () => void; title: string; subtitle?: string; children: React.ReactNode }) {
   const { theme } = useTheme();
   const c = theme.colors;
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' }} onPress={onClose}>
-        <Pressable onPress={() => {}} style={[styles.sheet, { backgroundColor: c.surface, borderColor: c.border }]}>
-          <View style={[styles.sheetHandle, { backgroundColor: c.border }]} />
-          <Text style={{ color: c.textPrimary, fontSize: 15, fontFamily: fontDisplay }}>{title}</Text>
-          {subtitle ? <Text style={{ color: c.textSecondary, fontSize: 12, marginTop: 2, fontFamily: fontBody }}>{subtitle}</Text> : null}
-          <View style={{ marginTop: 14, gap: 2 }}>{children}</View>
-        </Pressable>
-      </Pressable>
-    </Modal>
+    <AnimatedSheet visible={visible} onClose={onClose}>
+      <View style={{ paddingHorizontal: 20, paddingBottom: 6 }}>
+        <Text style={{ color: c.textPrimary, fontSize: 15, fontFamily: fontDisplay }}>{title}</Text>
+        {subtitle ? <Text style={{ color: c.textSecondary, fontSize: 12, marginTop: 2, fontFamily: fontBody }}>{subtitle}</Text> : null}
+        <View style={{ marginTop: 14, gap: 2 }}>{children}</View>
+      </View>
+    </AnimatedSheet>
   );
 }
 
