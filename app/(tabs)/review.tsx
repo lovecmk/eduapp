@@ -11,6 +11,8 @@ import { ErrorState } from '../../src/components/ui/ErrorState';
 import { QuestionImage } from '../../src/components/ui/QuestionImage';
 import { CategoryTrail } from '../../src/components/ui/CategoryTrail';
 import { UpcomingSchedule } from '../../src/components/review/UpcomingSchedule';
+import { CardTipsSheet } from '../../src/components/community/CardTipsSheet';
+import { useTipStore } from '../../src/store/tipStore';
 import { fontCute, fontDisplay, fontBody, fontMono } from '../../src/theme/tokens';
 import { getCategoryIcon } from '../../src/constants/categories';
 import { ROUTES } from '../../src/constants/routes';
@@ -42,6 +44,11 @@ export default function ReviewScreen() {
   const [reviewed, setReviewed] = useState(0);
   const [againCount, setAgainCount] = useState(0);
   const [done, setDone] = useState(false);
+  const [tipsOpen, setTipsOpen] = useState(false);
+  const tipCount = useTipStore((s) => {
+    const cur = session?.[index];
+    return cur ? s.tips.filter((t) => t.cardId === cur.id).length : 0;
+  });
 
   const prioritizeWeak = useSettingsStore((s) => s.prioritizeWeakSpots);
   const source = mode === 'weak' ? weakCards : dueCards;
@@ -265,6 +272,11 @@ export default function ReviewScreen() {
       {/* 회상 난이도 버튼 */}
       {flipped && (
         <Animated.View entering={FadeInDown.duration(220)} style={{ paddingHorizontal: 16, paddingBottom: 26, paddingTop: 12, borderTopWidth: 1, borderTopColor: c.border, backgroundColor: c.bg }}>
+          <Pressable onPress={() => setTipsOpen(true)} style={{ flexDirection: 'row', alignSelf: 'center', alignItems: 'center', gap: 5, backgroundColor: c.surfaceAlt, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, marginBottom: 10 }}>
+            <Ionicons name="chatbubbles-outline" size={14} color={c.primary} />
+            <Text style={{ color: c.textPrimary, fontSize: 12, fontFamily: fontDisplay }}>현장 팁</Text>
+            {tipCount > 0 && <Text style={{ color: c.textSecondary, fontSize: 11, fontFamily: fontMono }}>{tipCount}</Text>}
+          </Pressable>
           <Text style={{ color: c.textSecondary, fontSize: 11.5, textAlign: 'center', marginBottom: 10, fontFamily: fontBody }}>
             얼마나 잘 기억했나요? — 다음 복습 간격이 자동 조정돼요
           </Text>
@@ -283,6 +295,8 @@ export default function ReviewScreen() {
           </View>
         </Animated.View>
       )}
+
+      <CardTipsSheet visible={tipsOpen} cardId={card.id} onClose={() => setTipsOpen(false)} />
     </View>
   );
 }

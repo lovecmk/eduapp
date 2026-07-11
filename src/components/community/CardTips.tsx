@@ -7,6 +7,7 @@ import { fontDisplay, fontBody, fontMono } from '../../theme/tokens';
 import { useTipStore } from '../../store/tipStore';
 import { useAuthStore } from '../../store/authStore';
 import { timeAgoLabel } from '../../store/notificationStore';
+import { isMeaningful, textLength, INPUT_LIMITS } from '../../utils/sanitize';
 
 /** 카드별 현장 팁(작은 커뮤니티) — 실무 노하우 공유 + 좋아요. */
 export function CardTips({ cardId }: { cardId: string }) {
@@ -22,10 +23,12 @@ export function CardTips({ cardId }: { cardId: string }) {
 
   const cardTips = tips.filter((t) => t.cardId === cardId).sort((a, b) => b.likes - a.likes || a.minutesAgo - b.minutesAgo);
 
+  const canSubmit = isMeaningful(draft);
+  const len = textLength(draft);
+
   const submit = () => {
-    const body = draft.trim();
-    if (body.length < 2) return;
-    addTip(cardId, body, userName);
+    if (!canSubmit) return;
+    addTip(cardId, draft, userName);
     setDraft('');
     setFocused(false);
   };
@@ -53,13 +56,18 @@ export function CardTips({ cardId }: { cardId: string }) {
           placeholderTextColor={c.textSecondary}
           style={{ flex: 1, color: c.textPrimary, fontSize: 13, fontFamily: fontBody, paddingVertical: 4 }}
           multiline
-          maxLength={140}
+          maxLength={INPUT_LIMITS.tip + 20}
         />
-        <Pressable onPress={submit} disabled={draft.trim().length < 2}
-          style={[styles.sendBtn, { backgroundColor: draft.trim().length < 2 ? c.disabled : c.primary }]}>
+        <Pressable onPress={submit} disabled={!canSubmit}
+          style={[styles.sendBtn, { backgroundColor: !canSubmit ? c.disabled : c.primary }]}>
           <Ionicons name="arrow-up" size={16} color="#fff" />
         </Pressable>
       </View>
+      {(focused || len > 0) && (
+        <Text style={{ alignSelf: 'flex-end', marginTop: 4, fontSize: 10.5, fontFamily: fontMono, color: len > INPUT_LIMITS.tip ? c.error : c.textSecondary }}>
+          {len}/{INPUT_LIMITS.tip}
+        </Text>
+      )}
 
       {/* 목록 */}
       {cardTips.length === 0 ? (
@@ -80,7 +88,7 @@ export function CardTips({ cardId }: { cardId: string }) {
                   {tip.mine && <View style={{ backgroundColor: c.primary + '1A', borderRadius: 5, paddingHorizontal: 5, paddingVertical: 1 }}><Text style={{ color: c.primary, fontSize: 9.5, fontFamily: fontDisplay }}>나</Text></View>}
                   <Text style={{ color: c.textSecondary, fontSize: 10.5, fontFamily: fontMono }}>{timeAgoLabel(tip.minutesAgo)}</Text>
                 </View>
-                <Text style={{ color: c.textPrimary, fontSize: 13, lineHeight: 19, marginTop: 3, fontFamily: fontBody }}>{tip.body}</Text>
+                <ExpandableText text={tip.body} />
               </View>
               <View style={{ alignItems: 'center', gap: 8 }}>
                 <Pressable onPress={() => toggleLike(tip.id)} hitSlop={6} style={{ alignItems: 'center' }}>
@@ -96,6 +104,30 @@ export function CardTips({ cardId }: { cardId: string }) {
             </Animated.View>
           ))}
         </View>
+      )}
+    </View>
+  );
+}
+
+/** 긴 댓글은 4줄로 접고 "더보기"로 펼친다. */
+function ExpandableText({ text }: { text: string }) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+  const [expanded, setExpanded] = useState(false);
+  const [truncated, setTruncated] = useState(false);
+  return (
+    <View style={{ marginTop: 3 }}>
+      <Text
+        numberOfLines={expanded ? undefined : 4}
+        onTextLayout={(e) => { if (!expanded && e.nativeEvent.lines.length > 4) setTruncated(true); }}
+        style={{ color: c.textPrimary, fontSize: 13, lineHeight: 19, fontFamily: fontBody }}
+      >
+        {text}
+      </Text>
+      {truncated && (
+        <Pressable onPress={() => setExpanded((v) => !v)} hitSlop={6}>
+          <Text style={{ color: c.primary, fontSize: 12, fontFamily: fontDisplay, marginTop: 3 }}>{expanded ? '접기' : '더보기'}</Text>
+        </Pressable>
       )}
     </View>
   );

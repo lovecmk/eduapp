@@ -19,6 +19,20 @@ export interface Companion {
   category?: string;
 }
 
+/** 이번 주 함께 참여하는 공동 챌린지. */
+export interface WeeklyChallenge {
+  title: string;
+  /** 주간 공동 목표(문제 수) */
+  goalCards: number;
+  /** 현재까지 커뮤니티가 함께 푼 문제 수 */
+  currentCards: number;
+  /** 내 기여(문제 수) */
+  myContribution: number;
+  participants: number;
+  /** 종료까지 남은 일수 */
+  endsInDays: number;
+}
+
 export interface CommunitySnapshot {
   /** 지금 함께 접속해 학습 중인 인원(본인 포함) */
   onlineNow: number;
@@ -32,4 +46,6 @@ export interface CommunitySnapshot {
   companions: Companion[];
   /** 실시간 활동 피드 */
   activities: LiveActivity[];
+  /** 이번 주 공동 챌린지 */
+  challenge: WeeklyChallenge;
 }

@@ -1,12 +1,16 @@
 import React, { useState } from 'react';
-import { Text, View, Pressable, ScrollView, Modal } from 'react-native';
-import { Tabs, useRouter, usePathname } from 'expo-router';
+import { Text, View, Pressable, Image } from 'react-native';
+import { Tabs, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../src/theme/ThemeProvider';
 import { OfflineBanner } from '../../src/components/ui/OfflineBanner';
 import { BridgeLogo } from '../../src/components/ui/BridgeLogo';
+import { HeaderMenuSheet } from '../../src/components/ui/HeaderMenuSheet';
 import { useNotificationStore } from '../../src/store/notificationStore';
+import { useAuthStore } from '../../src/store/authStore';
+import { useSettingsStore } from '../../src/store/settingsStore';
+import { fontDisplay } from '../../src/theme/tokens';
 import { ROUTES } from '../../src/constants/routes';
 
 type IconName = keyof typeof Ionicons.glyphMap;
@@ -19,65 +23,42 @@ function MinimalHeader({ title }: { title: string }) {
   const { theme } = useTheme();
   const c = theme.colors;
   const router = useRouter();
-  const pathname = usePathname();
-  const insets = useSafeAreaInsets();
   const [menuOpen, setMenuOpen] = useState(false);
   const unreadCount = useNotificationStore((s) => s.unreadCount());
-
-  const items: { label: string; icon: IconName; route: string; activeMatch: string }[] = [
-    { label: '알림', icon: 'notifications-outline', route: ROUTES.notifications, activeMatch: '/notifications' },
-    { label: '전체 컨텐츠', icon: 'library-outline', route: ROUTES.contents, activeMatch: '/contents' },
-    { label: '학습카드', icon: 'school-outline', route: ROUTES.cards, activeMatch: 'cards' },
-    { label: '복습', icon: 'refresh-outline', route: ROUTES.review, activeMatch: 'review' },
-    { label: '통계', icon: 'stats-chart-outline', route: ROUTES.stats, activeMatch: 'stats' },
-    { label: '마이페이지', icon: 'person-circle-outline', route: ROUTES.mypage, activeMatch: 'mypage' },
-  ];
-
-  const navigate = (route: string) => {
-    setMenuOpen(false);
-    router.push(route as any);
-  };
+  const user = useAuthStore((s) => s.user);
+  const profileImage = useSettingsStore((s) => s.profileImage);
 
   return (
     <>
       <View style={{ height: 58, flexDirection: 'row', alignItems: 'center', backgroundColor: c.bg, borderBottomWidth: 1, borderBottomColor: c.border, paddingHorizontal: 16 }}>
-        <Pressable onPress={() => router.push(ROUTES.home as any)}>
+        <Pressable onPress={() => router.push(ROUTES.home as never)} hitSlop={6}>
           <BridgeLogo size={28} />
         </Pressable>
-        <Text style={{ color: c.textPrimary, fontWeight: '700', fontSize: 16, marginLeft: 8, flex: 1 }}>{title}</Text>
-        <View style={{ position: 'relative', marginRight: 4 }}>
-          <Pressable onPress={() => router.push(ROUTES.notifications as any)} style={{ padding: 6 }}>
-            <Ionicons name="notifications-outline" size={24} color={c.textPrimary} />
-          </Pressable>
+        <Text style={{ color: c.textPrimary, fontSize: 16, marginLeft: 8, flex: 1, fontFamily: fontDisplay }}>{title}</Text>
+
+        {/* 알림 */}
+        <Pressable onPress={() => router.push(ROUTES.notifications as never)} style={{ padding: 6, marginRight: 2 }} hitSlop={4}>
+          <Ionicons name="notifications-outline" size={23} color={c.textPrimary} />
           {unreadCount > 0 && (
-            <View style={{ position: 'absolute', top: 2, right: 2, backgroundColor: '#FF3B30', borderRadius: 8, minWidth: 16, height: 16, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 }}>
-              <Text style={{ color: '#fff', fontSize: 10, fontWeight: '800' }}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+            <View style={{ position: 'absolute', top: 2, right: 2, backgroundColor: '#FF3B30', borderRadius: 8, minWidth: 15, height: 15, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3 }}>
+              <Text style={{ color: '#fff', fontSize: 9, fontWeight: '800' }}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
             </View>
           )}
-        </View>
-        <Pressable onPress={() => setMenuOpen(true)} style={{ padding: 6 }}>
-          <Ionicons name="menu-outline" size={26} color={c.textPrimary} />
+        </Pressable>
+
+        {/* 메뉴(아바타) */}
+        <Pressable onPress={() => setMenuOpen(true)} hitSlop={4} style={{ marginLeft: 4 }}>
+          {profileImage ? (
+            <Image source={{ uri: profileImage }} style={{ width: 30, height: 30, borderRadius: 15, borderWidth: 1.5, borderColor: c.border }} />
+          ) : (
+            <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ color: '#fff', fontSize: 14, fontFamily: fontDisplay }}>{user?.name?.charAt(0) ?? '현'}</Text>
+            </View>
+          )}
         </Pressable>
       </View>
 
-      <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
-        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' }} onPress={() => setMenuOpen(false)}>
-          <View style={{ position: 'absolute', top: insets.top + 62, right: 12, backgroundColor: c.surface, borderRadius: 14, paddingVertical: 6, minWidth: 190, borderWidth: 1, borderColor: c.border, boxShadow: '0 4px 12px rgba(0,0,0,0.15)', elevation: 8 }}>
-            <ScrollView>
-              {items.map((item) => {
-                const active = pathname.includes(item.activeMatch);
-                return (
-                  <Pressable key={item.route} onPress={() => navigate(item.route)}
-                    style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 16, backgroundColor: active ? c.surfaceAlt : 'transparent' }}>
-                    <Ionicons name={item.icon} size={19} color={active ? c.primary : c.textSecondary} style={{ marginRight: 10 }} />
-                    <Text style={{ color: active ? c.primary : c.textPrimary, fontWeight: active ? '700' : '500', fontSize: 14 }}>{item.label}</Text>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-          </View>
-        </Pressable>
-      </Modal>
+      <HeaderMenuSheet visible={menuOpen} onClose={() => setMenuOpen(false)} />
     </>
   );
 }

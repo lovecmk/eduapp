@@ -8,6 +8,9 @@ import { Card } from '../../src/components/ui/Card';
 import { ErrorState } from '../../src/components/ui/ErrorState';
 import { BottomSheet } from '../../src/components/ui/BottomSheet';
 import { ReviewStatusCard } from '../../src/components/review/ReviewStatusCard';
+import { LearningPersonaCard } from '../../src/components/stats/LearningPersonaCard';
+import { LearningRhythmCard } from '../../src/components/stats/LearningRhythmCard';
+import { useSettingsStore } from '../../src/store/settingsStore';
 import { fontMono, fontCute } from '../../src/theme/tokens';
 import { getCategoryIcon, getCategoryColor } from '../../src/constants/categories';
 import { calcEmblems, emblemRankingMock, EMBLEM_DEFS, type EmblemProgress } from '../../src/utils/emblems';
@@ -69,6 +72,7 @@ export default function StatsScreen() {
   const c = theme.colors;
   const fs = fontScale;
   const user = useAuthStore((s) => s.user);
+  const interests = useSettingsStore((s) => s.interests);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedEmblem, setSelectedEmblem] = useState<EmblemProgress | null>(null);
@@ -164,6 +168,10 @@ export default function StatsScreen() {
           <BigStat value={`${stats?.streakDays ?? 0}일`} label="연속 학습" />
           <BigStat value={`${stats?.bestStreak ?? 0}일`} label="최고 기록" />
         </Card>
+
+        <LearningPersonaCard cards={allCards} interests={interests} />
+
+        <LearningRhythmCard />
 
         <ReviewStatusCard />
 

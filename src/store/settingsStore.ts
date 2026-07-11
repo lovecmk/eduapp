@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import type { CardCategory } from '../domain/models/LearningCard';
 
 export type ThemeMode = 'light' | 'dark' | 'dim' | 'system';
 export type FontScale = 'xsmall' | 'small' | 'medium' | 'large' | 'xlarge';
@@ -28,6 +29,8 @@ interface SettingsState {
   offlineMode: boolean;
   /** 복습 진입 시 약점 카드를 우선 노출 */
   prioritizeWeakSpots: boolean;
+  /** 관심 분야(대분류) — 개인화용 */
+  interests: CardCategory[];
   profileImage: string | null;
 
   setThemeMode: (mode: ThemeMode) => void;
@@ -43,6 +46,7 @@ interface SettingsState {
   toggleKeepScreenOn: () => void;
   toggleOfflineMode: () => void;
   togglePrioritizeWeakSpots: () => void;
+  toggleInterest: (cat: CardCategory) => void;
   setProfileImage: (uri: string | null) => void;
   /** 로컬 저장 데이터를 초기화하고 기본 설정으로 되돌린다(방어적 초기화). */
   resetAll: () => void;
@@ -67,6 +71,7 @@ const DEFAULT_SETTINGS = {
   keepScreenOn: false,
   offlineMode: false,
   prioritizeWeakSpots: false,
+  interests: [] as CardCategory[],
   profileImage: null as string | null,
 };
 
@@ -86,6 +91,9 @@ export const useSettingsStore = create<SettingsState>()(
       toggleKeepScreenOn: () => set((s) => ({ keepScreenOn: !s.keepScreenOn })),
       toggleOfflineMode: () => set((s) => ({ offlineMode: !s.offlineMode })),
       togglePrioritizeWeakSpots: () => set((s) => ({ prioritizeWeakSpots: !s.prioritizeWeakSpots })),
+      toggleInterest: (cat) => set((s) => ({
+        interests: s.interests.includes(cat) ? s.interests.filter((x) => x !== cat) : [...s.interests, cat],
+      })),
       setProfileImage: (uri) => set({ profileImage: uri }),
       resetAll: () => set({ ...DEFAULT_SETTINGS }),
     }),

@@ -16,6 +16,14 @@ interface CommunityDTO {
   daily_goal_minutes: number;
   companions: { id: string; user_nm: string; color: string; category_cd?: string }[];
   activities: ActivityDTO[];
+  challenge?: {
+    title: string;
+    goal_cards: number;
+    current_cards: number;
+    my_contribution: number;
+    participants: number;
+    ends_in_days: number;
+  };
 }
 
 const ACTION_MAP: Record<string, CommunitySnapshot['activities'][number]['action']> = {
@@ -53,6 +61,14 @@ export class CommunityRepository implements ICommunityRepository {
         category: a.category_cd,
         timeAgo: timeAgo(a.seconds_ago),
       })),
+      challenge: {
+        title: dto.challenge?.title ?? '이번 주 챌린지',
+        goalCards: dto.challenge?.goal_cards ?? 0,
+        currentCards: dto.challenge?.current_cards ?? 0,
+        myContribution: dto.challenge?.my_contribution ?? 0,
+        participants: dto.challenge?.participants ?? 0,
+        endsInDays: dto.challenge?.ends_in_days ?? 0,
+      },
     };
   }
 }

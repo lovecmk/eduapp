@@ -9,6 +9,7 @@ import { Badge } from '../../src/components/ui/Badge';
 import { Card } from '../../src/components/ui/Card';
 import { ErrorState } from '../../src/components/ui/ErrorState';
 import { LivePresenceCard } from '../../src/components/community/LivePresenceCard';
+import { WeeklyChallengeCard } from '../../src/components/community/WeeklyChallengeCard';
 import { LearningCalendar } from '../../src/components/community/LearningCalendar';
 import { DailyQuestsCard } from '../../src/components/home/DailyQuestsCard';
 import { DailyTipCard } from '../../src/components/home/DailyTipCard';
@@ -144,6 +145,8 @@ export default function HomeScreen() {
         <DailyQuestsCard />
 
         <LivePresenceCard />
+
+        <WeeklyChallengeCard />
 
         <DailyTipCard />
 

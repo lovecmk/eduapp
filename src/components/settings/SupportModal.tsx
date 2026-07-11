@@ -7,6 +7,7 @@ import { CenterModal } from '../ui/CenterModal';
 import { TextField } from '../ui/TextField';
 import { Button } from '../ui/Button';
 import { delay } from '../../data/repositories/_delay';
+import { isMeaningful, textLength, INPUT_LIMITS } from '../../utils/sanitize';
 
 const CATEGORIES = ['학습 오류', '결제/멤버십', '계정 문제', '기능 제안', '기타'] as const;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -31,8 +32,8 @@ export function SupportModal({
   const [touched, setTouched] = useState(false);
   const [phase, setPhase] = useState<Phase>('form');
 
-  const emailValid = EMAIL_RE.test(email.trim());
-  const messageValid = message.trim().length >= 10;
+  const emailValid = EMAIL_RE.test(email.trim()) && email.trim().length <= INPUT_LIMITS.email;
+  const messageValid = isMeaningful(message, 10);
   const canSubmit = emailValid && messageValid && phase === 'form';
 
   const reset = () => {
@@ -104,6 +105,7 @@ export function SupportModal({
               placeholder="you@example.com"
               keyboardType="email-address"
               autoCapitalize="none"
+              maxLength={INPUT_LIMITS.email}
               status={touched && !emailValid ? 'error' : 'default'}
               helperText={touched && !emailValid ? '올바른 이메일 주소를 입력하세요' : undefined}
             />
@@ -116,12 +118,13 @@ export function SupportModal({
             placeholder="문제 상황을 자세히 적어주세요 (최소 10자)"
             multiline
             numberOfLines={4}
+            maxLength={INPUT_LIMITS.supportMessage + 50}
             style={styles.textarea as never}
             status={touched && !messageValid ? 'error' : 'default'}
             helperText={
               touched && !messageValid
-                ? '10자 이상 입력해주세요'
-                : `${message.trim().length}자`
+                ? '의미 있는 내용을 10자 이상 입력해주세요'
+                : `${textLength(message)}/${INPUT_LIMITS.supportMessage}`
             }
           />
 

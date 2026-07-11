@@ -59,6 +59,11 @@ export class MockCommunityRepository implements ICommunityRepository {
       };
     });
 
+    // 주간 공동 챌린지 — 주 중반 진척(시간대 곡선 반영), 남은 일수는 요일 기반.
+    const dow = new Date().getDay();
+    const goalCards = 5000;
+    const currentCards = Math.round(goalCards * (0.35 + (dow / 7) * 0.5) + jitter() * 10);
+
     return {
       onlineNow,
       studiedToday,
@@ -66,6 +71,14 @@ export class MockCommunityRepository implements ICommunityRepository {
       dailyGoalMinutes,
       companions,
       activities: buildActivities(6),
+      challenge: {
+        title: '이번 주 안전점검 마스터 챌린지',
+        goalCards,
+        currentCards: Math.min(goalCards, currentCards),
+        myContribution: 12 + Math.abs(jitter()),
+        participants: 1240 + Math.abs(jitter()) * 5,
+        endsInDays: Math.max(1, 7 - dow),
+      },
     };
   }
 }

@@ -17,7 +17,8 @@ import { MembershipCard } from '../src/components/settings/MembershipCard';
 import { SupportModal } from '../src/components/settings/SupportModal';
 import { ChangelogModal } from '../src/components/settings/ChangelogModal';
 import { CenterModal } from '../src/components/ui/CenterModal';
-import { fontMono, fontCute } from '../src/theme/tokens';
+import { fontMono, fontCute, fontDisplay } from '../src/theme/tokens';
+import { ALL_CATEGORIES, CATEGORY_COLOR, getCategoryIcon } from '../src/constants/categories';
 import { env } from '../src/data/network/env';
 import { ROUTES } from '../src/constants/routes';
 import { downloadSystemLog } from '../src/utils/downloadLog';
@@ -72,6 +73,8 @@ export default function SettingsScreen() {
   const profileImage = useSettingsStore((s) => s.profileImage);
   const mutedTypes = useNotificationStore((s) => s.mutedTypes);
   const setMute = useNotificationStore((s) => s.setMute);
+  const interests = useSettingsStore((s) => s.interests);
+  const toggleInterest = useSettingsStore((s) => s.toggleInterest);
 
   const [h, m] = notifications.dailyReminderTime.split(':').map(Number);
   const [editH, setEditH] = useState(h);
@@ -132,6 +135,25 @@ export default function SettingsScreen() {
             profileImage={profileImage}
           />
         ) : null}
+
+        <SettingsGroup title="관심 분야">
+          <SettingsBlock label="관심 분야 선택 (통계·추천에 반영)">
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              {ALL_CATEGORIES.map((cat) => {
+                const active = interests.includes(cat);
+                const color = CATEGORY_COLOR[cat];
+                return (
+                  <Pressable key={cat} onPress={() => toggleInterest(cat)}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, borderWidth: 1.5, backgroundColor: active ? color + '1A' : c.surfaceAlt, borderColor: active ? color : c.border }}>
+                    <Ionicons name={getCategoryIcon(cat)} size={14} color={active ? color : c.textSecondary} />
+                    <Text style={{ color: active ? color : c.textSecondary, fontSize: 12.5, fontFamily: fontDisplay }}>{cat}</Text>
+                    {active && <Ionicons name="checkmark-circle" size={13} color={color} />}
+                  </Pressable>
+                );
+              })}
+            </View>
+          </SettingsBlock>
+        </SettingsGroup>
 
         <SettingsGroup title="알림">
           <SettingsItem

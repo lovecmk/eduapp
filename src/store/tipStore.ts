@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { sanitizeText, isMeaningful, INPUT_LIMITS } from '../utils/sanitize';
 
 export interface CardTip {
   id: string;
@@ -40,13 +41,16 @@ export const useTipStore = create<TipState>()(
     (set, get) => ({
       tips: seedTips(),
       forCard: (cardId) => get().tips.filter((t) => t.cardId === cardId).sort((a, b) => b.likes - a.likes || a.minutesAgo - b.minutesAgo),
-      addTip: (cardId, body, author) =>
+      addTip: (cardId, body, author) => {
+        const clean = sanitizeText(body, { maxLength: INPUT_LIMITS.tip, allowNewlines: true });
+        if (!isMeaningful(clean)) return; // 공백·특수문자만 있는 입력 차단
         set((s) => ({
           tips: [
-            { id: `mine-${Date.now()}`, cardId, author, color: '#2563EB', body: body.trim(), likes: 0, likedByMe: false, mine: true, minutesAgo: 0 },
+            { id: `mine-${Date.now()}`, cardId, author, color: '#2563EB', body: clean, likes: 0, likedByMe: false, mine: true, minutesAgo: 0 },
             ...s.tips,
           ],
-        })),
+        }));
+      },
       toggleLike: (id) =>
         set((s) => ({
           tips: s.tips.map((t) => (t.id === id ? { ...t, likedByMe: !t.likedByMe, likes: t.likes + (t.likedByMe ? -1 : 1) } : t)),

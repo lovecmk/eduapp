@@ -8,6 +8,7 @@ import { TextField } from '../ui/TextField';
 import { Button } from '../ui/Button';
 import { delay } from '../../data/repositories/_delay';
 import { useReportStore, REPORT_REASON_LABEL, type ReportReason } from '../../store/reportStore';
+import { sanitizeText, textLength, INPUT_LIMITS } from '../../utils/sanitize';
 import type { LearningCard } from '../../domain/models/LearningCard';
 
 const REASONS = Object.keys(REPORT_REASON_LABEL) as ReportReason[];
@@ -29,7 +30,7 @@ export function CardReportModal({ visible, card, onClose }: { visible: boolean; 
     if (!card) return;
     setPhase('sending');
     await delay(800);
-    submit({ cardId: card.id, reason, detail: detail.trim() });
+    submit({ cardId: card.id, reason, detail: sanitizeText(detail, { maxLength: INPUT_LIMITS.reportDetail, allowNewlines: true }) });
     setPhase('done');
   };
 
@@ -76,7 +77,9 @@ export function CardReportModal({ visible, card, onClose }: { visible: boolean; 
               placeholder="예: 정답이 0.5MPa가 아니라 0.17MPa 아닌가요?"
               multiline
               numberOfLines={3}
+              maxLength={INPUT_LIMITS.reportDetail + 20}
               style={styles.textarea as never}
+              helperText={`${textLength(detail)}/${INPUT_LIMITS.reportDetail}`}
             />
           </View>
 

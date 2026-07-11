@@ -7,6 +7,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.6.0',
+    date: '2026-07-10',
+    highlights: [
+      '헤더·메뉴 개편 — 아바타 + 바텀시트(프로필·바로가기·빠른 테마)',
+      '입력 정제 강화 — 특수문자·초장문·긴 댓글 표시 처리(MongoDB 대비)',
+      '이번 주 함께 챌린지 — 참여형 공동 목표',
+      '나의 학습 성향 레이더 차트 + 귀여운 페르소나(관심 분야 개인화)',
+      '학습 리듬 인사이트 — 누적 데이터로 요일 패턴·장기 통계',
+      '현장 팁을 복습에서 온디맨드 바텀시트로 접근',
+    ],
+  },
+  {
     version: '1.5.0',
     date: '2026-07-10',
     highlights: [
