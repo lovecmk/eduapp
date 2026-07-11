@@ -64,14 +64,14 @@ function MinimalHeader({ title }: { title: string }) {
 }
 
 const TITLES: Record<string, string> = {
-  index: '홈', cards: '학습카드', review: '복습', stats: '통계', mypage: '마이페이지',
+  index: '홈', cards: '학습', review: '복습', community: '커뮤니티', stats: '통계', mypage: 'MY',
 };
 
 const TAB_ICON: Record<string, { active: IconName; inactive: IconName }> = {
   index: { active: 'home', inactive: 'home-outline' },
   cards: { active: 'school', inactive: 'school-outline' },
   review: { active: 'refresh-circle', inactive: 'refresh-outline' },
-  stats: { active: 'stats-chart', inactive: 'stats-chart-outline' },
+  community: { active: 'people', inactive: 'people-outline' },
   mypage: { active: 'person-circle', inactive: 'person-circle-outline' },
 };
 
@@ -92,10 +92,11 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen name="index" options={{ title: '홈', tabBarIcon: ({ color, focused }) => <TabIcon icon={focused ? TAB_ICON.index.active : TAB_ICON.index.inactive} color={color} /> }} />
-      <Tabs.Screen name="cards" options={{ title: '학습카드', tabBarIcon: ({ color, focused }) => <TabIcon icon={focused ? TAB_ICON.cards.active : TAB_ICON.cards.inactive} color={color} /> }} />
+      <Tabs.Screen name="cards" options={{ title: '학습', tabBarIcon: ({ color, focused }) => <TabIcon icon={focused ? TAB_ICON.cards.active : TAB_ICON.cards.inactive} color={color} /> }} />
       <Tabs.Screen name="review" options={{ title: '복습', tabBarIcon: ({ color, focused }) => <TabIcon icon={focused ? TAB_ICON.review.active : TAB_ICON.review.inactive} color={color} /> }} />
-      <Tabs.Screen name="stats" options={{ title: '통계', tabBarIcon: ({ color, focused }) => <TabIcon icon={focused ? TAB_ICON.stats.active : TAB_ICON.stats.inactive} color={color} /> }} />
-      <Tabs.Screen name="mypage" options={{ title: '마이페이지', tabBarIcon: ({ color, focused }) => <TabIcon icon={focused ? TAB_ICON.mypage.active : TAB_ICON.mypage.inactive} color={color} /> }} />
+      <Tabs.Screen name="community" options={{ title: '커뮤니티', tabBarIcon: ({ color, focused }) => <TabIcon icon={focused ? TAB_ICON.community.active : TAB_ICON.community.inactive} color={color} /> }} />
+      <Tabs.Screen name="mypage" options={{ title: 'MY', tabBarIcon: ({ color, focused }) => <TabIcon icon={focused ? TAB_ICON.mypage.active : TAB_ICON.mypage.inactive} color={color} /> }} />
+      <Tabs.Screen name="stats" options={{ href: null, title: '통계' }} />
     </Tabs>
     </View>
   );

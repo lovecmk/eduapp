@@ -7,7 +7,7 @@ import { useTheme } from '../../src/theme/ThemeProvider';
 import { useAuthStore } from '../../src/store/authStore';
 import { useSettingsStore } from '../../src/store/settingsStore';
 import { Button } from '../../src/components/ui/Button';
-import { fontMono, fontCute } from '../../src/theme/tokens';
+import { fontMono, fontCute, fontDisplay, fontBody } from '../../src/theme/tokens';
 import { ROUTES } from '../../src/constants/routes';
 import { useAllCards } from '../../src/hooks/useCards';
 import { useBookmarkStore } from '../../src/store/bookmarkStore';
@@ -117,17 +117,9 @@ export default function MyPageScreen() {
         )}
       </Pressable>
 
-      <Pressable onPress={() => router.push(ROUTES.settings)}
-        style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: c.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: c.border, marginVertical: 8 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-          <Ionicons name="settings-outline" size={20} color={c.textPrimary} />
-          <View>
-            <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontWeight: '700', fontFamily: fontCute }}>설정</Text>
-            <Text style={{ color: c.textSecondary, fontSize: 12, fontFamily: fontCute }}>알림, 테마, 계정 관리</Text>
-          </View>
-        </View>
-        <Ionicons name="chevron-forward" size={18} color={c.primary} />
-      </Pressable>
+      <MyRow icon="stats-chart-outline" title="학습 통계" desc="성향·리듬·순위 분석" onPress={() => router.push(ROUTES.stats)} />
+      <MyRow icon="headset-outline" title="고객센터 · 문의" desc="문의하기, 자주 묻는 질문" onPress={() => router.push(ROUTES.support)} />
+      <MyRow icon="settings-outline" title="설정" desc="알림, 테마, 계정 관리" onPress={() => router.push(ROUTES.settings)} />
       </ScrollView>
 
       <Modal visible={linkModal} transparent animationType="fade" onRequestClose={() => setLinkModal(false)}>
@@ -153,5 +145,23 @@ export default function MyPageScreen() {
         </Pressable>
       </Modal>
     </View>
+  );
+}
+
+function MyRow({ icon, title, desc, onPress }: { icon: keyof typeof Ionicons.glyphMap; title: string; desc: string; onPress: () => void }) {
+  const { theme, fontScale: fs } = useTheme();
+  const c = theme.colors;
+  return (
+    <Pressable onPress={onPress}
+      style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: c.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: c.border, marginVertical: 6 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+        <Ionicons name={icon} size={20} color={c.textPrimary} />
+        <View>
+          <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontFamily: fontDisplay }}>{title}</Text>
+          <Text style={{ color: c.textSecondary, fontSize: 12, fontFamily: fontBody }}>{desc}</Text>
+        </View>
+      </View>
+      <Ionicons name="chevron-forward" size={18} color={c.primary} />
+    </Pressable>
   );
 }

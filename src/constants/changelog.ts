@@ -7,6 +7,17 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.8.0',
+    date: '2026-07-10',
+    highlights: [
+      '첫 화면 개편 — 심플 로딩 → 정돈된 로그인 화면',
+      '홈 화면 재구성 — 학습에 필요한 것 위주로 간결하게',
+      '질문 & 답변(Q&A) 커뮤니티 추가',
+      '하단 탭 개편(홈·학습·복습·커뮤니티·MY) 및 네이밍 정리',
+      '고객센터 통합 — 문의·공지·수정 안내·FAQ를 한 곳에서',
+    ],
+  },
+  {
     version: '1.7.0',
     date: '2026-07-10',
     highlights: [

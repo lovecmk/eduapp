@@ -1,6 +1,6 @@
 import 'react-native-gesture-handler';
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Animated } from 'react-native';
+import { View, Text, Animated, Easing } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -14,7 +14,7 @@ import { BridgeLogo } from '../src/components/ui/BridgeLogo';
 import { ErrorBoundary } from '../src/components/ui/ErrorBoundary';
 import { UpdatePrompt } from '../src/components/ui/UpdatePrompt';
 import { useAppUpdate } from '../src/hooks/useAppUpdate';
-import { APP_FONTS } from '../src/theme/tokens';
+import { APP_FONTS, fontDisplay, fontBody } from '../src/theme/tokens';
 import { applyGlobalFont } from '../src/theme/applyGlobalFont';
 
 applyGlobalFont();
@@ -22,6 +22,32 @@ applyGlobalFont();
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
 });
+
+/** 부팅 로딩 인디케이터 — 은은하게 순차적으로 깜빡이는 3개 점. */
+function LoadingDots({ color }: { color: string }) {
+  const dots = [useRef(new Animated.Value(0.3)).current, useRef(new Animated.Value(0.3)).current, useRef(new Animated.Value(0.3)).current];
+  useEffect(() => {
+    const anims = dots.map((d, i) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(i * 160),
+          Animated.timing(d, { toValue: 1, duration: 320, useNativeDriver: true }),
+          Animated.timing(d, { toValue: 0.3, duration: 320, useNativeDriver: true }),
+          Animated.delay((2 - i) * 160),
+        ]),
+      ),
+    );
+    anims.forEach((a) => a.start());
+    return () => anims.forEach((a) => a.stop());
+  }, []);
+  return (
+    <View style={{ flexDirection: 'row', gap: 6, marginTop: 22 }}>
+      {dots.map((d, i) => (
+        <Animated.View key={i} style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: color, opacity: d }} />
+      ))}
+    </View>
+  );
+}
 
 function RootContent() {
   const { theme, isDark } = useTheme();
@@ -40,10 +66,11 @@ function RootContent() {
     const t = setTimeout(() => {
       Animated.timing(opacity, {
         toValue: 0,
-        duration: 400,
+        duration: 450,
+        easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
       }).start(() => setSplashDone(true));
-    }, 300);
+    }, 650);
     return () => clearTimeout(t);
   }, []);
 
@@ -69,9 +96,14 @@ function RootContent() {
         <Stack.Screen name="notifications" options={{ animation: 'slide_from_bottom' }} />
       </Stack>
       {!ready && (
-        <Animated.View style={{ position: 'absolute', inset: 0, alignItems: 'center', justifyContent: 'center', zIndex: 999, opacity, backgroundColor: isDark ? '#000' : '#fff' }}>
+        <Animated.View style={{ position: 'absolute', inset: 0, alignItems: 'center', justifyContent: 'center', zIndex: 999, opacity, backgroundColor: theme.colors.bg }}>
           <View style={{ alignItems: 'center' }}>
-            <BridgeLogo size={96} />
+            <View style={{ width: 96, height: 96, borderRadius: 26, backgroundColor: theme.colors.surface, borderWidth: 1, borderColor: theme.colors.border, alignItems: 'center', justifyContent: 'center', boxShadow: `0 10px 30px ${theme.colors.primary}22` }}>
+              <BridgeLogo size={60} />
+            </View>
+            <Text style={{ color: theme.colors.textPrimary, fontSize: 20, fontFamily: fontDisplay, marginTop: 18, letterSpacing: 1 }}>현장학습</Text>
+            <Text style={{ color: theme.colors.textSecondary, fontSize: 12.5, fontFamily: fontBody, marginTop: 4 }}>건물점검 마이크로러닝</Text>
+            <LoadingDots color={theme.colors.primary} />
           </View>
         </Animated.View>
       )}
