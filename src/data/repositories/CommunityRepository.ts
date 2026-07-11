@@ -24,6 +24,7 @@ interface CommunityDTO {
     participants: number;
     ends_in_days: number;
   };
+  total_cards_all_time?: number;
 }
 
 const ACTION_MAP: Record<string, CommunitySnapshot['activities'][number]['action']> = {
@@ -69,6 +70,7 @@ export class CommunityRepository implements ICommunityRepository {
         participants: dto.challenge?.participants ?? 0,
         endsInDays: dto.challenge?.ends_in_days ?? 0,
       },
+      totalCardsAllTime: dto.total_cards_all_time ?? 0,
     };
   }
 }

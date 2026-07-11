@@ -7,6 +7,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.7.0',
+    date: '2026-07-10',
+    highlights: [
+      '북마크(즐겨찾기) — 카드 저장 및 "저장한 카드" 모아보기',
+      '체감 난이도 투표 — 커뮤니티 난이도 분포에 함께 참여',
+      '함께 짓는 안전 빌딩 — 누적 학습이 빌딩을 층층이 올리고 보상 해금',
+    ],
+  },
+  {
     version: '1.6.0',
     date: '2026-07-10',
     highlights: [

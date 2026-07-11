@@ -10,6 +10,7 @@ import { Button } from '../../src/components/ui/Button';
 import { fontMono, fontCute } from '../../src/theme/tokens';
 import { ROUTES } from '../../src/constants/routes';
 import { useAllCards } from '../../src/hooks/useCards';
+import { useBookmarkStore } from '../../src/store/bookmarkStore';
 import { MEMBERSHIP_META } from '../../src/domain/models/User';
 
 export default function MyPageScreen() {
@@ -19,6 +20,7 @@ export default function MyPageScreen() {
   const user = useAuthStore((s) => s.user);
   const { data: allCards = [] } = useAllCards();
   const { profileImage, setProfileImage } = useSettingsStore();
+  const bookmarkCount = useBookmarkStore((s) => s.ids.length);
   const [linkModal, setLinkModal] = React.useState(false);
 
   const masteredCount = useMemo(() => allCards.filter((c) => c.status === 'mastered').length, [allCards]);
@@ -93,6 +95,27 @@ export default function MyPageScreen() {
           </View>
         ))}
       </View>
+
+      <Pressable onPress={() => router.push(ROUTES.saved)}
+        style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: c.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: c.border, marginVertical: 8 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <Ionicons name="bookmark-outline" size={20} color={c.textPrimary} />
+          <View>
+            <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontWeight: '700', fontFamily: fontCute }}>저장한 카드</Text>
+            <Text style={{ color: c.textSecondary, fontSize: 12, fontFamily: fontCute }}>북마크한 학습 카드 모아보기</Text>
+          </View>
+        </View>
+        {bookmarkCount > 0 ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <View style={{ backgroundColor: c.primary + '1A', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 }}>
+              <Text style={{ color: c.primary, fontSize: 12, fontWeight: '800', fontFamily: fontMono }}>{bookmarkCount}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={c.primary} />
+          </View>
+        ) : (
+          <Ionicons name="chevron-forward" size={18} color={c.primary} />
+        )}
+      </Pressable>
 
       <Pressable onPress={() => router.push(ROUTES.settings)}
         style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: c.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: c.border, marginVertical: 8 }}>

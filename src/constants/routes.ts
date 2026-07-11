@@ -10,5 +10,6 @@ export const ROUTES = {
   notifications: '/notifications',
   contents: '/contents',
   settings: '/settings',
+  saved: '/saved',
   content: (id: string) => `/content/${id}`,
 } as const;

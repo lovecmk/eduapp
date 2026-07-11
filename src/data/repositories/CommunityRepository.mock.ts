@@ -64,6 +64,11 @@ export class MockCommunityRepository implements ICommunityRepository {
     const goalCards = 5000;
     const currentCards = Math.round(goalCards * (0.35 + (dow / 7) * 0.5) + jitter() * 10);
 
+    // 누적 공동 문제 수 — 시작일 이후 매일 쌓이는 값(계속 증가).
+    const START = new Date('2026-01-01').getTime();
+    const daysSince = Math.max(0, Math.floor((Date.now() - START) / 86_400_000));
+    const totalCardsAllTime = 128_400 + daysSince * 2450 + Math.round(curve * 1800) + Math.abs(jitter()) * 20;
+
     return {
       onlineNow,
       studiedToday,
@@ -79,6 +84,7 @@ export class MockCommunityRepository implements ICommunityRepository {
         participants: 1240 + Math.abs(jitter()) * 5,
         endsInDays: Math.max(1, 7 - dow),
       },
+      totalCardsAllTime,
     };
   }
 }

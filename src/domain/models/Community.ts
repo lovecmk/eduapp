@@ -48,4 +48,6 @@ export interface CommunitySnapshot {
   activities: LiveActivity[];
   /** 이번 주 공동 챌린지 */
   challenge: WeeklyChallenge;
+  /** 커뮤니티가 지금까지 함께 푼 누적 문제 수(계속 쌓임) */
+  totalCardsAllTime: number;
 }

@@ -10,6 +10,7 @@ import { ScreenHeader } from '../../src/components/ui/ScreenHeader';
 import { QuestionImage } from '../../src/components/ui/QuestionImage';
 import { CategoryTrail } from '../../src/components/ui/CategoryTrail';
 import { CardReportModal } from '../../src/components/cards/CardReportModal';
+import { CardDifficultyPoll } from '../../src/components/cards/CardDifficultyPoll';
 import { CardTips } from '../../src/components/community/CardTips';
 import { fontCute, fontBody } from '../../src/theme/tokens';
 import { getCategoryIcon } from '../../src/constants/categories';
@@ -17,6 +18,7 @@ import { getDifficultyMeta } from '../../src/constants/difficulty';
 import { ROUTES } from '../../src/constants/routes';
 import { useAllCards } from '../../src/hooks/useCards';
 import { useReportStore } from '../../src/store/reportStore';
+import { useBookmarkStore } from '../../src/store/bookmarkStore';
 
 const statusLabel: Record<string, string> = { new: '새 카드', learning: '학습 중', mastered: '마스터' };
 
@@ -30,6 +32,8 @@ export default function ContentDetailScreen() {
   const card = allCards.find((c) => c.id === id);
   const [reportOpen, setReportOpen] = useState(false);
   const reported = useReportStore((s) => s.hasReported(id ?? ''));
+  const bookmarked = useBookmarkStore((s) => s.ids.includes(id ?? ''));
+  const toggleBookmark = useBookmarkStore((s) => s.toggle);
 
   useEffect(() => { if (!card) refetch(); }, [card, refetch]);
 
@@ -51,10 +55,15 @@ export default function ContentDetailScreen() {
       <ScreenHeader
         title="컨텐츠 상세"
         right={
-          <Pressable onPress={() => setReportOpen(true)} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 4, paddingHorizontal: 6, borderRadius: 8 }}>
-            <Ionicons name={reported ? 'flag' : 'flag-outline'} size={16} color={reported ? c.warning : c.textSecondary} />
-            <Text style={{ color: reported ? c.warning : c.textSecondary, fontSize: 12, fontFamily: fontBody }}>{reported ? '요청됨' : '수정 요청'}</Text>
-          </Pressable>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+            <Pressable onPress={() => toggleBookmark(card.id)} hitSlop={8} style={{ padding: 6 }}>
+              <Ionicons name={bookmarked ? 'bookmark' : 'bookmark-outline'} size={19} color={bookmarked ? c.primary : c.textSecondary} />
+            </Pressable>
+            <Pressable onPress={() => setReportOpen(true)} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 4, paddingHorizontal: 6, borderRadius: 8 }}>
+              <Ionicons name={reported ? 'flag' : 'flag-outline'} size={16} color={reported ? c.warning : c.textSecondary} />
+              <Text style={{ color: reported ? c.warning : c.textSecondary, fontSize: 12, fontFamily: fontBody }}>{reported ? '요청됨' : '수정'}</Text>
+            </Pressable>
+          </View>
         }
       />
 
@@ -131,6 +140,8 @@ export default function ContentDetailScreen() {
             ))}
           </View>
         )}
+
+        <CardDifficultyPoll cardId={card.id} />
 
         <CardTips cardId={card.id} />
       </ScrollView>
