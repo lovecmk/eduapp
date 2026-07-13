@@ -13,7 +13,7 @@
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/EAS_PROJECT_ID_PLACEHOLDER",
+      "url": "https://u.expo.dev/581d30ef-50f6-4f9e-95f9-015260afa0f1",
       "enabled": true,
       "checkAutomatically": "ON_LOAD",
       "fallbackToCacheTimeout": 0
