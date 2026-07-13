@@ -6,6 +6,9 @@ import {
   isUpdateAvailable,
   type RemoteVersion,
 } from '../data/update/UpdateService';
+import { fetchNativeUpdate, reloadNativeUpdate } from '../data/update/NativeUpdateService';
+
+const IS_WEB = Platform.OS === 'web';
 
 /** 주기적 버전 확인 간격(기본 5분). */
 const POLL_INTERVAL_MS = 5 * 60_000;
@@ -28,7 +31,8 @@ interface UseAppUpdateResult {
 /**
  * OTA 업데이트 감지 훅 — PART 5.2
  *
- * 부팅 직후 1회 + 주기적 폴링 + (웹) 탭 재포커스 시점에 `version.json` 을 확인한다.
+ * 부팅 직후 1회 + 주기적 폴링 + 앱 재포커스(웹은 탭 가시성) 시점에 업데이트를 확인한다.
+ * 웹은 `version.json`(GitHub Pages), 네이티브는 expo-updates(EAS Update)를 사용한다.
  * 모든 타이머/리스너는 언마운트 시 정리해 메모리 누수를 원천 차단한다.
  */
 export function useAppUpdate(): UseAppUpdateResult {
@@ -40,9 +44,12 @@ export function useAppUpdate(): UseAppUpdateResult {
   const detectedBuild = useRef<number | null>(null);
 
   const runCheck = useCallback(async () => {
-    const found = await fetchRemoteVersion();
+    // 웹: version.json 폴링 후 현재 번들과 비교. 네이티브: expo-updates 로 확인/다운로드.
+    // (네이티브 경로는 "새로 내려받은" 업데이트가 있을 때만 값을 반환한다.)
+    const found = IS_WEB ? await fetchRemoteVersion() : await fetchNativeUpdate();
     if (!isMounted.current || !found) return;
-    if (isUpdateAvailable(found) && detectedBuild.current !== found.buildNumber) {
+    const isNew = IS_WEB ? isUpdateAvailable(found) : true;
+    if (isNew && detectedBuild.current !== found.buildNumber) {
       detectedBuild.current = found.buildNumber;
       setRemote(found);
     }
@@ -50,13 +57,6 @@ export function useAppUpdate(): UseAppUpdateResult {
 
   useEffect(() => {
     isMounted.current = true;
-
-    // 웹이 아니면 이 훅은 아무 것도 하지 않는다(네이티브는 EAS Update 담당).
-    if (Platform.OS !== 'web') {
-      return () => {
-        isMounted.current = false;
-      };
-    }
 
     const initialTimer = setTimeout(runCheck, INITIAL_DELAY_MS);
     const interval = setInterval(runCheck, POLL_INTERVAL_MS);
@@ -92,7 +92,9 @@ export function useAppUpdate(): UseAppUpdateResult {
   }, [remote]);
 
   const apply = useCallback(() => {
-    void applyUpdate(remote ?? undefined);
+    // 웹: 캐시 버스팅 하드 리로드. 네이티브: 내려받은 OTA 적용 후 앱 재시작.
+    if (IS_WEB) void applyUpdate(remote ?? undefined);
+    else void reloadNativeUpdate();
   }, [remote]);
 
   const updateAvailable =

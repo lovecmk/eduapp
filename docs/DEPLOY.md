@@ -4,23 +4,26 @@
 Actions 가 자동으로 빌드·배포하고, 실행 중인 사용자에게 "새 버전이 나왔어요"
 알림을 띄워 최신 코드로 갱신하게 한다.
 
-## EAS Update 가 필요한가? EAS Build 가 필요한가? → 둘 다 필요 없음
+## 두 개의 배포 타깃 — 웹(PWA)과 네이티브(iOS/Android)
 
-| 도구 | 무엇을 하나 | 언제 필요 |
+| 도구 | 무엇을 하나 | 이 앱에서 |
 | --- | --- | --- |
-| **EAS Build** | iOS/Android **네이티브 바이너리(APK/IPA)** 컴파일 | 앱스토어·플레이스토어에 네이티브 앱을 낼 때 |
-| **EAS Update** | 이미 설치된 **네이티브 앱**에 JS 번들 OTA 푸시 | 스토어 앱의 JS를 재심사 없이 갱신할 때 |
-| **현재 방식(웹 PWA)** | `expo export --platform web` → GitHub Pages | 웹으로 배포·접속할 때 (지금 이 앱) |
+| **웹 PWA** | `expo export --platform web` → GitHub Pages | `deploy.yml` 이 담당(아래) |
+| **EAS Build** | iOS/Android **네이티브 바이너리(APK/IPA)** 컴파일 | `eas-build.yml`(수동) + `eas.json` |
+| **EAS Update** | 설치된 **네이티브 앱**에 JS 번들 OTA 푸시 | `eas-update.yml`(main 푸시) |
 
-웹 배포는 그 자체가 OTA 채널이다. 새 번들을 Pages 에 올리는 순간이 곧
-업데이트 배포이며, 아래 `version.json` 폴링이 EAS Update 와 동일한 역할
-(사용자에게 새 버전 알림 + 적용)을 웹에서 수행한다. 따라서 **웹 타깃에는
-EAS 가 전혀 필요 없다.**
+- **웹 타깃**은 배포 그 자체가 OTA 채널이다. 새 번들을 Pages 에 올리는 순간이 곧
+  업데이트이며, `version.json` 폴링이 사용자에게 새 버전 알림 + 적용을 수행한다.
+- **네이티브 타깃**은 스토어 심사를 거치는 바이너리다. 순수 JS/에셋 변경은 재심사
+  없이 **EAS Update(OTA)** 로 즉시 내보내고, 네이티브 코드/의존성/런타임이 바뀌면
+  **EAS Build** 로 새 바이너리를 만든다.
 
-> 나중에 스토어용 **네이티브 앱**을 실제로 배포하기로 하면, 그때
-> `eas.json` 을 추가하고 `EAS_PROJECT_ID` 를 설정한 뒤 EAS Build(최초 1회)
-> + EAS Update(이후 OTA)를 붙이면 된다. 클라이언트 코드는 이미 네이티브에서
-> `Platform.OS !== 'web'` 일 때 폴링을 건너뛰도록 되어 있어 그대로 공존 가능.
+클라이언트의 `useAppUpdate` 훅은 플랫폼을 자동 분기한다 — 웹은 `version.json`,
+네이티브는 `expo-updates`(EAS Update). 두 경로가 같은 `UpdatePrompt` UI 를 공유한다.
+
+> **네이티브 자동 업데이트 최초 설정(사용자 1회)**: `EXPO_TOKEN` Secret 추가 →
+> `eas init` → app.json 의 `EAS_PROJECT_ID_PLACEHOLDER`/`EXPO_ACCOUNT_USERNAME_PLACEHOLDER`
+> 치환. 전체 절차는 **[docs/EAS.md](./EAS.md)** 참고.
 
 ## 자동 배포 파이프라인 (`.github/workflows/deploy.yml`)
 

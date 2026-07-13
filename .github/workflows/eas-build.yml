@@ -1,0 +1,64 @@
+# EAS Build — 네이티브 앱 빌드(iOS/Android)
+#
+# 네이티브 코드/의존성/런타임 버전이 바뀌었을 때(=OTA 로 못 내보내는 변경)
+# 새 스토어 빌드를 만든다. OTA(순수 JS)는 eas-update.yml 이 담당한다.
+#
+# 수동 실행(workflow_dispatch)만 지원 — 빌드는 비용/시간이 크므로 명시적으로 트리거.
+# 사전 준비: EXPO_TOKEN Secret + `eas init` (docs/EAS.md 참고).
+name: EAS Build (Native)
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: '빌드 프로필(eas.json)'
+        required: true
+        default: 'production'
+        type: choice
+        options: [production, preview, development]
+      platform:
+        description: '대상 플랫폼'
+        required: true
+        default: 'all'
+        type: choice
+        options: [all, android, ios]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Preflight — EXPO_TOKEN 확인
+        run: |
+          if [ -z "${{ secrets.EXPO_TOKEN }}" ]; then
+            echo "::error::EXPO_TOKEN Secret 이 없습니다. 저장소 Settings → Secrets → Actions 에 추가하세요."
+            exit 1
+          fi
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: EAS Build
+        run: |
+          eas build \
+            --profile "${{ github.event.inputs.profile }}" \
+            --platform "${{ github.event.inputs.platform }}" \
+            --non-interactive \
+            --no-wait

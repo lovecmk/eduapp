@@ -7,6 +7,14 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.11.0',
+    date: '2026-07-13',
+    highlights: [
+      '모바일 앱 자동 업데이트(OTA) 지원 — 재설치 없이 최신 학습 콘텐츠를 자동 반영',
+      'EAS Build/Update 배포 파이프라인 구축(GitHub Actions)',
+    ],
+  },
+  {
     version: '1.10.0',
     date: '2026-07-13',
     highlights: [

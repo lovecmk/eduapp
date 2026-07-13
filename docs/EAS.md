@@ -1,0 +1,105 @@
+# EAS Build & EAS Update — 모바일 앱 자동 업데이트
+
+네이티브(iOS/Android) 앱 사용자가 **무선(OTA) 자동 업데이트**를 받도록 구성한
+구조와, 처음 한 번 해야 하는 설정을 정리한다.
+
+- **EAS Update** = 이미 설치된 앱에 JS/에셋 번들을 재심사 없이 즉시 배포(OTA).
+- **EAS Build** = 스토어에 올릴 네이티브 바이너리(APK/IPA) 컴파일. 네이티브
+  코드/의존성/런타임이 바뀔 때만 필요.
+
+이 저장소에 이미 포함된 것:
+
+| 파일 | 역할 |
+| --- | --- |
+| `app.json` → `updates`, `runtimeVersion`, `expo-updates` 플러그인 | 앱이 OTA 서버를 바라보게 함 |
+| `eas.json` | 빌드 프로필(development·preview·production) + 채널 |
+| `.github/workflows/eas-update.yml` | `main` 푸시 시 OTA 자동 게시 |
+| `.github/workflows/eas-build.yml` | 네이티브 빌드(수동 실행) |
+| `src/data/update/NativeUpdateService.ts` | 앱 내부에서 `expo-updates` 로 확인/다운로드/재시작 |
+| `src/hooks/useAppUpdate.ts` | 웹=version.json / 네이티브=EAS Update 자동 분기 |
+
+---
+
+## 자동 업데이트 동작 방식
+
+1. `main` 에 순수 JS/에셋 변경이 푸시되면 `eas-update.yml` 이
+   `eas update --branch production` 으로 새 번들을 게시한다.
+2. 사용자의 설치된 앱은 `app.json` 의 `checkAutomatically: ON_LOAD` 에 따라
+   **콜드 스타트마다 자동으로** 새 번들을 확인·다운로드하고, 다음 실행에 적용한다.
+3. 앱 사용 중이라면 `useAppUpdate` 훅이 세션 도중에도 확인해, 내려받은 업데이트가
+   있으면 `UpdatePrompt` 로 "재시작하여 적용"을 안내한다(강제 아님).
+
+네이티브 코드/의존성/`runtimeVersion` 이 바뀐 경우에는 OTA 로 못 내보내므로
+`eas-build.yml` 로 새 바이너리를 만들어 스토어에 다시 올려야 한다.
+
+---
+
+## 최초 설정 (사용자 1회)
+
+> Expo 계정과 토큰은 **직접** 설정한다. 아래 플레이스홀더만 실제 값으로 바꾸면 된다.
+
+### 1) EXPO_TOKEN 시크릿 추가
+- https://expo.dev → Account → **Access Tokens** 에서 personal access token 생성
+- GitHub 저장소 → **Settings → Secrets and variables → Actions → New repository secret**
+  - Name: `EXPO_TOKEN`
+  - Value: 발급받은 토큰
+
+### 2) EAS 프로젝트 연결
+로컬(또는 어디서든 Expo 로그인 상태)에서 저장소 루트에서:
+
+```bash
+npm i -g eas-cli          # 또는 npx eas-cli
+eas login
+eas init                  # EAS 프로젝트 생성 → projectId 발급
+eas update:configure      # updates.url / runtimeVersion 자동 구성
+```
+
+`eas init` 은 `app.json` 의 아래 플레이스홀더를 실제 값으로 채워준다(수동으로
+바꿔도 됨):
+
+| 플레이스홀더 | 실제 값 |
+| --- | --- |
+| `EAS_PROJECT_ID_PLACEHOLDER` (2곳: `updates.url`, `extra.eas.projectId`) | `eas init` 이 발급한 UUID |
+| `EXPO_ACCOUNT_USERNAME_PLACEHOLDER` (`owner`, expo-updates 플러그인 `username`) | Expo 계정/조직 username |
+
+`updates.url` 은 `https://u.expo.dev/<projectId>` 형태여야 한다.
+
+### 3) 채널 ↔ 브랜치 연결 (기본값이면 자동)
+`eas.json` 의 production 프로필은 `channel: production` 이다. OTA 게시는
+`--branch production` 으로 나가므로, production 채널이 production 브랜치를
+가리키게 한다(이름이 같으면 첫 게시 시 자동 연결):
+
+```bash
+eas channel:view production   # 연결 확인(없으면 첫 update 시 생성됨)
+```
+
+### 4) 최초 네이티브 빌드
+OTA 는 "이미 설치된 빌드"에만 적용되므로, 먼저 production 빌드가 한 번은 있어야 한다.
+
+```bash
+eas build --profile production --platform all
+```
+
+또는 GitHub → **Actions → EAS Build (Native) → Run workflow** 에서 실행.
+
+---
+
+## 이후 운영
+
+- **JS/에셋만 변경** → `main` 에 푸시하면 끝. `eas-update.yml` 이 자동 OTA.
+  (수동: Actions → **EAS Update (OTA)** → Run workflow → 브랜치 선택)
+- **네이티브 변경**(새 네이티브 모듈, `app.json` 권한, `runtimeVersion` 등)
+  → `eas-build.yml` 로 새 빌드 후 스토어 제출. 그 다음부터 다시 OTA.
+
+### runtimeVersion 정책
+현재 `{ "policy": "appVersion" }` — `app.json` 의 `version`(예: `1.10.0`)이 곧
+런타임 버전이다. OTA 는 **같은 런타임 버전**의 빌드에만 적용된다. 네이티브가
+바뀌어 재빌드할 때는 `version` 을 올려 런타임을 분리하는 것을 권장한다.
+
+---
+
+## 참고
+- EAS Update: https://docs.expo.dev/eas-update/introduction/
+- GitHub Action(`expo/expo-github-action`): https://github.com/expo/expo-github-action
+- 이 앱은 Expo SDK 52 에 고정(`expo-updates ~0.27.5`). 버전 변경 시
+  `npx expo install expo-updates` 를 사용한다(AGENTS.md 규칙).
