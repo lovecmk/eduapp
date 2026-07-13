@@ -126,9 +126,9 @@ export default function LoginScreen() {
           </View>
           <SocialButtonRow />
 
-          <Text style={{ textAlign: 'center', color: c.textSecondary, fontSize: 11, marginTop: 22, fontFamily: fontBody }}>
+          {/* <Text style={{ textAlign: 'center', color: c.textSecondary, fontSize: 11, marginTop: 22, fontFamily: fontBody }}>
             Bridge와 동일한 계정을 사용합니다
-          </Text>
+          </Text> */}
         </ScrollView>
       </KeyboardAvoidingView>
 
