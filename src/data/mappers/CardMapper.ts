@@ -2,12 +2,9 @@ import type { CardDTO } from '../dto/CardDTO';
 import type { LearningCard, CardCategory, CardStatus } from '../../domain/models/LearningCard';
 
 const CATEGORY_MAP: Record<string, CardCategory> = {
-  ARCH: '건축',
-  STRUCT: '구조',
-  MECH: '기계설비',
-  ELEC: '전기',
-  FIRE: '소방',
-  ELEV: '승강기',
+  ELEC: '전기 위험',
+  PROCESS: '공정 위험',
+  HAZMAT: '위험물',
 };
 
 const STATUS_MAP: Record<CardDTO['status_cd'], CardStatus> = {
@@ -32,16 +29,22 @@ export class CardMapper {
     }
     return {
       id: dto.id,
-      category: CATEGORY_MAP[dto.category_cd] ?? '건축',
+      category: CATEGORY_MAP[dto.category_cd] ?? '전기 위험',
       subCategory: dto.sub_category_nm?.trim() ?? '',
       topic: dto.topic_nm?.trim() ?? '',
+      keywords: dto.keywords ?? [],
+      title: dto.title_txt?.trim() ?? '',
       difficulty: DIFFICULTY_MAP[dto.difficulty_cd ?? 'MEDIUM'] ?? 'medium',
+      studySeconds: dto.study_seconds ?? 40,
+      situation: dto.situation_txt?.trim() ?? '',
       question: dto.question_txt?.trim() ?? '',
-      answer: dto.answer_txt?.trim() ?? '',
-      explanation: dto.explanation_txt?.trim() ?? '',
       imageUrl: dto.image_url?.trim() || undefined,
-      highlights: dto.highlights,
-      standards: dto.standards,
+      principle: dto.principle_txt?.trim() ?? '',
+      process: dto.process_txt?.trim() || undefined,
+      fireTriangle: dto.fire_triangle_txt?.trim() || undefined,
+      conclusion: dto.conclusion_txt?.trim() ?? '',
+      source: dto.source_txt?.trim() || undefined,
+      hasImage: Boolean(dto.image_url?.trim()),
       status: STATUS_MAP[dto.status_cd] ?? 'new',
       dueAt: dto.due_at ? new Date(dto.due_at) : null,
     };

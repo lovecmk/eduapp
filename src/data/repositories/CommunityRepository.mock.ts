@@ -2,9 +2,9 @@ import type { ICommunityRepository } from '../../domain/repositories/ICommunityR
 import type { CommunitySnapshot, LiveActivity } from '../../domain/models/Community';
 import { delay } from './_delay';
 
-const NAMES = ['김점검', '이안전', '박설비', '최구조', '정소방', '한전기', '오승강', '강건축', '조방재', '윤진단', '서관리', '문점검'];
-const CATEGORIES = ['건축', '구조', '기계설비', '전기', '소방', '승강기'];
-const TOPICS = ['옥내소화전', '절연저항', '철근 피복', '제연설비', '조속기', '균열 평가', '접지저항', '저수조'];
+const NAMES = ['김점검', '이안전', '박설비', '최공정', '정위험', '한전기', '오도장', '강분진', '조방재', '윤진단', '서관리', '문점검'];
+const CATEGORIES = ['전기 위험', '공정 위험', '위험물'];
+const TOPICS = ['절연파괴', '접촉불량', '분무도장', '위험장소', '마그네슘 분진', '정전기', '접지·본딩', '분진폭발'];
 const COLORS = ['#5C6BC0', '#26A69A', '#F2B705', '#E2574C', '#7E57C2', '#8D6E63'];
 
 const pick = <T,>(arr: readonly T[], seed: number): T => arr[Math.abs(seed) % arr.length];

@@ -78,7 +78,7 @@ export default function LoginScreen() {
               <BridgeLogo size={52} />
             </View>
             <Text style={{ color: c.textPrimary, fontSize: 24 * fs, fontFamily: fontDisplay, marginTop: 18, letterSpacing: 1 }}>현장학습</Text>
-            <Text style={{ color: c.textSecondary, fontSize: 13 * fs, marginTop: 6, fontFamily: fontBody }}>건물점검, 매일 3분이면 충분합니다</Text>
+            <Text style={{ color: c.textSecondary, fontSize: 13 * fs, marginTop: 6, fontFamily: fontBody }}>현장 안전학습, 매일 3분이면 충분합니다</Text>
           </View>
 
           {/* 로그인 */}

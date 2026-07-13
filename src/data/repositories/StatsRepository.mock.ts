@@ -9,8 +9,8 @@ export class MockStatsRepository implements IStatsRepository {
     return {
       streakDays: 7,
       bestStreak: 14,
-      totalLearned: 128,
-      totalCards: 156,
+      totalLearned: 23,
+      totalCards: 51,
       accuracy: 0.667,
       dueToday: 3,
       weekly: [
@@ -44,12 +44,9 @@ export class MockStatsRepository implements IStatsRepository {
         { label: '일', count: 3 },
       ],
       categoryBreakdown: [
-        { category: '건축', total: 2, mastered: 1, accuracy: 0.7 },
-        { category: '구조', total: 2, mastered: 1, accuracy: 0.6 },
-        { category: '기계설비', total: 2, mastered: 1, accuracy: 0.65 },
-        { category: '전기', total: 2, mastered: 1, accuracy: 0.55 },
-        { category: '소방', total: 2, mastered: 1, accuracy: 0.75 },
-        { category: '승강기', total: 2, mastered: 0, accuracy: 0.5 },
+        { category: '전기 위험', total: 10, mastered: 6, accuracy: 0.72 },
+        { category: '공정 위험', total: 20, mastered: 9, accuracy: 0.63 },
+        { category: '위험물', total: 21, mastered: 8, accuracy: 0.6 },
       ],
       rankings: [
         { rank: 1, nickname: '김안전', score: 98 },

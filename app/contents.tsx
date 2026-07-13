@@ -48,7 +48,8 @@ export default function ContentsScreen() {
     const q = search.trim().toLowerCase();
     if (!q) return null;
     return allCards.filter((x) =>
-      x.question.toLowerCase().includes(q) || x.answer.toLowerCase().includes(q) ||
+      x.question.toLowerCase().includes(q) || x.title.toLowerCase().includes(q) ||
+      x.conclusion.toLowerCase().includes(q) || x.keywords.some((k) => k.toLowerCase().includes(q)) ||
       x.topic.toLowerCase().includes(q) || x.subCategory.toLowerCase().includes(q) || x.category.includes(q));
   }, [allCards, search]);
 

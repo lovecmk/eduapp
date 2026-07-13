@@ -11,6 +11,7 @@ import { QuestionImage } from '../../src/components/ui/QuestionImage';
 import { CategoryTrail } from '../../src/components/ui/CategoryTrail';
 import { CardReportModal } from '../../src/components/cards/CardReportModal';
 import { CardDifficultyPoll } from '../../src/components/cards/CardDifficultyPoll';
+import { CardBackBody } from '../../src/components/cards/CardBackBody';
 import { CardTips } from '../../src/components/community/CardTips';
 import { fontCute, fontBody } from '../../src/theme/tokens';
 import { getCategoryIcon } from '../../src/constants/categories';
@@ -92,54 +93,19 @@ export default function ContentDetailScreen() {
             <Ionicons name="help-circle" size={16} color={c.primary} />
             <Text style={{ color: c.primary, fontSize: 12, fontWeight: '700', fontFamily: fontCute }}>질문</Text>
           </View>
+          {!!card.situation && (
+            <Text style={{ color: c.textSecondary, fontSize: 13.5 * fs, lineHeight: 21, fontFamily: fontBody, marginBottom: 10 }}>{card.situation}</Text>
+          )}
           <Text style={{ color: c.textPrimary, fontSize: 17 * fs, fontWeight: '800', lineHeight: 25, fontFamily: fontCute }}>{card.question}</Text>
         </Animated.View>
 
-        <View style={{ backgroundColor: c.surface, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: c.border, marginBottom: 14 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 6 }}>
-            <Ionicons name="checkmark-circle" size={16} color={c.success} />
-            <Text style={{ color: c.success, fontSize: 12, fontWeight: '700', fontFamily: fontCute }}>정답</Text>
+        <Animated.View entering={FadeInDown.delay(180).duration(360)} style={{ backgroundColor: c.surface, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: c.border, marginBottom: 14 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 12 }}>
+            <Ionicons name="school" size={16} color={c.success} />
+            <Text style={{ color: c.success, fontSize: 12, fontWeight: '700', fontFamily: fontCute }}>해설</Text>
           </View>
-          <Text style={{ color: c.textPrimary, fontSize: 15 * fs, lineHeight: 22, fontWeight: '600', fontFamily: fontCute }}>{card.answer}</Text>
-        </View>
-
-        {card.highlights && card.highlights.length > 0 && (
-          <View style={{ backgroundColor: c.surface, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: c.border, marginBottom: 14 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 8 }}>
-              <Ionicons name="bulb" size={16} color={c.warning} />
-              <Text style={{ color: c.primary, fontSize: 12, fontWeight: '700', fontFamily: fontCute }}>핵심 포인트</Text>
-            </View>
-            {card.highlights.map((h, i) => (
-              <View key={i} style={{ flexDirection: 'row', marginBottom: 4 }}>
-                <Text style={{ color: c.primary, fontSize: 13, marginRight: 6 }}>•</Text>
-                <Text style={{ color: c.textPrimary, fontSize: 13 * fs, lineHeight: 19, flex: 1 }}>{h}</Text>
-              </View>
-            ))}
-          </View>
-        )}
-
-        <View style={{ backgroundColor: c.surface, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: c.border, marginBottom: 14 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 6 }}>
-            <Ionicons name="document-text" size={16} color={c.textSecondary} />
-            <Text style={{ color: c.textSecondary, fontSize: 12, fontWeight: '700', fontFamily: fontCute }}>상세 설명</Text>
-          </View>
-          <Text style={{ color: c.textPrimary, fontSize: 14 * fs, lineHeight: 21 }}>{card.explanation}</Text>
-        </View>
-
-        {card.standards && card.standards.length > 0 && (
-          <View style={{ backgroundColor: c.surface, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: c.border, marginBottom: 14 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 8 }}>
-              <Ionicons name="shield-checkmark" size={16} color={c.textSecondary} />
-              <Text style={{ color: c.textSecondary, fontSize: 12, fontWeight: '700', fontFamily: fontCute }}>관련 규정/기준</Text>
-            </View>
-            {card.standards.map((s, i) => (
-              <View key={i} style={{ flexDirection: 'row', marginBottom: 4 }}>
-                <Text style={{ color: c.textSecondary, fontSize: 13, marginRight: 6 }}>•</Text>
-                <Text style={{ color: c.textPrimary, fontSize: 13 * fs, lineHeight: 19, flex: 1 }}>{s}</Text>
-              </View>
-            ))}
-          </View>
-        )}
+          <CardBackBody card={card} />
+        </Animated.View>
 
         <CardDifficultyPoll cardId={card.id} />
 

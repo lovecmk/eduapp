@@ -12,6 +12,7 @@ import { QuestionImage } from '../../src/components/ui/QuestionImage';
 import { CategoryTrail } from '../../src/components/ui/CategoryTrail';
 import { UpcomingSchedule } from '../../src/components/review/UpcomingSchedule';
 import { CardTipsSheet } from '../../src/components/community/CardTipsSheet';
+import { CardBackBody } from '../../src/components/cards/CardBackBody';
 import { useTipStore } from '../../src/store/tipStore';
 import { fontCute, fontDisplay, fontBody, fontMono } from '../../src/theme/tokens';
 import { getCategoryIcon } from '../../src/constants/categories';
@@ -233,9 +234,14 @@ export default function ReviewScreen() {
           {!flipped ? (
             <Pressable onPress={() => setFlipped(true)} style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
               {!card.imageUrl && (
-                <Ionicons name={getCategoryIcon(card.category)} size={44 * fs} color={c.primary} style={{ marginBottom: 12, opacity: 0.5 }} />
+                <Ionicons name={getCategoryIcon(card.category)} size={40 * fs} color={c.primary} style={{ marginBottom: 12, opacity: 0.5 }} />
               )}
-              <Text style={{ color: c.textPrimary, fontSize: 19 * fs, lineHeight: 29, textAlign: 'center', fontFamily: fontDisplay }}>
+              {!!card.situation && (
+                <Text style={{ color: c.textSecondary, fontSize: 13 * fs, lineHeight: 20, textAlign: 'center', fontFamily: fontBody, marginBottom: 12 }}>
+                  {card.situation}
+                </Text>
+              )}
+              <Text style={{ color: c.textPrimary, fontSize: 18 * fs, lineHeight: 27, textAlign: 'center', fontFamily: fontDisplay }}>
                 {card.question}
               </Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 18 }}>
@@ -245,25 +251,7 @@ export default function ReviewScreen() {
             </Pressable>
           ) : (
             <View style={{ flex: 1 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 }}>
-                <Ionicons name="checkmark-circle" size={22} color={c.success} style={{ marginRight: 8, marginTop: 2 }} />
-                <Text style={{ color: c.primary, fontSize: 18 * fs, flex: 1, fontFamily: fontDisplay }}>{card.answer}</Text>
-              </View>
-              {card.highlights?.map((h, i) => (
-                <View key={i} style={{ flexDirection: 'row', marginBottom: 4 }}>
-                  <Text style={{ color: c.primary, fontSize: 13 * fs, marginRight: 6 }}>•</Text>
-                  <Text style={{ color: c.textPrimary, fontSize: 13 * fs, lineHeight: 19, flex: 1, fontFamily: fontBody }}>{h}</Text>
-                </View>
-              ))}
-              <Text style={{ color: c.textSecondary, fontSize: 13 * fs, lineHeight: 20, marginTop: 8, fontFamily: fontBody }}>{card.explanation}</Text>
-              {(card.standards?.length ?? 0) > 0 && (
-                <View style={{ backgroundColor: c.surfaceAlt, borderRadius: 10, padding: 12, marginTop: 12 }}>
-                  <Text style={{ color: c.textSecondary, fontSize: 11 * fs, marginBottom: 6, fontFamily: fontDisplay }}>관련 기준</Text>
-                  {card.standards?.map((s, i) => (
-                    <Text key={i} style={{ color: c.textSecondary, fontSize: 12 * fs, lineHeight: 18, fontFamily: fontBody }}>{s}</Text>
-                  ))}
-                </View>
-              )}
+              <CardBackBody card={card} />
             </View>
           )}
         </Animated.View>

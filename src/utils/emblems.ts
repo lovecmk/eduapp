@@ -23,12 +23,9 @@ export interface EmblemRankEntry {
 }
 
 export const EMBLEM_DEFS: EmblemDef[] = [
-  { category: '건축', emoji: '🏢', label: '건축점검' },
-  { category: '구조', emoji: '🧱', label: '구조안전' },
-  { category: '기계설비', emoji: '🛠️', label: '기계설비' },
-  { category: '전기', emoji: '⚡', label: '전기설비' },
-  { category: '소방', emoji: '🔥', label: '소방설비' },
-  { category: '승강기', emoji: '🛗', label: '승강기' },
+  { category: '전기 위험', emoji: '⚡', label: '전기 안전' },
+  { category: '공정 위험', emoji: '🎨', label: '공정 안전' },
+  { category: '위험물', emoji: '🔥', label: '위험물 관리' },
 ];
 
 const LEVEL_THRESHOLDS = [0, 30, 60, 90];
@@ -39,7 +36,7 @@ const NAME_POOL = ['김안전', '박현장', '최예방', '이방호', '정점�
 export function calcEmblems(
   cardMap: Map<string, { total: number; mastered: number }>,
 ): EmblemProgress[] {
-  const catIndex: Record<string, number> = { 건축: 0, 구조: 1, 기계설비: 2, 전기: 3, 소방: 4, 승강기: 5 };
+  const catIndex: Record<string, number> = { '전기 위험': 0, '공정 위험': 1, 위험물: 2 };
 
   return EMBLEM_DEFS.map((def) => {
     const stat = cardMap.get(def.category) ?? { total: 0, mastered: 0 };
@@ -49,7 +46,7 @@ export function calcEmblems(
       if (pct >= LEVEL_THRESHOLDS[i]) { level = i; break; }
     }
     const idx = catIndex[def.category] ?? 0;
-    const topPct = [8, 15, 22, 30, 12, 18][idx];
+    const topPct = [8, 15, 22][idx];
 
     return {
       category: def.category,

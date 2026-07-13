@@ -103,7 +103,7 @@ function RootContent() {
               <BridgeLogo size={60} />
             </View>
             <Text style={{ color: theme.colors.textPrimary, fontSize: 20, fontFamily: fontDisplay, marginTop: 18, letterSpacing: 1 }}>현장학습</Text>
-            <Text style={{ color: theme.colors.textSecondary, fontSize: 12.5, fontFamily: fontBody, marginTop: 4 }}>건물점검 마이크로러닝</Text>
+            <Text style={{ color: theme.colors.textSecondary, fontSize: 12.5, fontFamily: fontBody, marginTop: 4 }}>현장 안전 마이크로러닝</Text>
             <LoadingDots color={theme.colors.primary} />
           </View>
         </Animated.View>

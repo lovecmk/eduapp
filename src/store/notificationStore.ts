@@ -32,14 +32,14 @@ export const NOTIFICATION_TYPE_META: Record<
 function seedNotifications(): AppNotification[] {
   return [
     { id: 'n1', type: 'remind', title: '지금 복습할 카드 5장이 있어요', desc: '망각곡선 기준 복습 시점이 도래했습니다. 3분이면 충분해요.', minutesAgo: 8, read: false, category: '복습' },
-    { id: 'n2', type: 'new', title: '새 학습 컨텐츠가 추가되었어요', desc: '소방 > 소화설비 3종 시리즈를 확인해보세요.', minutesAgo: 45, read: false, category: '소방' },
+    { id: 'n2', type: 'new', title: '새 학습 컨텐츠가 추가되었어요', desc: '공정 위험 > 도장 공정 시리즈를 확인해보세요.', minutesAgo: 45, read: false, category: '공정 위험' },
     { id: 'n3', type: 'achievement', title: '연속 학습 7일 달성! 🔥', desc: '일주일 동안 꾸준히 학습하셨어요. 축하합니다!', minutesAgo: 180, read: false, category: '성취' },
-    { id: 'n4', type: 'remind', title: '전기 설비 복습 리마인드', desc: '절연저항 카드의 복습 주기가 도래했습니다.', minutesAgo: 320, read: false, category: '전기' },
-    { id: 'n5', type: 'new', title: '승강기 안전점검 카드 확장', desc: '조속기, 완충기 등 4개 카드가 새로 추가되었습니다.', minutesAgo: 26 * 60, read: false, category: '승강기' },
+    { id: 'n4', type: 'remind', title: '전기 위험 복습 리마인드', desc: '절연파괴·누전 카드의 복습 주기가 도래했습니다.', minutesAgo: 320, read: false, category: '전기 위험' },
+    { id: 'n5', type: 'new', title: '위험물 학습 카드 확장', desc: '마그네슘 분진·소화 등 카드가 새로 추가되었습니다.', minutesAgo: 26 * 60, read: false, category: '위험물' },
     { id: 'n6', type: 'system', title: '현장학습 v1.2 업데이트', desc: '간격 반복 복습과 학습 캘린더가 추가되었어요.', minutesAgo: 30 * 60, read: true, category: '공지' },
     { id: 'n7', type: 'achievement', title: '누적 100개 카드 완료 🏅', desc: '점검 실무 지식 100개를 학습하셨습니다.', minutesAgo: 52 * 60, read: true, category: '성취' },
-    { id: 'n8', type: 'remind', title: '취약 주제 복습 권장', desc: '구조 > 철근 피복 카드의 정답률이 낮습니다. 복습을 권장해요.', minutesAgo: 74 * 60, read: true, category: '구조' },
-    { id: 'n9', type: 'new', title: '건축 방수 점검 컨텐츠', desc: '옥상 방수·균열 진단 카드 2개가 추가되었습니다.', minutesAgo: 5 * 1440, read: true, category: '건축' },
+    { id: 'n8', type: 'remind', title: '취약 주제 복습 권장', desc: '공정 위험 > 위험장소 카드의 정답률이 낮습니다. 복습을 권장해요.', minutesAgo: 74 * 60, read: true, category: '공정 위험' },
+    { id: 'n9', type: 'new', title: '전기 화재 기초 컨텐츠', desc: '절연파괴·접촉불량 카드가 추가되었습니다.', minutesAgo: 5 * 1440, read: true, category: '전기 위험' },
     { id: 'n10', type: 'system', title: '데이터 백업 완료', desc: '학습 진행 상황이 안전하게 백업되었습니다.', minutesAgo: 8 * 1440, read: true, category: '공지' },
   ];
 }

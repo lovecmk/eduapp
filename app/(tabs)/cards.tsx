@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, Pressable, Animated } from 'react-native';
+import { View, Text, Pressable, Animated, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../src/theme/ThemeProvider';
@@ -10,7 +10,8 @@ import { SkeletonLoader } from '../../src/components/ui/SkeletonLoader';
 import { ErrorState } from '../../src/components/ui/ErrorState';
 import { QuestionImage } from '../../src/components/ui/QuestionImage';
 import { CategoryTrail } from '../../src/components/ui/CategoryTrail';
-import { CardTimer, TIME_BY_DIFFICULTY } from '../../src/components/cards/CardTimer';
+import { CardTimer } from '../../src/components/cards/CardTimer';
+import { CardBackBody } from '../../src/components/cards/CardBackBody';
 import { fontCute } from '../../src/theme/tokens';
 import { getCategoryIcon } from '../../src/constants/categories';
 import { ROUTES } from '../../src/constants/routes';
@@ -149,38 +150,28 @@ export default function CardsScreen() {
                       <QuestionImage uri={card.imageUrl} height={170} />
                     </View>
                   ) : (
-                    <Ionicons name={getCategoryIcon(card.category)} size={48 * fs} color={c.primary} style={{ marginBottom: 12, opacity: 0.6 }} />
+                    <Ionicons name={getCategoryIcon(card.category)} size={40 * fs} color={c.primary} style={{ marginBottom: 12, opacity: 0.6 }} />
                   )}
-                  <Text style={{ color: c.textPrimary, fontSize: 20 * fs, fontWeight: '700', lineHeight: 30, textAlign: 'center', fontFamily: fontCute }}>
+                  {!!card.situation && (
+                    <Text style={{ color: c.textSecondary, fontSize: 13 * fs, lineHeight: 20, textAlign: 'center', fontFamily: fontCute, marginBottom: 12 }}>
+                      {card.situation}
+                    </Text>
+                  )}
+                  <Text style={{ color: c.textPrimary, fontSize: 19 * fs, fontWeight: '700', lineHeight: 28, textAlign: 'center', fontFamily: fontCute }}>
                     {card.question}
                   </Text>
                   <View style={{ marginTop: 22 }}>
-                    <CardTimer seconds={TIME_BY_DIFFICULTY[card.difficulty]} resetKey={card.id} onExpire={() => setFlipped(true)} />
+                    <CardTimer seconds={card.studySeconds} resetKey={card.id} onExpire={() => setFlipped(true)} />
                   </View>
                 </View>
               </>
             ) : (
-              <View style={{ flex: 1 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 14 }}>
-                  <Ionicons name="checkmark-circle" size={22} color={c.success} style={{ marginRight: 8 }} />
-                  <Text style={{ color: c.primary, fontSize: 18 * fs, fontWeight: '800', flex: 1, fontFamily: fontCute }}>{card.answer}</Text>
+              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 4 }}>
+                <View style={{ marginBottom: 12 }}>
+                  <CategoryTrail category={card.category} subCategory={card.subCategory} topic={card.topic} size="sm" />
                 </View>
-                {card.highlights?.map((h, i) => (
-                  <View key={i} style={{ flexDirection: 'row', marginBottom: 4 }}>
-                    <Text style={{ color: c.primary, fontSize: 13 * fs, marginRight: 6 }}>•</Text>
-                    <Text style={{ color: c.textPrimary, fontSize: 13 * fs, lineHeight: 19, flex: 1 }}>{h}</Text>
-                  </View>
-                ))}
-                <Text style={{ color: c.textSecondary, fontSize: 13 * fs, lineHeight: 20, marginTop: 8, flex: 1 }}>{card.explanation}</Text>
-                {(card.standards?.length ?? 0) > 0 && (
-                  <View style={{ backgroundColor: c.surfaceAlt, borderRadius: 10, padding: 12, marginTop: 8 }}>
-                    <Text style={{ color: c.textSecondary, fontSize: 11 * fs, fontWeight: '700', marginBottom: 6 }}>관련 기준</Text>
-                    {card.standards?.map((s, i) => (
-                      <Text key={i} style={{ color: c.textSecondary, fontSize: 12 * fs, lineHeight: 18 }}>{s}</Text>
-                    ))}
-                  </View>
-                )}
-              </View>
+                <CardBackBody card={card} />
+              </ScrollView>
             )}
           </Pressable>
         </Animated.View>

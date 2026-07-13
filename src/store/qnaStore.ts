@@ -35,28 +35,28 @@ const pick = (i: number) => COLORS[i % COLORS.length];
 function seed(): Question[] {
   return [
     {
-      id: 'q1', author: '이안전', color: pick(0), category: '소방',
-      title: '옥내소화전 방수압, 최상층에서 재는 게 맞나요?',
-      body: '가장 먼 소화전에서 잰다고 배웠는데, 현장에서는 최상층 기준으로도 재더라고요. 어떤 게 맞는 걸까요?',
+      id: 'q1', author: '이안전', color: pick(0), category: '전기 위험',
+      title: '분전반 단자 발열, 접촉불량으로 봐야 할까요?',
+      body: '전선이 끊어진 것도 아닌데 단자부만 유독 뜨겁습니다. 접촉불량만으로도 화재로 이어질 수 있나요?',
       answers: [
-        { id: 'a1', author: '정소방', color: pick(4), body: '규정상 가장 먼(수리적으로 불리한) 소화전 기준이 맞습니다. 보통 최상층+최원거리가 겹치는 경우가 많아요.', likes: 8, likedByMe: false, minutesAgo: 40, accepted: true },
-        { id: 'a2', author: '한전기', color: pick(2), body: '피토게이지 각도도 노즐 선단에 수직으로 맞춰야 오차가 적습니다.', likes: 3, likedByMe: false, minutesAgo: 20 },
+        { id: 'a1', author: '한전기', color: pick(4), body: '접촉불량이면 접촉저항이 커져 그 부위에서 열이 집중됩니다. 정상 작동해도 내부에서 발열이 쌓여 탄화·아크로 진행될 수 있어요.', likes: 8, likedByMe: false, minutesAgo: 40, accepted: true },
+        { id: 'a2', author: '박설비', color: pick(2), body: '열화상으로 단자부 온도 먼저 찍어보시고, 재체결 토크도 규정값으로 맞추세요.', likes: 3, likedByMe: false, minutesAgo: 20 },
       ],
       likes: 5, likedByMe: false, minutesAgo: 55,
     },
     {
-      id: 'q2', author: '최구조', color: pick(5), category: '구조',
-      title: '철근 피복두께 측정기 오차 줄이는 팁 있을까요?',
-      body: '전자기유도식으로 재는데 배근이 촘촘한 곳은 값이 튀네요. 노하우 공유 부탁드려요!',
+      id: 'q2', author: '최공정', color: pick(5), category: '공정 위험',
+      title: '배기덕트 내부도 위험장소로 관리해야 하나요?',
+      body: '도장부스 배기덕트는 사람이 작업하지 않는데, 여기도 방폭·위험장소로 봐야 할지 애매합니다.',
       answers: [
-        { id: 'a3', author: '박설비', color: pick(1), body: '배근도로 위치 먼저 잡고, 인접 철근 영향 적은 스팬 중앙부에서 재보세요.', likes: 6, likedByMe: false, minutesAgo: 120 },
+        { id: 'a3', author: '오도장', color: pick(1), body: '덕트는 인화성 증기·미스트가 지나가는 길이라 잔류물·가연성 혼합기가 생깁니다. 1종(21종) 장소로 보는 게 맞아요.', likes: 6, likedByMe: false, minutesAgo: 120 },
       ],
       likes: 9, likedByMe: false, minutesAgo: 180,
     },
     {
-      id: 'q3', author: '김점검', color: pick(0), category: '건축',
-      title: '옥상 방수 들뜸, 어느 정도부터 보수 대상인가요?',
-      body: '타음검사로 공극은 확인했는데 보수 판단 기준이 애매합니다.',
+      id: 'q3', author: '김점검', color: pick(0), category: '위험물',
+      title: '마그네슘 화재, CO₂ 소화기 쓰면 안 되나요?',
+      body: '금속화재라 물은 안 된다고 배웠는데, CO₂ 소화기는 써도 되는지 헷갈립니다.',
       answers: [],
       likes: 2, likedByMe: false, minutesAgo: 300,
     },
