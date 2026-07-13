@@ -56,7 +56,7 @@
       [
         "expo-updates",
         {
-          "username": "EXPO_ACCOUNT_USERNAME_PLACEHOLDER"
+          "username": "raywon0803@gmail.com"
         }
       ]
     ],
@@ -65,7 +65,7 @@
     },
     "extra": {
       "eas": {
-        "projectId": "EAS_PROJECT_ID_PLACEHOLDER"
+        "projectId": "581d30ef-50f6-4f9e-95f9-015260afa0f1"
       }
     }
   }
