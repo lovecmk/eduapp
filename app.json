@@ -4,7 +4,7 @@
     "slug": "field-learning-app",
     "version": "1.11.0",
     "scheme": "fieldlearning",
-    "owner": "EXPO_ACCOUNT_USERNAME_PLACEHOLDER",
+    "owner": "raywon",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -56,7 +56,7 @@
       [
         "expo-updates",
         {
-          "username": "raywon0803@gmail.com"
+          "username": "raywon"
         }
       ]
     ],
