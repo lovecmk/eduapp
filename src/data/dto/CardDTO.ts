@@ -31,4 +31,10 @@ export interface CardDTO {
   status_cd: 'NEW' | 'LEARNING' | 'MASTERED';
   difficulty_cd?: 'EASY' | 'MEDIUM' | 'HARD';
   due_at: string | null;
+  /** 카드 형식 — EXPLANATION(기본) / OX / CHOICE */
+  card_type_cd?: 'EXPLANATION' | 'OX' | 'CHOICE';
+  /** 퀴즈 보기 목록 */
+  choices?: string[];
+  /** 정답 보기 인덱스 */
+  answer_index?: number;
 }

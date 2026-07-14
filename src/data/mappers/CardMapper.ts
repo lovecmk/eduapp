@@ -19,6 +19,12 @@ const DIFFICULTY_MAP: Record<string, 'easy' | 'medium' | 'hard'> = {
   HARD: 'hard',
 };
 
+const CARD_TYPE_MAP: Record<string, 'explanation' | 'ox' | 'choice'> = {
+  EXPLANATION: 'explanation',
+  OX: 'ox',
+  CHOICE: 'choice',
+};
+
 export class CardMapper {
   static toDomain(dto: CardDTO): LearningCard {
     if (__DEV__ && !CATEGORY_MAP[dto.category_cd]) {
@@ -44,6 +50,9 @@ export class CardMapper {
       fireTriangle: dto.fire_triangle_txt?.trim() || undefined,
       conclusion: dto.conclusion_txt?.trim() ?? '',
       source: dto.source_txt?.trim() || undefined,
+      type: CARD_TYPE_MAP[dto.card_type_cd ?? 'EXPLANATION'] ?? 'explanation',
+      choices: dto.choices,
+      answerIndex: dto.answer_index,
       hasImage: Boolean(dto.image_url?.trim()),
       status: STATUS_MAP[dto.status_cd] ?? 'new',
       dueAt: dto.due_at ? new Date(dto.due_at) : null,

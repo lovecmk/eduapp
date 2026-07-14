@@ -5,6 +5,14 @@ export type CardStatus = 'new' | 'learning' | 'mastered';
 export type CardDifficulty = 'easy' | 'medium' | 'hard';
 
 /**
+ * 카드 형식.
+ * - explanation: 텍스트+설명형(기본), 텍스트+사진 첨부형 포함
+ * - ox: O/X 퀴즈 — 앞면에서 정답 체크
+ * - choice: 객관식(1~4) 퀴즈 — 앞면에서 정답 체크
+ */
+export type CardType = 'explanation' | 'ox' | 'choice';
+
+/**
  * 콘텐츠 원본(시드) 카드 — 학습 진행 상태와 무관한 순수 지식 데이터.
  * 앞면(상황+문제) / 뒷면(원리·프로세스·화재3요소·결론·출처)을 구조화해 담는다.
  */
@@ -23,6 +31,8 @@ export interface SeedCard {
   difficulty: CardDifficulty;
   /** 카드별 권장 학습 시간(초) */
   studySeconds: number;
+  /** 카드 형식(미지정 시 explanation 으로 간주) */
+  type?: CardType;
 
   // ── 앞면 ──
   /** 앞면_상황설명 — 현장 상황 묘사 */
@@ -31,6 +41,12 @@ export interface SeedCard {
   question: string;
   /** 이미지 문제일 경우 도해/사진 URL */
   imageUrl?: string;
+
+  // ── 퀴즈형(ox/choice) 전용 ──
+  /** 보기 목록 — ox: ['O','X'], choice: ['보기1','보기2',...] */
+  choices?: string[];
+  /** 정답 보기 인덱스(choices 기준) */
+  answerIndex?: number;
 
   // ── 뒷면(구조화 해설) ──
   /** 핵심 원리(뒷면 일반 설명) */
