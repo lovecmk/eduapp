@@ -6,8 +6,8 @@
 #
 # 사전 준비(사용자 1회 설정):
 #   1) Expo 계정 personal access token 을 GitHub 저장소 Secret 으로 추가: EXPO_TOKEN
-#   2) `eas init` 으로 프로젝트 생성 → app.json 의 EAS_PROJECT_ID_PLACEHOLDER,
-#      EXPO_ACCOUNT_USERNAME_PLACEHOLDER 를 실제 값으로 교체
+#   2) `eas init` 으로 프로젝트 생성 → app.json 의 extra.eas.projectId 자동 기록,
+#      이어서 `eas update:configure` 로 updates.url 자동 구성
 #   자세한 절차는 docs/EAS.md 참고.
 name: EAS Update (OTA)
 

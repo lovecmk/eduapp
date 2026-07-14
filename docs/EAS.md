@@ -54,15 +54,15 @@ eas init                  # EAS 프로젝트 생성 → projectId 발급
 eas update:configure      # updates.url / runtimeVersion 자동 구성
 ```
 
-`eas init` 은 `app.json` 의 아래 플레이스홀더를 실제 값으로 채워준다(수동으로
-바꿔도 됨):
+`app.json` 에는 projectId/updates.url 이 비어 있고, 위 두 명령이 자동으로 채운다:
 
-| 플레이스홀더 | 실제 값 |
+| app.json 필드 | 채우는 명령 |
 | --- | --- |
-| `EAS_PROJECT_ID_PLACEHOLDER` (2곳: `updates.url`, `extra.eas.projectId`) | `eas init` 이 발급한 UUID |
-| `EXPO_ACCOUNT_USERNAME_PLACEHOLDER` (`owner`, expo-updates 플러그인 `username`) | Expo 계정/조직 username |
+| `extra.eas.projectId` | `eas init` 이 발급한 UUID 를 기록 |
+| `updates.url` (`https://u.expo.dev/<projectId>`) | `eas update:configure` 가 구성 |
 
-`updates.url` 은 `https://u.expo.dev/<projectId>` 형태여야 한다.
+`owner`(및 expo-updates 플러그인 `username`)는 이미 Expo 계정 username 으로
+설정돼 있어야 하며, `eas init` 은 로그인된 계정이 이 `owner` 와 일치해야 한다.
 
 ### 3) 채널 ↔ 브랜치 연결 (기본값이면 자동)
 `eas.json` 의 production 프로필은 `channel: production` 이다. OTA 게시는
