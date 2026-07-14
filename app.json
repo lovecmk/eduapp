@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "현장학습",
-    "slug": "field-learning-app",
+    "slug": "new-app",
     "version": "1.11.0",
     "scheme": "fieldlearning",
     "owner": "raywon",
@@ -33,7 +33,13 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#007AFF"
       },
-      "permissions": ["USE_BIOMETRIC", "USE_FINGERPRINT", "RECEIVE_BOOT_COMPLETED"]
+      "permissions": [
+        "USE_BIOMETRIC",
+        "USE_FINGERPRINT",
+        "RECEIVE_BOOT_COMPLETED",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -61,6 +67,14 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "e19dea99-7f73-41b8-83d6-d6b0b99fbe91"
+      }
     }
   }
 }
