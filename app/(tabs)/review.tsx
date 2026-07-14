@@ -1,169 +1,62 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, Pressable, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTheme } from '../../src/theme/ThemeProvider';
-import { Button } from '../../src/components/ui/Button';
-import { Badge } from '../../src/components/ui/Badge';
 import { SkeletonLoader } from '../../src/components/ui/SkeletonLoader';
 import { ErrorState } from '../../src/components/ui/ErrorState';
-import { QuestionImage } from '../../src/components/ui/QuestionImage';
-import { CategoryTrail } from '../../src/components/ui/CategoryTrail';
-import { UpcomingSchedule } from '../../src/components/review/UpcomingSchedule';
-import { CardTipsSheet } from '../../src/components/community/CardTipsSheet';
-import { CardBackBody } from '../../src/components/cards/CardBackBody';
-import { useTipStore } from '../../src/store/tipStore';
-import { fontCute, fontDisplay, fontBody, fontMono } from '../../src/theme/tokens';
-import { getCategoryIcon } from '../../src/constants/categories';
+import { fontDisplay, fontBody, fontMono } from '../../src/theme/tokens';
+import { getCategoryIcon, getCategoryColor } from '../../src/constants/categories';
 import { ROUTES } from '../../src/constants/routes';
-import { useReview } from '../../src/hooks/useReview';
 import { useAllCards } from '../../src/hooks/useCards';
-import { useSrsStore } from '../../src/store/srsStore';
 import { useBookmarkStore } from '../../src/store/bookmarkStore';
 import { useReportStore } from '../../src/store/reportStore';
-import { useSettingsStore } from '../../src/store/settingsStore';
-import { initialState, predictLabel, humanizeInterval, type Grade } from '../../src/domain/srs';
-import type { LearningCard } from '../../src/domain/models/LearningCard';
 
-const GRADES: { key: Grade; label: string; color: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { key: 'again', label: '다시', color: '#FF3B30', icon: 'refresh' },
-  { key: 'hard', label: '어려움', color: '#FF9500', icon: 'trending-down' },
-  { key: 'good', label: '보통', color: '#2563EB', icon: 'checkmark' },
-  { key: 'easy', label: '쉬움', color: '#34C759', icon: 'flash' },
-];
+interface CategoryStat {
+  category: string;
+  total: number;
+  studied: number; // learning + mastered
+  mastered: number;
+  lastStudied: boolean;
+}
 
 export default function ReviewScreen() {
   const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
   const router = useRouter();
 
-  const { dueCards, weakCards, upcoming, nextDueAt, gradeCard, isLoading, error, refetch } = useReview();
-  const srsCards = useSrsStore((s) => s.cards);
-  const { data: allCards = [] } = useAllCards();
+  const { data: allCards = [], isLoading, error, refetch } = useAllCards();
   const savedCount = useBookmarkStore((s) => s.ids.length);
   const reportedCount = useReportStore((s) => new Set(s.reports.map((r) => r.cardId)).size);
+
+  // 내가 "학습했던" 카테고리 = 새 카드가 아닌(학습/마스터) 카드가 하나라도 있는 카테고리.
+  const studiedCategories = useMemo<CategoryStat[]>(() => {
+    const map = new Map<string, CategoryStat>();
+    for (const card of allCards) {
+      const s = map.get(card.category) ?? { category: card.category, total: 0, studied: 0, mastered: 0, lastStudied: false };
+      s.total += 1;
+      if (card.status !== 'new') s.studied += 1;
+      if (card.status === 'mastered') s.mastered += 1;
+      map.set(card.category, s);
+    }
+    return [...map.values()].filter((s) => s.studied > 0).sort((a, b) => b.studied - a.studied);
+  }, [allCards]);
 
   const masteredCount = useMemo(() => allCards.filter((x) => x.status === 'mastered').length, [allCards]);
   const learningCount = useMemo(() => allCards.filter((x) => x.status === 'learning').length, [allCards]);
 
-  // 복습 허브(카드 모아보기) ↔ 간격 반복 복습 세션 전환.
-  const [started, setStarted] = useState(false);
-  const [mode, setMode] = useState<'due' | 'weak'>('due');
-  const [session, setSession] = useState<LearningCard[] | null>(null);
-  const [index, setIndex] = useState(0);
-  const [flipped, setFlipped] = useState(false);
-  const [reviewed, setReviewed] = useState(0);
-  const [againCount, setAgainCount] = useState(0);
-  const [done, setDone] = useState(false);
-  const [tipsOpen, setTipsOpen] = useState(false);
-  const tipCount = useTipStore((s) => {
-    const cur = session?.[index];
-    return cur ? s.tips.filter((t) => t.cardId === cur.id).length : 0;
-  });
+  const collections = [
+    { type: 'mastered', label: '학습 완료 카드', icon: 'checkmark-done' as const, color: c.primary, count: masteredCount },
+    { type: 'learning', label: '한번 더 학습', icon: 'refresh' as const, color: c.warning, count: learningCount },
+    { type: 'saved', label: '저장 카드', icon: 'bookmark' as const, color: '#8B5CF6', count: savedCount },
+    { type: 'reported', label: '신고한 카드', icon: 'flag' as const, color: '#EF4444', count: reportedCount },
+  ];
 
-  const prioritizeWeak = useSettingsStore((s) => s.prioritizeWeakSpots);
-  const source = mode === 'weak' ? weakCards : dueCards;
-
-  // 세션 시작 시 대상 카드를 1회 스냅샷(채점 중 재정렬 방지).
-  // "약점 우선" 설정이 켜져 있고 약점 카드가 있으면 약점 모드로 시작.
-  useEffect(() => {
-    if (session !== null || isLoading) return;
-    const preferWeak = prioritizeWeak && weakCards.length > 0;
-    const startMode = preferWeak ? 'weak' : 'due';
-    if (startMode !== mode) setMode(startMode);
-    setSession(startMode === 'weak' ? weakCards : dueCards);
-  }, [isLoading, session, weakCards, dueCards, prioritizeWeak, mode]);
-
-  const switchMode = (m: 'due' | 'weak') => {
-    if (m === mode) return;
-    setMode(m);
-    setSession(m === 'weak' ? weakCards : dueCards);
-    setIndex(0); setFlipped(false); setReviewed(0); setAgainCount(0); setDone(false);
-  };
-
-  const card = session?.[index];
-  const srsState = card ? srsCards[card.id] ?? initialState() : initialState();
-
-  const onGrade = (grade: Grade) => {
-    if (!card || !session) return;
-    gradeCard(card, grade);
-    setReviewed((r) => r + 1);
-    let nextSession = session;
-    if (grade === 'again') {
-      setAgainCount((a) => a + 1);
-      nextSession = [...session, card]; // 이번 세션 안에서 다시 노출
-      setSession(nextSession);
-    }
-    setFlipped(false);
-    const nextIdx = index + 1;
-    if (nextIdx >= nextSession.length) setDone(true);
-    else setIndex(nextIdx);
-  };
-
-  const restart = () => {
-    setSession(source);
-    setIndex(0); setFlipped(false); setReviewed(0); setAgainCount(0); setDone(false);
-  };
-
-  // --- 복습 허브(카드 모아보기) ---
-  if (!started) {
-    const collections = [
-      { type: 'mastered', label: '학습 완료 카드', desc: '완료한 카드 모아 보기', icon: 'checkmark-done' as const, color: c.primary, count: masteredCount },
-      { type: 'learning', label: '한번 더 학습 카드', desc: '다시 볼 카드 모아 보기', icon: 'refresh' as const, color: c.warning, count: learningCount },
-      { type: 'saved', label: '저장 카드', desc: '저장한 카드 보기', icon: 'bookmark' as const, color: '#8B5CF6', count: savedCount },
-      { type: 'reported', label: '신고하기 카드', desc: '신고한 카드 보기', icon: 'flag' as const, color: '#EF4444', count: reportedCount },
-    ];
-    return (
-      <ScrollView style={{ flex: 1, backgroundColor: c.bg }} contentContainerStyle={{ padding: 20 }} showsVerticalScrollIndicator={false}>
-        <Text style={{ color: c.textPrimary, fontSize: 20 * fs, fontFamily: fontDisplay, marginBottom: 4 }}>복습</Text>
-        <Text style={{ color: c.textSecondary, fontSize: 13 * fs, marginBottom: 18, fontFamily: fontBody }}>모아둔 카드를 다시 보며 기억을 다져요</Text>
-
-        {/* 간격 반복 복습 시작 */}
-        {dueCards.length > 0 && (
-          <Pressable onPress={() => setStarted(true)} style={{ backgroundColor: c.primary, borderRadius: 18, padding: 18, marginBottom: 18, boxShadow: `0 8px 24px ${c.primary}44` }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-              <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name="refresh" size={22} color="#fff" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{ color: '#fff', fontSize: 15 * fs, fontFamily: fontDisplay }}>오늘의 복습 시작</Text>
-                <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 12.5 * fs, marginTop: 2, fontFamily: fontBody }}>간격 반복으로 {dueCards.length}개 카드 복습</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#fff" />
-            </View>
-          </Pressable>
-        )}
-
-        {/* 카드 모아 보기 */}
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
-          {collections.map((col) => (
-            <Pressable key={col.type} onPress={() => router.push(ROUTES.collection(col.type) as never)}
-              style={{ width: '47%', flexGrow: 1, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 16, padding: 16 }}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: col.color + '18', alignItems: 'center', justifyContent: 'center' }}>
-                  <Ionicons name={col.icon} size={20} color={col.color} />
-                </View>
-                <Text style={{ color: col.color, fontSize: 22 * fs, fontFamily: fontMono, fontWeight: '900' }}>{col.count}</Text>
-              </View>
-              <Text style={{ color: c.textPrimary, fontSize: 14 * fs, fontFamily: fontDisplay }}>{col.label}</Text>
-              <Text style={{ color: c.textSecondary, fontSize: 11.5 * fs, marginTop: 3, fontFamily: fontBody }}>{col.desc}</Text>
-            </Pressable>
-          ))}
-        </View>
-
-        <View style={{ marginTop: 18 }}>
-          <UpcomingSchedule days={upcoming} />
-        </View>
-      </ScrollView>
-    );
-  }
-
-  // --- 로딩/에러 ---
-  if (isLoading && session === null && !error) {
+  if (isLoading && allCards.length === 0 && !error) {
     return <View style={{ flex: 1, backgroundColor: c.bg }}><SkeletonLoader count={3} /></View>;
   }
-  if (error && session === null) {
+  if (error && allCards.length === 0) {
     return (
       <View style={{ flex: 1, backgroundColor: c.bg, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
         <ErrorState message="복습 카드를 불러올 수 없어요" onRetry={refetch} />
@@ -171,220 +64,74 @@ export default function ReviewScreen() {
     );
   }
 
-  // --- 복습할 카드 없음 ---
-  if (session !== null && session.length === 0 && !done) {
-    return (
-      <ScrollView style={{ flex: 1, backgroundColor: c.bg }} contentContainerStyle={{ padding: 20, flexGrow: 1, justifyContent: 'center' }}>
-        <View style={{ alignItems: 'center', marginBottom: 24 }}>
-          <View style={{ width: 84, height: 84, borderRadius: 42, backgroundColor: c.success + '18', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
-            <Ionicons name="checkmark-done" size={42} color={c.success} />
-          </View>
-          <Text style={{ color: c.textPrimary, fontSize: 20 * fs, fontFamily: fontDisplay }}>복습 완료 상태예요</Text>
-          <Text style={{ color: c.textSecondary, fontSize: 13 * fs, marginTop: 8, textAlign: 'center', lineHeight: 20, fontFamily: fontBody }}>
-            지금 복습할 카드가 없어요.{'\n'}
-            {nextDueAt ? `다음 복습은 ${humanizeInterval(nextDueAt - Date.now())} 뒤예요.` : '학습 카드에서 새 카드를 학습해보세요.'}
-          </Text>
-        </View>
-        {weakCards.length > 0 && (
-          <Pressable onPress={() => switchMode('weak')} style={{ marginBottom: 14, backgroundColor: c.warning + '14', borderColor: c.warning + '40', borderWidth: 1, borderRadius: 16, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: c.warning + '22', alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name="barbell" size={20} color={c.warning} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: c.textPrimary, fontSize: 14 * fs, fontFamily: fontDisplay }}>약점 집중 학습</Text>
-              <Text style={{ color: c.textSecondary, fontSize: 12 * fs, marginTop: 2, fontFamily: fontBody }}>자주 잊는 {weakCards.length}개 카드를 집중적으로 드릴해요</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={c.warning} />
-          </Pressable>
-        )}
-        <UpcomingSchedule days={upcoming} />
-        <View style={{ marginTop: 20, gap: 10 }}>
-          <Button label="새 카드 학습하기" onPress={() => router.push(ROUTES.cards)} />
-          <Button label="복습 목록으로" variant="outline" onPress={() => setStarted(false)} />
-        </View>
-      </ScrollView>
-    );
-  }
-
-  // --- 세션 완료 요약 ---
-  if (done) {
-    const retention = reviewed > 0 ? Math.round(((reviewed - againCount) / reviewed) * 100) : 100;
-    return (
-      <ScrollView style={{ flex: 1, backgroundColor: c.bg }} contentContainerStyle={{ padding: 20, flexGrow: 1, justifyContent: 'center' }}>
-        <Animated.View entering={FadeInDown.duration(400)} style={{ alignItems: 'center', marginBottom: 20 }}>
-          <Text style={{ fontSize: 52, marginBottom: 8 }}>🎉</Text>
-          <Text style={{ color: c.textPrimary, fontSize: 22 * fs, fontFamily: fontDisplay }}>복습 완료!</Text>
-          <Text style={{ color: c.textSecondary, fontSize: 13 * fs, marginTop: 6, fontFamily: fontBody }}>오늘의 기억을 한 번 더 다졌어요</Text>
-        </Animated.View>
-
-        <View style={{ flexDirection: 'row', gap: 10, marginBottom: 16 }}>
-          {[
-            { v: `${reviewed}`, l: '복습 카드', color: c.primary },
-            { v: `${retention}%`, l: '기억 유지', color: c.success },
-            { v: `${againCount}`, l: '다시 볼 카드', color: c.warning },
-          ].map((s) => (
-            <View key={s.l} style={{ flex: 1, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 16, padding: 14, alignItems: 'center' }}>
-              <Text style={{ color: s.color, fontSize: 22 * fs, fontFamily: fontMono, fontWeight: '900' }}>{s.v}</Text>
-              <Text style={{ color: c.textSecondary, fontSize: 11, marginTop: 4, fontFamily: fontBody }}>{s.l}</Text>
-            </View>
-          ))}
-        </View>
-
-        <UpcomingSchedule days={upcoming} />
-
-        <View style={{ marginTop: 20, gap: 10 }}>
-          {dueCards.length > 0 && <Button label={`이어서 복습하기 (${dueCards.length})`} onPress={restart} />}
-          <Button label="복습 목록으로" variant="outline" onPress={() => { setStarted(false); setDone(false); }} />
-        </View>
-      </ScrollView>
-    );
-  }
-
-  if (!card || !session) return <View style={{ flex: 1, backgroundColor: c.bg }} />;
-
-  const total = session.length;
-  const progress = Math.round(((index) / total) * 100);
-
   return (
-    <View style={{ flex: 1, backgroundColor: c.bg }}>
-      {/* 진행 헤더 */}
-      <View style={{ paddingHorizontal: 20, paddingTop: 12 }}>
-        <Pressable onPress={() => setStarted(false)} hitSlop={6} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', marginBottom: 10 }}>
-          <Ionicons name="chevron-back" size={16} color={c.textSecondary} />
-          <Text style={{ color: c.textSecondary, fontSize: 12.5 * fs, fontFamily: fontBody }}>복습 목록</Text>
-        </Pressable>
-        {weakCards.length > 0 && (
-          <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
-            <ModePill active={mode === 'due'} label="오늘의 복습" count={dueCards.length} color={c.primary} onPress={() => switchMode('due')} />
-            <ModePill active={mode === 'weak'} label="약점 집중" count={weakCards.length} color={c.warning} icon="barbell" onPress={() => switchMode('weak')} />
+    <ScrollView style={{ flex: 1, backgroundColor: c.bg }} contentContainerStyle={{ padding: 20 }} showsVerticalScrollIndicator={false}>
+      <Text style={{ color: c.textPrimary, fontSize: 20 * fs, fontFamily: fontDisplay, marginBottom: 4 }}>복습</Text>
+      <Text style={{ color: c.textSecondary, fontSize: 13 * fs, marginBottom: 18, fontFamily: fontBody }}>
+        학습했던 카테고리를 골라 다시 학습해요
+      </Text>
+
+      {/* 학습한 카테고리 */}
+      {studiedCategories.length === 0 ? (
+        <View style={{ alignItems: 'center', paddingVertical: 40 }}>
+          <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: c.surfaceAlt, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+            <Ionicons name="albums-outline" size={38} color={c.textSecondary} />
           </View>
-        )}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Ionicons name={mode === 'weak' ? 'barbell' : 'albums-outline'} size={16} color={mode === 'weak' ? c.warning : c.primary} />
-            <Text style={{ color: c.textPrimary, fontSize: 14 * fs, fontFamily: fontDisplay }}>{mode === 'weak' ? '약점 집중' : '복습 세션'}</Text>
-          </View>
-          <Text style={{ color: c.textSecondary, fontSize: 12, fontFamily: fontMono }}>{index + 1} / {total}</Text>
-        </View>
-        <View style={{ height: 6, backgroundColor: c.surfaceAlt, borderRadius: 3, overflow: 'hidden' }}>
-          <View style={{ width: `${progress}%`, height: '100%', backgroundColor: mode === 'weak' ? c.warning : c.primary, borderRadius: 3 }} />
-        </View>
-      </View>
-
-      {/* 카드 */}
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, flexGrow: 1 }}>
-        <Animated.View
-          key={`${card.id}-${index}-${flipped}`}
-          entering={FadeIn.duration(250)}
-          style={{
-            flex: 1, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border,
-            borderRadius: 20, padding: 22, minHeight: 380,
-            boxShadow: '0 4px 16px rgba(0,0,0,0.06)', elevation: 4,
-          }}
-        >
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-            <View style={{ flex: 1, paddingRight: 8 }}>
-              <Badge label={card.category} />
-              <View style={{ marginTop: 8 }}>
-                <CategoryTrail category={card.category} subCategory={card.subCategory} topic={card.topic} size="sm" />
-              </View>
-            </View>
-            <View style={{ alignItems: 'flex-end' }}>
-              <MemoryPill box={srsState.box} />
-            </View>
-          </View>
-
-          {card.imageUrl ? (
-            <View style={{ marginTop: 6, marginBottom: 12 }}>
-              <QuestionImage uri={card.imageUrl} height={flipped ? 130 : 180} />
-            </View>
-          ) : null}
-
-          {!flipped ? (
-            <Pressable onPress={() => setFlipped(true)} style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-              {!card.imageUrl && (
-                <Ionicons name={getCategoryIcon(card.category)} size={40 * fs} color={c.primary} style={{ marginBottom: 12, opacity: 0.5 }} />
-              )}
-              {!!card.situation && (
-                <Text style={{ color: c.textSecondary, fontSize: 13 * fs, lineHeight: 20, textAlign: 'center', fontFamily: fontBody, marginBottom: 12 }}>
-                  {card.situation}
-                </Text>
-              )}
-              <Text style={{ color: c.textPrimary, fontSize: 18 * fs, lineHeight: 27, textAlign: 'center', fontFamily: fontDisplay }}>
-                {card.question}
-              </Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 18 }}>
-                <Ionicons name="hand-left-outline" size={14} color={c.textSecondary} />
-                <Text style={{ color: c.textSecondary, fontSize: 13 * fs, fontFamily: fontBody }}>탭하여 정답 확인</Text>
-              </View>
-            </Pressable>
-          ) : (
-            <View style={{ flex: 1 }}>
-              <CardBackBody card={card} />
-            </View>
-          )}
-        </Animated.View>
-      </ScrollView>
-
-      {/* 회상 난이도 버튼 */}
-      {flipped && (
-        <Animated.View entering={FadeInDown.duration(220)} style={{ paddingHorizontal: 16, paddingBottom: 26, paddingTop: 12, borderTopWidth: 1, borderTopColor: c.border, backgroundColor: c.bg }}>
-          <Pressable onPress={() => setTipsOpen(true)} style={{ flexDirection: 'row', alignSelf: 'center', alignItems: 'center', gap: 5, backgroundColor: c.surfaceAlt, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6, marginBottom: 10 }}>
-            <Ionicons name="chatbubbles-outline" size={14} color={c.primary} />
-            <Text style={{ color: c.textPrimary, fontSize: 12, fontFamily: fontDisplay }}>현장 팁</Text>
-            {tipCount > 0 && <Text style={{ color: c.textSecondary, fontSize: 11, fontFamily: fontMono }}>{tipCount}</Text>}
-          </Pressable>
-          <Text style={{ color: c.textSecondary, fontSize: 11.5, textAlign: 'center', marginBottom: 10, fontFamily: fontBody }}>
-            얼마나 잘 기억했나요? — 다음 복습 간격이 자동 조정돼요
+          <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontFamily: fontDisplay }}>아직 학습한 카테고리가 없어요</Text>
+          <Text style={{ color: c.textSecondary, fontSize: 12.5 * fs, marginTop: 6, textAlign: 'center', fontFamily: fontBody }}>
+            학습 탭에서 카드를 학습하면{'\n'}여기에서 카테고리별로 복습할 수 있어요
           </Text>
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            {GRADES.map((g) => (
-              <Pressable
-                key={g.key}
-                onPress={() => onGrade(g.key)}
-                style={{ flex: 1, backgroundColor: g.color + '14', borderWidth: 1.5, borderColor: g.color + '40', borderRadius: 14, paddingVertical: 10, alignItems: 'center', gap: 3 }}
-              >
-                <Ionicons name={g.icon} size={17} color={g.color} />
-                <Text style={{ color: g.color, fontSize: 12.5, fontFamily: fontDisplay }}>{g.label}</Text>
-                <Text style={{ color: c.textSecondary, fontSize: 10, fontFamily: fontMono }}>{predictLabel(srsState, g.key)}</Text>
-              </Pressable>
-            ))}
-          </View>
-        </Animated.View>
+          <Pressable onPress={() => router.push(ROUTES.cards)} style={{ marginTop: 18, backgroundColor: c.primary, borderRadius: 12, paddingHorizontal: 20, paddingVertical: 12 }}>
+            <Text style={{ color: '#fff', fontSize: 14 * fs, fontFamily: fontDisplay }}>학습 시작하기</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <View style={{ gap: 10 }}>
+          {studiedCategories.map((s, i) => {
+            const color = getCategoryColor(s.category) ?? c.primary;
+            const pct = s.total > 0 ? Math.round((s.mastered / s.total) * 100) : 0;
+            return (
+              <Animated.View key={s.category} entering={FadeInDown.delay(i * 60).duration(280)}>
+                <Pressable
+                  onPress={() => router.push({ pathname: ROUTES.cards, params: { category: s.category } })}
+                  style={{ backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 16, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 14 }}
+                >
+                  <View style={{ width: 46, height: 46, borderRadius: 14, backgroundColor: color + '18', alignItems: 'center', justifyContent: 'center' }}>
+                    <Ionicons name={getCategoryIcon(s.category)} size={24} color={color} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                      <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontFamily: fontDisplay }}>{s.category}</Text>
+                      <Text style={{ color: c.textSecondary, fontSize: 12, fontFamily: fontMono }}>학습 {s.studied} · 마스터 {s.mastered}</Text>
+                    </View>
+                    <View style={{ height: 6, backgroundColor: c.surfaceAlt, borderRadius: 3, overflow: 'hidden' }}>
+                      <View style={{ width: `${pct}%`, height: '100%', backgroundColor: color, borderRadius: 3 }} />
+                    </View>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={c.textSecondary} />
+                </Pressable>
+              </Animated.View>
+            );
+          })}
+        </View>
       )}
 
-      <CardTipsSheet visible={tipsOpen} cardId={card.id} onClose={() => setTipsOpen(false)} />
-    </View>
-  );
-}
-
-/** 복습 모드 선택 필(오늘의 복습 / 약점 집중). */
-function ModePill({ active, label, count, color, icon, onPress }: {
-  active: boolean; label: string; count: number; color: string; icon?: keyof typeof Ionicons.glyphMap; onPress: () => void;
-}) {
-  const { theme } = useTheme();
-  const c = theme.colors;
-  return (
-    <Pressable onPress={onPress} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 9, borderRadius: 12, backgroundColor: active ? color : c.surfaceAlt, borderWidth: 1, borderColor: active ? color : c.border }}>
-      {icon && <Ionicons name={icon} size={14} color={active ? '#fff' : color} />}
-      <Text style={{ color: active ? '#fff' : c.textSecondary, fontSize: 12.5, fontFamily: fontDisplay }}>{label}</Text>
-      <View style={{ backgroundColor: active ? 'rgba(255,255,255,0.25)' : c.surface, borderRadius: 8, paddingHorizontal: 6, minWidth: 18, alignItems: 'center' }}>
-        <Text style={{ color: active ? '#fff' : c.textSecondary, fontSize: 11, fontFamily: fontMono }}>{count}</Text>
+      {/* 모아 보기 */}
+      <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontFamily: fontDisplay, marginTop: 26, marginBottom: 12 }}>모아 보기</Text>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+        {collections.map((col) => (
+          <Pressable key={col.type} onPress={() => router.push(ROUTES.collection(col.type) as never)}
+            style={{ width: '47%', flexGrow: 1, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 16, padding: 16 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <View style={{ width: 38, height: 38, borderRadius: 11, backgroundColor: col.color + '18', alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name={col.icon} size={19} color={col.color} />
+              </View>
+              <Text style={{ color: col.color, fontSize: 20 * fs, fontFamily: fontMono, fontWeight: '900' }}>{col.count}</Text>
+            </View>
+            <Text style={{ color: c.textPrimary, fontSize: 13.5 * fs, fontFamily: fontDisplay }}>{col.label}</Text>
+          </Pressable>
+        ))}
       </View>
-    </Pressable>
-  );
-}
-
-/** 카드의 기억 강도(Leitner 박스) 배지. */
-function MemoryPill({ box }: { box: number }) {
-  const { theme } = useTheme();
-  const c = theme.colors;
-  return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.surfaceAlt, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 4 }}>
-      {Array.from({ length: 5 }).map((_, i) => (
-        <View key={i} style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: i < box ? c.success : c.border }} />
-      ))}
-      <Text style={{ color: c.textSecondary, fontSize: 9, marginLeft: 2, fontFamily: fontMono }}>Lv.{box}</Text>
-    </View>
+    </ScrollView>
   );
 }

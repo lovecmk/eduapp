@@ -129,17 +129,18 @@ export default function HomeScreen() {
         <Card>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
             <Text style={{ color: c.textPrimary, fontSize: 14 * fs, fontFamily: fontDisplay }}>학습 현황</Text>
-            <Pressable onPress={() => router.push(ROUTES.stats)} hitSlop={6}>
-              <Text style={{ color: c.primary, fontSize: 12.5 * fs, fontFamily: fontDisplay }}>통계 보기 →</Text>
+            <Pressable onPress={() => router.push(ROUTES.stats)} hitSlop={6} style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+              <Text style={{ color: c.primary, fontSize: 12.5 * fs, fontFamily: fontDisplay }}>더보기</Text>
+              <Ionicons name="chevron-forward" size={14} color={c.primary} />
             </Pressable>
           </View>
           {statsError ? (
             <ErrorState message="통계를 불러올 수 없습니다" onRetry={refetchStats} />
           ) : (
             <View style={{ flexDirection: 'row', gap: 8 }}>
+              <StatPill value={`${todayCards.length}개`} label="오늘의 학습" icon="today" />
+              <StatPill value={`${stats?.totalLearned ?? masteredCount}개`} label="누적 학습" icon="book" />
               <StatPill value={`${stats?.streakDays ?? '-'}일`} label="연속 학습" icon="flame" />
-              <StatPill value={`${masteredCount}개`} label="마스터" />
-              <StatPill value={`${stats ? Math.round(stats.accuracy * 100) : '-'}%`} label="정답률" />
             </View>
           )}
         </Card>

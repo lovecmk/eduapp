@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, Pressable, Animated, ScrollView, Dimensions, Platform } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../src/theme/ThemeProvider';
@@ -17,7 +17,7 @@ import { CardReportModal } from '../../src/components/cards/CardReportModal';
 import { fontCute } from '../../src/theme/tokens';
 import { getCategoryIcon } from '../../src/constants/categories';
 import { ROUTES } from '../../src/constants/routes';
-import { useTodayCards, useMarkCard } from '../../src/hooks/useCards';
+import { useTodayCards, useAllCards, useMarkCard } from '../../src/hooks/useCards';
 import { useBookmarkStore } from '../../src/store/bookmarkStore';
 import { useReportStore } from '../../src/store/reportStore';
 
@@ -49,11 +49,20 @@ export default function CardsScreen() {
   const cardOpacity = useRef(new Animated.Value(1)).current;
   const progressAnim = useRef(new Animated.Value(0)).current;
 
-  const { data: todayCards = [], isLoading, error, refetch } = useTodayCards();
+  // 복습 탭에서 카테고리를 눌러 진입하면 category 파라미터로 해당 카테고리만 학습한다.
+  const { category } = useLocalSearchParams<{ category?: string }>();
+  const isCategoryMode = !!category;
+
+  const todayQuery = useTodayCards();
+  const allQuery = useAllCards();
+  const { isLoading, error, refetch } = isCategoryMode ? allQuery : todayQuery;
   const markCardMutation = useMarkCard();
 
-  // 오늘의 학습 세션은 3~5장으로 제한(3분 분량).
-  const deck = useMemo(() => todayCards.slice(0, DAILY_LIMIT), [todayCards]);
+  // 오늘의 학습 세션은 3~5장으로 제한(3분 분량). 카테고리 복습은 해당 카테고리 전체.
+  const deck = useMemo(() => {
+    if (isCategoryMode) return (allQuery.data ?? []).filter((x) => x.category === category);
+    return (todayQuery.data ?? []).slice(0, DAILY_LIMIT);
+  }, [isCategoryMode, category, allQuery.data, todayQuery.data]);
   const card = deck[index];
 
   const toggleBookmark = useBookmarkStore((s) => s.toggle);
@@ -112,8 +121,10 @@ export default function CardsScreen() {
 
   useEffect(() => {
     if (!finished) return;
+    // 카테고리 복습 세션이 끝나면 복습 목록으로, 오늘의 학습이 끝나면 통계로 이동.
+    const target = isCategoryMode ? ROUTES.review : ROUTES.stats;
     Animated.timing(progressAnim, { toValue: 1, duration: 2000, useNativeDriver: false }).start(({ finished: ok }) => {
-      if (ok) router.replace(ROUTES.stats as any);
+      if (ok) router.replace(target as any);
     });
   }, [finished]);
 
@@ -149,11 +160,13 @@ export default function CardsScreen() {
       <View style={{ flex: 1, backgroundColor: c.bg, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
         <Text style={{ fontSize: 52, marginBottom: 12 }}>🎉</Text>
         <Text style={{ color: c.textPrimary, fontSize: 22 * fs, fontWeight: '800', fontFamily: fontCute }}>학습 완료!</Text>
-        <Text style={{ color: c.textSecondary, marginTop: 6, marginBottom: 28, fontFamily: fontCute }}>오늘 {doneCount}장 학습 완료 · 3분이면 충분해요</Text>
+        <Text style={{ color: c.textSecondary, marginTop: 6, marginBottom: 28, fontFamily: fontCute }}>
+          {isCategoryMode ? `${category} · ${doneCount}장 복습 완료` : `오늘 ${doneCount}장 학습 완료 · 3분이면 충분해요`}
+        </Text>
         <View style={{ width: '60%', height: 4, backgroundColor: c.surfaceAlt, borderRadius: 2, overflow: 'hidden', marginBottom: 24 }}>
           <Animated.View style={{ width: barWidth, height: '100%', backgroundColor: c.primary, borderRadius: 2 }} />
         </View>
-        <Text style={{ color: c.textSecondary, fontSize: 12 * fs, fontFamily: fontCute }}>통계 화면으로 이동 중...</Text>
+        <Text style={{ color: c.textSecondary, fontSize: 12 * fs, fontFamily: fontCute }}>{isCategoryMode ? '복습 목록으로 이동 중...' : '통계 화면으로 이동 중...'}</Text>
         <View style={{ marginTop: 20 }}>
           <Button label="다시 학습하기" variant="outline" onPress={restart} />
         </View>
@@ -176,8 +189,8 @@ export default function CardsScreen() {
       <View style={{ paddingHorizontal: 20, paddingTop: 12 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Ionicons name="school-outline" size={16} color={c.primary} />
-            <Text style={{ color: c.textPrimary, fontSize: 14 * fs, fontFamily: fontCute }}>오늘의 학습</Text>
+            <Ionicons name={isCategoryMode ? 'refresh-outline' : 'school-outline'} size={16} color={c.primary} />
+            <Text style={{ color: c.textPrimary, fontSize: 14 * fs, fontFamily: fontCute }}>{isCategoryMode ? `${category} 복습` : '오늘의 학습'}</Text>
           </View>
           <Text style={{ color: c.textSecondary, fontSize: 12, fontFamily: 'monospace' }}>{index + 1} / {deck.length}</Text>
         </View>

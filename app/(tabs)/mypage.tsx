@@ -117,7 +117,6 @@ export default function MyPageScreen() {
         )}
       </Pressable>
 
-      <MyRow icon="stats-chart-outline" title="학습 통계" desc="성향·리듬·순위 분석" onPress={() => router.push(ROUTES.stats)} />
       <MyRow icon="headset-outline" title="고객센터 · 문의" desc="문의하기, 자주 묻는 질문" onPress={() => router.push(ROUTES.support)} />
       <MyRow icon="settings-outline" title="설정" desc="알림, 테마, 계정 관리" onPress={() => router.push(ROUTES.settings)} />
       </ScrollView>
