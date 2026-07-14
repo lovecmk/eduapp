@@ -92,7 +92,7 @@ function RootContent() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="contents" />
         <Stack.Screen name="content/[id]" />
-        <Stack.Screen name="stats" />
+        <Stack.Screen name="collection/[type]" />
         <Stack.Screen name="settings" />
         <Stack.Screen name="notifications" options={{ animation: 'slide_from_bottom' }} />
       </Stack>

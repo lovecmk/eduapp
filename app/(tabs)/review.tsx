@@ -18,7 +18,10 @@ import { fontCute, fontDisplay, fontBody, fontMono } from '../../src/theme/token
 import { getCategoryIcon } from '../../src/constants/categories';
 import { ROUTES } from '../../src/constants/routes';
 import { useReview } from '../../src/hooks/useReview';
+import { useAllCards } from '../../src/hooks/useCards';
 import { useSrsStore } from '../../src/store/srsStore';
+import { useBookmarkStore } from '../../src/store/bookmarkStore';
+import { useReportStore } from '../../src/store/reportStore';
 import { useSettingsStore } from '../../src/store/settingsStore';
 import { initialState, predictLabel, humanizeInterval, type Grade } from '../../src/domain/srs';
 import type { LearningCard } from '../../src/domain/models/LearningCard';
@@ -37,7 +40,15 @@ export default function ReviewScreen() {
 
   const { dueCards, weakCards, upcoming, nextDueAt, gradeCard, isLoading, error, refetch } = useReview();
   const srsCards = useSrsStore((s) => s.cards);
+  const { data: allCards = [] } = useAllCards();
+  const savedCount = useBookmarkStore((s) => s.ids.length);
+  const reportedCount = useReportStore((s) => new Set(s.reports.map((r) => r.cardId)).size);
 
+  const masteredCount = useMemo(() => allCards.filter((x) => x.status === 'mastered').length, [allCards]);
+  const learningCount = useMemo(() => allCards.filter((x) => x.status === 'learning').length, [allCards]);
+
+  // 복습 허브(카드 모아보기) ↔ 간격 반복 복습 세션 전환.
+  const [started, setStarted] = useState(false);
   const [mode, setMode] = useState<'due' | 'weak'>('due');
   const [session, setSession] = useState<LearningCard[] | null>(null);
   const [index, setIndex] = useState(0);
@@ -95,6 +106,59 @@ export default function ReviewScreen() {
     setIndex(0); setFlipped(false); setReviewed(0); setAgainCount(0); setDone(false);
   };
 
+  // --- 복습 허브(카드 모아보기) ---
+  if (!started) {
+    const collections = [
+      { type: 'mastered', label: '학습 완료 카드', desc: '완료한 카드 모아 보기', icon: 'checkmark-done' as const, color: c.primary, count: masteredCount },
+      { type: 'learning', label: '한번 더 학습 카드', desc: '다시 볼 카드 모아 보기', icon: 'refresh' as const, color: c.warning, count: learningCount },
+      { type: 'saved', label: '저장 카드', desc: '저장한 카드 보기', icon: 'bookmark' as const, color: '#8B5CF6', count: savedCount },
+      { type: 'reported', label: '신고하기 카드', desc: '신고한 카드 보기', icon: 'flag' as const, color: '#EF4444', count: reportedCount },
+    ];
+    return (
+      <ScrollView style={{ flex: 1, backgroundColor: c.bg }} contentContainerStyle={{ padding: 20 }} showsVerticalScrollIndicator={false}>
+        <Text style={{ color: c.textPrimary, fontSize: 20 * fs, fontFamily: fontDisplay, marginBottom: 4 }}>복습</Text>
+        <Text style={{ color: c.textSecondary, fontSize: 13 * fs, marginBottom: 18, fontFamily: fontBody }}>모아둔 카드를 다시 보며 기억을 다져요</Text>
+
+        {/* 간격 반복 복습 시작 */}
+        {dueCards.length > 0 && (
+          <Pressable onPress={() => setStarted(true)} style={{ backgroundColor: c.primary, borderRadius: 18, padding: 18, marginBottom: 18, boxShadow: `0 8px 24px ${c.primary}44` }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="refresh" size={22} color="#fff" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: '#fff', fontSize: 15 * fs, fontFamily: fontDisplay }}>오늘의 복습 시작</Text>
+                <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 12.5 * fs, marginTop: 2, fontFamily: fontBody }}>간격 반복으로 {dueCards.length}개 카드 복습</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#fff" />
+            </View>
+          </Pressable>
+        )}
+
+        {/* 카드 모아 보기 */}
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+          {collections.map((col) => (
+            <Pressable key={col.type} onPress={() => router.push(ROUTES.collection(col.type) as never)}
+              style={{ width: '47%', flexGrow: 1, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 16, padding: 16 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: col.color + '18', alignItems: 'center', justifyContent: 'center' }}>
+                  <Ionicons name={col.icon} size={20} color={col.color} />
+                </View>
+                <Text style={{ color: col.color, fontSize: 22 * fs, fontFamily: fontMono, fontWeight: '900' }}>{col.count}</Text>
+              </View>
+              <Text style={{ color: c.textPrimary, fontSize: 14 * fs, fontFamily: fontDisplay }}>{col.label}</Text>
+              <Text style={{ color: c.textSecondary, fontSize: 11.5 * fs, marginTop: 3, fontFamily: fontBody }}>{col.desc}</Text>
+            </Pressable>
+          ))}
+        </View>
+
+        <View style={{ marginTop: 18 }}>
+          <UpcomingSchedule days={upcoming} />
+        </View>
+      </ScrollView>
+    );
+  }
+
   // --- 로딩/에러 ---
   if (isLoading && session === null && !error) {
     return <View style={{ flex: 1, backgroundColor: c.bg }}><SkeletonLoader count={3} /></View>;
@@ -134,8 +198,9 @@ export default function ReviewScreen() {
           </Pressable>
         )}
         <UpcomingSchedule days={upcoming} />
-        <View style={{ marginTop: 20 }}>
+        <View style={{ marginTop: 20, gap: 10 }}>
           <Button label="새 카드 학습하기" onPress={() => router.push(ROUTES.cards)} />
+          <Button label="복습 목록으로" variant="outline" onPress={() => setStarted(false)} />
         </View>
       </ScrollView>
     );
@@ -169,7 +234,7 @@ export default function ReviewScreen() {
 
         <View style={{ marginTop: 20, gap: 10 }}>
           {dueCards.length > 0 && <Button label={`이어서 복습하기 (${dueCards.length})`} onPress={restart} />}
-          <Button label="홈으로" variant="outline" onPress={() => router.replace(ROUTES.home)} />
+          <Button label="복습 목록으로" variant="outline" onPress={() => { setStarted(false); setDone(false); }} />
         </View>
       </ScrollView>
     );
@@ -184,6 +249,10 @@ export default function ReviewScreen() {
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       {/* 진행 헤더 */}
       <View style={{ paddingHorizontal: 20, paddingTop: 12 }}>
+        <Pressable onPress={() => setStarted(false)} hitSlop={6} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', marginBottom: 10 }}>
+          <Ionicons name="chevron-back" size={16} color={c.textSecondary} />
+          <Text style={{ color: c.textSecondary, fontSize: 12.5 * fs, fontFamily: fontBody }}>복습 목록</Text>
+        </Pressable>
         {weakCards.length > 0 && (
           <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
             <ModePill active={mode === 'due'} label="오늘의 복습" count={dueCards.length} color={c.primary} onPress={() => switchMode('due')} />

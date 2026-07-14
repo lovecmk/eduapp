@@ -1,24 +1,23 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, ScrollView, FlatList, ActivityIndicator, Pressable, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../src/theme/ThemeProvider';
-import { useAuthStore } from '../src/store/authStore';
-import { Button } from '../src/components/ui/Button';
-import { Card } from '../src/components/ui/Card';
-import { ScreenHeader } from '../src/components/ui/ScreenHeader';
-import { ErrorState } from '../src/components/ui/ErrorState';
-import { BottomSheet } from '../src/components/ui/BottomSheet';
-import { ReviewStatusCard } from '../src/components/review/ReviewStatusCard';
-import { LearningPersonaCard } from '../src/components/stats/LearningPersonaCard';
-import { LearningRhythmCard } from '../src/components/stats/LearningRhythmCard';
-import { WeeklyChart } from '../src/components/stats/WeeklyChart';
-import { LearningCalendar } from '../src/components/community/LearningCalendar';
-import { useSettingsStore } from '../src/store/settingsStore';
-import { fontMono, fontCute, fontDisplay, fontBody } from '../src/theme/tokens';
-import { getCategoryIcon, getCategoryColor } from '../src/constants/categories';
-import { calcEmblems, emblemRankingMock, EMBLEM_DEFS, type EmblemProgress } from '../src/utils/emblems';
-import { useAllCards } from '../src/hooks/useCards';
-import { useStudyStats } from '../src/hooks/useStats';
+import { useTheme } from '../../src/theme/ThemeProvider';
+import { useAuthStore } from '../../src/store/authStore';
+import { Button } from '../../src/components/ui/Button';
+import { Card } from '../../src/components/ui/Card';
+import { ErrorState } from '../../src/components/ui/ErrorState';
+import { BottomSheet } from '../../src/components/ui/BottomSheet';
+import { ReviewStatusCard } from '../../src/components/review/ReviewStatusCard';
+import { LearningPersonaCard } from '../../src/components/stats/LearningPersonaCard';
+import { LearningRhythmCard } from '../../src/components/stats/LearningRhythmCard';
+import { WeeklyChart } from '../../src/components/stats/WeeklyChart';
+import { LearningCalendar } from '../../src/components/community/LearningCalendar';
+import { useSettingsStore } from '../../src/store/settingsStore';
+import { fontMono, fontCute, fontDisplay, fontBody } from '../../src/theme/tokens';
+import { getCategoryIcon, getCategoryColor } from '../../src/constants/categories';
+import { calcEmblems, emblemRankingMock, EMBLEM_DEFS, type EmblemProgress } from '../../src/utils/emblems';
+import { useAllCards } from '../../src/hooks/useCards';
+import { useStudyStats } from '../../src/hooks/useStats';
 
 function StatTile({ icon, color, value, label }: { icon: keyof typeof Ionicons.glyphMap; color: string; value: string; label: string }) {
   const { theme, fontScale } = useTheme();
@@ -124,27 +123,22 @@ export default function StatsScreen() {
 
   if (loading && !stats && !queryError) {
     return (
-      <View style={{ flex: 1, backgroundColor: c.bg }}>
-        <ScreenHeader title="학습 통계" />
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><ActivityIndicator color={c.primary} /></View>
+      <View style={{ flex: 1, backgroundColor: c.bg, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator color={c.primary} />
       </View>
     );
   }
 
   if (queryError && !stats) {
     return (
-      <View style={{ flex: 1, backgroundColor: c.bg }}>
-        <ScreenHeader title="학습 통계" />
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-          <ErrorState message="통계를 불러올 수 없어요" onRetry={() => { refetchStats(); refetchAll(); }} />
-        </View>
+      <View style={{ flex: 1, backgroundColor: c.bg, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+        <ErrorState message="통계를 불러올 수 없어요" onRetry={() => { refetchStats(); refetchAll(); }} />
       </View>
     );
   }
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
-      <ScreenHeader title="학습 통계" />
       <ScrollView
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.primary} />}
         contentContainerStyle={{ padding: 20 }}>
