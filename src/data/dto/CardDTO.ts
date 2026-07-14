@@ -26,6 +26,8 @@ export interface CardDTO {
   fire_triangle_txt?: string;
   /** 뒷면 — 결론 */
   conclusion_txt?: string;
+  /** 뒷면 미디어(해설 도해/사진) URL */
+  answer_image_url?: string;
   /** 출처·관련근거 */
   source_txt?: string;
   status_cd: 'NEW' | 'LEARNING' | 'MASTERED';

@@ -57,6 +57,8 @@ export interface SeedCard {
   fireTriangle?: string;
   /** 결론(한 줄 핵심) */
   conclusion: string;
+  /** 뒷면 미디어(해설 도해/사진) URL — 뒷면_미디어 컬럼에 파일이 있으면 이미지 문제 */
+  answerImageUrl?: string;
   /** 출처·관련근거 */
   source?: string;
   /** 이미지 포함 여부 */

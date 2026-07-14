@@ -49,6 +49,7 @@ export class CardMapper {
       process: dto.process_txt?.trim() || undefined,
       fireTriangle: dto.fire_triangle_txt?.trim() || undefined,
       conclusion: dto.conclusion_txt?.trim() ?? '',
+      answerImageUrl: dto.answer_image_url?.trim() || undefined,
       source: dto.source_txt?.trim() || undefined,
       type: CARD_TYPE_MAP[dto.card_type_cd ?? 'EXPLANATION'] ?? 'explanation',
       choices: dto.choices,
