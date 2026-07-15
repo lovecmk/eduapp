@@ -86,7 +86,9 @@ export function CardQuiz({
             <Pressable
               key={i}
               disabled={revealed}
-              onPress={() => onPick(i)}
+              // 카드 앞면 전체가 '탭하여 뒤집기' Pressable 이라, 웹에서는 보기 선택 클릭이
+              // 부모로 전파돼 "문제를 먼저 풀어주세요" 안내와 겹친다. 전파를 차단한다.
+              onPress={(e) => { (e as unknown as { stopPropagation?: () => void })?.stopPropagation?.(); onPick(i); }}
               style={{
                 flex: 1, aspectRatio: 1.4, borderRadius: 18, borderWidth: 2,
                 borderColor: borderFor(i), backgroundColor: bgFor(i),
@@ -110,7 +112,7 @@ export function CardQuiz({
               <Pressable
                 key={i}
                 disabled={revealed}
-                onPress={() => onPick(i)}
+                onPress={(e) => { (e as unknown as { stopPropagation?: () => void })?.stopPropagation?.(); onPick(i); }}
                 style={{
                   flexDirection: 'row', alignItems: 'center', gap: 10,
                   borderRadius: 14, borderWidth: 1.5, borderColor: borderFor(i), backgroundColor: bgFor(i),

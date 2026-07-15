@@ -34,6 +34,7 @@ export function HeaderMenuSheet({ visible, onClose }: { visible: boolean; onClos
   const c = theme.colors;
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
+  const logout = useAuthStore((s) => s.logout);
   const profileImage = useSettingsStore((s) => s.profileImage);
   const themeMode = useSettingsStore((s) => s.themeMode);
   const setThemeMode = useSettingsStore((s) => s.setThemeMode);
@@ -41,6 +42,14 @@ export function HeaderMenuSheet({ visible, onClose }: { visible: boolean; onClos
   const meta = user ? MEMBERSHIP_META[user.membership] : null;
 
   const go = (route: string) => { onClose(); setTimeout(() => router.push(route as never), 180); };
+
+  const onLogout = () => {
+    onClose();
+    setTimeout(async () => {
+      await logout();
+      router.replace(ROUTES.login as never);
+    }, 180);
+  };
 
   return (
     <AnimatedSheet visible={visible} onClose={onClose} rounded={26}>
@@ -102,6 +111,17 @@ export function HeaderMenuSheet({ visible, onClose }: { visible: boolean; onClos
               );
             })}
           </View>
+
+          {/* 로그아웃 */}
+          {user && (
+            <Pressable
+              onPress={onLogout}
+              style={[styles.logout, { backgroundColor: c.surface, borderColor: c.error + '55' }]}
+            >
+              <Ionicons name="log-out-outline" size={18} color={c.error} />
+              <Text style={{ color: c.error, fontSize: 14, fontFamily: fontDisplay }}>로그아웃</Text>
+            </Pressable>
+          )}
         </View>
     </AnimatedSheet>
   );
@@ -120,4 +140,5 @@ const styles = StyleSheet.create({
   sectionLabel: { fontSize: 11.5, fontFamily: fontDisplay, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10, marginLeft: 2 },
   themeRow: { flexDirection: 'row', gap: 8 },
   themeChip: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 9, borderRadius: 12, borderWidth: 1 },
+  logout: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 18, paddingVertical: 14, borderRadius: 14, borderWidth: 1 },
 });

@@ -40,7 +40,10 @@ export function QuestionImage({
     <>
       <Pressable
         disabled={!canExpand}
-        onPress={() => setViewerOpen(true)}
+        // 카드 앞면 전체가 '탭하여 뒤집기' Pressable 로 감싸져 있어, 웹에서는 클릭이
+        // 부모로 전파되어 이미지 확대와 카드 뒤집기가 동시에 일어난다.
+        // stopPropagation 으로 이미지 탭은 확대만 하도록 전파를 차단한다.
+        onPress={(e) => { (e as unknown as { stopPropagation?: () => void })?.stopPropagation?.(); setViewerOpen(true); }}
         style={[styles.wrap, { height, backgroundColor: c.surfaceAlt, borderColor: c.border }]}
       >
         {!failed && imgSource && (
@@ -82,12 +85,13 @@ export function QuestionImage({
 
       {/* 전체 화면 뷰어 */}
       <Modal visible={viewerOpen} transparent animationType="fade" onRequestClose={() => setViewerOpen(false)} statusBarTranslucent>
-        <View style={styles.viewerBackdrop}>
-          {/* 배경 탭으로 닫기 */}
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setViewerOpen(false)} />
+        {/* 화면(이미지 포함) 어디를 탭해도 닫히도록 배경 전체를 Pressable 로 만든다.
+            이미지는 pointerEvents="none" 으로 탭을 배경으로 흘려보낸다. */}
+        <Pressable style={styles.viewerBackdrop} onPress={() => setViewerOpen(false)}>
           {imgSource && (
             <Image
               source={imgSource}
+              pointerEvents="none"
               style={{ width: SCREEN_W, height: SCREEN_H }}
               contentFit="contain"
               transition={150}
@@ -100,11 +104,11 @@ export function QuestionImage({
           >
             <Ionicons name="close" size={24} color="#fff" />
           </Pressable>
-          <View style={[styles.viewerHint, { bottom: insets.bottom + 20 }]}>
+          <View pointerEvents="none" style={[styles.viewerHint, { bottom: insets.bottom + 20 }]}>
             <Ionicons name="information-circle-outline" size={13} color="#fff" />
             <Text style={styles.viewerHintText}>화면을 탭하면 닫혀요</Text>
           </View>
-        </View>
+        </Pressable>
       </Modal>
     </>
   );

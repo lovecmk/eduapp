@@ -66,7 +66,8 @@ const DEFAULT_SETTINGS = {
     marketing: false,
   },
   biometricLoginEnabled: false,
-  dailyTarget: 10,
+  // 하루 학습 상한 = 신규 3장 + 복습 최대 4장 = 7장(운영 지속가능성·하루 3분).
+  dailyTarget: 7,
   shuffleCards: true,
   keepScreenOn: false,
   offlineMode: false,

@@ -52,7 +52,8 @@ export default function DeveloperScreen() {
             <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontFamily: fontDisplay }}>알림 테스트</Text>
           </View>
           <Text style={{ color: c.textSecondary, fontSize: 12.5 * fs, lineHeight: 19, marginBottom: 16, fontFamily: fontBody }}>
-            버튼을 누르면 이 기기로 실제 로컬 알림을 즉시 전송합니다.
+            버튼을 누르면 이 기기로 학습 리마인더 알림을 즉시 전송하고 진동으로 알려드려요.
+            설정에서 알림을 켜면 3시간마다 복습 리마인더가 자동으로 전송됩니다.
           </Text>
 
           <Button

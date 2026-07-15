@@ -21,7 +21,16 @@ function getMonthCells(year: number, month: number): (number | null)[] {
   const count = new Date(year, month + 1, 0).getDate();
   const cells: (number | null)[] = Array(firstDay).fill(null);
   for (let d = 1; d <= count; d++) cells.push(d);
+  // 마지막 주(토요일 열까지)를 채워 항상 7칸이 되도록 뒤를 null 로 패딩한다.
+  while (cells.length % 7 !== 0) cells.push(null);
   return cells;
+}
+
+/** 7칸 단위(일~토)로 주 배열로 분할 — 퍼센트 폭 반올림으로 토요일 칸이 줄바꿈되는 문제를 방지. */
+function chunkWeeks(cells: (number | null)[]): (number | null)[][] {
+  const weeks: (number | null)[][] = [];
+  for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));
+  return weeks;
 }
 
 /** 학습 강도(복습 카드 수)를 4단계 히트맵 색으로 변환. */
@@ -101,34 +110,37 @@ export function LearningCalendar() {
       </View>
 
       <View style={styles.grid}>
-        {cells.map((d, i) => {
-          if (d === null) return <View key={`e${i}`} style={styles.cell} />;
-          const key = `${year}-${month}-${d}`;
-          const isToday = key === todayStr;
-          const reviewCount = history[key]?.length ?? 0;
-          const dueCount = dueByDate.get(key) ?? 0;
-          const dow = i % 7;
-          const bg = heatColor(reviewCount, c.primary, c.surfaceAlt);
-          const intense = reviewCount > 4;
-          return (
-            <Pressable key={d} style={styles.cell} onPress={() => setSelected(key)}>
-              <View style={[
-                styles.dayCell,
-                { backgroundColor: bg },
-                isToday && { borderWidth: 2, borderColor: c.primary },
-              ]}>
-                <Text style={[styles.dayText, {
-                  color: intense ? '#fff' : dow === 0 ? '#EF4444' : dow === 6 ? '#3B82F6' : c.textPrimary,
-                }]}>{d}</Text>
-              </View>
-              {dueCount > 0 && !isToday ? (
-                <View style={[styles.dueDot, { backgroundColor: c.warning }]} />
-              ) : (
-                <View style={{ height: 5, marginTop: 2 }} />
-              )}
-            </Pressable>
-          );
-        })}
+        {chunkWeeks(cells).map((week, w) => (
+          <View key={`w${w}`} style={styles.weekCells}>
+            {week.map((d, dow) => {
+              if (d === null) return <View key={`e${w}-${dow}`} style={styles.cell} />;
+              const key = `${year}-${month}-${d}`;
+              const isToday = key === todayStr;
+              const reviewCount = history[key]?.length ?? 0;
+              const dueCount = dueByDate.get(key) ?? 0;
+              const bg = heatColor(reviewCount, c.primary, c.surfaceAlt);
+              const intense = reviewCount > 4;
+              return (
+                <Pressable key={`${w}-${dow}`} style={styles.cell} onPress={() => setSelected(key)}>
+                  <View style={[
+                    styles.dayCell,
+                    { backgroundColor: bg },
+                    isToday && { borderWidth: 2, borderColor: c.primary },
+                  ]}>
+                    <Text style={[styles.dayText, {
+                      color: intense ? '#fff' : dow === 0 ? '#EF4444' : dow === 6 ? '#3B82F6' : c.textPrimary,
+                    }]}>{d}</Text>
+                  </View>
+                  {dueCount > 0 && !isToday ? (
+                    <View style={[styles.dueDot, { backgroundColor: c.warning }]} />
+                  ) : (
+                    <View style={{ height: 5, marginTop: 2 }} />
+                  )}
+                </Pressable>
+              );
+            })}
+          </View>
+        ))}
       </View>
 
       {/* 범례 */}
@@ -265,8 +277,9 @@ const styles = StyleSheet.create({
   arrow: { padding: 4 },
   weekRow: { flexDirection: 'row', marginBottom: 8 },
   weekLabel: { flex: 1, textAlign: 'center', fontSize: 12, fontWeight: '600' },
-  grid: { flexDirection: 'row', flexWrap: 'wrap' },
-  cell: { width: `${100 / 7}%`, alignItems: 'center', paddingVertical: 3 },
+  grid: {},
+  weekCells: { flexDirection: 'row' },
+  cell: { flex: 1, alignItems: 'center', paddingVertical: 3 },
   dayCell: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   dayText: { fontSize: 13, fontWeight: '700', fontFamily: fontMono },
   dueDot: { width: 5, height: 5, borderRadius: 3, marginTop: 2 },

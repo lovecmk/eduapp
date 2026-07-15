@@ -23,6 +23,12 @@ export const MAX_BOX = 5;
 /** 박스 단계별 기본 복습 간격(일). box 0 은 같은 세션 내 재노출(10분). */
 export const BOX_INTERVAL_DAYS = [0, 1, 3, 7, 16, 35] as const;
 const AGAIN_DELAY = 10 * MIN;
+/**
+ * 오답(again) 카드 재배치 간격 — 간격 학습(Spaced Repetition) 원리에 따라
+ * 3학습일 뒤에 다시 노출한다(운영 의도: 망각 곡선 반영·복습 자동 정렬).
+ */
+export const AGAIN_REPOSITION_DAYS = 3;
+const AGAIN_REPOSITION_MS = AGAIN_REPOSITION_DAYS * DAY;
 
 /** 박스 단계 → 다음 간격(ms). */
 export function boxIntervalMs(box: number): number {
@@ -37,7 +43,7 @@ export function initialState(now: number = Date.now()): SrsCardState {
 
 /**
  * 채점 결과에 따라 다음 상태를 계산한다.
- *  - again: 박스 0 으로 강등, 10분 후 재노출, 망각 +1
+ *  - again: 박스 0 으로 강등, 3학습일 뒤 재배치, 망각 +1
  *  - hard : 현재 간격의 절반(최소 1일)만 뒤로, 박스 유지
  *  - good : 박스 +1, 표준 간격
  *  - easy : 박스 +2, 더 긴 간격
@@ -47,7 +53,8 @@ export function schedule(prev: SrsCardState, grade: Grade, now: number = Date.no
 
   switch (grade) {
     case 'again':
-      return { ...base, box: 0, lapses: prev.lapses + 1, dueAt: now + AGAIN_DELAY };
+      // 오답 카드는 3학습일 뒤에 다시 만난다(간격 학습).
+      return { ...base, box: 0, lapses: prev.lapses + 1, dueAt: now + AGAIN_REPOSITION_MS };
     case 'hard': {
       const box = Math.max(1, prev.box);
       const interval = Math.max(DAY, Math.round(boxIntervalMs(box) * 0.5));

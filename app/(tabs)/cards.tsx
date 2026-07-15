@@ -25,8 +25,12 @@ import { resolveCardImage } from '../../src/data/cardImages';
 import { useBookmarkStore } from '../../src/store/bookmarkStore';
 import { useReportStore } from '../../src/store/reportStore';
 
-// 하루 학습량 = 3분 분량(카드당 30~40초 기준 3~5장).
-const DAILY_LIMIT = 5;
+// 하루 학습 상한(운영 지속가능성) — 신규 3장 + 복습 최대 4장 = 하루 최대 7장.
+// '하루 3분' 목표를 지키고 휴가·출장 후 누적으로 지치지 않도록 학습량을 고정한다.
+// 정답률 66.7% 가정에서 복습 카드는 무한 누적되지 않고 장기적으로 하루 4~5장 내외로 안정화된다.
+const NEW_PER_DAY = 3;
+const REVIEW_PER_DAY = 4;
+const DAILY_LIMIT = NEW_PER_DAY + REVIEW_PER_DAY; // 7
 const { height: SCREEN_H, width: SCREEN_W } = Dimensions.get('window');
 // 스와이프 트랙(원진섭)에서 좌우로 넘겨 분류하는 최소 이동 거리.
 const SWIPE_THRESHOLD = 90;
@@ -84,10 +88,17 @@ export default function CardsScreen() {
   const { isLoading, error, refetch } = isCategoryMode ? allQuery : todayQuery;
   const markCardMutation = useMarkCard();
 
-  // 오늘의 학습 세션은 3~5장으로 제한(3분 분량). 카테고리 복습은 해당 카테고리 전체.
+  // 오늘의 학습 = 신규 3장 + 복습 최대 4장(총 최대 7장). 카테고리 복습은 해당 카테고리 전체.
+  // 복습 카드는 예정일이 오래된 순(가장 오래 방치된 카드)으로 우선 배치한다.
   const deck = useMemo(() => {
     if (isCategoryMode) return (allQuery.data ?? []).filter((x) => x.category === category);
-    return (todayQuery.data ?? []).slice(0, DAILY_LIMIT);
+    const today = todayQuery.data ?? [];
+    const news = today.filter((x) => x.status === 'new').slice(0, NEW_PER_DAY);
+    const reviews = today
+      .filter((x) => x.status === 'learning')
+      .sort((a, b) => (a.dueAt?.getTime() ?? 0) - (b.dueAt?.getTime() ?? 0))
+      .slice(0, REVIEW_PER_DAY);
+    return [...news, ...reviews];
   }, [isCategoryMode, category, allQuery.data, todayQuery.data]);
   const card = deck[index];
 

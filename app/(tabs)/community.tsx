@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,12 +14,41 @@ import { ROUTES } from '../../src/constants/routes';
 import { useQnaStore, type Question } from '../../src/store/qnaStore';
 import { timeAgoLabel } from '../../src/store/notificationStore';
 
+// 한 번에 보여줄 최대 질문 수 — 최대 4개.
+const QNA_WINDOW = 4;
+// 회전 주기(ms) — 30초마다 다른 질문 묶음이 실시간처럼 갈아끼워진다.
+const QNA_ROTATE_MS = 30_000;
+
 export default function CommunityScreen() {
   const { theme } = useTheme();
   const c = theme.colors;
   const router = useRouter();
   const questions = useQnaStore((s) => s.questions);
   const [composeOpen, setComposeOpen] = useState(false);
+  // 회전 창(window)의 시작 오프셋 — 30초마다 앞으로 밀며 질문을 순환 노출.
+  const [offset, setOffset] = useState(0);
+
+  // 내가 올린 질문은 항상 상단 고정, 나머지(시드 풀)는 회전 대상.
+  const mine = useMemo(() => questions.filter((q) => q.mine), [questions]);
+  const pool = useMemo(() => questions.filter((q) => !q.mine), [questions]);
+
+  // 30초마다 회전 — 창 크기만큼 앞으로 밀어 새 묶음이 나타나게 한다.
+  useEffect(() => {
+    if (pool.length <= QNA_WINDOW) return; // 회전이 필요 없을 만큼 적으면 고정.
+    const t = setInterval(() => setOffset((o) => (o + QNA_WINDOW) % pool.length), QNA_ROTATE_MS);
+    return () => clearInterval(t);
+  }, [pool.length]);
+
+  // 고정 슬롯(내 질문)을 빼고 남는 자리만큼만 회전 풀에서 채운다(전체 최대 4개 유지).
+  const rotateSlots = Math.max(0, QNA_WINDOW - mine.length);
+  const rotated = useMemo(() => {
+    if (pool.length === 0 || rotateSlots === 0) return [];
+    const take = Math.min(rotateSlots, pool.length);
+    const start = offset % pool.length;
+    return Array.from({ length: take }, (_, k) => pool[(start + k) % pool.length]);
+  }, [pool, offset, rotateSlots]);
+
+  const visibleQuestions = useMemo(() => [...mine, ...rotated].slice(0, QNA_WINDOW), [mine, rotated]);
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
@@ -34,6 +63,11 @@ export default function CommunityScreen() {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <Ionicons name="chatbox-ellipses" size={18} color={c.primary} />
             <Text style={{ color: c.textPrimary, fontSize: 16, fontFamily: fontDisplay }}>질문 & 답변</Text>
+            {/* 실시간처럼 갱신되는 느낌을 주는 라이브 표시 */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: 4, backgroundColor: c.error + '14', borderRadius: 999, paddingHorizontal: 7, paddingVertical: 2 }}>
+              <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: c.error }} />
+              <Text style={{ color: c.error, fontSize: 10, fontFamily: fontMono }}>LIVE</Text>
+            </View>
           </View>
           <Pressable onPress={() => setComposeOpen(true)} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.primary, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 }}>
             <Ionicons name="add" size={15} color="#fff" />
@@ -41,11 +75,18 @@ export default function CommunityScreen() {
           </Pressable>
         </View>
 
-        {questions.map((q, i) => (
-          <Animated.View key={q.id} entering={FadeInDown.delay(Math.min(i, 6) * 40).duration(300)}>
+        {/* 30초마다 최대 4개가 순환하며 갱신 — key 에 offset 을 섞어 매 회전마다 페이드 인 */}
+        {visibleQuestions.map((q, i) => (
+          <Animated.View key={`${q.id}-${offset}`} entering={FadeInDown.delay(Math.min(i, 4) * 60).duration(320)}>
             <QuestionRow question={q} onPress={() => router.push(ROUTES.qna(q.id) as never)} />
           </Animated.View>
         ))}
+
+        {pool.length > QNA_WINDOW && (
+          <Text style={{ color: c.textSecondary, fontSize: 11.5, textAlign: 'center', marginTop: 4, fontFamily: fontBody }}>
+            30초마다 새로운 질문이 올라와요 · 전체 {questions.length}개
+          </Text>
+        )}
       </ScrollView>
 
       <QuestionComposeModal visible={composeOpen} onClose={() => setComposeOpen(false)} onCreated={(id) => router.push(ROUTES.qna(id) as never)} />

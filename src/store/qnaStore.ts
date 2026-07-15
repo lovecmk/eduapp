@@ -60,6 +60,40 @@ function seed(): Question[] {
       answers: [],
       likes: 2, likedByMe: false, minutesAgo: 300,
     },
+    {
+      id: 'q4', author: '정보전', color: pick(3), category: '전기 위험',
+      title: '누전차단기가 자꾸 떨어지는데 원인 파악 순서가 궁금해요',
+      body: '설비를 돌리면 간헐적으로 누전차단기가 트립됩니다. 절연저항부터 봐야 할지, 부하 분리부터 해야 할지 순서를 잡기가 어렵습니다.',
+      answers: [
+        { id: 'a4', author: '한전기', color: pick(4), body: '먼저 부하를 하나씩 분리하며 어느 회로에서 트립되는지 좁히고, 해당 구간 절연저항(500V 메거)으로 확인하세요.', likes: 4, likedByMe: false, minutesAgo: 60 },
+      ],
+      likes: 3, likedByMe: false, minutesAgo: 90,
+    },
+    {
+      id: 'q5', author: '서작업', color: pick(1), category: '공정 위험',
+      title: '밀폐공간 작업 전 산소농도, 몇 %면 진입 가능한가요?',
+      body: '탱크 내부 청소 작업인데, 산소농도 기준과 측정 위치(상·중·하)를 어떻게 잡아야 안전한지 알고 싶습니다.',
+      answers: [
+        { id: 'a5', author: '오도장', color: pick(2), body: '적정 산소농도는 18~23.5%입니다. 상·중·하 3점 이상 측정하고, 작업 중에도 연속 측정을 유지하세요.', likes: 7, likedByMe: false, minutesAgo: 200, accepted: true },
+      ],
+      likes: 6, likedByMe: false, minutesAgo: 240,
+    },
+    {
+      id: 'q6', author: '문안전', color: pick(2), category: '위험물',
+      title: '유증기 체류 구역, 방폭등급 어떻게 정하나요?',
+      body: '도료 보관창고 환기가 약한데, 방폭기구를 어느 등급으로 선정해야 하는지 근거를 잡기 어렵습니다.',
+      answers: [],
+      likes: 4, likedByMe: false, minutesAgo: 420,
+    },
+    {
+      id: 'q7', author: '조현장', color: pick(5), category: '공정 위험',
+      title: '고소작업 안전대 체결 위치, 발밑 걸어도 되나요?',
+      body: '비계에서 안전대를 발밑 난간에 거는 동료가 있는데, 추락 시 충격이 더 크지 않을까요? 올바른 체결 높이가 궁금합니다.',
+      answers: [
+        { id: 'a7', author: '박설비', color: pick(0), body: '가능하면 D링보다 높은 지점에 체결해 추락거리를 줄여야 합니다. 발밑 체결은 추락거리가 길어져 충격이 커집니다.', likes: 5, likedByMe: false, minutesAgo: 330 },
+      ],
+      likes: 8, likedByMe: false, minutesAgo: 500,
+    },
   ];
 }
 

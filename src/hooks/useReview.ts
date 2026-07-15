@@ -27,14 +27,21 @@ export function useReview() {
 
   const now = Date.now();
 
-  /** 지금 복습 예정(due)인 카드 — 마감 임박 순, 세션 상한 적용. */
+  /**
+   * 지금 복습 예정(due)인 카드 — 자동 우선순위 정렬.
+   * 오래 방치된(예정일이 오래된) 카드 우선, 같으면 반복 오답(lapses 많은) 카드 우선.
+   */
   const dueCards = useMemo(() => {
     return allCards
       .filter((card) => {
         const st = cardsState[card.id];
         return st ? isDue(st, now) : false;
       })
-      .sort((a, b) => (cardsState[a.id]?.dueAt ?? 0) - (cardsState[b.id]?.dueAt ?? 0))
+      .sort((a, b) => {
+        const sa = cardsState[a.id];
+        const sb = cardsState[b.id];
+        return (sa?.dueAt ?? 0) - (sb?.dueAt ?? 0) || (sb?.lapses ?? 0) - (sa?.lapses ?? 0);
+      })
       .slice(0, SESSION_CAP);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allCards, cardsState]);
