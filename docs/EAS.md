@@ -92,9 +92,27 @@ eas build --profile production --platform all
   → `eas-build.yml` 로 새 빌드 후 스토어 제출. 그 다음부터 다시 OTA.
 
 ### runtimeVersion 정책
-현재 `{ "policy": "appVersion" }` — `app.json` 의 `version`(예: `1.10.0`)이 곧
-런타임 버전이다. OTA 는 **같은 런타임 버전**의 빌드에만 적용된다. 네이티브가
-바뀌어 재빌드할 때는 `version` 을 올려 런타임을 분리하는 것을 권장한다.
+현재 **고정 문자열** `"runtimeVersion": "1.11.0"` 이다. OTA 는 **같은 런타임
+버전**의 설치본에만 적용된다.
+
+> ⚠️ **`{ "policy": "appVersion" }` 을 쓰면 안 된다.** 이 앱의 `version` 은 웹
+> PWA 배포 카운터로서 릴리스마다 계속 올라간다(1.5 → … → 1.11). `appVersion`
+> 정책은 런타임 버전을 이 `version` 에 묶으므로, `version` 을 올린 뒤
+> `eas update` 를 게시하면 업데이트가 **아무 설치본과도 매칭되지 않아** 사용자가
+> 영영 받지 못한다. 게다가 `eas.json` 의 `appVersionSource: "remote"` 와 겹치면
+> 빌드가 구운 런타임과 `eas update` 가 계산한 런타임이 서로 어긋난다.
+
+그래서 런타임 버전을 마케팅 `version` 과 **분리**해 고정 문자열로 못박는다.
+
+- **JS/에셋만 바뀔 때**(대부분의 OTA): `runtimeVersion` 은 **그대로 둔다**.
+  `version` 은 얼마든지 올려도 OTA 매칭에 영향이 없다.
+- **네이티브가 바뀌어 재빌드**할 때만: 새 바이너리를 스토어에 올리는 것에 맞춰
+  `runtimeVersion` 을 새 값으로 올린다(예: `"1.12.0"`). 이때부터 그 런타임의
+  OTA 가 나간다. **반드시 스토어 빌드와 `runtimeVersion` 값을 함께 올려야** 한다.
+
+> 현재 값 `"1.11.0"` 은 expo-updates 가 처음 도입된(=OTA 가능한 최초 네이티브
+> 빌드) 버전에 맞춘 것이다. 실제 스토어 배포본의 런타임과 다르면
+> `eas update:list` / `eas channel:view production` 로 확인해 값을 맞춰야 한다.
 
 ---
 

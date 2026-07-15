@@ -9,9 +9,7 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": false,
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
+    "runtimeVersion": "1.11.0",
     "updates": {
       "enabled": true,
       "checkAutomatically": "ON_LOAD",
