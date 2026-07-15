@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, Pressable } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, Text, Pressable, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/ThemeProvider';
 import { fontCute, fontDisplay, fontBody } from '../../theme/tokens';
@@ -9,7 +9,8 @@ const CIRCLED = ['①', '②', '③', '④', '⑤'];
 
 /**
  * 퀴즈형 카드의 앞면 정답 선택 UI — OX / 객관식.
- * 앞면에서 보기를 선택하면 즉시 정답 여부를 표시하고, 뒤집어 해설을 볼 수 있다.
+ * 앞면에서 보기를 선택하면 즉시 정답 여부를 표시하고(정답=통통 튀는 강조, 오답=좌우 흔들림),
+ * 잠시 후 카드가 자동으로 뒤집혀 해설을 보여준다.
  */
 export function CardQuiz({
   card,
@@ -28,6 +29,33 @@ export function CardQuiz({
   const answer = card.answerIndex ?? 0;
   const isOX = card.type === 'ox';
   const isCorrect = pick === answer;
+
+  // 정답/오답 이펙트 애니메이션.
+  const shake = useRef(new Animated.Value(0)).current; // 오답 시 좌우 흔들림
+  const pop = useRef(new Animated.Value(0)).current;    // 피드백 배지 통통 등장
+
+  useEffect(() => {
+    if (!revealed) {
+      shake.setValue(0);
+      pop.setValue(0);
+      return;
+    }
+    pop.setValue(0);
+    Animated.spring(pop, { toValue: 1, useNativeDriver: true, friction: 4, tension: 80 }).start();
+    if (!isCorrect) {
+      Animated.sequence([
+        Animated.timing(shake, { toValue: 1, duration: 55, useNativeDriver: true }),
+        Animated.timing(shake, { toValue: -1, duration: 55, useNativeDriver: true }),
+        Animated.timing(shake, { toValue: 0.6, duration: 55, useNativeDriver: true }),
+        Animated.timing(shake, { toValue: -0.6, duration: 55, useNativeDriver: true }),
+        Animated.timing(shake, { toValue: 0, duration: 55, useNativeDriver: true }),
+      ]).start();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [revealed]);
+
+  const shakeX = shake.interpolate({ inputRange: [-1, 1], outputRange: [-9, 9] });
+  const popScale = pop.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1] });
 
   // 보기별 상태 색: 미공개=선택 강조, 공개=정답 초록/오답 빨강.
   const borderFor = (i: number) => {
@@ -51,7 +79,7 @@ export function CardQuiz({
   const markColor = (i: number) => (i === answer ? c.success : c.error);
 
   return (
-    <View style={{ width: '100%' }}>
+    <Animated.View style={{ width: '100%', transform: [{ translateX: shakeX }] }}>
       {isOX ? (
         <View style={{ flexDirection: 'row', gap: 12 }}>
           {choices.map((label, i) => (
@@ -100,18 +128,23 @@ export function CardQuiz({
 
       {/* 정답 피드백 */}
       {revealed && (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 14, justifyContent: 'center' }}>
-          <Ionicons name={isCorrect ? 'happy' : 'sad'} size={18} color={isCorrect ? c.success : c.error} />
-          <Text style={{ color: isCorrect ? c.success : c.error, fontSize: 14 * fs, fontFamily: fontDisplay }}>
-            {isCorrect ? '정답이에요!' : `아쉬워요 — 정답은 ${isOX ? choices[answer] : (CIRCLED[answer] ?? answer + 1)}`}
+        <Animated.View
+          style={{
+            flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 14, justifyContent: 'center',
+            transform: [{ scale: popScale }],
+          }}
+        >
+          <Ionicons name={isCorrect ? 'happy' : 'sad'} size={20} color={isCorrect ? c.success : c.error} />
+          <Text style={{ color: isCorrect ? c.success : c.error, fontSize: 15 * fs, fontFamily: fontDisplay }}>
+            {isCorrect ? '정답이에요! 🎉' : `아쉬워요 — 정답은 ${isOX ? choices[answer] : (CIRCLED[answer] ?? answer + 1)}`}
           </Text>
-        </View>
+        </Animated.View>
       )}
       {revealed && (
         <Text style={{ color: c.textSecondary, fontSize: 12 * fs, textAlign: 'center', marginTop: 6, fontFamily: fontBody }}>
-          카드를 뒤집어 해설을 확인해요
+          잠시 후 해설로 넘어가요…
         </Text>
       )}
-    </View>
+    </Animated.View>
   );
 }

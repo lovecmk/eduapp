@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, Pressable, Animated, ScrollView, Dimensions, Platform } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { View, Text, Pressable, Animated, ScrollView, Dimensions, Platform, BackHandler, Modal } from 'react-native';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../src/theme/ThemeProvider';
@@ -32,6 +32,11 @@ function haptic() {
   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 }
 
+function notify(ok: boolean) {
+  if (Platform.OS === 'web') return;
+  Haptics.notificationAsync(ok ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Error);
+}
+
 export default function CardsScreen() {
   const { theme, fontScale } = useTheme();
   const c = theme.colors;
@@ -46,13 +51,18 @@ export default function CardsScreen() {
   // 퀴즈형(ox/choice) 앞면 정답 선택 상태.
   const [quizPick, setQuizPick] = useState<number | null>(null);
   const [quizRevealed, setQuizRevealed] = useState(false);
+  // 뒤로가기 시 "어디로 이동할지" 묻는 확인 모달.
+  const [exitConfirm, setExitConfirm] = useState(false);
 
   // 카드 뒤집기(rotateY) + 넘김(translate/opacity) 애니메이션 값.
   const flipAnim = useRef(new Animated.Value(0)).current;
   const translateX = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(0)).current;
   const cardOpacity = useRef(new Animated.Value(1)).current;
+  const scaleAnim = useRef(new Animated.Value(1)).current; // 뒤집을 때 통통 튀는 스케일(귀여운 효과)
   const progressAnim = useRef(new Animated.Value(0)).current;
+  // 퀴즈 정답 선택 후 자동으로 뒤집기까지의 타이머.
+  const autoFlipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 복습 탭에서 카테고리를 눌러 진입하면 category 파라미터로 해당 카테고리만 학습한다.
   const { category } = useLocalSearchParams<{ category?: string }>();
@@ -82,16 +92,39 @@ export default function CardsScreen() {
     translateX.setValue(0);
     translateY.setValue(0);
     cardOpacity.setValue(1);
-  }, [flipAnim, translateX, translateY, cardOpacity]);
+    scaleAnim.setValue(1);
+  }, [flipAnim, translateX, translateY, cardOpacity, scaleAnim]);
 
   const doFlip = useCallback((next: boolean) => {
     haptic();
     setFlipped(next);
-    Animated.spring(flipAnim, { toValue: next ? 1 : 0, useNativeDriver: true, friction: 8, tension: 10 }).start();
-  }, [flipAnim]);
+    // 통통 튀며(살짝 작아졌다 스프링으로 복귀) 뒤집히는 귀여운 효과.
+    Animated.parallel([
+      Animated.spring(flipAnim, { toValue: next ? 1 : 0, useNativeDriver: true, friction: 6, tension: 26 }),
+      Animated.sequence([
+        Animated.timing(scaleAnim, { toValue: 0.9, duration: 130, useNativeDriver: true }),
+        Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, friction: 3.5, tension: 55 }),
+      ]),
+    ]).start();
+  }, [flipAnim, scaleAnim]);
+
+  // 퀴즈(OX/객관식) 보기 선택 → 정답/오답 이펙트(햅틱) 후 자동으로 카드가 뒤집혀 해설을 보여준다.
+  const handleQuizPick = useCallback((i: number) => {
+    if (quizRevealed || !card) return;
+    const correct = i === (card.answerIndex ?? 0);
+    setQuizPick(i);
+    setQuizRevealed(true);
+    notify(correct);
+    if (autoFlipTimer.current) clearTimeout(autoFlipTimer.current);
+    autoFlipTimer.current = setTimeout(() => doFlip(true), 1150);
+  }, [quizRevealed, card, doFlip]);
+
+  // 화면 이탈/카드 전환 시 예약된 자동 뒤집기 타이머 정리.
+  useEffect(() => () => { if (autoFlipTimer.current) clearTimeout(autoFlipTimer.current); }, []);
 
   const advance = useCallback((status: 'mastered' | 'learning') => {
     if (!card) return;
+    if (autoFlipTimer.current) clearTimeout(autoFlipTimer.current);
     markCardMutation.mutate({ id: card.id, status });
     setDoneCount((n) => n + 1);
     setFlipped(false);
@@ -136,6 +169,7 @@ export default function CardsScreen() {
   }, [finished]);
 
   const restart = () => {
+    if (autoFlipTimer.current) clearTimeout(autoFlipTimer.current);
     setIndex(0);
     setDoneCount(0);
     setFlipped(false);
@@ -146,6 +180,30 @@ export default function CardsScreen() {
     resetCardAnims();
     progressAnim.setValue(0);
   };
+
+  // 학습 세션이 진행 중일 때(카드가 남아있고 아직 완료 화면이 아닐 때) 하드웨어 뒤로가기를 가로채,
+  // 곧바로 홈으로 튕겨 나가는 대신 "어디로 이동할지" 확인 모달을 띄운다.
+  const sessionActive = !!card && !finished;
+  useFocusEffect(
+    useCallback(() => {
+      if (Platform.OS !== 'android') return;
+      const onBack = () => {
+        if (sessionActive && !exitConfirm) {
+          setExitConfirm(true);
+          return true; // 기본 뒤로가기(홈 이동) 차단
+        }
+        return false;
+      };
+      const sub = BackHandler.addEventListener('hardwareBackPress', onBack);
+      return () => sub.remove();
+    }, [sessionActive, exitConfirm]),
+  );
+
+  const leaveSession = useCallback((target: string) => {
+    if (autoFlipTimer.current) clearTimeout(autoFlipTimer.current);
+    setExitConfirm(false);
+    router.replace(target as any);
+  }, [router]);
 
   if (isLoading && deck.length === 0 && !error) {
     return (
@@ -212,7 +270,7 @@ export default function CardsScreen() {
 
       {/* 카드(뒤집기 애니메이션) */}
       <View style={{ flex: 1, padding: 20, paddingBottom: 8 }}>
-        <Animated.View style={{ flex: 1, transform: [{ translateX }, { translateY }], opacity: cardOpacity }}>
+        <Animated.View style={{ flex: 1, transform: [{ translateX }, { translateY }, { scale: scaleAnim }], opacity: cardOpacity }}>
           {/* 앞면 */}
           <Animated.View
             style={{
@@ -261,7 +319,7 @@ export default function CardsScreen() {
                   card={card}
                   pick={quizPick}
                   revealed={quizRevealed}
-                  onPick={(i) => { haptic(); setQuizPick(i); setQuizRevealed(true); }}
+                  onPick={handleQuizPick}
                 />
                 {!quizRevealed && (
                   <View style={{ marginTop: 18, alignItems: 'center' }}>
@@ -359,6 +417,44 @@ export default function CardsScreen() {
       </View>
 
       <CardReportModal visible={reportOpen} card={card} onClose={() => setReportOpen(false)} />
+
+      {/* 뒤로가기 시 이동 위치 확인 — '홈으로 튕기는' UX 방지 */}
+      <Modal visible={exitConfirm} transparent animationType="fade" onRequestClose={() => setExitConfirm(false)} statusBarTranslucent>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center', padding: 28 }}>
+          <Pressable style={{ position: 'absolute', inset: 0 }} onPress={() => setExitConfirm(false)} />
+          <View style={{ width: '100%', maxWidth: 360, backgroundColor: c.surface, borderRadius: 22, borderWidth: 1, borderColor: c.border, padding: 22, boxShadow: '0 12px 40px rgba(0,0,0,0.35)', elevation: 16 }}>
+            <View style={{ alignItems: 'center', marginBottom: 10 }}>
+              <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: c.warning + '18', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+                <Ionicons name="exit-outline" size={26} color={c.warning} />
+              </View>
+              <Text style={{ color: c.textPrimary, fontSize: 17 * fs, fontWeight: '800', fontFamily: fontCute }}>학습을 멈출까요?</Text>
+              <Text style={{ color: c.textSecondary, fontSize: 13 * fs, textAlign: 'center', marginTop: 6, lineHeight: 19, fontFamily: fontCute }}>
+                진행 중인 학습은 저장되지 않아요.{'\n'}어디로 이동할까요?
+              </Text>
+            </View>
+
+            <Pressable onPress={() => setExitConfirm(false)}
+              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.primary, borderRadius: 14, paddingVertical: 14, marginTop: 8 }}>
+              <Ionicons name="play" size={16} color="#fff" />
+              <Text style={{ color: '#fff', fontSize: 15 * fs, fontWeight: '700', fontFamily: fontCute }}>계속 학습하기</Text>
+            </Pressable>
+
+            {isCategoryMode && (
+              <Pressable onPress={() => leaveSession(ROUTES.review)}
+                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.surfaceAlt, borderWidth: 1, borderColor: c.border, borderRadius: 14, paddingVertical: 13, marginTop: 10 }}>
+                <Ionicons name="refresh-outline" size={16} color={c.textPrimary} />
+                <Text style={{ color: c.textPrimary, fontSize: 14 * fs, fontFamily: fontCute }}>복습 목록으로</Text>
+              </Pressable>
+            )}
+
+            <Pressable onPress={() => leaveSession(ROUTES.home)}
+              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.surfaceAlt, borderWidth: 1, borderColor: c.border, borderRadius: 14, paddingVertical: 13, marginTop: 10 }}>
+              <Ionicons name="home-outline" size={16} color={c.textPrimary} />
+              <Text style={{ color: c.textPrimary, fontSize: 14 * fs, fontFamily: fontCute }}>홈으로 나가기</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }

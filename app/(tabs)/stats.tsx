@@ -23,12 +23,10 @@ function StatTile({ icon, color, value, label }: { icon: keyof typeof Ionicons.g
   const { theme, fontScale } = useTheme();
   const c = theme.colors;
   return (
-    <View style={{ width: '47.5%', flexGrow: 1, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 16, padding: 14 }}>
-      <View style={{ width: 30, height: 30, borderRadius: 9, backgroundColor: color + '18', alignItems: 'center', justifyContent: 'center', marginBottom: 8 }}>
-        <Ionicons name={icon} size={16} color={color} />
-      </View>
-      <Text style={{ color: c.textPrimary, fontSize: 22 * fontScale, fontFamily: fontMono, fontWeight: '900' }}>{value}</Text>
-      <Text style={{ color: c.textSecondary, fontSize: 11.5, marginTop: 2, fontFamily: fontBody }}>{label}</Text>
+    <View style={{ flex: 1, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 6, alignItems: 'center' }}>
+      <Ionicons name={icon} size={16} color={color} style={{ marginBottom: 5 }} />
+      <Text numberOfLines={1} style={{ color: c.textPrimary, fontSize: 15 * fontScale, fontFamily: fontMono, fontWeight: '900' }}>{value}</Text>
+      <Text numberOfLines={1} style={{ color: c.textSecondary, fontSize: 10, marginTop: 2, fontFamily: fontBody }}>{label}</Text>
     </View>
   );
 }
@@ -142,7 +140,7 @@ export default function StatsScreen() {
       <ScrollView
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.primary} />}
         contentContainerStyle={{ padding: 20 }}>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 }}>
+        <View style={{ flexDirection: 'row', gap: 8, marginBottom: 20 }}>
           <StatTile icon="book" color={c.primary} value={`${stats?.totalLearned ?? 0}`} label="누적 학습" />
           <StatTile icon="checkmark-circle" color={c.success} value={`${Math.round((stats?.accuracy ?? 0) * 100)}%`} label="정답률" />
           <StatTile icon="flame" color={c.warning} value={`${stats?.streakDays ?? 0}일`} label="연속 학습" />

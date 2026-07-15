@@ -7,6 +7,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useFonts } from 'expo-font';
+import { Ionicons } from '@expo/vector-icons';
 
 import { ThemeProvider, useTheme } from '../src/theme/ThemeProvider';
 import { useAuthStore } from '../src/store/authStore';
@@ -55,7 +56,9 @@ function RootContent() {
   const bootstrapped = useAuthStore((s) => s.bootstrapped);
   const [splashDone, setSplashDone] = useState(false);
   const opacity = useRef(new Animated.Value(1)).current;
-  const [fontsLoaded] = useFonts(APP_FONTS);
+  // 앱 폰트와 함께 아이콘 폰트(Ionicons)도 미리 로드해, 첫 렌더에서 아이콘이
+  // 비어 보이는(로딩 전 빈 글리프) 현상을 방지한다.
+  const [fontsLoaded] = useFonts({ ...APP_FONTS, ...Ionicons.font });
   const { updateAvailable, remote, apply, dismiss } = useAppUpdate();
 
   useEffect(() => {

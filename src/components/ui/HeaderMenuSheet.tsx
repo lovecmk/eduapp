@@ -13,9 +13,9 @@ import { ROUTES } from '../../constants/routes';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
-// 하단 탭(홈/학습카드/복습/통계/마이페이지)과 중복되지 않는 보조 목적지만 노출.
+// 하단 탭(홈/학습/복습/커뮤니티/마이페이지)과 중복되지 않는 보조 목적지만 노출.
 const SHORTCUTS: { label: string; icon: IconName; route: string; key: string }[] = [
-  { label: '커뮤니티', icon: 'people', route: ROUTES.community, key: 'community' },
+  { label: '통계', icon: 'bar-chart', route: ROUTES.stats, key: 'stats' },
   { label: '학습 목표', icon: 'flag', route: ROUTES.contents, key: 'contents' },
   { label: '알림', icon: 'notifications', route: ROUTES.notifications, key: 'notifications' },
   { label: '설정', icon: 'settings-sharp', route: ROUTES.settings, key: 'settings' },
