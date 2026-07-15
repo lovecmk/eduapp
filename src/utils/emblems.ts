@@ -26,6 +26,7 @@ export const EMBLEM_DEFS: EmblemDef[] = [
   { category: '전기 위험', emoji: '⚡', label: '전기 안전' },
   { category: '공정 위험', emoji: '🎨', label: '공정 안전' },
   { category: '위험물', emoji: '🔥', label: '위험물 관리' },
+  { category: '현장 점검', emoji: '📸', label: '현장 점검' },
 ];
 
 const LEVEL_THRESHOLDS = [0, 30, 60, 90];
@@ -36,7 +37,7 @@ const NAME_POOL = ['김안전', '박현장', '최예방', '이방호', '정점�
 export function calcEmblems(
   cardMap: Map<string, { total: number; mastered: number }>,
 ): EmblemProgress[] {
-  const catIndex: Record<string, number> = { '전기 위험': 0, '공정 위험': 1, 위험물: 2 };
+  const catIndex: Record<string, number> = { '전기 위험': 0, '공정 위험': 1, 위험물: 2, '현장 점검': 3 };
 
   return EMBLEM_DEFS.map((def) => {
     const stat = cardMap.get(def.category) ?? { total: 0, mastered: 0 };
@@ -46,7 +47,7 @@ export function calcEmblems(
       if (pct >= LEVEL_THRESHOLDS[i]) { level = i; break; }
     }
     const idx = catIndex[def.category] ?? 0;
-    const topPct = [8, 15, 22][idx];
+    const topPct = [8, 15, 22, 12][idx];
 
     return {
       category: def.category,

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, type ImageSourcePropType } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/ThemeProvider';
@@ -7,19 +7,20 @@ import { fontBody } from '../../theme/tokens';
 
 /**
  * 이미지 문제용 이미지 뷰 — 로딩 중 스켈레톤, 실패 시 아이콘 폴백으로 깨진 이미지를 방지.
- * imageUrl 은 백엔드가 내려주는 실제 URL(또는 목업 원격 이미지)을 그대로 사용한다.
+ * `uri`(원격 URL) 또는 `source`(번들 로컬 이미지 require) 중 하나를 받는다.
  */
-export function QuestionImage({ uri, height = 190 }: { uri: string; height?: number }) {
+export function QuestionImage({ uri, source, height = 190 }: { uri?: string; source?: ImageSourcePropType; height?: number }) {
   const { theme } = useTheme();
   const c = theme.colors;
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
+  const imgSource = source ?? (uri ? { uri } : undefined);
 
   return (
     <View style={[styles.wrap, { height, backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
-      {!failed && (
+      {!failed && imgSource && (
         <Image
-          source={{ uri }}
+          source={imgSource}
           style={StyleSheet.absoluteFill}
           contentFit="cover"
           transition={300}

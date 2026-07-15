@@ -13,11 +13,13 @@ import { QuestionImage } from '../../src/components/ui/QuestionImage';
 import { CategoryTrail } from '../../src/components/ui/CategoryTrail';
 import { CardTimer } from '../../src/components/cards/CardTimer';
 import { CardBackBody } from '../../src/components/cards/CardBackBody';
+import { CardQuiz } from '../../src/components/cards/CardQuiz';
 import { CardReportModal } from '../../src/components/cards/CardReportModal';
 import { fontCute } from '../../src/theme/tokens';
 import { getCategoryIcon } from '../../src/constants/categories';
 import { ROUTES } from '../../src/constants/routes';
 import { useTodayCards, useAllCards, useMarkCard } from '../../src/hooks/useCards';
+import { resolveCardImage } from '../../src/data/cardImages';
 import { useBookmarkStore } from '../../src/store/bookmarkStore';
 import { useReportStore } from '../../src/store/reportStore';
 
@@ -41,6 +43,9 @@ export default function CardsScreen() {
   const [finished, setFinished] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [exiting, setExiting] = useState(false);
+  // 퀴즈형(ox/choice) 앞면 정답 선택 상태.
+  const [quizPick, setQuizPick] = useState<number | null>(null);
+  const [quizRevealed, setQuizRevealed] = useState(false);
 
   // 카드 뒤집기(rotateY) + 넘김(translate/opacity) 애니메이션 값.
   const flipAnim = useRef(new Animated.Value(0)).current;
@@ -90,6 +95,8 @@ export default function CardsScreen() {
     markCardMutation.mutate({ id: card.id, status });
     setDoneCount((n) => n + 1);
     setFlipped(false);
+    setQuizPick(null);
+    setQuizRevealed(false);
     resetCardAnims();
     setExiting(false);
     const nextIdx = index + 1;
@@ -134,6 +141,8 @@ export default function CardsScreen() {
     setFlipped(false);
     setFinished(false);
     setExiting(false);
+    setQuizPick(null);
+    setQuizRevealed(false);
     resetCardAnims();
     progressAnim.setValue(0);
   };
@@ -173,6 +182,8 @@ export default function CardsScreen() {
       </View>
     );
   }
+
+  const isQuiz = card.type === 'ox' || card.type === 'choice';
 
   // 앞/뒤 rotateY 보간.
   const frontRotate = flipAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] });
@@ -215,33 +226,71 @@ export default function CardsScreen() {
           >
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
               <View style={{ flex: 1, paddingRight: 8 }}>
-                <Badge label={card.category} />
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Badge label={card.category} />
+                  {isQuiz && (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: c.warning + '18', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 }}>
+                      <Ionicons name="help-circle" size={12} color={c.warning} />
+                      <Text style={{ color: c.warning, fontSize: 10.5, fontFamily: fontCute }}>{card.type === 'ox' ? 'OX 퀴즈' : '객관식'}</Text>
+                    </View>
+                  )}
+                </View>
                 <View style={{ marginTop: 8 }}>
                   <CategoryTrail category={card.category} subCategory={card.subCategory} topic={card.topic} size="sm" />
                 </View>
               </View>
               <Text style={{ color: c.textSecondary, fontSize: 11, fontFamily: fontCute }}>{index + 1}/{deck.length}</Text>
             </View>
-            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-              {card.imageUrl ? (
-                <View style={{ width: '100%', marginBottom: 18 }}>
-                  <QuestionImage uri={card.imageUrl} height={150} />
-                </View>
-              ) : (
-                <Ionicons name={getCategoryIcon(card.category)} size={40 * fs} color={c.primary} style={{ marginBottom: 12, opacity: 0.6 }} />
-              )}
-              {!!card.situation && (
-                <Text style={{ color: c.textSecondary, fontSize: 16.5 * fs, lineHeight: 25, textAlign: 'center', fontFamily: fontCute, marginBottom: 14 }}>
-                  {card.situation}
+            {isQuiz ? (
+              /* 퀴즈형: 상황·문제 + 앞면 정답 선택 UI */
+              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingVertical: 6 }}>
+                {resolveCardImage(card.imageUrl) && (
+                  <View style={{ width: '100%', marginBottom: 14 }}>
+                    <QuestionImage source={resolveCardImage(card.imageUrl)} height={130} />
+                  </View>
+                )}
+                {!!card.situation && (
+                  <Text style={{ color: c.textSecondary, fontSize: 13.5 * fs, lineHeight: 20, textAlign: 'center', fontFamily: fontCute, marginBottom: 8 }}>
+                    {card.situation}
+                  </Text>
+                )}
+                <Text style={{ color: c.textPrimary, fontSize: 18 * fs, fontWeight: '700', lineHeight: 26, textAlign: 'center', fontFamily: fontCute, marginBottom: 18 }}>
+                  {card.question}
                 </Text>
-              )}
-              <Text style={{ color: c.textPrimary, fontSize: 20 * fs, fontWeight: '700', lineHeight: 29, textAlign: 'center', fontFamily: fontCute }}>
-                {card.question}
-              </Text>
-              <View style={{ marginTop: 20 }}>
-                <CardTimer seconds={card.studySeconds} resetKey={card.id} onExpire={() => doFlip(true)} />
+                <CardQuiz
+                  card={card}
+                  pick={quizPick}
+                  revealed={quizRevealed}
+                  onPick={(i) => { haptic(); setQuizPick(i); setQuizRevealed(true); }}
+                />
+                {!quizRevealed && (
+                  <View style={{ marginTop: 18, alignItems: 'center' }}>
+                    <CardTimer seconds={card.studySeconds} resetKey={card.id} onExpire={() => setQuizRevealed(true)} />
+                  </View>
+                )}
+              </ScrollView>
+            ) : (
+              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                {resolveCardImage(card.imageUrl) ? (
+                  <View style={{ width: '100%', marginBottom: 18 }}>
+                    <QuestionImage source={resolveCardImage(card.imageUrl)} height={150} />
+                  </View>
+                ) : (
+                  <Ionicons name={getCategoryIcon(card.category)} size={40 * fs} color={c.primary} style={{ marginBottom: 12, opacity: 0.6 }} />
+                )}
+                {!!card.situation && (
+                  <Text style={{ color: c.textSecondary, fontSize: 16.5 * fs, lineHeight: 25, textAlign: 'center', fontFamily: fontCute, marginBottom: 14 }}>
+                    {card.situation}
+                  </Text>
+                )}
+                <Text style={{ color: c.textPrimary, fontSize: 20 * fs, fontWeight: '700', lineHeight: 29, textAlign: 'center', fontFamily: fontCute }}>
+                  {card.question}
+                </Text>
+                <View style={{ marginTop: 20 }}>
+                  <CardTimer seconds={card.studySeconds} resetKey={card.id} onExpire={() => doFlip(true)} />
+                </View>
               </View>
-            </View>
+            )}
           </Animated.View>
 
           {/* 뒷면 */}

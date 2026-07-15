@@ -12,6 +12,7 @@ import { ErrorState } from '../src/components/ui/ErrorState';
 import { CategoryTrail } from '../src/components/ui/CategoryTrail';
 import { fontDisplay, fontBody, fontMono } from '../src/theme/tokens';
 import { getCategoryIcon, getCategoryColor } from '../src/constants/categories';
+import { resolveCardImage } from '../src/data/cardImages';
 import { getDifficultyMeta } from '../src/constants/difficulty';
 import { TRACK_LEVEL_META } from '../src/domain/models/LearningTrack';
 import { ROUTES } from '../src/constants/routes';
@@ -244,8 +245,8 @@ function ContentRow({ card, onPress }: { card: LearningCard; onPress: () => void
   const status = STATUS_META[card.status];
   return (
     <Pressable onPress={onPress} style={[styles.row, { backgroundColor: c.surface, borderColor: c.border }]}>
-      {card.imageUrl ? (
-        <Image source={{ uri: card.imageUrl }} style={styles.thumb} contentFit="cover" transition={200} />
+      {resolveCardImage(card.imageUrl) ? (
+        <Image source={resolveCardImage(card.imageUrl)!} style={styles.thumb} contentFit="cover" transition={200} />
       ) : (
         <View style={[styles.thumb, { backgroundColor: accent + '18', alignItems: 'center', justifyContent: 'center' }]}>
           <Ionicons name={getCategoryIcon(card.category)} size={24} color={accent} />
@@ -261,7 +262,7 @@ function ContentRow({ card, onPress }: { card: LearningCard; onPress: () => void
           </View>
           <View style={{ width: 3, height: 3, borderRadius: 2, backgroundColor: c.border }} />
           <Text style={{ color: diff.color, fontSize: 11, fontFamily: fontDisplay }}>{diff.label}</Text>
-          {card.imageUrl ? (
+          {card.hasImage ? (
             <>
               <View style={{ width: 3, height: 3, borderRadius: 2, backgroundColor: c.border }} />
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>

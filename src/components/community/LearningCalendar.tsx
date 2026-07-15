@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Modal, ScrollView } from 'react-native';
 import { Image } from 'expo-image';
+import { resolveCardImage } from '../../data/cardImages';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/ThemeProvider';
 import { radius, fontMono, fontDisplay, fontBody } from '../../theme/tokens';
@@ -273,8 +274,8 @@ function CardRow({ card }: { card: LearningCard }) {
   const accent = getCategoryColor(card.category) ?? c.primary;
   return (
     <View style={[styles.cardRow, { backgroundColor: c.surfaceAlt }]}>
-      {card.imageUrl ? (
-        <Image source={{ uri: card.imageUrl }} style={styles.thumb} contentFit="cover" transition={200} />
+      {resolveCardImage(card.imageUrl) ? (
+        <Image source={resolveCardImage(card.imageUrl)!} style={styles.thumb} contentFit="cover" transition={200} />
       ) : (
         <View style={[styles.thumb, { backgroundColor: accent + '22', alignItems: 'center', justifyContent: 'center' }]}>
           <Ionicons name={getCategoryIcon(card.category)} size={20} color={accent} />

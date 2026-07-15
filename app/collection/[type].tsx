@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Image } from 'expo-image';
+import { resolveCardImage } from '../../src/data/cardImages';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { useTheme } from '../../src/theme/ThemeProvider';
@@ -68,8 +69,8 @@ export default function CollectionScreen() {
             return (
               <Animated.View key={card.id} entering={FadeInDown.delay(Math.min(i, 8) * 35).duration(300)}>
                 <Pressable onPress={() => router.push(ROUTES.content(card.id) as never)} style={[styles.row, { backgroundColor: c.surface, borderColor: c.border }]}>
-                  {card.imageUrl ? (
-                    <Image source={{ uri: card.imageUrl }} style={styles.thumb} contentFit="cover" transition={200} />
+                  {resolveCardImage(card.imageUrl) ? (
+                    <Image source={resolveCardImage(card.imageUrl)!} style={styles.thumb} contentFit="cover" transition={200} />
                   ) : (
                     <View style={[styles.thumb, { backgroundColor: accent + '18', alignItems: 'center', justifyContent: 'center' }]}>
                       <Ionicons name={getCategoryIcon(card.category)} size={24} color={accent} />

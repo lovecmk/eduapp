@@ -5,6 +5,7 @@ const CATEGORY_MAP: Record<string, CardCategory> = {
   ELEC: '전기 위험',
   PROCESS: '공정 위험',
   HAZMAT: '위험물',
+  FIELD: '현장 점검',
 };
 
 const STATUS_MAP: Record<CardDTO['status_cd'], CardStatus> = {
@@ -17,6 +18,12 @@ const DIFFICULTY_MAP: Record<string, 'easy' | 'medium' | 'hard'> = {
   EASY: 'easy',
   MEDIUM: 'medium',
   HARD: 'hard',
+};
+
+const CARD_TYPE_MAP: Record<string, 'explanation' | 'ox' | 'choice'> = {
+  EXPLANATION: 'explanation',
+  OX: 'ox',
+  CHOICE: 'choice',
 };
 
 export class CardMapper {
@@ -43,7 +50,11 @@ export class CardMapper {
       process: dto.process_txt?.trim() || undefined,
       fireTriangle: dto.fire_triangle_txt?.trim() || undefined,
       conclusion: dto.conclusion_txt?.trim() ?? '',
+      answerImageUrl: dto.answer_image_url?.trim() || undefined,
       source: dto.source_txt?.trim() || undefined,
+      type: CARD_TYPE_MAP[dto.card_type_cd ?? 'EXPLANATION'] ?? 'explanation',
+      choices: dto.choices,
+      answerIndex: dto.answer_index,
       hasImage: Boolean(dto.image_url?.trim()),
       status: STATUS_MAP[dto.status_cd] ?? 'new',
       dueAt: dto.due_at ? new Date(dto.due_at) : null,
