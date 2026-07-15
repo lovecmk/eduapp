@@ -25,8 +25,10 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSFaceIDUsageDescription": "생체인증으로 빠르게 로그인합니다"
-      }
+        "NSFaceIDUsageDescription": "생체인증으로 빠르게 로그인합니다",
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "bundleIdentifier": "com.raywon.newapp"
     },
     "android": {
       "adaptiveIcon": {
@@ -39,7 +41,8 @@
         "RECEIVE_BOOT_COMPLETED",
         "android.permission.USE_BIOMETRIC",
         "android.permission.USE_FINGERPRINT"
-      ]
+      ],
+      "package": "com.raywon.newapp"
     },
     "web": {
       "bundler": "metro",
