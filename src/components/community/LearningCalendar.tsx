@@ -73,24 +73,6 @@ export function LearningCalendar() {
   const todayStr = dateKey(now);
   const cells = getMonthCells(year, month);
 
-  // 이번 달 요약 + 연속 학습(streak)
-  const summary = useMemo(() => {
-    let monthReviews = 0;
-    let activeDays = 0;
-    for (const [key, ids] of Object.entries(history)) {
-      const [y, mo] = key.split('-').map(Number);
-      if (y === year && mo === month) { monthReviews += ids.length; if (ids.length) activeDays++; }
-    }
-    let streak = 0;
-    for (let i = 0; i < 400; i++) {
-      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
-      const ids = history[dateKey(d)];
-      if (ids && ids.length > 0) streak++;
-      else if (i > 0) break; // 오늘 미학습은 streak 유지(진행 중)
-    }
-    return { monthReviews, activeDays, streak };
-  }, [history, year, month]);
-
   const prev = () => { if (month === 0) { setYear((y) => y - 1); setMonth(11); } else setMonth((m) => m - 1); };
   const next = () => { if (month === 11) { setYear((y) => y + 1); setMonth(0); } else setMonth((m) => m + 1); };
 
@@ -103,21 +85,6 @@ export function LearningCalendar() {
 
   return (
     <View style={[styles.container, { backgroundColor: c.surface, borderColor: c.border }]}>
-      {/* 요약 헤더 */}
-      <View style={styles.summaryRow}>
-        {[
-          { icon: 'flame' as const, v: `${summary.streak}일`, l: '연속 학습', color: c.warning },
-          { icon: 'calendar' as const, v: `${summary.activeDays}일`, l: '이번 달 학습', color: c.primary },
-          { icon: 'albums' as const, v: `${summary.monthReviews}`, l: '이번 달 복습', color: c.success },
-        ].map((s) => (
-          <View key={s.l} style={[styles.summaryCell, { backgroundColor: c.surfaceAlt }]}>
-            <Ionicons name={s.icon} size={14} color={s.color} />
-            <Text style={[styles.summaryVal, { color: c.textPrimary }]}>{s.v}</Text>
-            <Text style={[styles.summaryLbl, { color: c.textSecondary }]}>{s.l}</Text>
-          </View>
-        ))}
-      </View>
-
       {/* 월 네비게이션 */}
       <View style={styles.header}>
         <Pressable onPress={prev} hitSlop={8} style={styles.arrow}><Ionicons name="chevron-back" size={20} color={c.primary} /></Pressable>
@@ -294,10 +261,6 @@ function CardRow({ card }: { card: LearningCard }) {
 
 const styles = StyleSheet.create({
   container: { borderRadius: radius.card, borderWidth: 1, padding: 16, marginBottom: 14 },
-  summaryRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
-  summaryCell: { flex: 1, borderRadius: 12, paddingVertical: 10, alignItems: 'center', gap: 3 },
-  summaryVal: { fontSize: 16, fontFamily: fontMono, fontWeight: '900' },
-  summaryLbl: { fontSize: 10 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
   arrow: { padding: 4 },
   weekRow: { flexDirection: 'row', marginBottom: 8 },

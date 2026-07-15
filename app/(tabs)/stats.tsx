@@ -11,7 +11,6 @@ import { ReviewStatusCard } from '../../src/components/review/ReviewStatusCard';
 import { LearningPersonaCard } from '../../src/components/stats/LearningPersonaCard';
 import { LearningRhythmCard } from '../../src/components/stats/LearningRhythmCard';
 import { WeeklyChart } from '../../src/components/stats/WeeklyChart';
-import { LearningCalendar } from '../../src/components/community/LearningCalendar';
 import { useSettingsStore } from '../../src/store/settingsStore';
 import { fontMono, fontCute, fontDisplay, fontBody } from '../../src/theme/tokens';
 import { getCategoryIcon, getCategoryColor } from '../../src/constants/categories';
@@ -150,8 +149,6 @@ export default function StatsScreen() {
         <LearningPersonaCard cards={allCards} interests={interests} />
 
         <LearningRhythmCard />
-
-        <LearningCalendar />
 
         <ReviewStatusCard />
 

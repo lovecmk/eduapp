@@ -1,10 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, Pressable, Animated, ScrollView, Dimensions, Platform, BackHandler, Modal } from 'react-native';
+import { View, Text, Pressable, Animated, ScrollView, Dimensions, Platform, BackHandler, Modal, PanResponder } from 'react-native';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../src/theme/ThemeProvider';
+import { useAuthStore } from '../../src/store/authStore';
 import { useSettingsStore } from '../../src/store/settingsStore';
+import { getUxTrack } from '../../src/utils/uxTrack';
 import { Button } from '../../src/components/ui/Button';
 import { Badge } from '../../src/components/ui/Badge';
 import { SkeletonLoader } from '../../src/components/ui/SkeletonLoader';
@@ -26,6 +28,8 @@ import { useReportStore } from '../../src/store/reportStore';
 // 하루 학습량 = 3분 분량(카드당 30~40초 기준 3~5장).
 const DAILY_LIMIT = 5;
 const { height: SCREEN_H, width: SCREEN_W } = Dimensions.get('window');
+// 스와이프 트랙(원진섭)에서 좌우로 넘겨 분류하는 최소 이동 거리.
+const SWIPE_THRESHOLD = 90;
 
 function haptic() {
   if (Platform.OS === 'web') return;
@@ -42,6 +46,11 @@ export default function CardsScreen() {
   const c = theme.colors;
   const fs = fontScale;
   const router = useRouter();
+
+  // 투트랙 UI — 원진섭 계정은 스와이프/탭 기반, 그 외는 기존 버튼 기반.
+  const user = useAuthStore((s) => s.user);
+  const isSwipeTrack = getUxTrack(user) === 'swipe';
+
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
   const [doneCount, setDoneCount] = useState(0);
@@ -51,6 +60,8 @@ export default function CardsScreen() {
   // 퀴즈형(ox/choice) 앞면 정답 선택 상태.
   const [quizPick, setQuizPick] = useState<number | null>(null);
   const [quizRevealed, setQuizRevealed] = useState(false);
+  // 퀴즈 미풀이 상태에서 넘기려 할 때 잠깐 노출되는 안내.
+  const [solveHint, setSolveHint] = useState(false);
   // 뒤로가기 시 "어디로 이동할지" 묻는 확인 모달.
   const [exitConfirm, setExitConfirm] = useState(false);
 
@@ -159,6 +170,86 @@ export default function CardsScreen() {
     ]).start(() => advance('learning'));
   }, [exiting, translateY, cardOpacity, advance]);
 
+  // ── 스와이프 트랙(원진섭) 전용 동작 ───────────────────────────────
+  const solveHintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // 퀴즈를 풀지 않고 넘기려 할 때 — 카드를 좌우로 살짝 흔들고 안내를 띄운다.
+  const shakeMustSolve = useCallback(() => {
+    notify(false);
+    Animated.sequence([
+      Animated.timing(translateX, { toValue: -12, duration: 55, useNativeDriver: true }),
+      Animated.timing(translateX, { toValue: 12, duration: 55, useNativeDriver: true }),
+      Animated.timing(translateX, { toValue: -8, duration: 55, useNativeDriver: true }),
+      Animated.timing(translateX, { toValue: 8, duration: 55, useNativeDriver: true }),
+      Animated.spring(translateX, { toValue: 0, useNativeDriver: true, friction: 5 }),
+    ]).start();
+    setSolveHint(true);
+    if (solveHintTimer.current) clearTimeout(solveHintTimer.current);
+    solveHintTimer.current = setTimeout(() => setSolveHint(false), 1600);
+  }, [translateX]);
+
+  useEffect(() => () => { if (solveHintTimer.current) clearTimeout(solveHintTimer.current); }, []);
+
+  // 좌/우로 카드를 날려보내며 분류한다. (오른쪽=아는 것=학습 완료, 왼쪽=모르는 것=다시)
+  const swipeAway = useCallback((dir: 'left' | 'right', status: 'mastered' | 'learning') => {
+    if (exiting) return;
+    setExiting(true);
+    haptic();
+    Animated.parallel([
+      Animated.timing(translateX, { toValue: dir === 'right' ? SCREEN_W + 100 : -SCREEN_W - 100, duration: 280, useNativeDriver: true }),
+      Animated.timing(cardOpacity, { toValue: 0, duration: 240, useNativeDriver: true }),
+    ]).start(() => advance(status));
+  }, [exiting, translateX, cardOpacity, advance]);
+
+  // 스와이프 시도 — 퀴즈 미풀이면 막고, 아니면 방향에 맞게 분류.
+  const trySwipe = useCallback((dir: 'left' | 'right') => {
+    if (!card) return;
+    const isQuizCard = card.type === 'ox' || card.type === 'choice';
+    if (isQuizCard && !quizRevealed) {
+      Animated.spring(translateX, { toValue: 0, useNativeDriver: true, friction: 6 }).start();
+      shakeMustSolve();
+      return;
+    }
+    if (dir === 'right') swipeAway('right', 'mastered');
+    else swipeAway('left', 'learning');
+  }, [card, quizRevealed, translateX, shakeMustSolve, swipeAway]);
+
+  // 카드 탭 — 앞면이면 뒤집고(퀴즈 미풀이면 막음), 뒷면이면 다시 앞으로.
+  const onCardPress = useCallback(() => {
+    if (exiting) return;
+    if (!flipped) {
+      const isQuizCard = card && (card.type === 'ox' || card.type === 'choice');
+      if (isQuizCard && !quizRevealed) { shakeMustSolve(); return; }
+      doFlip(true);
+    } else {
+      doFlip(false);
+    }
+  }, [exiting, flipped, card, quizRevealed, shakeMustSolve, doFlip]);
+
+  // PanResponder 클로저가 최신 상태를 참조하도록 ref 로 미러링.
+  const trySwipeRef = useRef(trySwipe);
+  trySwipeRef.current = trySwipe;
+  const swipeEnabledRef = useRef(false);
+  swipeEnabledRef.current = isSwipeTrack && !exiting && !finished && !!card;
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, g) =>
+        swipeEnabledRef.current && Math.abs(g.dx) > 14 && Math.abs(g.dx) > Math.abs(g.dy) * 1.4,
+      onPanResponderMove: (_, g) => {
+        translateX.setValue(g.dx);
+      },
+      onPanResponderRelease: (_, g) => {
+        if (g.dx > SWIPE_THRESHOLD) trySwipeRef.current('right');
+        else if (g.dx < -SWIPE_THRESHOLD) trySwipeRef.current('left');
+        else Animated.spring(translateX, { toValue: 0, useNativeDriver: true, friction: 6 }).start();
+      },
+      onPanResponderTerminate: () => {
+        Animated.spring(translateX, { toValue: 0, useNativeDriver: true, friction: 6 }).start();
+      },
+    }),
+  ).current;
+
   useEffect(() => {
     if (!finished) return;
     // 카테고리 복습 세션이 끝나면 복습 목록으로, 오늘의 학습이 끝나면 통계로 이동.
@@ -247,6 +338,10 @@ export default function CardsScreen() {
   const frontRotate = flipAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] });
   const backRotate = flipAnim.interpolate({ inputRange: [0, 1], outputRange: ['180deg', '360deg'] });
 
+  // 스와이프 트랙 — 좌우로 밀 때 나타나는 "아는 것/모르는 것" 라벨 투명도.
+  const knowOpacity = translateX.interpolate({ inputRange: [30, 110], outputRange: [0, 1], extrapolate: 'clamp' });
+  const dontKnowOpacity = translateX.interpolate({ inputRange: [-110, -30], outputRange: [1, 0], extrapolate: 'clamp' });
+
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       {keepScreenOn && (
@@ -270,7 +365,11 @@ export default function CardsScreen() {
 
       {/* 카드(뒤집기 애니메이션) */}
       <View style={{ flex: 1, padding: 20, paddingBottom: 8 }}>
-        <Animated.View style={{ flex: 1, transform: [{ translateX }, { translateY }, { scale: scaleAnim }], opacity: cardOpacity }}>
+        <Animated.View
+          {...(isSwipeTrack ? panResponder.panHandlers : {})}
+          style={{ flex: 1, transform: [{ translateX }, { translateY }, { scale: scaleAnim }], opacity: cardOpacity }}
+        >
+         <Pressable onPress={onCardPress} disabled={!isSwipeTrack} style={{ flex: 1 }}>
           {/* 앞면 */}
           <Animated.View
             style={{
@@ -382,36 +481,75 @@ export default function CardsScreen() {
               <CardBackBody card={card} />
             </ScrollView>
           </Animated.View>
+
+          {/* 스와이프 방향 라벨 — 오른쪽=아는 것, 왼쪽=모르는 것 */}
+          {isSwipeTrack && (
+            <>
+              <Animated.View pointerEvents="none" style={{ position: 'absolute', top: 18, left: 18, opacity: knowOpacity, transform: [{ rotate: '-12deg' }], borderWidth: 3, borderColor: c.success, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 4, backgroundColor: c.success + '1A' }}>
+                <Text style={{ color: c.success, fontSize: 16 * fs, fontWeight: '900', fontFamily: fontCute }}>아는 것 👍</Text>
+              </Animated.View>
+              <Animated.View pointerEvents="none" style={{ position: 'absolute', top: 18, right: 18, opacity: dontKnowOpacity, transform: [{ rotate: '12deg' }], borderWidth: 3, borderColor: c.warning, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 4, backgroundColor: c.warning + '1A' }}>
+                <Text style={{ color: c.warning, fontSize: 16 * fs, fontWeight: '900', fontFamily: fontCute }}>모르는 것 🔁</Text>
+              </Animated.View>
+            </>
+          )}
+         </Pressable>
         </Animated.View>
       </View>
 
       {/* 하단 컨트롤 */}
       <View style={{ paddingHorizontal: 20, paddingBottom: 24, paddingTop: 12, borderTopWidth: 1, borderTopColor: c.border }}>
-        {!flipped ? (
-          <Pressable onPress={() => doFlip(true)}
-            style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.surfaceAlt, borderWidth: 1, borderColor: c.border, borderRadius: 14, paddingVertical: 15 }}>
-            <Ionicons name="sync-outline" size={18} color={c.primary} />
-            <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontFamily: fontCute }}>카드 뒤집기</Text>
-          </Pressable>
-        ) : (
-          <>
-            <Pressable onPress={() => doFlip(false)}
-              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.surfaceAlt, borderWidth: 1, borderColor: c.border, borderRadius: 12, paddingVertical: 11, marginBottom: 10 }}>
-              <Ionicons name="sync-outline" size={16} color={c.textSecondary} />
-              <Text style={{ color: c.textSecondary, fontSize: 13.5 * fs, fontFamily: fontCute }}>카드 뒤집기</Text>
-            </Pressable>
-            <View style={{ flexDirection: 'row', gap: 10 }}>
+        {isSwipeTrack ? (
+          // 스와이프 트랙(원진섭) — 뒤집기 버튼 없이 탭/스와이프로 조작.
+          !flipped ? (
+            <View style={{ height: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingHorizontal: 12 }}>
+              <Ionicons name={solveHint ? 'alert-circle' : 'swap-horizontal-outline'} size={16} color={solveHint ? c.warning : c.textSecondary} />
+              <Text style={{ color: solveHint ? c.warning : c.textSecondary, fontSize: 13 * fs, fontFamily: fontCute, textAlign: 'center' }}>
+                {solveHint ? '문제를 먼저 풀어주세요!' : '카드를 탭해 뒤집고, 좌우로 넘겨 분류해요'}
+              </Text>
+            </View>
+          ) : (
+            // 버튼 위치 교체 — 왼쪽: 다음에 한번 더 / 오른쪽: 학습 완료
+            <View style={{ flexDirection: 'row', gap: 10, height: 52 }}>
+              <Pressable onPress={againUp} disabled={exiting}
+                style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#FF3B30', borderRadius: 14, height: 52, boxShadow: '0 3px 8px rgba(255,59,48,0.28)', elevation: 4 }}>
+                <Ionicons name="refresh-circle" size={19} color="#fff" />
+                <Text style={{ color: '#fff', fontSize: 15 * fs, fontWeight: '700', fontFamily: fontCute }}>다음에 한번 더</Text>
+              </Pressable>
               <Pressable onPress={completeLeft} disabled={exiting}
-                style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#2563EB', borderRadius: 14, paddingVertical: 15, boxShadow: '0 3px 8px rgba(37,99,235,0.28)', elevation: 4 }}>
+                style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#2563EB', borderRadius: 14, height: 52, boxShadow: '0 3px 8px rgba(37,99,235,0.28)', elevation: 4 }}>
                 <Ionicons name="checkmark-circle" size={19} color="#fff" />
                 <Text style={{ color: '#fff', fontSize: 15 * fs, fontWeight: '700', fontFamily: fontCute }}>학습 완료</Text>
               </Pressable>
-              <Pressable onPress={againUp} disabled={exiting}
-                style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#FF3B30', borderRadius: 14, paddingVertical: 15, boxShadow: '0 3px 8px rgba(255,59,48,0.28)', elevation: 4 }}>
-                <Ionicons name="arrow-up-circle" size={19} color="#fff" />
-                <Text style={{ color: '#fff', fontSize: 15 * fs, fontWeight: '700', fontFamily: fontCute }}>다음에 한번 더</Text>
-              </Pressable>
             </View>
+          )
+        ) : (
+          // 클래식 트랙(이용재) — 뒤집기 버튼을 전/후 동일 위치·크기로 고정.
+          <>
+            <Pressable onPress={() => doFlip(!flipped)}
+              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.surfaceAlt, borderWidth: 1, borderColor: c.border, borderRadius: 14, height: 50, marginBottom: 10 }}>
+              <Ionicons name="sync-outline" size={18} color={c.primary} />
+              <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontFamily: fontCute }}>카드 뒤집기</Text>
+            </Pressable>
+            {flipped ? (
+              <View style={{ flexDirection: 'row', gap: 10, height: 52 }}>
+                <Pressable onPress={completeLeft} disabled={exiting}
+                  style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#2563EB', borderRadius: 14, height: 52, boxShadow: '0 3px 8px rgba(37,99,235,0.28)', elevation: 4 }}>
+                  <Ionicons name="checkmark-circle" size={19} color="#fff" />
+                  <Text style={{ color: '#fff', fontSize: 15 * fs, fontWeight: '700', fontFamily: fontCute }}>학습 완료</Text>
+                </Pressable>
+                <Pressable onPress={againUp} disabled={exiting}
+                  style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#FF3B30', borderRadius: 14, height: 52, boxShadow: '0 3px 8px rgba(255,59,48,0.28)', elevation: 4 }}>
+                  <Ionicons name="arrow-up-circle" size={19} color="#fff" />
+                  <Text style={{ color: '#fff', fontSize: 15 * fs, fontWeight: '700', fontFamily: fontCute }}>다음에 한번 더</Text>
+                </Pressable>
+              </View>
+            ) : (
+              // 뒤집기 전 — 액션 버튼 자리를 비워 뒤집기 버튼 위치가 고정되도록 한다.
+              <View style={{ height: 52, alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ color: c.textSecondary, fontSize: 12.5 * fs, fontFamily: fontCute }}>카드를 뒤집어 해설을 확인하세요</Text>
+              </View>
+            )}
           </>
         )}
       </View>

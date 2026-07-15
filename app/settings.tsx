@@ -289,6 +289,7 @@ export default function SettingsScreen() {
           <SettingsItem icon="sparkles-outline" label="업데이트 내역" description={`현재 v${env.build.version}`} onPress={() => setChangelogOpen(true)} />
           <SettingsItem icon="download-outline" label="시스템 로그 다운로드" onPress={() => { void downloadSystemLog(); }} />
           <SettingsItem icon="document-text-outline" label="이용약관 · 개인정보처리방침" onPress={() => Linking.openURL('https://bridge.kfpa.or.kr/')} />
+          <SettingsItem icon="construct-outline" label="개발자 모드" description="테스트용 기능" onPress={() => router.push(ROUTES.developer)} />
         </SettingsGroup>
 
         <SettingsGroup title="데이터">

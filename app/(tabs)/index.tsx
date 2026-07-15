@@ -11,6 +11,7 @@ import { ErrorState } from '../../src/components/ui/ErrorState';
 import { DailyQuestsCard } from '../../src/components/home/DailyQuestsCard';
 import { DailyTipCard } from '../../src/components/home/DailyTipCard';
 import { LivePresenceStrip } from '../../src/components/community/LivePresenceStrip';
+import { LearningCalendar } from '../../src/components/community/LearningCalendar';
 import { fontMono, fontDisplay, fontBody } from '../../src/theme/tokens';
 import { getCategoryIcon } from '../../src/constants/categories';
 import { calcEmblems, getAcquiredEmblems } from '../../src/utils/emblems';
@@ -144,6 +145,9 @@ export default function HomeScreen() {
             </View>
           )}
         </Card>
+
+        {/* 학습 현황 — 학습 히트맵 캘린더 */}
+        <LearningCalendar />
 
         <DailyQuestsCard />
         <DailyTipCard />

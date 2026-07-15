@@ -50,3 +50,37 @@ export async function cancelAllReminders(): Promise<void> {
   if (!isNative) return;
   await Notifications.cancelAllScheduledNotificationsAsync();
 }
+
+/**
+ * 개발자 모드 테스트용 — 실제 기기(안드로이드/iOS)로 즉시 로컬 알림을 보낸다.
+ * 권한이 없으면 요청하고, 거부되면 false 를 반환한다.
+ */
+export async function sendTestNotification(): Promise<boolean> {
+  const title = '현장학습 테스트 알림 🔔';
+  const body = '개발자 모드에서 보낸 테스트 알림이에요. 잘 도착했나요?';
+
+  if (!isNative) {
+    // 웹: 브라우저 Notification API 폴백
+    try {
+      if (typeof Notification === 'undefined') return false;
+      let perm = Notification.permission;
+      if (perm !== 'granted') perm = await Notification.requestPermission();
+      if (perm !== 'granted') return false;
+      new Notification(title, { body });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  const granted = await requestNotificationPermission();
+  if (!granted) return false;
+  await Notifications.scheduleNotificationAsync({
+    content: { title, body, sound: true },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+      seconds: 1,
+    },
+  });
+  return true;
+}

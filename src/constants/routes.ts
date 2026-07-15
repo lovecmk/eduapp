@@ -11,6 +11,7 @@ export const ROUTES = {
   notifications: '/notifications',
   contents: '/contents',
   settings: '/settings',
+  developer: '/developer',
   saved: '/saved',
   support: '/support',
   content: (id: string) => `/content/${id}`,
