@@ -9,6 +9,7 @@ import { Button } from '../../src/components/ui/Button';
 import { ScreenHeader } from '../../src/components/ui/ScreenHeader';
 import { QuestionImage } from '../../src/components/ui/QuestionImage';
 import { CategoryTrail } from '../../src/components/ui/CategoryTrail';
+import { resolveCardImage } from '../../src/data/cardImages';
 import { CardReportModal } from '../../src/components/cards/CardReportModal';
 import { CardDifficultyPoll } from '../../src/components/cards/CardDifficultyPoll';
 import { CardBackBody } from '../../src/components/cards/CardBackBody';
@@ -82,9 +83,9 @@ export default function ContentDetailScreen() {
           <CategoryTrail category={card.category} subCategory={card.subCategory} topic={card.topic} />
         </View>
 
-        {card.imageUrl ? (
+        {resolveCardImage(card.imageUrl) ? (
           <Animated.View entering={FadeInDown.delay(60).duration(360)} style={{ marginBottom: 14 }}>
-            <QuestionImage uri={card.imageUrl} height={200} />
+            <QuestionImage source={resolveCardImage(card.imageUrl)} height={200} />
           </Animated.View>
         ) : null}
 

@@ -5,6 +5,7 @@ const CATEGORY_MAP: Record<string, CardCategory> = {
   ELEC: '전기 위험',
   PROCESS: '공정 위험',
   HAZMAT: '위험물',
+  FIELD: '현장 점검',
 };
 
 const STATUS_MAP: Record<CardDTO['status_cd'], CardStatus> = {

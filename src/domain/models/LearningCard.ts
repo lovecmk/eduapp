@@ -1,6 +1,6 @@
 // 학습카드 도메인 모델 — 산업 안전점검 대상 화재·폭발 위험 학습 카드.
 // 카테고리는 대분류(category) → 중분류(subCategory) → 소분류(topic) 3단 계층으로 구성된다.
-export type CardCategory = '전기 위험' | '공정 위험' | '위험물';
+export type CardCategory = '전기 위험' | '공정 위험' | '위험물' | '현장 점검';
 export type CardStatus = 'new' | 'learning' | 'mastered';
 export type CardDifficulty = 'easy' | 'medium' | 'hard';
 

@@ -19,6 +19,7 @@ import { fontCute } from '../../src/theme/tokens';
 import { getCategoryIcon } from '../../src/constants/categories';
 import { ROUTES } from '../../src/constants/routes';
 import { useTodayCards, useAllCards, useMarkCard } from '../../src/hooks/useCards';
+import { resolveCardImage } from '../../src/data/cardImages';
 import { useBookmarkStore } from '../../src/store/bookmarkStore';
 import { useReportStore } from '../../src/store/reportStore';
 
@@ -243,9 +244,9 @@ export default function CardsScreen() {
             {isQuiz ? (
               /* 퀴즈형: 상황·문제 + 앞면 정답 선택 UI */
               <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingVertical: 6 }}>
-                {card.imageUrl && (
+                {resolveCardImage(card.imageUrl) && (
                   <View style={{ width: '100%', marginBottom: 14 }}>
-                    <QuestionImage uri={card.imageUrl} height={130} />
+                    <QuestionImage source={resolveCardImage(card.imageUrl)} height={130} />
                   </View>
                 )}
                 {!!card.situation && (
@@ -270,9 +271,9 @@ export default function CardsScreen() {
               </ScrollView>
             ) : (
               <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-                {card.imageUrl ? (
+                {resolveCardImage(card.imageUrl) ? (
                   <View style={{ width: '100%', marginBottom: 18 }}>
-                    <QuestionImage uri={card.imageUrl} height={150} />
+                    <QuestionImage source={resolveCardImage(card.imageUrl)} height={150} />
                   </View>
                 ) : (
                   <Ionicons name={getCategoryIcon(card.category)} size={40 * fs} color={c.primary} style={{ marginBottom: 12, opacity: 0.6 }} />
