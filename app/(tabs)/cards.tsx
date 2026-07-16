@@ -383,6 +383,9 @@ export default function CardsScreen() {
          <Pressable onPress={onCardPress} disabled={!isSwipeTrack} style={{ flex: 1 }}>
           {/* 앞면 */}
           <Animated.View
+            // Android 는 backfaceVisibility 가 불안정해 숨겨진 뒷면이 터치를 가로챈다.
+            // 보이는 면만 터치를 받도록 pointerEvents 를 토글한다(이미지 탭 확대 등 정상화).
+            pointerEvents={flipped ? 'none' : 'auto'}
             style={{
               position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
               backgroundColor: c.surface, borderWidth: 1, borderColor: c.border,
@@ -463,6 +466,7 @@ export default function CardsScreen() {
 
           {/* 뒷면 */}
           <Animated.View
+            pointerEvents={flipped ? 'auto' : 'none'}
             style={{
               position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
               backgroundColor: c.surface, borderWidth: 1, borderColor: c.border,

@@ -15,7 +15,6 @@ import { BridgeLogo } from '../src/components/ui/BridgeLogo';
 import { fontDisplay, fontBody } from '../src/theme/tokens';
 import { ErrorBoundary } from '../src/components/ui/ErrorBoundary';
 import { UpdatePrompt } from '../src/components/ui/UpdatePrompt';
-import { OtaDiagnostics } from '../src/components/dev/OtaDiagnostics';
 import { useAppUpdate } from '../src/hooks/useAppUpdate';
 import { APP_FONTS } from '../src/theme/tokens';
 import { applyGlobalFont } from '../src/theme/applyGlobalFont';
@@ -106,8 +105,6 @@ function RootContent() {
         onUpdate={apply}
         onDismiss={dismiss}
       />
-      {/* OTA 파이프라인 검증용 진단 오버레이(테스트). 배지가 보이면 OTA 적용 성공. */}
-      <OtaDiagnostics />
     </View>
   );
 }
