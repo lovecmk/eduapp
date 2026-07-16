@@ -252,6 +252,44 @@ func TestTelegramCommands(t *testing.T) {
 	if !contains(unknown, "/help") {
 		t.Fatalf("unknown 응답=%q", unknown)
 	}
+
+	// /whoami 는 chat_id 를 그대로 안내한다(화이트리스트 설정에 필요).
+	who := tg.HandleCommand(context.Background(), 4242, "/whoami")
+	if !contains(who, "4242") {
+		t.Fatalf("whoami 에 chat_id 누락: %q", who)
+	}
+
+	// /ping 은 생존 응답(pong)을 돌려준다.
+	if pong := tg.HandleCommand(context.Background(), 1, "/ping"); !contains(pong, "pong") {
+		t.Fatalf("ping 응답=%q", pong)
+	}
+}
+
+// TestTelegramWhitelist 는 화이트리스트가 설정됐을 때 모든 발송 명령(alert1~3·alertall·alert)이
+// 권한 없는 채팅에서 차단되는지 확인한다(alertall/alert 권한 우회 회귀 방지).
+func TestTelegramWhitelist(t *testing.T) {
+	push := service.NewPushService(memory.NewPushTokenRepo(), "")
+	tg := service.NewTelegramService(service.TelegramConfig{AllowedChats: []int64{100}}, push)
+
+	const denied = "권한이 없습니다"
+	const outsider, insider = int64(200), int64(100)
+
+	// 권한 없는 채팅(200): 모든 발송 명령이 거부돼야 한다.
+	for _, cmd := range []string{"/alert1", "/alert2", "/alert3", "/alertall", "/alert 1 2 3"} {
+		if r := tg.HandleCommand(context.Background(), outsider, cmd); !contains(r, denied) {
+			t.Fatalf("비인가 채팅 %q 가 차단되지 않음: %q", cmd, r)
+		}
+	}
+
+	// 권한 있는 채팅(100): 발송 명령이 권한 오류 없이 처리된다(등록 기기 0 → "기기 없음").
+	if r := tg.HandleCommand(context.Background(), insider, "/alertall"); contains(r, denied) {
+		t.Fatalf("인가 채팅이 차단됨: %q", r)
+	}
+
+	// 읽기 전용 명령(status/whoami/ping)은 화이트리스트와 무관하게 허용된다.
+	if r := tg.HandleCommand(context.Background(), outsider, "/status"); contains(r, denied) {
+		t.Fatalf("status 가 화이트리스트로 차단됨: %q", r)
+	}
 }
 
 func contains(s, sub string) bool {

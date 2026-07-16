@@ -14,6 +14,9 @@ import (
 // DefaultTelegramAPIBase 는 텔레그램 봇 API 기본 주소.
 const DefaultTelegramAPIBase = "https://api.telegram.org"
 
+// notAuthorizedMsg 는 화이트리스트에 없는 채팅이 알림 발송을 시도할 때의 응답.
+const notAuthorizedMsg = "⛔ 이 채팅에는 알림 발송 권한이 없습니다."
+
 // AlertTemplate 은 텔레그램 명령으로 발송할 알림 문안 한 벌.
 // "/alert1 2 3" 처럼 미리 만들어 둔 3가지 버전을 키(alert1~3)로 고른다.
 type AlertTemplate struct {
@@ -44,8 +47,9 @@ type TelegramService struct {
 	push      *PushService
 	client    *http.Client
 	templates map[string]AlertTemplate
-	order     []string // 도움말 출력 순서 보존
-	offset    int64    // getUpdates long-poll offset
+	order     []string  // 도움말 출력 순서 보존
+	offset    int64     // getUpdates long-poll offset
+	startedAt time.Time // 서비스 생성 시각(/ping 가동시간 산출용)
 }
 
 // TelegramConfig 는 텔레그램 서비스 구성값.
@@ -79,6 +83,7 @@ func NewTelegramService(cfg TelegramConfig, push *PushService) *TelegramService 
 		client:    &http.Client{Timeout: 65 * time.Second}, // long-poll(50s) 여유
 		templates: tmpls,
 		order:     order,
+		startedAt: time.Now(),
 	}
 }
 
@@ -105,8 +110,45 @@ func (s *TelegramService) helpText() string {
 	}
 	b.WriteString("• /alertall — 위 3가지 알림을 순서대로 모두 발송\n")
 	b.WriteString("• /status — 현재 알림 수신 기기 수 확인\n")
+	b.WriteString("• /whoami — 이 채팅의 chat_id·발송 권한 확인\n")
+	b.WriteString("• /ping — 봇 생존·가동시간 확인\n")
 	b.WriteString("• /help — 이 도움말 보기\n")
 	return b.String()
+}
+
+// whoamiText 는 현재 chat 의 chat_id 와 발송 권한 상태를 안내한다.
+// 화이트리스트(TELEGRAM_ALLOWED_CHATS) 를 설정하려면 먼저 chat_id 를 알아야 하므로
+// 운영자가 자신의 chat_id 를 손쉽게 확인하도록 돕는다.
+func (s *TelegramService) whoamiText(chatID int64) string {
+	var b strings.Builder
+	b.WriteString(fmt.Sprintf("🪪 이 채팅의 chat_id: %d\n", chatID))
+	switch {
+	case len(s.allowed) == 0:
+		b.WriteString("화이트리스트가 비어 있어 모든 채팅이 알림을 보낼 수 있어요.\n")
+		b.WriteString("특정 채팅만 허용하려면 이 chat_id 를 TELEGRAM_ALLOWED_CHATS 에 넣으세요.")
+	case s.authorized(chatID):
+		b.WriteString("✅ 이 채팅은 알림 발송 권한이 있어요.")
+	default:
+		b.WriteString("⛔ 이 채팅은 알림 발송 권한이 없어요.\n")
+		b.WriteString("허용하려면 이 chat_id 를 TELEGRAM_ALLOWED_CHATS 에 추가하세요.")
+	}
+	return b.String()
+}
+
+// uptimeText 는 가동 시간을 사람이 읽기 쉬운 한국어로 만든다.
+func uptimeText(d time.Duration) string {
+	d = d.Round(time.Second)
+	h := int(d.Hours())
+	m := int(d.Minutes()) % 60
+	sec := int(d.Seconds()) % 60
+	switch {
+	case h > 0:
+		return fmt.Sprintf("%d시간 %d분", h, m)
+	case m > 0:
+		return fmt.Sprintf("%d분 %d초", m, sec)
+	default:
+		return fmt.Sprintf("%d초", sec)
+	}
 }
 
 // HandleCommand 는 텍스트 명령을 처리하고 텔레그램에 돌려줄 응답 문자열을 만든다.
@@ -120,21 +162,33 @@ func (s *TelegramService) HandleCommand(ctx context.Context, chatID int64, text 
 	switch cmd {
 	case "start", "help":
 		return s.helpText()
+	case "ping":
+		return fmt.Sprintf("🏓 pong — 봇 정상 동작 중(가동 %s)", uptimeText(time.Since(s.startedAt)))
+	case "whoami":
+		return s.whoamiText(chatID)
 	case "status":
 		n, err := s.push.TokenCount(ctx)
 		if err != nil {
+			log.Printf("[telegram] status 기기 수 조회 실패 chat=%d: %v", chatID, err)
 			return "기기 수를 조회하지 못했어요."
 		}
 		return fmt.Sprintf("📱 현재 알림 수신 기기: %d대", n)
 	case "alertall":
+		// 전체 발송도 개별 발송(alert1~3)과 동일하게 화이트리스트를 강제한다.
+		if !s.authorized(chatID) {
+			return notAuthorizedMsg
+		}
 		return s.broadcastKeys(ctx, s.order)
 	case "alert1", "alert2", "alert3":
 		if !s.authorized(chatID) {
-			return "⛔ 이 채팅에는 알림 발송 권한이 없습니다."
+			return notAuthorizedMsg
 		}
 		return s.broadcastKeys(ctx, []string{cmd})
 	case "alert":
 		// "/alert 1 2 3" 형태 지원 — 인자로 받은 번호들을 순서대로 발송.
+		if !s.authorized(chatID) {
+			return notAuthorizedMsg
+		}
 		keys := keysFromArgs(args)
 		if len(keys) == 0 {
 			return "발송할 번호를 지정하세요. 예) /alert 1 2 3 또는 /alert1"
@@ -236,7 +290,14 @@ func (s *TelegramService) SendMessage(ctx context.Context, chatID int64, text st
 }
 
 // Dispatch 는 한 건의 명령을 처리하고 응답을 텔레그램으로 돌려준다(웹훅/폴링 공용).
+// long-polling 고루틴은 Fiber recover 미들웨어 밖에서 돌기 때문에, 명령 처리 중
+// 패닉이 나면 폴링 루프(및 프로세스)가 통째로 죽는다. 여기서 복구해 봇을 살려 둔다.
 func (s *TelegramService) Dispatch(ctx context.Context, chatID int64, text string) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("[telegram] 명령 처리 중 패닉 복구 chat=%d: %v", chatID, r)
+		}
+	}()
 	reply := s.HandleCommand(ctx, chatID, text)
 	if err := s.SendMessage(ctx, chatID, reply); err != nil {
 		log.Printf("[telegram] 응답 전송 실패 chat=%d: %v", chatID, err)

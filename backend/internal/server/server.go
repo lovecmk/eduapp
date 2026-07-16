@@ -2,6 +2,8 @@
 package server
 
 import (
+	"log"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
@@ -88,6 +90,11 @@ func errorHandler(c *fiber.Ctx, err error) error {
 	if e, ok := err.(*fiber.Error); ok {
 		code = e.Code
 		msg = e.Message
+	}
+	// 5xx(서버 내부 오류)는 원인을 로그로 남겨 디버깅할 수 있게 한다.
+	// 4xx(클라이언트 오류)는 정상 흐름이므로 로깅하지 않는다(로그 노이즈 방지).
+	if code >= fiber.StatusInternalServerError {
+		log.Printf("[http] %s %s -> %d: %v", c.Method(), c.Path(), code, err)
 	}
 	return c.Status(code).JSON(fiber.Map{"message": msg})
 }
