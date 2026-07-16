@@ -6,6 +6,11 @@ import type { AchievementSnapshot } from '../utils/achievement';
 // 인앱 커뮤니티 '자랑 피드' — 완성된 성취 카드를 외부 SNS 대신 앱 내부에 올려
 // 유저끼리 서로를 증명·자랑한다. 클라이언트에서 카드를 이미지화(react-native-view-shot)해
 // imageUri 로 올리므로, 추후 내부 서버 전환 시 uploadShareCard 한 곳만 교체하면 된다.
+/** 퀵 리액션 종류 — 👏 응원 / 🔥 열정 / 👍 좋아요. */
+export type ReactionKind = 'clap' | 'fire' | 'up';
+export const REACTION_KINDS: ReactionKind[] = ['clap', 'fire', 'up'];
+export const REACTION_EMOJI: Record<ReactionKind, string> = { clap: '👏', fire: '🔥', up: '👍' };
+
 export interface ShareCardPost {
   id: string;
   author: string;
@@ -19,6 +24,10 @@ export interface ShareCardPost {
   snapshot: AchievementSnapshot;
   likes: number;
   likedByMe: boolean;
+  /** 퀵 리액션 집계 */
+  reactions: Record<ReactionKind, number>;
+  /** 내가 누른 리액션들 */
+  myReactions: ReactionKind[];
   mine?: boolean;
   /** 상대 시간(분) */
   minutesAgo: number;
@@ -59,17 +68,17 @@ function seed(): ShareCardPost[] {
     {
       id: 'brag-1', author: '김안전', color: '#5C6BC0', imageUri: null, aspect: 0.8,
       snapshot: mockSnapshot({ title: '전기 위험 스페셜리스트', emoji: '⚡', totalLearned: 240, masteredCount: 188, completionPct: 78, accuracyPct: 94, streakDays: 31, bestStreak: 31, level: 8, levelTitle: '안전 마이스터', topCategory: '전기 위험', topEmoji: '⚡', topCategoryPct: 92 }),
-      likes: 42, likedByMe: false, minutesAgo: 35,
+      likes: 42, likedByMe: false, reactions: { clap: 31, fire: 24, up: 12 }, myReactions: [], minutesAgo: 35,
     },
     {
       id: 'brag-2', author: '박현장', color: '#26A69A', imageUri: null, aspect: 0.8,
       snapshot: mockSnapshot({ title: '올라운드 마스터', emoji: '🧭', totalLearned: 180, masteredCount: 150, completionPct: 68, accuracyPct: 90, streakDays: 18, bestStreak: 24, level: 6, levelTitle: '베테랑 점검가', topCategory: '현장 점검', topEmoji: '📸', topCategoryPct: 80 }),
-      likes: 27, likedByMe: false, minutesAgo: 140,
+      likes: 27, likedByMe: false, reactions: { clap: 18, fire: 9, up: 15 }, myReactions: [], minutesAgo: 140,
     },
     {
       id: 'brag-3', author: '최예방', color: '#F2B705', imageUri: null, aspect: 0.8,
       snapshot: mockSnapshot({ title: '균형잡힌 점검가', emoji: '⚖️', totalLearned: 90, masteredCount: 72, completionPct: 45, accuracyPct: 85, streakDays: 7, bestStreak: 11, level: 4, levelTitle: '성장하는 점검가', topCategory: '위험물', topEmoji: '🔥', topCategoryPct: 61 }),
-      likes: 15, likedByMe: false, minutesAgo: 320,
+      likes: 15, likedByMe: false, reactions: { clap: 8, fire: 11, up: 6 }, myReactions: [], minutesAgo: 320,
     },
   ];
 }
@@ -79,6 +88,8 @@ interface ShareFeedState {
   /** 성취 카드를 인앱 피드에 업로드한다(서버 전환 시 이 함수 본문만 교체). 반환값은 새 글 id. */
   uploadShareCard: (input: ShareCardUpload) => string;
   toggleLike: (id: string) => void;
+  /** 퀵 리액션 토글(👏/🔥/👍). 서버 전환 시 POST /api/feed/:id/react 로 매핑. */
+  react: (id: string, kind: ReactionKind) => void;
 }
 
 export const useShareFeedStore = create<ShareFeedState>()(
@@ -89,7 +100,7 @@ export const useShareFeedStore = create<ShareFeedState>()(
         const id = `mybrag-${Date.now()}`;
         set((s) => ({
           posts: [
-            { id, author, color, imageUri, aspect, snapshot, likes: 0, likedByMe: false, mine: true, minutesAgo: 0 },
+            { id, author, color, imageUri, aspect, snapshot, likes: 0, likedByMe: false, reactions: { clap: 0, fire: 0, up: 0 }, myReactions: [], mine: true, minutesAgo: 0 },
             ...s.posts,
           ],
         }));
@@ -101,7 +112,35 @@ export const useShareFeedStore = create<ShareFeedState>()(
             p.id === id ? { ...p, likedByMe: !p.likedByMe, likes: p.likes + (p.likedByMe ? -1 : 1) } : p,
           ),
         })),
+      react: (id, kind) =>
+        set((s) => ({
+          posts: s.posts.map((p) => {
+            if (p.id !== id) return p;
+            const had = p.myReactions.includes(kind);
+            return {
+              ...p,
+              reactions: { ...p.reactions, [kind]: Math.max(0, (p.reactions[kind] ?? 0) + (had ? -1 : 1)) },
+              myReactions: had ? p.myReactions.filter((k) => k !== kind) : [...p.myReactions, kind],
+            };
+          }),
+        })),
     }),
-    { name: 'share-feed', version: 1, storage: createJSONStorage(() => AsyncStorage) },
+    {
+      name: 'share-feed',
+      version: 2,
+      storage: createJSONStorage(() => AsyncStorage),
+      // v1 → v2: 리액션 필드가 없던 기존 저장본에 기본값을 채운다.
+      migrate: (persisted: unknown, from: number) => {
+        const state = persisted as { posts?: ShareCardPost[] } | undefined;
+        if (state?.posts && from < 2) {
+          state.posts = state.posts.map((p) => ({
+            ...p,
+            reactions: p.reactions ?? { clap: 0, fire: 0, up: 0 },
+            myReactions: p.myReactions ?? [],
+          }));
+        }
+        return state as ShareFeedState;
+      },
+    },
   ),
 );

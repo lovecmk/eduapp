@@ -10,6 +10,8 @@ import { WrappedShareCard, SHARE_CARD_ASPECT } from '../src/components/share/Wra
 import { useAllCards } from '../src/hooks/useCards';
 import { useStudyStats } from '../src/hooks/useStats';
 import { computeAchievement } from '../src/utils/achievement';
+import { useTilt } from '../src/hooks/useTilt';
+import { getRarity } from '../src/utils/rarity';
 import { useShareFeedStore } from '../src/store/shareFeedStore';
 import { fontCute, fontBody, fontMono } from '../src/theme/tokens';
 import { ROUTES } from '../src/constants/routes';
@@ -29,6 +31,8 @@ export default function ShareScreen() {
 
   const snapshot = useMemo(() => computeAchievement(allCards, stats), [allCards, stats]);
   const author = user?.name ?? '현장 작업자';
+  const rarity = getRarity(snapshot);
+  const tilt = useTilt(true);
 
   const cardRef = useRef<View>(null);
   const [phase, setPhase] = useState<'idle' | 'uploading' | 'done'>('idle');
@@ -62,9 +66,13 @@ export default function ShareScreen() {
           완성된 카드를 커뮤니티 자랑 피드에 올려{'\n'}서로의 성장을 증명하고 응원해요
         </Text>
 
-        {/* 미리보기 = 실제로 캡처되는 뷰 */}
-        <View style={{ borderRadius: 28 * (CARD_W / 320), boxShadow: '0 16px 40px rgba(37,99,235,0.32)' }}>
-          <WrappedShareCard ref={cardRef} snapshot={snapshot} author={author} width={CARD_W} />
+        {/* 미리보기 = 실제로 캡처되는 뷰. 기기를 기울이면 광택이 일렁이고 등급별 효과가 붙는다. */}
+        <View style={{ borderRadius: 28 * (CARD_W / 320), boxShadow: `0 16px 44px ${rarity.glow === 'transparent' ? 'rgba(37,99,235,0.32)' : rarity.glow + '66'}` }}>
+          <WrappedShareCard ref={cardRef} snapshot={snapshot} author={author} width={CARD_W} tilt={tilt} animated />
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 12 }}>
+          <Ionicons name="phone-portrait-outline" size={13} color={c.textSecondary} />
+          <Text style={{ color: c.textSecondary, fontSize: 11.5 * fs, fontFamily: fontMono }}>기기를 기울이면 광택이 흘러요 · 등급 {rarity.label}</Text>
         </View>
 
         <View style={{ width: '100%', maxWidth: 360, marginTop: 26 }}>

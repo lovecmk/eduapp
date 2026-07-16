@@ -117,6 +117,20 @@ export default function MyPageScreen() {
         )}
       </Pressable>
 
+      <Pressable onPress={() => router.push(ROUTES.trophy as never)}
+        style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: c.primary, borderRadius: 16, padding: 16, marginVertical: 8, boxShadow: '0 8px 20px rgba(37,99,235,0.28)' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name="trophy" size={22} color="#fff" />
+          </View>
+          <View>
+            <Text style={{ color: '#fff', fontSize: 15 * fs, fontWeight: '800', fontFamily: fontCute }}>내 트로피룸 🏛️</Text>
+            <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 12, fontFamily: fontCute }}>내가 달성·자랑한 랩드 카드 모아보기</Text>
+          </View>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color="#fff" />
+      </Pressable>
+
       <MyRow icon="headset-outline" title="고객센터 · 문의" desc="문의하기, 자주 묻는 질문" onPress={() => router.push(ROUTES.support)} />
       <MyRow icon="settings-outline" title="설정" desc="알림, 테마, 계정 관리" onPress={() => router.push(ROUTES.settings)} />
       </ScrollView>

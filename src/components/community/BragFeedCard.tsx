@@ -5,9 +5,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/ThemeProvider';
 import { fontDisplay, fontBody, fontMono } from '../../theme/tokens';
 import { ROUTES } from '../../constants/routes';
-import { useShareFeedStore } from '../../store/shareFeedStore';
+import { useShareFeedStore, REACTION_KINDS, REACTION_EMOJI } from '../../store/shareFeedStore';
 import { WrappedShareCard } from '../share/WrappedShareCard';
+import { EmojiBurstButton } from '../ui/EmojiBurstButton';
 import { timeAgoLabel } from '../../store/notificationStore';
+
+const REACTION_TINT: Record<string, string> = { clap: '#F2B705', fire: '#FF6B35', up: '#2563EB' };
 
 const MINI_W = 158;
 
@@ -21,6 +24,7 @@ export function BragFeedCard() {
   const router = useRouter();
   const posts = useShareFeedStore((s) => s.posts);
   const toggleLike = useShareFeedStore((s) => s.toggleLike);
+  const react = useShareFeedStore((s) => s.react);
 
   return (
     <View style={{ marginBottom: 20 }}>
@@ -63,6 +67,20 @@ export function BragFeedCard() {
               </Pressable>
             </View>
             <Text style={{ color: c.textSecondary, fontSize: 10, fontFamily: fontMono, marginTop: 2 }}>{timeAgoLabel(p.minutesAgo)}</Text>
+
+            {/* 퀵 리액션 — 👏🔥👍 (탭 시 이모지 폭죽) */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 }}>
+              {REACTION_KINDS.map((kind) => (
+                <EmojiBurstButton
+                  key={kind}
+                  emoji={REACTION_EMOJI[kind]}
+                  count={p.reactions[kind]}
+                  active={p.myReactions.includes(kind)}
+                  tint={REACTION_TINT[kind]}
+                  onPress={() => react(p.id, kind)}
+                />
+              ))}
+            </View>
           </View>
         ))}
       </ScrollView>

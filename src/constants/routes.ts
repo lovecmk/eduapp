@@ -13,6 +13,7 @@ export const ROUTES = {
   settings: '/settings',
   developer: '/developer',
   saved: '/saved',
+  trophy: '/trophy',
   support: '/support',
   share: '/share',
   content: (id: string) => `/content/${id}`,
