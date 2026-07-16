@@ -11,6 +11,8 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { ThemeProvider, useTheme } from '../src/theme/ThemeProvider';
 import { useAuthStore } from '../src/store/authStore';
+import { useSettingsStore } from '../src/store/settingsStore';
+import { syncPushTokenWithServer } from '../src/data/notifications/NotificationService';
 import { BridgeLogo } from '../src/components/ui/BridgeLogo';
 import { fontDisplay, fontBody } from '../src/theme/tokens';
 import { ErrorBoundary } from '../src/components/ui/ErrorBoundary';
@@ -29,6 +31,8 @@ function RootContent() {
   const { theme, isDark } = useTheme();
   const restore = useAuthStore((s) => s.restore);
   const bootstrapped = useAuthStore((s) => s.bootstrapped);
+  const user = useAuthStore((s) => s.user);
+  const notificationsEnabled = useSettingsStore((s) => s.notifications.enabled);
   const [splashDone, setSplashDone] = useState(false);
   const opacity = useRef(new Animated.Value(1)).current;
   // 로고가 은은히 커지며 등장하는 스케일 애니메이션.
@@ -41,6 +45,14 @@ function RootContent() {
   useEffect(() => {
     restore();
   }, []);
+
+  // 로그인 완료 + 알림 On 상태면 원격 푸시 토큰을 서버에 등록/갱신한다.
+  // (목업/웹/API 미설정 시에는 내부 가드로 조용히 no-op 처리된다.)
+  useEffect(() => {
+    if (bootstrapped && user && notificationsEnabled) {
+      void syncPushTokenWithServer();
+    }
+  }, [bootstrapped, user, notificationsEnabled]);
 
   useEffect(() => {
     // 로고 등장(스프링) — 부드럽게 살짝 커지며 자리잡는다.

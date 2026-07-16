@@ -31,6 +31,15 @@ func (h *CommunityHandler) Live(c *fiber.Ctx) error {
 		activities[i] = ActivityDTO{ID: a.ID, UserNm: a.UserNm, ActionCd: a.ActionCd, CategoryCd: a.CategoryCd, SecondsAgo: a.SecondsAgo}
 	}
 
+	leaderboard := make([]ContributorDTO, len(s.Leaderboard))
+	for i, cb := range s.Leaderboard {
+		leaderboard[i] = ContributorDTO{Rank: cb.Rank, Nickname: cb.Nickname, Cards: cb.Cards, Color: cb.Color, IsMe: cb.IsMe}
+	}
+	weeklyActivity := make([]WeeklyPointDTO, len(s.WeeklyActivity))
+	for i, w := range s.WeeklyActivity {
+		weeklyActivity[i] = WeeklyPointDTO{Label: w.Label, Count: w.Count}
+	}
+
 	dto := CommunityDTO{
 		OnlineNow:         s.OnlineNow,
 		StudiedToday:      s.StudiedToday,
@@ -39,6 +48,9 @@ func (h *CommunityHandler) Live(c *fiber.Ctx) error {
 		Companions:        companions,
 		Activities:        activities,
 		TotalCardsAllTime: s.TotalCardsAllTime,
+		Leaderboard:       leaderboard,
+		MyRank:            s.MyRank,
+		WeeklyActivity:    weeklyActivity,
 	}
 	if s.Challenge != nil {
 		dto.Challenge = &ChallengeDTO{

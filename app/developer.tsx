@@ -5,14 +5,22 @@ import { useTheme } from '../src/theme/ThemeProvider';
 import { ScreenHeader } from '../src/components/ui/ScreenHeader';
 import { Button } from '../src/components/ui/Button';
 import { fontDisplay, fontBody, fontMono } from '../src/theme/tokens';
-import { sendTestNotification } from '../src/data/notifications/NotificationService';
+import { sendTestNotification, triggerServerAlert } from '../src/data/notifications/NotificationService';
 
 type SendState = 'idle' | 'sending' | 'sent' | 'denied' | 'error';
+
+const ALERT_VERSIONS = [
+  { v: 1 as const, label: '알림 1 · 긴급 안전 점검', icon: 'warning' as const },
+  { v: 2 as const, label: '알림 2 · 오늘의 학습 리마인더', icon: 'time' as const },
+  { v: 3 as const, label: '알림 3 · 복습 주기 도래', icon: 'repeat' as const },
+];
 
 export default function DeveloperScreen() {
   const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
   const [state, setState] = useState<SendState>('idle');
+  const [alertBusy, setAlertBusy] = useState<number | null>(null);
+  const [alertMsg, setAlertMsg] = useState<string | null>(null);
 
   const onSend = async () => {
     setState('sending');
@@ -21,6 +29,24 @@ export default function DeveloperScreen() {
       setState(ok ? 'sent' : 'denied');
     } catch {
       setState('error');
+    }
+  };
+
+  // 서버발(發) 알림 3버전 — 텔레그램 /alert1~3 과 동일한 브로드캐스트 경로.
+  const onServerAlert = async (v: 1 | 2 | 3) => {
+    setAlertBusy(v);
+    setAlertMsg(null);
+    try {
+      const res = await triggerServerAlert(v);
+      if (!res) {
+        setAlertMsg('실서버 연결이 필요해요(목업/웹에서는 동작하지 않습니다).');
+      } else {
+        setAlertMsg(`✅ "${res.label}" 발송 — ${res.sent}대 기기에 전송했어요.`);
+      }
+    } catch {
+      setAlertMsg('알림 발송에 실패했어요. 잠시 후 다시 시도해주세요.');
+    } finally {
+      setAlertBusy(null);
     }
   };
 
@@ -73,6 +99,36 @@ export default function DeveloperScreen() {
             <Text style={{ color: c.textSecondary, fontSize: 11 * fs, marginTop: 10, fontFamily: fontMono }}>
               * 웹에서는 브라우저 알림으로 대체됩니다.
             </Text>
+          )}
+        </View>
+
+        {/* 서버발(發) 알림 3버전 — 텔레그램 /alert1~3 과 동일 경로 */}
+        <View style={{ backgroundColor: c.surface, borderColor: c.border, borderWidth: 1, borderRadius: 16, padding: 18, marginTop: 16 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+            <Ionicons name="megaphone-outline" size={18} color={c.primary} />
+            <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontFamily: fontDisplay }}>서버 알림 발송 (3버전)</Text>
+          </View>
+          <Text style={{ color: c.textSecondary, fontSize: 12.5 * fs, lineHeight: 19, marginBottom: 14, fontFamily: fontBody }}>
+            등록된 모든 기기로 알림을 동시에 보냅니다. 텔레그램 봇의 /alert1~3 명령과 완전히 같은 경로로 동작해요.
+          </Text>
+
+          <View style={{ gap: 8 }}>
+            {ALERT_VERSIONS.map((a) => (
+              <Button
+                key={a.v}
+                label={a.label}
+                variant="outline"
+                loading={alertBusy === a.v}
+                onPress={() => onServerAlert(a.v)}
+              />
+            ))}
+          </View>
+
+          {alertMsg && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14, backgroundColor: c.surfaceAlt, borderRadius: 12, padding: 12 }}>
+              <Ionicons name="information-circle-outline" size={18} color={c.primary} />
+              <Text style={{ color: c.textPrimary, fontSize: 12.5 * fs, flex: 1, lineHeight: 18, fontFamily: fontBody }}>{alertMsg}</Text>
+            </View>
           )}
         </View>
       </ScrollView>

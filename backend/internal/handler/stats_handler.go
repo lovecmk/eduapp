@@ -43,5 +43,17 @@ func (h *StatsHandler) Get(c *fiber.Ctx) error {
 		Weekly:            weekly,
 		CategoryBreakdown: breakdown,
 		Rankings:          rankings,
+		Insights: InsightsDTO{
+			WeeklyTotal:          st.Insights.WeeklyTotal,
+			ActiveDays:           st.Insights.ActiveDays,
+			AvgPerActiveDay:      st.Insights.AvgPerActiveDay,
+			TopCategory:          st.Insights.TopCategory,
+			TopCategoryAccuracy:  st.Insights.TopCategoryAccuracy,
+			WeakCategory:         st.Insights.WeakCategory,
+			WeakCategoryAccuracy: st.Insights.WeakCategoryAccuracy,
+			Level:                st.Insights.Level,
+			LevelTitle:           st.Insights.LevelTitle,
+			NextLevelIn:          st.Insights.NextLevelIn,
+		},
 	})
 }

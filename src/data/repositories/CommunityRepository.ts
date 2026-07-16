@@ -30,6 +30,8 @@ interface CommunityDTO {
     current: { month: string; label: string; problems: number; floors: number };
     history: { month: string; label: string; problems: number; floors: number }[];
   };
+  leaderboard?: { rank: number; nickname: string; cards: number; color: string; is_me: boolean }[];
+  my_rank?: number;
 }
 
 const ACTION_MAP: Record<string, CommunitySnapshot['activities'][number]['action']> = {
@@ -77,6 +79,14 @@ export class CommunityRepository implements ICommunityRepository {
       },
       totalCardsAllTime: dto.total_cards_all_time ?? 0,
       building: mapBuilding(dto),
+      leaderboard: (dto.leaderboard ?? []).map((r) => ({
+        rank: r.rank,
+        name: r.nickname,
+        cards: r.cards,
+        color: r.color,
+        isMe: r.is_me,
+      })),
+      myRank: dto.my_rank ?? 0,
     };
   }
 }

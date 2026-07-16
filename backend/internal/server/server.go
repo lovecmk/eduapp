@@ -22,6 +22,8 @@ type Deps struct {
 	Cards     *service.CardService
 	Stats     *service.StatsService
 	Community *service.CommunityService
+	Push      *service.PushService
+	Telegram  *service.TelegramService
 }
 
 // New 는 라우트가 모두 등록된 Fiber 앱을 만든다.
@@ -47,6 +49,11 @@ func New(d Deps) *fiber.App {
 	cardH := handler.NewCardHandler(d.Cards)
 	statsH := handler.NewStatsHandler(d.Stats)
 	commH := handler.NewCommunityHandler(d.Community)
+	pushH := handler.NewPushHandler(d.Push)
+	tgH := handler.NewTelegramHandler(d.Telegram, d.Cfg.TelegramBotToken)
+
+	// 텔레그램 웹훅(무인증 진입점 — secret 헤더로 위조 방지). long-polling 과 택일 사용.
+	app.Post("/api/telegram/webhook", tgH.Webhook)
 
 	api := app.Group("/api")
 
@@ -65,6 +72,10 @@ func New(d Deps) *fiber.App {
 	protected.Patch("/cards/:id", cardH.Mark)
 	protected.Get("/stats", statsH.Get)
 	protected.Get("/community/live", commH.Live)
+
+	// 원격 푸시 — 기기 토큰 등록 + 앱발(發) 알림 트리거(텔레그램과 동일 3버전).
+	protected.Post("/push/register", pushH.Register)
+	protected.Post("/telegram/alert", tgH.Alert)
 
 	return app
 }

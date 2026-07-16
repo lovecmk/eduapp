@@ -22,6 +22,15 @@ type Config struct {
 	CORSOrigins     string        // 허용 Origin (","로 구분, "*" 가능)
 	SeedOnStart     bool          // 부팅 시 카드 시드 자동 주입 여부
 	StudySessionSec int           // 개인별 1회 학습 세션 목표 시간(초) — 기본 180(3분)
+
+	// --- 원격 푸시(Expo) ---
+	ExpoPushURL string // Expo 푸시 게이트웨이 주소(비면 서비스 기본값)
+
+	// --- 텔레그램 제어(추후 API 키 주입) ---
+	TelegramBotToken     string  // 봇 토큰 — 비면 텔레그램 연동 비활성
+	TelegramAPIBase      string  // 텔레그램 API 주소(테스트/프록시용, 비면 기본값)
+	TelegramAllowedChats []int64 // 명령 허용 chat_id 화이트리스트(비면 전체 허용)
+	TelegramPoll         bool    // long-polling 자동 시작 여부(기본 true)
 }
 
 // Load 는 환경변수(및 합리적 기본값)로부터 Config 를 구성한다.
@@ -37,7 +46,29 @@ func Load() Config {
 		CORSOrigins:     getEnv("CORS_ORIGINS", "*"),
 		SeedOnStart:     getBool("SEED_ON_START", true),
 		StudySessionSec: getInt("STUDY_SESSION_SEC", 180),
+
+		ExpoPushURL: getEnv("EXPO_PUSH_URL", ""),
+
+		TelegramBotToken:     getEnv("TELEGRAM_BOT_TOKEN", ""),
+		TelegramAPIBase:      getEnv("TELEGRAM_API_BASE", ""),
+		TelegramAllowedChats: getInt64CSV("TELEGRAM_ALLOWED_CHATS"),
+		TelegramPoll:         getBool("TELEGRAM_POLL", true),
 	}
+}
+
+// getInt64CSV 는 "123,-456" 형태의 환경변수를 []int64 로 파싱한다(빈 값이면 nil).
+func getInt64CSV(key string) []int64 {
+	raw := strings.TrimSpace(os.Getenv(key))
+	if raw == "" {
+		return nil
+	}
+	var out []int64
+	for _, part := range strings.Split(raw, ",") {
+		if n, err := strconv.ParseInt(strings.TrimSpace(part), 10, 64); err == nil {
+			out = append(out, n)
+		}
+	}
+	return out
 }
 
 func getEnv(key, fallback string) string {

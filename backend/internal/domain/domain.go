@@ -57,6 +57,16 @@ type Card struct {
 	AnswerIndex    *int       `bson:"answer_index" json:"answer_index"`
 }
 
+// PushToken 은 모바일 기기의 원격 푸시 수신 주소(Expo Push Token)다.
+// 텔레그램 명령·서버 이벤트로 "동시에 알림"을 보낼 때 이 목록으로 브로드캐스트한다.
+type PushToken struct {
+	Token     string    `bson:"_id" json:"token"`     // Expo push token (기기 고유) — 업서트 키
+	Platform  string    `bson:"platform" json:"platform"` // ios | android | web
+	UserID    string    `bson:"user_id" json:"user_id"`
+	CreatedAt time.Time `bson:"created_at" json:"created_at"`
+	UpdatedAt time.Time `bson:"updated_at" json:"updated_at"`
+}
+
 // Progress 는 (user, card) 별 학습 진행 상태 — 카드 콘텐츠와 분리 저장.
 type Progress struct {
 	UserID string     `bson:"user_id"`

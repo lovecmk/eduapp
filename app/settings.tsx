@@ -27,6 +27,7 @@ import {
   requestNotificationPermission,
   scheduleDailyReminder,
   cancelAllReminders,
+  syncPushTokenWithServer,
 } from '../src/data/notifications/NotificationService';
 
 const THEME_OPTIONS: ThemeMode[] = ['light', 'dark', 'dim', 'system'];
@@ -99,6 +100,8 @@ export default function SettingsScreen() {
       const granted = await requestNotificationPermission();
       if (!granted && Platform.OS !== 'web') return;
       await scheduleDailyReminder(notifications.dailyReminderTime);
+      // 실서버 사용 시 원격 푸시 토큰도 함께 등록(서버·텔레그램 알림 수신용).
+      void syncPushTokenWithServer();
     } else {
       await cancelAllReminders();
     }

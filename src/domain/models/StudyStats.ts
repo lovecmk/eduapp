@@ -19,6 +19,26 @@ export interface RankingEntry {
   score: number;
 }
 
+/** 파생 학습 인사이트 — "한눈에 보는" 강화 지표. */
+export interface LearningInsights {
+  /** 최근 7일 학습 합계 */
+  weeklyTotal: number;
+  /** 최근 7일 중 학습한 날 수 */
+  activeDays: number;
+  /** 학습한 날 평균 카드 수 */
+  avgPerActiveDay: number;
+  /** 가장 잘하는 분야 */
+  topCategory: string;
+  topCategoryAccuracy: number;
+  /** 보강이 필요한 분야 */
+  weakCategory: string;
+  weakCategoryAccuracy: number;
+  /** 학습 레벨/칭호/다음 레벨까지 남은 카드 수 */
+  level: number;
+  levelTitle: string;
+  nextLevelIn: number;
+}
+
 export interface StudyStats {
   /** 연속 학습 일수 */
   streakDays: number;
@@ -37,4 +57,6 @@ export interface StudyStats {
   /** 카테고리별 분석 */
   categoryBreakdown: CategoryBreakdown[];
   rankings: RankingEntry[];
+  /** 파생 인사이트(서버가 제공하면 채워짐) */
+  insights?: LearningInsights;
 }

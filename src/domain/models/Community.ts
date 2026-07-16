@@ -59,6 +59,17 @@ export interface SafetyBuilding {
   history: BuildingMonth[];
 }
 
+/** 커뮤니티 기여 랭킹 한 줄. */
+export interface Contributor {
+  rank: number;
+  name: string;
+  /** 이번 주 학습(기여) 카드 수 */
+  cards: number;
+  color: string;
+  /** 나 자신 여부 */
+  isMe: boolean;
+}
+
 export interface CommunitySnapshot {
   /** 지금 함께 접속해 학습 중인 인원(본인 포함) */
   onlineNow: number;
@@ -78,4 +89,8 @@ export interface CommunitySnapshot {
   totalCardsAllTime: number;
   /** 함께 짓는 안전 빌딩 — 월별 초기화 + 히스토리 */
   building: SafetyBuilding;
+  /** 이번 주 기여 랭킹(커뮤니티 강화) */
+  leaderboard: Contributor[];
+  /** 리더보드 내 내 순위(0이면 미포함) */
+  myRank: number;
 }

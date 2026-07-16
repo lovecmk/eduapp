@@ -123,8 +123,25 @@ export class MockCommunityRepository implements ICommunityRepository {
       },
       totalCardsAllTime,
       building: makeBuilding(new Date()),
+      ...makeLeaderboard(),
     };
   }
+}
+
+/** 이번 주 기여 랭킹 목업 — 내 기여(나)를 끼워 순위를 계산한다. */
+function makeLeaderboard(): Pick<CommunitySnapshot, 'leaderboard' | 'myRank'> {
+  const base = [
+    { name: '김안전', cards: 48, color: '#F2B705' },
+    { name: '이현장', cards: 41, color: '#5C6BC0' },
+    { name: '박점검', cards: 37, color: '#E2574C' },
+    { name: '최예방', cards: 29, color: '#26A69A' },
+    { name: '정관리', cards: 22, color: '#7E57C2' },
+    { name: '나', cards: 23, color: '#2563EB' },
+  ];
+  base.sort((a, b) => b.cards - a.cards);
+  const leaderboard = base.map((r, i) => ({ ...r, rank: i + 1, isMe: r.name === '나' }));
+  const myRank = leaderboard.find((r) => r.isMe)?.rank ?? 0;
+  return { leaderboard, myRank };
 }
 
 export const COMMUNITY_TOPICS = TOPICS;

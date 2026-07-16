@@ -108,3 +108,37 @@ func (r *CardRepo) UpsertProgress(_ context.Context, p domain.Progress) error {
 	r.progress[key(p.UserID, p.CardID)] = p
 	return nil
 }
+
+// PushTokenRepo 는 인메모리 푸시 토큰 저장소.
+type PushTokenRepo struct {
+	mu     sync.RWMutex
+	tokens map[string]domain.PushToken // token -> record
+}
+
+func NewPushTokenRepo() *PushTokenRepo {
+	return &PushTokenRepo{tokens: map[string]domain.PushToken{}}
+}
+
+func (r *PushTokenRepo) Save(_ context.Context, t domain.PushToken) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.tokens[t.Token] = t
+	return nil
+}
+
+func (r *PushTokenRepo) All(_ context.Context) ([]domain.PushToken, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	out := make([]domain.PushToken, 0, len(r.tokens))
+	for _, t := range r.tokens {
+		out = append(out, t)
+	}
+	return out, nil
+}
+
+func (r *PushTokenRepo) Delete(_ context.Context, token string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	delete(r.tokens, token)
+	return nil
+}

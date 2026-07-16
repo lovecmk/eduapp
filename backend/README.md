@@ -61,8 +61,38 @@ STORE=memory go run ./cmd/server
 | GET | `/api/cards` | 전체 카드(개인 진행 상태 포함) |
 | GET | `/api/cards/today` | **3분 세션**. `?difficulty=EASY\|MEDIUM\|HARD`, `?minutes=3` |
 | PATCH | `/api/cards/:id` | `{status_cd:NEW\|LEARNING\|MASTERED}` |
-| GET | `/api/stats` | 학습 통계 |
-| GET | `/api/community/live` | 커뮤니티 프레즌스 |
+| GET | `/api/stats` | 학습 통계(+파생 `insights`) |
+| GET | `/api/community/live` | 커뮤니티 프레즌스(+`leaderboard`/`my_rank`) |
+| POST | `/api/push/register` | `{token,platform}` — 기기 Expo 푸시 토큰 등록 |
+| POST | `/api/telegram/alert` | `{version:"1"\|"2"\|"3"}` — 3버전 알림 브로드캐스트(앱발) |
+| POST | `/api/telegram/webhook` | 텔레그램 웹훅 수신(무인증, secret 헤더 검증) |
+
+### 원격 푸시(Expo Push) — "실제 모바일 알림"
+
+앱이 `/api/push/register` 로 기기 토큰을 등록하면, 서버·텔레그램 명령이
+`PushService.Broadcast` 로 **등록된 모든 기기에 동시에** 알림을 보낸다.
+발송은 Expo Push 게이트웨이(`EXPO_PUSH_URL`, 기본 `exp.host`)를 100건씩 나눠
+호출하고, 무효(`DeviceNotRegistered`) 토큰은 자동 정리한다. 등록 기기가 0대면
+네트워크 호출 없이 즉시 반환한다.
+
+### 텔레그램 제어 (추후 API 키 주입)
+
+`TELEGRAM_BOT_TOKEN` 을 채우면 부팅 시 자동으로 long-polling 이 시작된다.
+토큰이 비어 있으면 텔레그램 연동은 **완전 비활성**(다른 기능에 영향 없음).
+
+봇 명령:
+
+| 명령 | 동작 |
+|------|------|
+| `/alert1` `/alert2` `/alert3` | 3가지 알림 버전 중 하나를 전체 기기로 발송 |
+| `/alert 1 2 3` | 여러 버전을 순서대로 발송 |
+| `/alertall` | 3가지 알림을 모두 발송 |
+| `/status` | 현재 알림 수신 기기 수 확인 |
+| `/help`, `/start` | 사용 가능한 명령 안내 |
+
+`TELEGRAM_ALLOWED_CHATS`(콤마 구분 chat_id) 로 명령 실행을 허용할 채팅을
+제한할 수 있다(비우면 전체 허용). 웹훅 방식을 쓰려면 `TELEGRAM_POLL=false` 로
+두고 `/api/telegram/webhook` 에 텔레그램 `setWebhook` 을 연결한다.
 
 ### 3분 학습 세션 규칙 (`GET /api/cards/today`)
 

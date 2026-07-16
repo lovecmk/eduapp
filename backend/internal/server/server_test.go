@@ -40,10 +40,13 @@ func buildApp(t *testing.T) *server.Deps {
 		t.Fatalf("demo user: %v", err)
 	}
 
+	pushSvc := service.NewPushService(memory.NewPushTokenRepo(), "")
 	return &server.Deps{
 		Cfg: cfg, Tokens: tm, Auth: authSvc, Cards: cardSvc,
 		Stats:     service.NewStatsService(cardSvc),
 		Community: service.NewCommunityService(cardSvc),
+		Push:      pushSvc,
+		Telegram:  service.NewTelegramService(service.TelegramConfig{}, pushSvc),
 	}
 }
 
@@ -189,4 +192,77 @@ func TestEndToEnd(t *testing.T) {
 	if res.StatusCode != 200 {
 		t.Fatalf("refresh status=%d body=%s", res.StatusCode, data)
 	}
+
+	// 13) 푸시 토큰 등록 — 인증 필요.
+	if res, _ := doJSON(t, app, "POST", "/api/push/register", "", map[string]string{"token": "ExponentPushToken[x]"}); res.StatusCode != 401 {
+		t.Fatalf("push register without auth status=%d, want 401", res.StatusCode)
+	}
+	res, data = doJSON(t, app, "POST", "/api/push/register", tok, map[string]string{"token": "ExponentPushToken[abc]", "platform": "android"})
+	if res.StatusCode != 200 {
+		t.Fatalf("push register status=%d body=%s", res.StatusCode, data)
+	}
+	var reg struct {
+		Registered bool `json:"registered"`
+		Devices    int  `json:"devices"`
+	}
+	_ = json.Unmarshal(data, &reg)
+	if !reg.Registered || reg.Devices != 1 {
+		t.Fatalf("push register result=%+v", reg)
+	}
+
+	// 14) 앱발 알림 트리거(3가지 버전 중 1) — 등록 기기 1대로 발송 시도.
+	//     외부 Expo 호출은 테스트 환경에서 실패할 수 있으므로 상태코드만 검증하지 않고
+	//     요청 형식 검증(빈 version → 400)만 확정적으로 확인한다.
+	if res, _ := doJSON(t, app, "POST", "/api/telegram/alert", tok, map[string]string{}); res.StatusCode != 400 {
+		t.Fatalf("alert without version status=%d, want 400", res.StatusCode)
+	}
+}
+
+// TestTelegramCommands 는 텔레그램 명령 처리(네트워크 없이)의 핵심 동작을 검증한다.
+func TestTelegramCommands(t *testing.T) {
+	push := service.NewPushService(memory.NewPushTokenRepo(), "")
+	tg := service.NewTelegramService(service.TelegramConfig{}, push)
+
+	if tg.Enabled() {
+		t.Fatal("봇 토큰이 없는데 Enabled=true")
+	}
+
+	help := tg.HandleCommand(context.Background(), 1, "/help")
+	for _, want := range []string{"/alert1", "/alert2", "/alert3", "/help"} {
+		if !contains(help, want) {
+			t.Fatalf("help 에 %q 누락:\n%s", want, help)
+		}
+	}
+
+	// 등록 기기 0대 → alert1 은 "기기 없음" 안내.
+	r1 := tg.HandleCommand(context.Background(), 1, "/alert1")
+	if !contains(r1, "등록된 기기가 없") {
+		t.Fatalf("alert1(무기기) 응답=%q", r1)
+	}
+
+	// 기기 1대 등록 후 alert2 는 성공 요약(외부 호출은 no-op URL 로 대체 못하므로
+	// 여기서는 status 명령으로 등록 반영만 확인).
+	_ = push.Register(context.Background(), "ExponentPushToken[z]", "ios", "u1")
+	st := tg.HandleCommand(context.Background(), 1, "/status")
+	if !contains(st, "1대") {
+		t.Fatalf("status 응답=%q", st)
+	}
+
+	unknown := tg.HandleCommand(context.Background(), 1, "/nope")
+	if !contains(unknown, "/help") {
+		t.Fatalf("unknown 응답=%q", unknown)
+	}
+}
+
+func contains(s, sub string) bool {
+	return len(s) >= len(sub) && (s == sub || indexOf(s, sub) >= 0)
+}
+
+func indexOf(s, sub string) int {
+	for i := 0; i+len(sub) <= len(s); i++ {
+		if s[i:i+len(sub)] == sub {
+			return i
+		}
+	}
+	return -1
 }

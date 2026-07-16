@@ -128,6 +128,21 @@ type StatsDTO struct {
 	Weekly            []WeeklyPointDTO   `json:"weekly"`
 	CategoryBreakdown []CategoryBreakDTO `json:"category_breakdown"`
 	Rankings          []RankingEntryDTO  `json:"rankings"`
+	Insights          InsightsDTO        `json:"insights"`
+}
+
+// InsightsDTO 는 파생 학습 인사이트(통계 강화). 프런트는 선택적으로 소비한다.
+type InsightsDTO struct {
+	WeeklyTotal          int     `json:"weekly_total"`
+	ActiveDays           int     `json:"active_days"`
+	AvgPerActiveDay      float64 `json:"avg_per_active_day"`
+	TopCategory          string  `json:"top_category"`
+	TopCategoryAccuracy  float64 `json:"top_category_accuracy"`
+	WeakCategory         string  `json:"weak_category"`
+	WeakCategoryAccuracy float64 `json:"weak_category_accuracy"`
+	Level                int     `json:"level"`
+	LevelTitle           string  `json:"level_title"`
+	NextLevelIn          int     `json:"next_level_in"`
 }
 
 type WeeklyPointDTO struct {
@@ -156,9 +171,21 @@ type CommunityDTO struct {
 	DailyGoalMinutes  int            `json:"daily_goal_minutes"`
 	Companions        []CompanionDTO `json:"companions"`
 	Activities        []ActivityDTO  `json:"activities"`
-	Challenge         *ChallengeDTO  `json:"challenge,omitempty"`
-	TotalCardsAllTime int            `json:"total_cards_all_time"`
-	Building          *BuildingDTO   `json:"building,omitempty"`
+	Challenge         *ChallengeDTO    `json:"challenge,omitempty"`
+	TotalCardsAllTime int              `json:"total_cards_all_time"`
+	Building          *BuildingDTO     `json:"building,omitempty"`
+	Leaderboard       []ContributorDTO `json:"leaderboard"`
+	MyRank            int              `json:"my_rank"`
+	WeeklyActivity    []WeeklyPointDTO `json:"weekly_activity"`
+}
+
+// ContributorDTO 는 커뮤니티 기여 랭킹 한 줄(커뮤니티 강화).
+type ContributorDTO struct {
+	Rank     int    `json:"rank"`
+	Nickname string `json:"nickname"`
+	Cards    int    `json:"cards"`
+	Color    string `json:"color"`
+	IsMe     bool   `json:"is_me"`
 }
 
 type CompanionDTO struct {

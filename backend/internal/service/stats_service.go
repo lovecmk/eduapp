@@ -24,6 +24,21 @@ type Stats struct {
 	Weekly            []WeeklyPoint
 	CategoryBreakdown []CategoryBreak
 	Rankings          []RankingEntry
+	Insights          Insights
+}
+
+// Insights 는 원자료에서 파생한 "한눈에 보는" 학습 인사이트(통계 강화).
+type Insights struct {
+	WeeklyTotal          int     // 최근 7일 학습 합계
+	ActiveDays           int     // 최근 7일 중 학습한 날 수
+	AvgPerActiveDay      float64 // 학습한 날 평균 카드 수
+	TopCategory          string  // 가장 잘하는 분야
+	TopCategoryAccuracy  float64
+	WeakCategory         string // 보강이 필요한 분야
+	WeakCategoryAccuracy float64
+	Level                int    // 학습 레벨(누적 학습 기반)
+	LevelTitle           string // 레벨 칭호
+	NextLevelIn          int    // 다음 레벨까지 남은 카드 수
 }
 
 type WeeklyPoint struct {
@@ -110,7 +125,67 @@ func (s *StatsService) Compute(ctx context.Context, userID string) (*Stats, erro
 		Weekly:            weekly,
 		CategoryBreakdown: breakdown,
 		Rankings:          rankings,
+		Insights:          buildInsights(learned, weekly, breakdown),
 	}, nil
+}
+
+// buildInsights 는 집계값에서 파생 인사이트를 계산한다.
+func buildInsights(learned int, weekly []WeeklyPoint, breakdown []CategoryBreak) Insights {
+	weeklyTotal, activeDays := 0, 0
+	for _, w := range weekly {
+		weeklyTotal += w.Count
+		if w.Count > 0 {
+			activeDays++
+		}
+	}
+	avg := 0.0
+	if activeDays > 0 {
+		avg = round1(float64(weeklyTotal) / float64(activeDays))
+	}
+
+	// 가장 잘하는/보강 필요한 분야 — 카드가 있는 분야만 대상.
+	var top, weak *CategoryBreak
+	for i := range breakdown {
+		b := &breakdown[i]
+		if b.Total == 0 {
+			continue
+		}
+		if top == nil || b.Accuracy > top.Accuracy {
+			top = b
+		}
+		if weak == nil || b.Accuracy < weak.Accuracy {
+			weak = b
+		}
+	}
+
+	level, title, nextIn := levelFrom(learned)
+	ins := Insights{
+		WeeklyTotal:     weeklyTotal,
+		ActiveDays:      activeDays,
+		AvgPerActiveDay: avg,
+		Level:           level,
+		LevelTitle:      title,
+		NextLevelIn:     nextIn,
+	}
+	if top != nil {
+		ins.TopCategory, ins.TopCategoryAccuracy = top.Category, top.Accuracy
+	}
+	if weak != nil {
+		ins.WeakCategory, ins.WeakCategoryAccuracy = weak.Category, weak.Accuracy
+	}
+	return ins
+}
+
+// levelFrom 은 누적 학습 수로부터 레벨/칭호/다음 레벨까지 남은 카드를 만든다(10장당 1레벨).
+func levelFrom(learned int) (int, string, int) {
+	level := learned/10 + 1
+	nextIn := 10 - learned%10
+	titles := []string{"안전 새싹", "현장 입문자", "안전 실무자", "위험 감식가", "현장 베테랑", "안전 마스터"}
+	idx := (level - 1) / 2
+	if idx >= len(titles) {
+		idx = len(titles) - 1
+	}
+	return level, titles[idx], nextIn
 }
 
 func sameOrBefore(t, now time.Time) bool {

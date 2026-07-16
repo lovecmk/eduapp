@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"sort"
 	"time"
 
 	"github.com/lovecmk/eduapp/backend/internal/domain"
@@ -28,6 +29,18 @@ type Snapshot struct {
 	Challenge         *Challenge
 	TotalCardsAllTime int
 	Building          *Building
+	Leaderboard       []Contributor // 이번 주 기여 랭킹(커뮤니티 강화)
+	MyRank            int           // 리더보드 내 내 순위
+	WeeklyActivity    []WeeklyPoint // 커뮤니티 전체 최근 7일 학습량
+}
+
+// Contributor 는 커뮤니티 기여 랭킹 한 줄.
+type Contributor struct {
+	Rank     int
+	Nickname string
+	Cards    int
+	Color    string
+	IsMe     bool
 }
 
 type Companion struct {
@@ -90,6 +103,18 @@ func (s *CommunityService) Build(ctx context.Context, userID string) (*Snapshot,
 		History: []BuildingMonth{},
 	}
 
+	leaderboard, myRank := buildLeaderboard(mastered)
+
+	// 커뮤니티 전체 최근 7일 학습량(결정론적 근사) — 활동 그래프용.
+	weeklyActivity := make([]WeeklyPoint, 7)
+	for i := 0; i < 7; i++ {
+		d := now.AddDate(0, 0, -6+i)
+		weeklyActivity[i] = WeeklyPoint{
+			Label: weekdayKR[int(d.Weekday())],
+			Count: 180 + (i*i*13)%90 + mastered,
+		}
+	}
+
 	return &Snapshot{
 		OnlineNow:         3 + mastered%5,
 		StudiedToday:      12 + mastered,
@@ -107,7 +132,33 @@ func (s *CommunityService) Build(ctx context.Context, userID string) (*Snapshot,
 		},
 		TotalCardsAllTime: 4200 + mastered,
 		Building:          building,
+		Leaderboard:       leaderboard,
+		MyRank:            myRank,
+		WeeklyActivity:    weeklyActivity,
 	}, nil
+}
+
+// buildLeaderboard 는 고정 참가자 풀에 내 기여(mastered)를 끼워넣어 순위를 만든다.
+func buildLeaderboard(mastered int) ([]Contributor, int) {
+	base := []Contributor{
+		{Nickname: "김안전", Cards: 48, Color: "#F2B705"},
+		{Nickname: "이현장", Cards: 41, Color: "#5C6BC0"},
+		{Nickname: "박점검", Cards: 37, Color: "#E2574C"},
+		{Nickname: "최예방", Cards: 29, Color: "#26A69A"},
+		{Nickname: "정관리", Cards: 22, Color: "#7E57C2"},
+	}
+	me := Contributor{Nickname: "나", Cards: mastered, Color: "#2563EB", IsMe: true}
+	all := append(base, me)
+	sort.Slice(all, func(i, j int) bool { return all[i].Cards > all[j].Cards })
+
+	myRank := 0
+	for i := range all {
+		all[i].Rank = i + 1
+		if all[i].IsMe {
+			myRank = all[i].Rank
+		}
+	}
+	return all, myRank
 }
 
 func monthLabel(t time.Time) string {

@@ -28,6 +28,17 @@ type CardRepository interface {
 	UpsertProgress(ctx context.Context, p domain.Progress) error
 }
 
+// PushTokenRepository 는 원격 푸시 토큰 영속화 포트.
+// 텔레그램/서버 이벤트가 전체 기기에 알림을 브로드캐스트할 때 All 로 대상을 얻는다.
+type PushTokenRepository interface {
+	// Save 는 토큰을 업서트한다(같은 토큰 재등록 시 갱신).
+	Save(ctx context.Context, t domain.PushToken) error
+	// All 은 등록된 모든 토큰을 반환한다(브로드캐스트 대상).
+	All(ctx context.Context) ([]domain.PushToken, error)
+	// Delete 는 무효(Expo DeviceNotRegistered)해진 토큰을 제거한다.
+	Delete(ctx context.Context, token string) error
+}
+
 // ErrNotFound 는 조회 대상이 없을 때 저장소가 반환하는 표준 오류.
 type ErrNotFound struct{ Entity string }
 

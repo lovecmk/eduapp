@@ -7,6 +7,7 @@ import { useTheme } from '../../src/theme/ThemeProvider';
 import { LivePresenceCard } from '../../src/components/community/LivePresenceCard';
 import { WeeklyChallengeCard } from '../../src/components/community/WeeklyChallengeCard';
 import { CommunityBuildCard } from '../../src/components/community/CommunityBuildCard';
+import { CommunityLeaderboardCard } from '../../src/components/community/CommunityLeaderboardCard';
 import { QuestionComposeModal } from '../../src/components/community/QuestionComposeModal';
 import { fontDisplay, fontBody, fontMono } from '../../src/theme/tokens';
 import { getCategoryColor } from '../../src/constants/categories';
@@ -56,6 +57,7 @@ export default function CommunityScreen() {
         {/* 함께 학습 */}
         <LivePresenceCard />
         <WeeklyChallengeCard />
+        <CommunityLeaderboardCard />
         <CommunityBuildCard />
 
         {/* 질문 & 답변 */}

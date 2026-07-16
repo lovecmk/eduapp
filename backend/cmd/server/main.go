@@ -33,10 +33,12 @@ func main() {
 	var (
 		userRepo ports.UserRepository
 		cardRepo ports.CardRepository
+		pushRepo ports.PushTokenRepository
 	)
 	if cfg.Store == "memory" {
 		userRepo = memory.NewUserRepo()
 		cardRepo = memory.NewCardRepo()
+		pushRepo = memory.NewPushTokenRepo()
 		log.Printf("[store] 인메모리 모드(무 MongoDB)")
 	} else {
 		db, disconnect, err := mongoadapter.Connect(ctx, cfg.MongoURI, cfg.MongoDB)
@@ -47,6 +49,7 @@ func main() {
 		log.Printf("[mongo] 연결됨 db=%s", cfg.MongoDB)
 		userRepo = mongoadapter.NewUserRepo(db)
 		cardRepo = mongoadapter.NewCardRepo(db)
+		pushRepo = mongoadapter.NewPushTokenRepo(db)
 	}
 
 	tm := token.NewManager(cfg.JWTSecret, cfg.AccessTTL, cfg.RefreshTTL)
@@ -55,6 +58,12 @@ func main() {
 	cardSvc := service.NewCardService(cardRepo, cfg.StudySessionSec)
 	statsSvc := service.NewStatsService(cardSvc)
 	commSvc := service.NewCommunityService(cardSvc)
+	pushSvc := service.NewPushService(pushRepo, cfg.ExpoPushURL)
+	tgSvc := service.NewTelegramService(service.TelegramConfig{
+		BotToken:     cfg.TelegramBotToken,
+		APIBase:      cfg.TelegramAPIBase,
+		AllowedChats: cfg.TelegramAllowedChats,
+	}, pushSvc)
 
 	if cfg.SeedOnStart {
 		if n, err := seed.EnsureCards(ctx, cardRepo); err != nil {
@@ -74,7 +83,19 @@ func main() {
 		Cards:     cardSvc,
 		Stats:     statsSvc,
 		Community: commSvc,
+		Push:      pushSvc,
+		Telegram:  tgSvc,
 	})
+
+	// 텔레그램 long-polling — 봇 토큰이 설정돼 있고 폴링이 켜져 있으면 백그라운드로 수신 대기.
+	// (별도의 장기 컨텍스트를 써서 부팅용 15초 타임아웃 ctx 와 분리한다.)
+	if tgSvc.Enabled() && cfg.TelegramPoll {
+		pollCtx, pollCancel := context.WithCancel(context.Background())
+		defer pollCancel()
+		go tgSvc.Poll(pollCtx)
+	} else if !tgSvc.Enabled() {
+		log.Printf("[telegram] 미설정 — 활성화하려면 TELEGRAM_BOT_TOKEN 을 주입하세요")
+	}
 
 	log.Printf("[http] 리스닝 :%s", cfg.Port)
 	if err := app.Listen(":" + cfg.Port); err != nil {

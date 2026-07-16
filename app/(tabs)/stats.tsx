@@ -17,6 +17,7 @@ import { getCategoryIcon, getCategoryColor } from '../../src/constants/categorie
 import { calcEmblems, emblemRankingMock, EMBLEM_DEFS, type EmblemProgress } from '../../src/utils/emblems';
 import { useAllCards } from '../../src/hooks/useCards';
 import { useStudyStats } from '../../src/hooks/useStats';
+import type { LearningInsights } from '../../src/domain/models/StudyStats';
 
 function StatTile({ icon, color, value, label }: { icon: keyof typeof Ionicons.glyphMap; color: string; value: string; label: string }) {
   const { theme, fontScale } = useTheme();
@@ -47,6 +48,52 @@ function RankingRow({ rank, nickname, score, isMe }: { rank: number; nickname: s
       <Text style={{ color: isMe ? c.primary : c.textPrimary, fontSize: 13 * fs, fontWeight: isMe ? '800' : '600', flex: 1, fontFamily: fontCute }}>{nickname}</Text>
       <Text style={{ color: isMe ? c.primary : c.textSecondary, fontSize: 13 * fs, fontWeight: '800', fontFamily: fontMono }}>{score}점</Text>
     </View>
+  );
+}
+
+/** 파생 학습 인사이트 카드 — 레벨/주간 활동/강·약 분야를 한눈에(통계 강화). */
+function InsightsCard({ insights: ins }: { insights: LearningInsights }) {
+  const { theme, fontScale } = useTheme();
+  const c = theme.colors;
+  const fs = fontScale;
+  const levelPct = Math.min(100, Math.round(((10 - ins.nextLevelIn) / 10) * 100));
+  const chip = (icon: keyof typeof Ionicons.glyphMap, color: string, label: string, value: string) => (
+    <View style={{ flex: 1, minWidth: '46%', backgroundColor: c.surfaceAlt, borderRadius: 12, padding: 11 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 5 }}>
+        <Ionicons name={icon} size={13} color={color} />
+        <Text style={{ color: c.textSecondary, fontSize: 11, fontFamily: fontBody }}>{label}</Text>
+      </View>
+      <Text numberOfLines={1} style={{ color: c.textPrimary, fontSize: 13.5 * fs, fontWeight: '800', fontFamily: fontCute }}>{value}</Text>
+    </View>
+  );
+  return (
+    <Card style={{ marginBottom: 20 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 }}>
+        <Ionicons name="bulb" size={16} color={c.warning} />
+        <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontWeight: '700', fontFamily: fontCute }}>학습 인사이트</Text>
+      </View>
+
+      {/* 레벨 진행 */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <View style={{ backgroundColor: c.primary + '18', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
+            <Text style={{ color: c.primary, fontSize: 12 * fs, fontWeight: '900', fontFamily: fontMono }}>Lv.{ins.level}</Text>
+          </View>
+          <Text style={{ color: c.textPrimary, fontSize: 13 * fs, fontWeight: '700', fontFamily: fontCute }}>{ins.levelTitle}</Text>
+        </View>
+        <Text style={{ color: c.textSecondary, fontSize: 11, fontFamily: fontMono }}>다음 레벨까지 {ins.nextLevelIn}장</Text>
+      </View>
+      <View style={{ height: 8, backgroundColor: c.surfaceAlt, borderRadius: 4, overflow: 'hidden', marginBottom: 14 }}>
+        <View style={{ width: `${levelPct}%`, height: '100%', backgroundColor: c.primary, borderRadius: 4 }} />
+      </View>
+
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+        {chip('calendar', c.primary, '주간 활동', `${ins.activeDays}일 · ${ins.weeklyTotal}장`)}
+        {chip('speedometer', c.success, '활동일 평균', `${ins.avgPerActiveDay}장/일`)}
+        {ins.topCategory ? chip('ribbon', getCategoryColor(ins.topCategory) ?? c.success, '강점 분야', `${ins.topCategory} ${Math.round(ins.topCategoryAccuracy)}%`) : null}
+        {ins.weakCategory ? chip('barbell', getCategoryColor(ins.weakCategory) ?? c.warning, '보강 필요', `${ins.weakCategory} ${Math.round(ins.weakCategoryAccuracy)}%`) : null}
+      </View>
+    </Card>
   );
 }
 
@@ -153,6 +200,8 @@ export default function StatsScreen() {
         <ReviewStatusCard />
 
         <WeeklyChart weekly={stats?.weekly ?? []} />
+
+        {stats?.insights && <InsightsCard insights={stats.insights} />}
 
         <Card style={{ marginBottom: 20 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 }}>
