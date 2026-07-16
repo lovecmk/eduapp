@@ -87,6 +87,7 @@ export default function CardsScreen() {
   const translateY = useRef(new Animated.Value(0)).current;
   const cardOpacity = useRef(new Animated.Value(1)).current;
   const scaleAnim = useRef(new Animated.Value(1)).current; // 뒤집을 때 통통 튀는 스케일(귀여운 효과)
+  const enterAnim = useRef(new Animated.Value(0)).current; // 다음 카드가 통통 튀며 등장하는 값(0→1)
   const progressAnim = useRef(new Animated.Value(0)).current;
   // 퀴즈 정답 선택 후 자동으로 뒤집기까지의 타이머.
   const autoFlipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -211,11 +212,26 @@ export default function CardsScreen() {
     setQuizPick(null);
     setQuizRevealed(false);
     resetCardAnims();
+    enterAnim.setValue(0); // 다음 카드는 등장 애니메이션이 재생되도록 숨긴 상태에서 시작.
     setExiting(false);
     const nextIdx = index + 1;
     if (nextIdx >= deck.length) setFinished(true);
     else setIndex(nextIdx);
-  }, [card, index, deck.length, markCardMutation, resetCardAnims]);
+  }, [card, index, deck.length, markCardMutation, resetCardAnims, enterAnim]);
+
+  // 새 카드가 화면에 올라올 때마다 통통 튀며(스프링) 부드럽게 등장한다(귀여운 전환).
+  useEffect(() => {
+    if (!card || finished) return;
+    enterAnim.setValue(0);
+    const spring = Animated.spring(enterAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+      friction: 7,
+      tension: 58,
+    });
+    spring.start();
+    return () => spring.stop();
+  }, [card?.id, finished, enterAnim]);
 
   // "학습 완료" → 왼쪽으로 넘김.
   const completeLeft = useCallback(() => {
@@ -439,6 +455,13 @@ export default function CardsScreen() {
   const knowOpacity = translateX.interpolate({ inputRange: [30, 110], outputRange: [0, 1], extrapolate: 'clamp' });
   const dontKnowOpacity = translateX.interpolate({ inputRange: [-110, -30], outputRange: [1, 0], extrapolate: 'clamp' });
 
+  // 새 카드 등장(pop-in): 살짝 작고 아래에서 올라오며 페이드 인. 기존 뒤집기/스와이프 값과 합성.
+  const enterScale = enterAnim.interpolate({ inputRange: [0, 1], outputRange: [0.86, 1] });
+  const enterTranslateY = enterAnim.interpolate({ inputRange: [0, 1], outputRange: [28, 0] });
+  const cardScale = Animated.multiply(scaleAnim, enterScale);
+  const cardTranslateY = Animated.add(translateY, enterTranslateY);
+  const cardCombinedOpacity = Animated.multiply(cardOpacity, enterAnim);
+
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       {keepScreenOn && (
@@ -464,7 +487,7 @@ export default function CardsScreen() {
       <View style={{ flex: 1, padding: 20, paddingBottom: 8 }}>
         <Animated.View
           {...(isSwipeTrack ? panResponder.panHandlers : {})}
-          style={{ flex: 1, transform: [{ translateX }, { translateY }, { scale: scaleAnim }], opacity: cardOpacity }}
+          style={{ flex: 1, transform: [{ translateX }, { translateY: cardTranslateY }, { scale: cardScale }], opacity: cardCombinedOpacity }}
         >
          <Pressable onPress={onCardPress} disabled={!isSwipeTrack} style={{ flex: 1 }}>
           {/* 앞면 */}

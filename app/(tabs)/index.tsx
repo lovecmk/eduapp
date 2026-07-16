@@ -1,55 +1,55 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, ScrollView, ActivityIndicator, Pressable, RefreshControl, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../src/theme/ThemeProvider';
+import { useResponsive } from '../../src/theme/responsive';
 import { useAuthStore } from '../../src/store/authStore';
 import { useSettingsStore } from '../../src/store/settingsStore';
+import { useMomentStore } from '../../src/store/momentStore';
 import { Card } from '../../src/components/ui/Card';
 import { ErrorState } from '../../src/components/ui/ErrorState';
 import { DailyQuestsCard } from '../../src/components/home/DailyQuestsCard';
 import { DailyTipCard } from '../../src/components/home/DailyTipCard';
+import { MomentModal } from '../../src/components/home/MomentModal';
 import { LivePresenceStrip } from '../../src/components/community/LivePresenceStrip';
 import { LearningCalendar } from '../../src/components/community/LearningCalendar';
 import { fontMono, fontDisplay, fontBody } from '../../src/theme/tokens';
 import { calcEmblems, getAcquiredEmblems } from '../../src/utils/emblems';
+import { getTimeContext, pickGreeting } from '../../src/utils/timeContext';
+import { computeMoment, encourageLine, type Moment } from '../../src/utils/moments';
 import { ROUTES } from '../../src/constants/routes';
 import { useAllCards, useTodayCards } from '../../src/hooks/useCards';
 import { useStudyStats } from '../../src/hooks/useStats';
 import { useReview } from '../../src/hooks/useReview';
 
-const GREETINGS = [
-  '오늘도 3분, 안전을 쌓아요',
-  '한 장의 카드가 사고 하나를 막아요',
-  '3분 투자로 현장이 달라져요',
-  '오늘의 안전, 지금 시작해요',
-  '작은 습관이 큰 사고를 막아요',
-  '무사고 하루, 오늘도 함께해요',
-  '아는 만큼 안전해집니다',
-  '잠깐의 점검이 평생을 지켜요',
-  '오늘도 안전 한 걸음 나아가요',
-  '현장의 안전, 당신의 3분에서 시작돼요',
-];
+// 앱 실행(런치)당 1회만 실행 기록/축하 계산이 일어나도록 하는 모듈 가드.
+// (홈 탭을 오갈 때 컴포넌트가 재마운트돼도 중복 카운트/중복 팝업을 막는다.)
+let sessionBaseline: { firstOpenAt: string | null; totalOpens: number; lastOpenAt: string | null; celebrated: string[] } | null = null;
+let sessionMomentHandled = false;
 
 function StatPill({ value, label, icon }: { value: string; label: string; icon?: keyof typeof Ionicons.glyphMap }) {
   const { theme, fontScale } = useTheme();
+  const { rs } = useResponsive();
   const c = theme.colors;
   return (
-    <Pressable style={{ flex: 1, backgroundColor: c.surfaceAlt, borderRadius: 12, padding: 12, alignItems: 'center' }}>
-      {icon && <Ionicons name={icon} size={14} color={c.warning} style={{ marginBottom: 2 }} />}
-      <Text style={{ color: c.primary, fontSize: 22 * fontScale, fontWeight: '900', fontFamily: fontMono }}>{value}</Text>
-      <Text style={{ color: c.textSecondary, fontSize: 11, marginTop: 3, fontFamily: fontBody }}>{label}</Text>
+    <Pressable style={{ flex: 1, backgroundColor: c.surfaceAlt, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 8, alignItems: 'center' }}>
+      {icon && <Ionicons name={icon} size={rs(14)} color={c.warning} style={{ marginBottom: 2 }} />}
+      <Text numberOfLines={1} style={{ color: c.primary, fontSize: rs(20) * fontScale, fontWeight: '900', fontFamily: fontMono }}>{value}</Text>
+      <Text numberOfLines={1} style={{ color: c.textSecondary, fontSize: rs(11) * fontScale, marginTop: 3, fontFamily: fontBody }}>{label}</Text>
     </Pressable>
   );
 }
 
 export default function HomeScreen() {
   const { theme, fontScale: fs } = useTheme();
+  const { rs } = useResponsive();
   const c = theme.colors;
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const profileImage = useSettingsStore((s) => s.profileImage);
   const [refreshing, setRefreshing] = useState(false);
+  const [moment, setMoment] = useState<Moment | null>(null);
 
   const { data: allCards = [], isLoading: cardsLoading, refetch: refetchAll } = useAllCards();
   const { data: todayCards = [], refetch: refetchToday } = useTodayCards();
@@ -58,7 +58,55 @@ export default function HomeScreen() {
 
   const masteredCount = useMemo(() => allCards.filter((x) => x.status === 'mastered').length, [allCards]);
 
-  const greeting = useMemo(() => GREETINGS[Math.floor(Math.random() * GREETINGS.length)], []);
+  // 앱을 켠 시각에 맞춰 인사·이모지·톤이 바뀐다(히어로 적극 활용).
+  const time = useMemo(() => getTimeContext(), []);
+  const greeting = useMemo(() => pickGreeting(time), [time]);
+  const totalLearned = stats?.totalLearned ?? masteredCount;
+  const streakDays = stats?.streakDays ?? 0;
+  const encourage = useMemo(
+    () => encourageLine({ totalLearned, streakDays, todayDone: 0, dueToday: dueTodayCount }),
+    [totalLearned, streakDays, dueTodayCount],
+  );
+
+  // 런치당 1회: 실행 기록 + 이전 상태 스냅샷 확보(축하 순간 계산 기준).
+  useEffect(() => {
+    if (!sessionBaseline) {
+      const ms = useMomentStore.getState();
+      sessionBaseline = {
+        firstOpenAt: ms.firstOpenAt,
+        totalOpens: ms.totalOpens,
+        lastOpenAt: ms.lastOpenAt,
+        celebrated: [...ms.celebrated],
+      };
+      ms.recordOpen();
+    }
+  }, []);
+
+  // 통계가 준비되면 이번 실행에서 보여줄 축하/격려 순간을 1회 계산한다.
+  useEffect(() => {
+    if (sessionMomentHandled || !stats || !sessionBaseline) return;
+    sessionMomentHandled = true;
+    const m = computeMoment({
+      totalLearned: stats.totalLearned,
+      streakDays: stats.streakDays,
+      firstOpenAt: sessionBaseline.firstOpenAt,
+      totalOpens: sessionBaseline.totalOpens,
+      lastOpenAt: sessionBaseline.lastOpenAt,
+      celebrated: sessionBaseline.celebrated,
+    });
+    if (m) setMoment(m);
+  }, [stats]);
+
+  const dismissMoment = useCallback(() => {
+    if (moment) useMomentStore.getState().markCelebrated(moment.key);
+    setMoment(null);
+  }, [moment]);
+
+  const momentAction = useCallback(() => {
+    if (moment) useMomentStore.getState().markCelebrated(moment.key);
+    setMoment(null);
+    router.push(ROUTES.cards);
+  }, [moment, router]);
 
   const acquired = useMemo(() => {
     const cardMap = new Map<string, { total: number; mastered: number }>();
@@ -92,35 +140,45 @@ export default function HomeScreen() {
         contentContainerStyle={{ padding: 20 }}
         showsVerticalScrollIndicator={false}
       >
-        {/* 오늘의 학습 히어로 */}
-        <View style={{ borderRadius: 20, backgroundColor: c.primary, paddingVertical: 22, paddingHorizontal: 18, marginBottom: 14, minHeight: 152, justifyContent: 'center', boxShadow: `0 8px 24px ${c.primary}44` }}>
+        {/* 오늘의 학습 히어로 — 앱을 켠 시각에 따라 인사·이모지·톤이 달라진다 */}
+        <View style={{ borderRadius: rs(22), backgroundColor: c.primary, paddingVertical: rs(20), paddingHorizontal: rs(18), marginBottom: 14, minHeight: rs(160), justifyContent: 'center', boxShadow: `0 8px 24px ${c.primary}44` }}>
+          {/* 시간대 배지 */}
+          <View style={{ position: 'absolute', top: rs(13), right: rs(15), flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 }}>
+            <Text style={{ fontSize: rs(13) }}>{time.emoji}</Text>
+            <Text style={{ color: '#fff', fontSize: rs(11) * fs, fontFamily: fontBody }}>{time.label}</Text>
+          </View>
+
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             {/* 프로필 · 인사 */}
-            <View style={{ flex: 1 }}>
+            <View style={{ flex: 1, paddingRight: 8 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                 {profileImage ? (
-                  <Image source={{ uri: profileImage }} style={{ width: 48, height: 48, borderRadius: 24, borderWidth: 2, borderColor: 'rgba(255,255,255,0.9)' }} />
+                  <Image source={{ uri: profileImage }} style={{ width: rs(48), height: rs(48), borderRadius: rs(24), borderWidth: 2, borderColor: 'rgba(255,255,255,0.9)' }} />
                 ) : (
-                  <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.22)', borderWidth: 2, borderColor: 'rgba(255,255,255,0.5)', alignItems: 'center', justifyContent: 'center' }}>
-                    <Text style={{ color: '#fff', fontSize: 20, fontFamily: fontDisplay }}>{user?.name?.charAt(0) ?? '현'}</Text>
+                  <View style={{ width: rs(48), height: rs(48), borderRadius: rs(24), backgroundColor: 'rgba(255,255,255,0.22)', borderWidth: 2, borderColor: 'rgba(255,255,255,0.5)', alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={{ color: '#fff', fontSize: rs(20), fontFamily: fontDisplay }}>{user?.name?.charAt(0) ?? '현'}</Text>
                   </View>
                 )}
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 12.5 * fs, fontFamily: fontBody }}>오늘의 학습</Text>
-                  <Text style={{ color: '#fff', fontSize: 18 * fs, marginTop: 1, fontFamily: fontDisplay }} numberOfLines={1}>{user?.name ?? '점검자'} 님</Text>
+                  <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: rs(12.5) * fs, fontFamily: fontBody }} numberOfLines={1}>{time.salutation}</Text>
+                  <Text style={{ color: '#fff', fontSize: rs(18) * fs, marginTop: 1, fontFamily: fontDisplay }} numberOfLines={1}>{user?.name ?? '점검자'} 님</Text>
                 </View>
               </View>
-              <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: 13 * fs, marginTop: 14, lineHeight: 19, fontFamily: fontBody }}>{greeting}</Text>
+              <Text style={{ color: 'rgba(255,255,255,0.92)', fontSize: rs(13) * fs, marginTop: 14, lineHeight: rs(19) * fs, fontFamily: fontBody }}>{greeting}</Text>
+              {/* 몰입·격려 한 줄 (알림을 꺼둬도 앱에서 챙겨주는 응원) */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 9, backgroundColor: 'rgba(255,255,255,0.15)', alignSelf: 'flex-start', maxWidth: '100%', borderRadius: 10, paddingHorizontal: 9, paddingVertical: 5 }}>
+                <Text style={{ color: '#fff', fontSize: rs(11.5) * fs, lineHeight: rs(16) * fs, fontFamily: fontBody, flexShrink: 1 }} numberOfLines={2}>{encourage}</Text>
+              </View>
               {acquired.length > 0 && (
                 <View style={{ flexDirection: 'row', gap: 3, marginTop: 10 }}>
-                  {acquired.slice(0, 3).map((em) => <Text key={em.category} style={{ fontSize: 16 }}>{em.emoji}</Text>)}
+                  {acquired.slice(0, 3).map((em) => <Text key={em.category} style={{ fontSize: rs(16) }}>{em.emoji}</Text>)}
                 </View>
               )}
             </View>
 
-            {/* 캐릭터 */}
-            <View style={{ width: 88, height: 88, borderRadius: 44, marginLeft: 10, backgroundColor: 'rgba(255,255,255,0.16)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.28)', alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ fontSize: 46 }}>👷</Text>
+            {/* 시간대 캐릭터 */}
+            <View style={{ width: rs(84), height: rs(84), borderRadius: rs(42), marginLeft: 8, backgroundColor: 'rgba(255,255,255,0.16)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.28)', alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ fontSize: rs(44) }}>{time.character}</Text>
             </View>
           </View>
         </View>
@@ -176,6 +234,9 @@ export default function HomeScreen() {
         <DailyQuestsCard />
         <DailyTipCard />
       </ScrollView>
+
+      {/* 앱을 켠 순간의 축하·격려 (알림 off 사용자도 인앱으로 챙김) */}
+      <MomentModal moment={moment} onClose={dismissMoment} onAction={momentAction} />
     </View>
   );
 }
