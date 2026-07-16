@@ -21,6 +21,7 @@ import { fontCute } from '../../src/theme/tokens';
 import { getCategoryIcon } from '../../src/constants/categories';
 import { ROUTES } from '../../src/constants/routes';
 import { useTodayCards, useAllCards, useMarkCard } from '../../src/hooks/useCards';
+import type { LearningCard } from '../../src/domain/models/LearningCard';
 import { resolveCardImage } from '../../src/data/cardImages';
 import { useBookmarkStore } from '../../src/store/bookmarkStore';
 import { useReportStore } from '../../src/store/reportStore';
@@ -90,7 +91,7 @@ export default function CardsScreen() {
 
   // 오늘의 학습 = 신규 3장 + 복습 최대 4장(총 최대 7장). 카테고리 복습은 해당 카테고리 전체.
   // 복습 카드는 예정일이 오래된 순(가장 오래 방치된 카드)으로 우선 배치한다.
-  const deck = useMemo(() => {
+  const computedDeck = useMemo(() => {
     if (isCategoryMode) return (allQuery.data ?? []).filter((x) => x.category === category);
     const today = todayQuery.data ?? [];
     const news = today.filter((x) => x.status === 'new').slice(0, NEW_PER_DAY);
@@ -100,6 +101,25 @@ export default function CardsScreen() {
       .slice(0, REVIEW_PER_DAY);
     return [...news, ...reviews];
   }, [isCategoryMode, category, allQuery.data, todayQuery.data]);
+
+  // 덱은 세션 시작 시 한 번만 확정한다.
+  // 카드를 마킹하면 cards 쿼리가 무효화되어 목록이 새로 내려오는데, 그때마다 덱을 다시 계산하면
+  // (1) 'mastered' 카드는 오늘 목록에서 빠져 뒤 카드가 앞으로 당겨지므로 index 가 다른 카드를 가리켜 문제가 건너뛰어지고,
+  // (2) 'learning' 으로 바뀐 신규 카드는 복습 구간에 다시 편입되어 같은 문제가 두 번 나온다.
+  // 진행 중인 세션의 덱은 데이터 갱신과 무관하게 고정되어야 한다.
+  const [sessionDeck, setSessionDeck] = useState<LearningCard[] | null>(null);
+  const sessionKey = isCategoryMode ? `category:${category}` : 'today';
+
+  useEffect(() => {
+    // 카테고리 전환 등으로 세션 대상이 바뀌면 덱을 다시 뽑는다.
+    setSessionDeck(null);
+  }, [sessionKey]);
+
+  useEffect(() => {
+    if (sessionDeck === null && computedDeck.length > 0) setSessionDeck(computedDeck);
+  }, [sessionDeck, computedDeck]);
+
+  const deck = sessionDeck ?? computedDeck;
   const card = deck[index];
 
   const toggleBookmark = useBookmarkStore((s) => s.toggle);
@@ -272,6 +292,8 @@ export default function CardsScreen() {
 
   const restart = () => {
     if (autoFlipTimer.current) clearTimeout(autoFlipTimer.current);
+    // 최신 학습 상태로 덱을 다시 뽑는다.
+    setSessionDeck(null);
     setIndex(0);
     setDoneCount(0);
     setFlipped(false);
@@ -349,6 +371,11 @@ export default function CardsScreen() {
   const frontRotate = flipAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] });
   const backRotate = flipAnim.interpolate({ inputRange: [0, 1], outputRange: ['180deg', '360deg'] });
 
+  // backfaceVisibility 만으로는 숨겨진 면이 그대로 비쳐 보여 문제가 두 개 겹쳐 보인다(웹·Android 모두 재현).
+  // 뒤집힘의 절반을 기준으로 보이는 면만 불투명하게 만들어, backfaceVisibility 지원 여부와 무관하게 한 면만 보이도록 한다.
+  const frontOpacity = flipAnim.interpolate({ inputRange: [0, 0.499, 0.5, 1], outputRange: [1, 1, 0, 0], extrapolate: 'clamp' });
+  const backOpacity = flipAnim.interpolate({ inputRange: [0, 0.499, 0.5, 1], outputRange: [0, 0, 1, 1], extrapolate: 'clamp' });
+
   // 스와이프 트랙 — 좌우로 밀 때 나타나는 "아는 것/모르는 것" 라벨 투명도.
   const knowOpacity = translateX.interpolate({ inputRange: [30, 110], outputRange: [0, 1], extrapolate: 'clamp' });
   const dontKnowOpacity = translateX.interpolate({ inputRange: [-110, -30], outputRange: [1, 0], extrapolate: 'clamp' });
@@ -392,6 +419,7 @@ export default function CardsScreen() {
               borderRadius: 20, padding: 24,
               transform: [{ perspective: 1200 }, { rotateY: frontRotate }],
               backfaceVisibility: 'hidden',
+              opacity: frontOpacity,
               boxShadow: '0 4px 16px rgba(0,0,0,0.06)', elevation: 4,
             }}
           >
@@ -473,6 +501,7 @@ export default function CardsScreen() {
               borderRadius: 20, padding: 22,
               transform: [{ perspective: 1200 }, { rotateY: backRotate }],
               backfaceVisibility: 'hidden',
+              opacity: backOpacity,
               boxShadow: '0 4px 16px rgba(0,0,0,0.06)', elevation: 4,
             }}
           >
