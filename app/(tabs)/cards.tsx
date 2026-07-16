@@ -81,17 +81,21 @@ export default function CardsScreen() {
   const autoFlipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 복습 탭에서 카테고리를 눌러 진입하면 category 파라미터로 해당 카테고리만 학습한다.
-  const { category } = useLocalSearchParams<{ category?: string }>();
+  // content 상세의 "이 카드 학습하기"로 진입하면 focusId(그 카드 1장)만 학습하고,
+  // 끝나면 returnTo 경로(원래 보던 컨텐츠)로 되돌아간다.
+  const { category, focusId, returnTo } = useLocalSearchParams<{ category?: string; focusId?: string; returnTo?: string }>();
   const isCategoryMode = !!category;
+  const isFocusMode = !!focusId;
 
   const todayQuery = useTodayCards();
   const allQuery = useAllCards();
-  const { isLoading, error, refetch } = isCategoryMode ? allQuery : todayQuery;
+  const { isLoading, error, refetch } = (isCategoryMode || isFocusMode) ? allQuery : todayQuery;
   const markCardMutation = useMarkCard();
 
   // 오늘의 학습 = 신규 3장 + 복습 최대 4장(총 최대 7장). 카테고리 복습은 해당 카테고리 전체.
   // 복습 카드는 예정일이 오래된 순(가장 오래 방치된 카드)으로 우선 배치한다.
   const computedDeck = useMemo(() => {
+    if (isFocusMode) return (allQuery.data ?? []).filter((x) => x.id === focusId);
     if (isCategoryMode) return (allQuery.data ?? []).filter((x) => x.category === category);
     const today = todayQuery.data ?? [];
     const news = today.filter((x) => x.status === 'new').slice(0, NEW_PER_DAY);
@@ -100,7 +104,7 @@ export default function CardsScreen() {
       .sort((a, b) => (a.dueAt?.getTime() ?? 0) - (b.dueAt?.getTime() ?? 0))
       .slice(0, REVIEW_PER_DAY);
     return [...news, ...reviews];
-  }, [isCategoryMode, category, allQuery.data, todayQuery.data]);
+  }, [isFocusMode, focusId, isCategoryMode, category, allQuery.data, todayQuery.data]);
 
   // 덱은 세션 시작 시 한 번만 확정한다.
   // 카드를 마킹하면 cards 쿼리가 무효화되어 목록이 새로 내려오는데, 그때마다 덱을 다시 계산하면
@@ -108,10 +112,10 @@ export default function CardsScreen() {
   // (2) 'learning' 으로 바뀐 신규 카드는 복습 구간에 다시 편입되어 같은 문제가 두 번 나온다.
   // 진행 중인 세션의 덱은 데이터 갱신과 무관하게 고정되어야 한다.
   const [sessionDeck, setSessionDeck] = useState<LearningCard[] | null>(null);
-  const sessionKey = isCategoryMode ? `category:${category}` : 'today';
+  const sessionKey = isFocusMode ? `focus:${focusId}` : isCategoryMode ? `category:${category}` : 'today';
 
   useEffect(() => {
-    // 카테고리 전환 등으로 세션 대상이 바뀌면 덱을 다시 뽑는다.
+    // 카테고리 전환·단일카드 진입 등으로 세션 대상이 바뀌면 덱을 다시 뽑는다.
     setSessionDeck(null);
   }, [sessionKey]);
 
@@ -296,9 +300,11 @@ export default function CardsScreen() {
 
   useEffect(() => {
     if (!finished) return;
-    // 카테고리 복습 세션이 끝나면 복습 목록으로, 오늘의 학습이 끝나면 통계로 이동.
-    const target = isCategoryMode ? ROUTES.review : ROUTES.stats;
-    Animated.timing(progressAnim, { toValue: 1, duration: 2000, useNativeDriver: false }).start(({ finished: ok }) => {
+    // 단일 카드(focus) 학습이 끝나면 원래 보던 컨텐츠로 곧장 복귀.
+    // 카테고리 복습이 끝나면 복습 목록으로, 오늘의 학습이 끝나면 통계로 이동.
+    const target = returnTo ?? (isCategoryMode ? ROUTES.review : ROUTES.stats);
+    const dur = returnTo ? 900 : 2000;
+    Animated.timing(progressAnim, { toValue: 1, duration: dur, useNativeDriver: false }).start(({ finished: ok }) => {
       if (ok) router.replace(target as any);
     });
   }, [finished]);
@@ -371,12 +377,12 @@ export default function CardsScreen() {
         <Text style={{ fontSize: 52, marginBottom: 12 }}>🎉</Text>
         <Text style={{ color: c.textPrimary, fontSize: 22 * fs, fontWeight: '800', fontFamily: fontCute }}>학습 완료!</Text>
         <Text style={{ color: c.textSecondary, marginTop: 6, marginBottom: 28, fontFamily: fontCute }}>
-          {isCategoryMode ? `${category} · ${doneCount}장 복습 완료` : `오늘 ${doneCount}장 학습 완료 · 3분이면 충분해요`}
+          {isFocusMode ? '이 카드 학습을 마쳤어요' : isCategoryMode ? `${category} · ${doneCount}장 복습 완료` : `오늘 ${doneCount}장 학습 완료 · 3분이면 충분해요`}
         </Text>
         <View style={{ width: '60%', height: 4, backgroundColor: c.surfaceAlt, borderRadius: 2, overflow: 'hidden', marginBottom: 24 }}>
           <Animated.View style={{ width: barWidth, height: '100%', backgroundColor: c.primary, borderRadius: 2 }} />
         </View>
-        <Text style={{ color: c.textSecondary, fontSize: 12 * fs, fontFamily: fontCute }}>{isCategoryMode ? '복습 목록으로 이동 중...' : '통계 화면으로 이동 중...'}</Text>
+        <Text style={{ color: c.textSecondary, fontSize: 12 * fs, fontFamily: fontCute }}>{isFocusMode ? '컨텐츠로 돌아가는 중...' : isCategoryMode ? '복습 목록으로 이동 중...' : '통계 화면으로 이동 중...'}</Text>
         <View style={{ marginTop: 20 }}>
           <Button label="다시 학습하기" variant="outline" onPress={restart} />
         </View>
@@ -548,10 +554,10 @@ export default function CardsScreen() {
           {/* 스와이프 방향 라벨 — 오른쪽=아는 것, 왼쪽=모르는 것 */}
           {isSwipeTrack && (
             <>
-              <Animated.View pointerEvents="none" style={{ position: 'absolute', top: 18, left: 18, opacity: knowOpacity, transform: [{ rotate: '-12deg' }], borderWidth: 3, borderColor: c.success, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 4, backgroundColor: c.success + '1A' }}>
+              <Animated.View pointerEvents="none" style={{ position: 'absolute', top: 18, left: 18, opacity: knowOpacity, borderWidth: 3, borderColor: c.success, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 4, backgroundColor: c.success + '1A' }}>
                 <Text style={{ color: c.success, fontSize: 16 * fs, fontWeight: '900', fontFamily: fontCute }}>아는 것 👍</Text>
               </Animated.View>
-              <Animated.View pointerEvents="none" style={{ position: 'absolute', top: 18, right: 18, opacity: dontKnowOpacity, transform: [{ rotate: '12deg' }], borderWidth: 3, borderColor: c.warning, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 4, backgroundColor: c.warning + '1A' }}>
+              <Animated.View pointerEvents="none" style={{ position: 'absolute', top: 18, right: 18, opacity: dontKnowOpacity, borderWidth: 3, borderColor: c.warning, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 4, backgroundColor: c.warning + '1A' }}>
                 <Text style={{ color: c.warning, fontSize: 16 * fs, fontWeight: '900', fontFamily: fontCute }}>모르는 것 🔁</Text>
               </Animated.View>
             </>

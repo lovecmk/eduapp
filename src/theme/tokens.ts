@@ -18,7 +18,7 @@ export const lightTheme = {
     twitter: '#1DA1F2',
     google: '#DB4437',
   },
-  shadow: { color: '#0F172A', opacity: 0.08, radius: 16, offsetY: 6 },
+  shadow: { color: '#0F172A', opacity: 0.07, radius: 22, offsetY: 8 },
 };
 
 export const darkTheme = {
@@ -44,10 +44,11 @@ export const darkTheme = {
   shadow: { color: '#000000', opacity: 0.45, radius: 16, offsetY: 6 },
 };
 
+// 전반적으로 더 둥글고 말랑한(귀여운) 톤 — 모서리 반경을 넉넉히.
 export const radius = {
   pillButton: 999,
-  input: 8,
-  card: 16,
+  input: 14,
+  card: 22,
   iconCircle: 999,
 } as const;
 

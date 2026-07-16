@@ -25,6 +25,11 @@ interface CommunityDTO {
     ends_in_days: number;
   };
   total_cards_all_time?: number;
+  building?: {
+    floor_size: number;
+    current: { month: string; label: string; problems: number; floors: number };
+    history: { month: string; label: string; problems: number; floors: number }[];
+  };
 }
 
 const ACTION_MAP: Record<string, CommunitySnapshot['activities'][number]['action']> = {
@@ -71,6 +76,26 @@ export class CommunityRepository implements ICommunityRepository {
         endsInDays: dto.challenge?.ends_in_days ?? 0,
       },
       totalCardsAllTime: dto.total_cards_all_time ?? 0,
+      building: mapBuilding(dto),
     };
   }
+}
+
+/** 서버 building 응답 매핑 — 아직 미구현이면 누적치로부터 이번 달만 근사 계산. */
+function mapBuilding(dto: CommunityDTO): CommunitySnapshot['building'] {
+  const FLOOR = 20_000;
+  if (dto.building) {
+    return {
+      floorSize: dto.building.floor_size || FLOOR,
+      current: dto.building.current,
+      history: dto.building.history ?? [],
+    };
+  }
+  const now = new Date();
+  const problems = Math.max(0, Math.round((dto.total_cards_all_time ?? 0) % (FLOOR * 40)));
+  return {
+    floorSize: FLOOR,
+    current: { month: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`, label: `${now.getMonth() + 1}월`, problems, floors: Math.floor(problems / FLOOR) },
+    history: [],
+  };
 }

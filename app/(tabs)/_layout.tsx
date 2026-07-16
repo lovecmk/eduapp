@@ -10,7 +10,7 @@ import { HeaderMenuSheet } from '../../src/components/ui/HeaderMenuSheet';
 import { useNotificationStore } from '../../src/store/notificationStore';
 import { useAuthStore } from '../../src/store/authStore';
 import { useSettingsStore } from '../../src/store/settingsStore';
-import { fontDisplay } from '../../src/theme/tokens';
+import { fontDisplay, shadowBox } from '../../src/theme/tokens';
 import { ROUTES } from '../../src/constants/routes';
 
 type IconName = keyof typeof Ionicons.glyphMap;
@@ -30,7 +30,9 @@ function MinimalHeader({ title }: { title: string }) {
 
   return (
     <>
-      <View style={{ height: 58, flexDirection: 'row', alignItems: 'center', backgroundColor: c.bg, borderBottomWidth: 1, borderBottomColor: c.border, paddingHorizontal: 16 }}>
+      {/* 살짝 떠 있는 플로팅 앱바 — 배경과 여백을 두고 둥근 카드 + 은은한 그림자. */}
+      <View style={{ backgroundColor: c.bg, paddingHorizontal: 12, paddingTop: 8, paddingBottom: 8 }}>
+      <View style={{ height: 56, flexDirection: 'row', alignItems: 'center', backgroundColor: c.surface, borderRadius: 22, borderWidth: 1, borderColor: c.border, paddingHorizontal: 16, boxShadow: shadowBox(theme.shadow) }}>
         <Pressable onPress={() => router.push(ROUTES.home as never)} hitSlop={6}>
           <BridgeLogo size={28} />
         </Pressable>
@@ -56,6 +58,7 @@ function MinimalHeader({ title }: { title: string }) {
             </View>
           )}
         </Pressable>
+      </View>
       </View>
 
       <HeaderMenuSheet visible={menuOpen} onClose={() => setMenuOpen(false)} />

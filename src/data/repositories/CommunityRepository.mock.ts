@@ -1,6 +1,43 @@
 import type { ICommunityRepository } from '../../domain/repositories/ICommunityRepository';
-import type { CommunitySnapshot, LiveActivity } from '../../domain/models/Community';
+import type { CommunitySnapshot, LiveActivity, SafetyBuilding, BuildingMonth } from '../../domain/models/Community';
 import { delay } from './_delay';
+
+// ── 함께 짓는 안전 빌딩 (월별 초기화) ────────────────────────────────
+/** 한 층을 올리는 데 필요한 공동 문제 수. */
+export const BUILDING_FLOOR_SIZE = 20_000;
+
+const monthKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+const monthLabel = (d: Date, now: Date) =>
+  d.getFullYear() === now.getFullYear() ? `${d.getMonth() + 1}월` : `${d.getFullYear()}년 ${d.getMonth() + 1}월`;
+
+/** 월 키 기반 결정적 시드 — 같은 달이면 항상 같은 값(서버 교체 전까지 안정적). */
+function seedFor(key: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < key.length; i++) { h ^= key.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return (h >>> 0);
+}
+
+/** 한 달치 빌딩 기록 계산 — 현재 달은 오늘까지 부분 진행, 지난 달은 만월 기준. */
+function buildMonth(d: Date, now: Date): BuildingMonth {
+  const key = monthKey(d);
+  const seed = seedFor(key);
+  const daysInMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  const isCurrent = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+  const dayProgress = isCurrent ? now.getDate() : daysInMonth;
+  const dailyBase = 7_800 + (seed % 5_400); // 하루 ~7.8k–13.2k 문제
+  const problems = Math.round(dailyBase * dayProgress + (seed % 9_000));
+  return { month: key, label: monthLabel(d, now), problems, floors: Math.floor(problems / BUILDING_FLOOR_SIZE) };
+}
+
+/** 이번 달(진행 중) + 지난 6개월 히스토리. */
+function makeBuilding(now: Date): SafetyBuilding {
+  const current = buildMonth(now, now);
+  const history: BuildingMonth[] = [];
+  for (let i = 1; i <= 6; i++) {
+    history.push(buildMonth(new Date(now.getFullYear(), now.getMonth() - i, 1), now));
+  }
+  return { floorSize: BUILDING_FLOOR_SIZE, current, history };
+}
 
 const NAMES = ['김점검', '이안전', '박설비', '최공정', '정위험', '한전기', '오도장', '강분진', '조방재', '윤진단', '서관리', '문점검'];
 const CATEGORIES = ['전기 위험', '공정 위험', '위험물'];
@@ -85,6 +122,7 @@ export class MockCommunityRepository implements ICommunityRepository {
         endsInDays: Math.max(1, 7 - dow),
       },
       totalCardsAllTime,
+      building: makeBuilding(new Date()),
     };
   }
 }

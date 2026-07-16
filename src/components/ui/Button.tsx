@@ -2,7 +2,7 @@
 // colorOverride 로 시맨틱 컬러(success/error)와 UI 키트 형태를 동시 만족 — PART 3.3
 import React from 'react';
 import { Pressable, Text, StyleSheet, ActivityIndicator, type ViewStyle } from 'react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, withSpring } from 'react-native-reanimated';
 import { useTheme } from '../../theme/ThemeProvider';
 import { radius } from '../../theme/tokens';
 
@@ -40,8 +40,8 @@ export function Button({
         accessibilityRole="button"
         onPress={onPress}
         disabled={disabled || loading}
-        onPressIn={() => { scale.value = withTiming(0.97, { duration: 80 }); }}
-        onPressOut={() => { scale.value = withTiming(1, { duration: 120 }); }}
+        onPressIn={() => { scale.value = withTiming(0.94, { duration: 90 }); }}
+        onPressOut={() => { scale.value = withSpring(1, { damping: 9, stiffness: 260 }); }}
         style={({ pressed }) => [
           styles.base,
           variant === 'filled' && {

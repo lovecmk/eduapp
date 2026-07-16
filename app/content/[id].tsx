@@ -114,7 +114,11 @@ export default function ContentDetailScreen() {
       </ScrollView>
 
       <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: 16, paddingBottom: 32, backgroundColor: c.surface, borderTopWidth: 1, borderTopColor: c.border }}>
-        <Button label="이 카드 학습하기" variant="filled" onPress={() => router.push(ROUTES.cards)} />
+        <Button
+          label="이 카드 학습하기"
+          variant="filled"
+          onPress={() => router.push({ pathname: ROUTES.cards, params: { focusId: card.id, returnTo: ROUTES.content(card.id) } })}
+        />
       </View>
 
       <CardReportModal visible={reportOpen} card={card} onClose={() => setReportOpen(false)} />
