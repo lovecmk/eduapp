@@ -122,6 +122,15 @@ export function shadowBox(sh: typeof lightTheme.shadow): string {
   return `0 ${sh.offsetY}px ${sh.radius}px rgba(${r},${g},${b},${sh.opacity})`;
 }
 
+/** 헤더/앱바 하단 경계용 — 아래쪽으로만 살짝 떨어지는 은은한 그림자. */
+export function shadowHeaderBottom(sh: typeof lightTheme.shadow): string {
+  const r = parseInt(sh.color.slice(1, 3), 16);
+  const g = parseInt(sh.color.slice(3, 5), 16);
+  const b = parseInt(sh.color.slice(5, 7), 16);
+  const opacity = Math.min(sh.opacity, 0.12);
+  return `0 3px 6px rgba(${r},${g},${b},${opacity})`;
+}
+
 export type Theme = {
   mode: 'light' | 'dark' | 'dim';
   colors: typeof lightTheme.colors;

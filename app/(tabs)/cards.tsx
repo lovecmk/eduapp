@@ -25,6 +25,7 @@ import type { LearningCard } from '../../src/domain/models/LearningCard';
 import { resolveCardImage } from '../../src/data/cardImages';
 import { useBookmarkStore } from '../../src/store/bookmarkStore';
 import { useReportStore } from '../../src/store/reportStore';
+import { useSrsStore } from '../../src/store/srsStore';
 
 // 하루 학습 상한(운영 지속가능성) — 신규 3장 + 복습 최대 4장 = 하루 최대 7장.
 // '하루 3분' 목표를 지키고 휴가·출장 후 누적으로 지치지 않도록 학습량을 고정한다.
@@ -39,6 +40,16 @@ const SWIPE_THRESHOLD = 90;
 function haptic() {
   if (Platform.OS === 'web') return;
   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+}
+
+// Fisher–Yates 셔플 — 원본을 건드리지 않고 새 배열을 반환.
+function shuffle<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
 }
 
 function notify(ok: boolean) {
@@ -92,19 +103,42 @@ export default function CardsScreen() {
   const { isLoading, error, refetch } = (isCategoryMode || isFocusMode) ? allQuery : todayQuery;
   const markCardMutation = useMarkCard();
 
+  // 학습 옵션(설정) — 카드 순서 섞기 / 약점 우선 복습.
+  const shuffleCards = useSettingsStore((s) => s.shuffleCards);
+  const prioritizeWeakSpots = useSettingsStore((s) => s.prioritizeWeakSpots);
+  const srsCards = useSrsStore((s) => s.cards);
+
   // 오늘의 학습 = 신규 3장 + 복습 최대 4장(총 최대 7장). 카테고리 복습은 해당 카테고리 전체.
   // 복습 카드는 예정일이 오래된 순(가장 오래 방치된 카드)으로 우선 배치한다.
   const computedDeck = useMemo(() => {
+    // 단일 카드(focus) 모드는 순서 옵션과 무관(1장).
     if (isFocusMode) return (allQuery.data ?? []).filter((x) => x.id === focusId);
-    if (isCategoryMode) return (allQuery.data ?? []).filter((x) => x.category === category);
-    const today = todayQuery.data ?? [];
-    const news = today.filter((x) => x.status === 'new').slice(0, NEW_PER_DAY);
-    const reviews = today
-      .filter((x) => x.status === 'learning')
-      .sort((a, b) => (a.dueAt?.getTime() ?? 0) - (b.dueAt?.getTime() ?? 0))
-      .slice(0, REVIEW_PER_DAY);
-    return [...news, ...reviews];
-  }, [isFocusMode, focusId, isCategoryMode, category, allQuery.data, todayQuery.data]);
+
+    let base: LearningCard[];
+    if (isCategoryMode) {
+      base = (allQuery.data ?? []).filter((x) => x.category === category);
+    } else {
+      const today = todayQuery.data ?? [];
+      const news = today.filter((x) => x.status === 'new').slice(0, NEW_PER_DAY);
+      const reviews = today
+        .filter((x) => x.status === 'learning')
+        .sort((a, b) => (a.dueAt?.getTime() ?? 0) - (b.dueAt?.getTime() ?? 0))
+        .slice(0, REVIEW_PER_DAY);
+      base = [...news, ...reviews];
+    }
+
+    // 약점 우선이 켜져 있으면 자주 잊는(lapses↑)·기억 약한(box↓) 카드를 앞으로.
+    // 그렇지 않고 섞기가 켜져 있으면 무작위로 배열한다(두 옵션은 배타적으로 적용).
+    if (prioritizeWeakSpots) {
+      const weakScore = (id: string) => {
+        const st = srsCards[id];
+        return st ? st.lapses * 3 - st.box : 0;
+      };
+      return [...base].sort((a, b) => weakScore(b.id) - weakScore(a.id));
+    }
+    if (shuffleCards) return shuffle(base);
+    return base;
+  }, [isFocusMode, focusId, isCategoryMode, category, allQuery.data, todayQuery.data, prioritizeWeakSpots, shuffleCards, srsCards]);
 
   // 덱은 세션 시작 시 한 번만 확정한다.
   // 카드를 마킹하면 cards 쿼리가 무효화되어 목록이 새로 내려오는데, 그때마다 덱을 다시 계산하면
