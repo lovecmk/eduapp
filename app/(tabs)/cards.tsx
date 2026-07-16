@@ -263,19 +263,32 @@ export default function CardsScreen() {
   const swipeEnabledRef = useRef(false);
   swipeEnabledRef.current = isSwipeTrack && !exiting && !finished && !!card;
 
+  // 카드를 왼쪽으로 끄는 동작이 안드로이드 가장자리 '뒤로가기' 제스처로 오인되면
+  // 시스템이 뒤로가기를 보내고, 하단 탭 네비게이터가 첫 탭(홈)으로 이동해 버린다.
+  // 카드를 만지는 중/직후에 들어온 뒤로가기는 스와이프의 부작용으로 보고 삼킨다.
+  const lastCardTouchRef = useRef(0);
+  const SWIPE_BACK_GUARD_MS = 700;
+  const markCardTouch = () => { lastCardTouchRef.current = Date.now(); };
+
   const panResponder = useRef(
     PanResponder.create({
+      // 터치 시작을 기록만 하고 응답자는 가로채지 않는다(탭·퀴즈 보기 선택은 그대로 동작).
+      onStartShouldSetPanResponderCapture: () => { markCardTouch(); return false; },
       onMoveShouldSetPanResponder: (_, g) =>
         swipeEnabledRef.current && Math.abs(g.dx) > 14 && Math.abs(g.dx) > Math.abs(g.dy) * 1.4,
       onPanResponderMove: (_, g) => {
+        markCardTouch();
         translateX.setValue(g.dx);
       },
       onPanResponderRelease: (_, g) => {
+        markCardTouch();
         if (g.dx > SWIPE_THRESHOLD) trySwipeRef.current('right');
         else if (g.dx < -SWIPE_THRESHOLD) trySwipeRef.current('left');
         else Animated.spring(translateX, { toValue: 0, useNativeDriver: true, friction: 6 }).start();
       },
       onPanResponderTerminate: () => {
+        // 시스템 제스처가 터치를 가져가면 여기로 온다 — 카드는 제자리로 되돌린다.
+        markCardTouch();
         Animated.spring(translateX, { toValue: 0, useNativeDriver: true, friction: 6 }).start();
       },
     }),
@@ -312,7 +325,13 @@ export default function CardsScreen() {
     useCallback(() => {
       if (Platform.OS !== 'android') return;
       const onBack = () => {
-        if (sessionActive && !exitConfirm) {
+        // 카드 스와이프가 가장자리 뒤로가기 제스처로 오인된 경우 — 홈으로 튕기지 않도록 삼킨다.
+        if (isSwipeTrack && Date.now() - lastCardTouchRef.current < SWIPE_BACK_GUARD_MS) return true;
+        if (exitConfirm) {
+          setExitConfirm(false); // 모달이 떠 있으면 모달만 닫는다(홈 이동 차단)
+          return true;
+        }
+        if (sessionActive) {
           setExitConfirm(true);
           return true; // 기본 뒤로가기(홈 이동) 차단
         }
@@ -320,7 +339,7 @@ export default function CardsScreen() {
       };
       const sub = BackHandler.addEventListener('hardwareBackPress', onBack);
       return () => sub.remove();
-    }, [sessionActive, exitConfirm]),
+    }, [sessionActive, exitConfirm, isSwipeTrack]),
   );
 
   const leaveSession = useCallback((target: string) => {
