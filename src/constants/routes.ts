@@ -14,6 +14,7 @@ export const ROUTES = {
   developer: '/developer',
   saved: '/saved',
   support: '/support',
+  share: '/share',
   content: (id: string) => `/content/${id}`,
   qna: (id: string) => `/qna/${id}`,
   collection: (type: string) => `/collection/${type}`,

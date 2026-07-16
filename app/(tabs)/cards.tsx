@@ -104,9 +104,16 @@ export default function CardsScreen() {
   const { isLoading, error, refetch } = (isCategoryMode || isFocusMode) ? allQuery : todayQuery;
   const markCardMutation = useMarkCard();
 
-  // 학습 옵션(설정) — 카드 순서 섞기 / 약점 우선 복습.
+  // 학습 옵션(설정) — 카드 순서 섞기 / 약점 우선 복습 / '모를 때' 햅틱.
   const shuffleCards = useSettingsStore((s) => s.shuffleCards);
   const prioritizeWeakSpots = useSettingsStore((s) => s.prioritizeWeakSpots);
+  const dontKnowHaptic = useSettingsStore((s) => s.dontKnowHaptic);
+
+  // '모를 때(빨간 버튼/왼쪽 스와이프)'에만 주는 최소 햅틱 — 설정으로 끌 수 있다.
+  const dnkHaptic = useCallback(() => {
+    if (!dontKnowHaptic || Platform.OS === 'web') return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }, [dontKnowHaptic]);
   const srsCards = useSrsStore((s) => s.cards);
 
   // 오늘의 학습 = 신규 3장 + 복습 최대 4장(총 최대 7장). 카테고리 복습은 해당 카테고리 전체.
@@ -237,23 +244,23 @@ export default function CardsScreen() {
   const completeLeft = useCallback(() => {
     if (exiting) return;
     setExiting(true);
-    haptic();
+    // '아는 것(학습 완료)'은 조용히 넘긴다 — 넘김 햅틱은 '모를 때'에만.
     Animated.parallel([
       Animated.timing(translateX, { toValue: -SCREEN_W - 80, duration: 300, useNativeDriver: true }),
       Animated.timing(cardOpacity, { toValue: 0, duration: 260, useNativeDriver: true }),
     ]).start(() => advance('mastered'));
   }, [exiting, translateX, cardOpacity, advance]);
 
-  // "다음에 한번 더" → 위로 올림.
+  // "다음에 한번 더"(모를 때 = 빨간 버튼) → 위로 올림. 최소 햅틱을 준다.
   const againUp = useCallback(() => {
     if (exiting) return;
     setExiting(true);
-    haptic();
+    dnkHaptic();
     Animated.parallel([
       Animated.timing(translateY, { toValue: -SCREEN_H, duration: 320, useNativeDriver: true }),
       Animated.timing(cardOpacity, { toValue: 0, duration: 280, useNativeDriver: true }),
     ]).start(() => advance('learning'));
-  }, [exiting, translateY, cardOpacity, advance]);
+  }, [exiting, translateY, cardOpacity, advance, dnkHaptic]);
 
   // ── 스와이프 트랙(원진섭) 전용 동작 ───────────────────────────────
   const solveHintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -279,12 +286,13 @@ export default function CardsScreen() {
   const swipeAway = useCallback((dir: 'left' | 'right', status: 'mastered' | 'learning') => {
     if (exiting) return;
     setExiting(true);
-    haptic();
+    // 왼쪽(모르는 것=다시)만 최소 햅틱, 오른쪽(아는 것)은 조용히.
+    if (status === 'learning') dnkHaptic();
     Animated.parallel([
       Animated.timing(translateX, { toValue: dir === 'right' ? SCREEN_W + 100 : -SCREEN_W - 100, duration: 280, useNativeDriver: true }),
       Animated.timing(cardOpacity, { toValue: 0, duration: 240, useNativeDriver: true }),
     ]).start(() => advance(status));
-  }, [exiting, translateX, cardOpacity, advance]);
+  }, [exiting, translateX, cardOpacity, advance, dnkHaptic]);
 
   // 스와이프 시도 — 퀴즈 미풀이면 막고, 아니면 방향에 맞게 분류.
   const trySwipe = useCallback((dir: 'left' | 'right') => {
@@ -433,7 +441,16 @@ export default function CardsScreen() {
           <Animated.View style={{ width: barWidth, height: '100%', backgroundColor: c.primary, borderRadius: 2 }} />
         </View>
         <Text style={{ color: c.textSecondary, fontSize: 12 * fs, fontFamily: fontCute }}>{isFocusMode ? '컨텐츠로 돌아가는 중...' : isCategoryMode ? '복습 목록으로 이동 중...' : '통계 화면으로 이동 중...'}</Text>
-        <View style={{ marginTop: 20 }}>
+        {!isFocusMode && (
+          <Pressable
+            onPress={() => { progressAnim.stopAnimation(); router.push(ROUTES.share as never); }}
+            style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.primary, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 22, marginTop: 20, boxShadow: '0 6px 16px rgba(37,99,235,0.28)' }}
+          >
+            <Ionicons name="sparkles" size={18} color="#fff" />
+            <Text style={{ color: '#fff', fontSize: 15 * fs, fontWeight: '800', fontFamily: fontCute }}>성취 카드 자랑하기</Text>
+          </Pressable>
+        )}
+        <View style={{ marginTop: 12 }}>
           <Button label="다시 학습하기" variant="outline" onPress={restart} />
         </View>
       </View>

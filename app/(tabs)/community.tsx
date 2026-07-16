@@ -8,6 +8,7 @@ import { LivePresenceCard } from '../../src/components/community/LivePresenceCar
 import { WeeklyChallengeCard } from '../../src/components/community/WeeklyChallengeCard';
 import { CommunityBuildCard } from '../../src/components/community/CommunityBuildCard';
 import { CommunityLeaderboardCard } from '../../src/components/community/CommunityLeaderboardCard';
+import { BragFeedCard } from '../../src/components/community/BragFeedCard';
 import { QuestionComposeModal } from '../../src/components/community/QuestionComposeModal';
 import { fontDisplay, fontBody, fontMono } from '../../src/theme/tokens';
 import { getCategoryColor } from '../../src/constants/categories';
@@ -56,6 +57,7 @@ export default function CommunityScreen() {
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 36 }} showsVerticalScrollIndicator={false}>
         {/* 함께 학습 */}
         <LivePresenceCard />
+        <BragFeedCard />
         <WeeklyChallengeCard />
         <CommunityLeaderboardCard />
         <CommunityBuildCard />

@@ -29,6 +29,8 @@ interface SettingsState {
   offlineMode: boolean;
   /** 복습 진입 시 약점 카드를 우선 노출 */
   prioritizeWeakSpots: boolean;
+  /** 카드 넘김 중 '모를 때(빨간 버튼)'에만 미세한 햅틱(ImpactLight)을 준다. */
+  dontKnowHaptic: boolean;
   /** 관심 분야(대분류) — 개인화용 */
   interests: CardCategory[];
   profileImage: string | null;
@@ -46,6 +48,7 @@ interface SettingsState {
   toggleKeepScreenOn: () => void;
   toggleOfflineMode: () => void;
   togglePrioritizeWeakSpots: () => void;
+  toggleDontKnowHaptic: () => void;
   toggleInterest: (cat: CardCategory) => void;
   setProfileImage: (uri: string | null) => void;
   /** 로컬 저장 데이터를 초기화하고 기본 설정으로 되돌린다(방어적 초기화). */
@@ -72,6 +75,8 @@ const DEFAULT_SETTINGS = {
   keepScreenOn: false,
   offlineMode: false,
   prioritizeWeakSpots: false,
+  // 기본 켜짐 — '모를 때'만 살짝 진동해 촉감 피드백을 준다. 설정에서 완전히 끌 수 있다.
+  dontKnowHaptic: true,
   interests: [] as CardCategory[],
   profileImage: null as string | null,
 };
@@ -92,6 +97,7 @@ export const useSettingsStore = create<SettingsState>()(
       toggleKeepScreenOn: () => set((s) => ({ keepScreenOn: !s.keepScreenOn })),
       toggleOfflineMode: () => set((s) => ({ offlineMode: !s.offlineMode })),
       togglePrioritizeWeakSpots: () => set((s) => ({ prioritizeWeakSpots: !s.prioritizeWeakSpots })),
+      toggleDontKnowHaptic: () => set((s) => ({ dontKnowHaptic: !s.dontKnowHaptic })),
       toggleInterest: (cat) => set((s) => ({
         interests: s.interests.includes(cat) ? s.interests.filter((x) => x !== cat) : [...s.interests, cat],
       })),

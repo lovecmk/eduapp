@@ -64,10 +64,11 @@ export default function SettingsScreen() {
   const {
     themeMode, fontScale: fontScaleSetting, highContrast,
     notifications, biometricLoginEnabled, dailyTarget, shuffleCards, keepScreenOn, offlineMode,
-    prioritizeWeakSpots,
+    prioritizeWeakSpots, dontKnowHaptic,
     setThemeMode, setFontScale, toggleHighContrast,
     updateNotificationSetting, setBiometricLogin, setDailyTarget,
-    toggleShuffleCards, toggleKeepScreenOn, toggleOfflineMode, togglePrioritizeWeakSpots, resetAll,
+    toggleShuffleCards, toggleKeepScreenOn, toggleOfflineMode, togglePrioritizeWeakSpots,
+    toggleDontKnowHaptic, resetAll,
   } = useSettingsStore();
 
   const user = useAuthStore((s) => s.user);
@@ -248,6 +249,12 @@ export default function SettingsScreen() {
             label="화면 켜짐 유지"
             description="학습 중 화면 꺼짐 방지"
             right={<Switch value={keepScreenOn} onValueChange={toggleKeepScreenOn} />}
+          />
+          <SettingsItem
+            icon="pulse-outline"
+            label="'모를 때' 진동"
+            description="빨간 버튼(다음에 한번 더)에만 미세한 진동"
+            right={<Switch value={dontKnowHaptic} onValueChange={toggleDontKnowHaptic} />}
           />
         </SettingsGroup>
 

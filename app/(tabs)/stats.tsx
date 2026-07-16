@@ -1,8 +1,10 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, ScrollView, FlatList, ActivityIndicator, Pressable, RefreshControl } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../src/theme/ThemeProvider';
 import { useAuthStore } from '../../src/store/authStore';
+import { ROUTES } from '../../src/constants/routes';
 import { Button } from '../../src/components/ui/Button';
 import { Card } from '../../src/components/ui/Card';
 import { ErrorState } from '../../src/components/ui/ErrorState';
@@ -101,6 +103,7 @@ export default function StatsScreen() {
   const { theme, fontScale } = useTheme();
   const c = theme.colors;
   const fs = fontScale;
+  const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const interests = useSettingsStore((s) => s.interests);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -192,6 +195,19 @@ export default function StatsScreen() {
           <StatTile icon="flame" color={c.warning} value={`${stats?.streakDays ?? 0}일`} label="연속 학습" />
           <StatTile icon="trophy" color="#F2705B" value={`${stats?.bestStreak ?? 0}일`} label="최고 기록" />
         </View>
+
+        {/* 성취 카드 자랑하기 — 스포티파이 랩드 스타일 카드로 커뮤니티에 공유 */}
+        <Pressable onPress={() => router.push(ROUTES.share as never)}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.primary, borderRadius: 16, padding: 16, marginBottom: 20, boxShadow: '0 6px 16px rgba(37,99,235,0.28)' }}>
+          <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name="sparkles" size={20} color="#fff" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: '#fff', fontSize: 15 * fs, fontWeight: '800', fontFamily: fontCute }}>성취 카드 만들기</Text>
+            <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 12 * fs, fontFamily: fontBody, marginTop: 2 }}>나의 칭호·기록을 커뮤니티에 자랑해요</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#fff" />
+        </Pressable>
 
         <LearningPersonaCard cards={allCards} interests={interests} />
 
