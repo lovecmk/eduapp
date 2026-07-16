@@ -7,7 +7,7 @@ import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { useTheme } from '../src/theme/ThemeProvider';
 import { ScreenHeader } from '../src/components/ui/ScreenHeader';
 import { SearchBar } from '../src/components/ui/SearchBar';
-import { SkeletonLoader } from '../src/components/ui/SkeletonLoader';
+import { ContentsSkeleton } from '../src/components/skeletons';
 import { ErrorState } from '../src/components/ui/ErrorState';
 import { CategoryTrail } from '../src/components/ui/CategoryTrail';
 import { fontDisplay, fontBody, fontMono } from '../src/theme/tokens';
@@ -55,7 +55,7 @@ export default function ContentsScreen() {
   }, [allCards, search]);
 
   if (isLoading && allCards.length === 0 && !error) {
-    return <View style={{ flex: 1, backgroundColor: c.bg }}><ScreenHeader title="학습 목표" /><SkeletonLoader count={5} /></View>;
+    return <View style={{ flex: 1, backgroundColor: c.bg }}><ScreenHeader title="학습 목표" /><ContentsSkeleton /></View>;
   }
   if (error && allCards.length === 0) {
     return <View style={{ flex: 1, backgroundColor: c.bg }}><ScreenHeader title="학습 목표" /><ErrorState message="컨텐츠를 불러올 수 없어요" onRetry={refetch} /></View>;

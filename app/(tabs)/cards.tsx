@@ -9,7 +9,7 @@ import { useSettingsStore } from '../../src/store/settingsStore';
 import { getUxTrack } from '../../src/utils/uxTrack';
 import { Button } from '../../src/components/ui/Button';
 import { Badge } from '../../src/components/ui/Badge';
-import { SkeletonLoader } from '../../src/components/ui/SkeletonLoader';
+import { CardStudySkeleton } from '../../src/components/skeletons';
 import { ErrorState } from '../../src/components/ui/ErrorState';
 import { QuestionImage } from '../../src/components/ui/QuestionImage';
 import { CategoryTrail } from '../../src/components/ui/CategoryTrail';
@@ -413,11 +413,7 @@ export default function CardsScreen() {
   }, [router]);
 
   if (isLoading && deck.length === 0 && !error) {
-    return (
-      <View style={{ flex: 1, backgroundColor: c.bg }}>
-        <SkeletonLoader count={3} />
-      </View>
-    );
+    return <CardStudySkeleton />;
   }
 
   if (error && deck.length === 0) {

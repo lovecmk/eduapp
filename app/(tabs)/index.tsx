@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, ScrollView, ActivityIndicator, Pressable, RefreshControl, Image } from 'react-native';
+import { View, Text, ScrollView, Pressable, RefreshControl, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../src/theme/ThemeProvider';
@@ -12,6 +12,7 @@ import { ErrorState } from '../../src/components/ui/ErrorState';
 import { DailyQuestsCard } from '../../src/components/home/DailyQuestsCard';
 import { DailyTipCard } from '../../src/components/home/DailyTipCard';
 import { MomentModal } from '../../src/components/home/MomentModal';
+import { HomeSkeleton } from '../../src/components/skeletons';
 import { LivePresenceStrip } from '../../src/components/community/LivePresenceStrip';
 import { LearningCalendar } from '../../src/components/community/LearningCalendar';
 import { fontMono, fontDisplay, fontBody } from '../../src/theme/tokens';
@@ -126,11 +127,7 @@ export default function HomeScreen() {
   }, [refetchAll, refetchToday, refetchStats]);
 
   if (statsLoading && !stats && cardsLoading && allCards.length === 0) {
-    return (
-      <View style={{ flex: 1, backgroundColor: c.bg, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator color={c.primary} />
-      </View>
-    );
+    return <HomeSkeleton />;
   }
 
   return (

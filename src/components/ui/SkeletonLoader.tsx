@@ -1,40 +1,37 @@
-import React, { useEffect, useRef } from 'react';
-import { View, Animated, StyleSheet } from 'react-native';
+import React from 'react';
+import { View } from 'react-native';
 import { useTheme } from '../../theme/ThemeProvider';
+import { Skeleton, SkeletonCircle } from './Skeleton';
 
+// 리스트형 스켈레톤 — 아바타 + 두 줄 텍스트 행을 count 개 만큼 반복한다.
+// (기존 호출부 호환을 위해 API 유지: `<SkeletonLoader count={n} />`)
 export function SkeletonLoader({ count = 3 }: { count?: number }) {
   const { theme } = useTheme();
   const c = theme.colors;
-  const opacity = useRef(new Animated.Value(0.2)).current;
-
-  useEffect(() => {
-    const anim = Animated.loop(
-      Animated.sequence([
-        Animated.timing(opacity, { toValue: 0.7, duration: 700, useNativeDriver: true }),
-        Animated.timing(opacity, { toValue: 0.2, duration: 700, useNativeDriver: true }),
-      ]),
-    );
-    anim.start();
-    return () => anim.stop();
-  }, []);
 
   return (
     <View style={{ padding: 20 }}>
       {Array.from({ length: count }).map((_, i) => (
-        <Animated.View key={i} style={[styles.row, { opacity, backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
-          <View style={[styles.circle, { backgroundColor: c.disabled }]} />
+        <View
+          key={i}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            borderRadius: 14,
+            padding: 14,
+            marginBottom: 10,
+            borderWidth: 1,
+            backgroundColor: c.surface,
+            borderColor: c.border,
+          }}
+        >
+          <SkeletonCircle size={34} style={{ marginRight: 12 }} />
           <View style={{ flex: 1 }}>
-            <View style={[styles.line, { width: '70%', backgroundColor: c.disabled }]} />
-            <View style={[styles.line, { width: '40%', marginTop: 6, backgroundColor: c.disabled }]} />
+            <Skeleton width="70%" height={14} />
+            <Skeleton width="40%" height={14} style={{ marginTop: 6 }} />
           </View>
-        </Animated.View>
+        </View>
       ))}
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', borderRadius: 14, padding: 14, marginBottom: 10, borderWidth: 1 },
-  circle: { width: 34, height: 34, borderRadius: 17, marginRight: 12 },
-  line: { height: 14, borderRadius: 7 },
-});

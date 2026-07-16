@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { View, Text, ScrollView, FlatList, ActivityIndicator, Pressable, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, FlatList, Pressable, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../src/theme/ThemeProvider';
@@ -13,6 +13,7 @@ import { ReviewStatusCard } from '../../src/components/review/ReviewStatusCard';
 import { LearningPersonaCard } from '../../src/components/stats/LearningPersonaCard';
 import { LearningRhythmCard } from '../../src/components/stats/LearningRhythmCard';
 import { WeeklyChart } from '../../src/components/stats/WeeklyChart';
+import { StatsSkeleton } from '../../src/components/skeletons';
 import { useSettingsStore } from '../../src/store/settingsStore';
 import { fontMono, fontCute, fontDisplay, fontBody } from '../../src/theme/tokens';
 import { getCategoryIcon, getCategoryColor } from '../../src/constants/categories';
@@ -169,11 +170,7 @@ export default function StatsScreen() {
   const queryError = error || cardsError;
 
   if (loading && !stats && !queryError) {
-    return (
-      <View style={{ flex: 1, backgroundColor: c.bg, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator color={c.primary} />
-      </View>
-    );
+    return <StatsSkeleton />;
   }
 
   if (queryError && !stats) {
