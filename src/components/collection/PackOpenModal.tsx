@@ -5,13 +5,11 @@ import * as Haptics from 'expo-haptics';
 import Animated, { ZoomIn, FadeIn } from 'react-native-reanimated';
 import { CollectibleCard } from './CollectibleCard';
 import { COLLECTIBLE_BY_ID } from '../../data/collectibles';
-import { RARITY_META, type RarityTier } from '../../utils/rarity';
+import { RARITY_META, RARITY_RANK as RANK, type RarityTier } from '../../utils/rarity';
 import { fontCute, fontDisplay } from '../../theme/tokens';
 import type { DrawResult } from '../../store/collectionStore';
 
 const { width: SCREEN_W } = Dimensions.get('window');
-const RANK: Record<RarityTier, number> = { common: 0, rare: 1, epic: 2, legendary: 3 };
-const TIER_LABEL: Record<RarityTier, string> = { common: '노멀', rare: '레어', epic: '에픽', legendary: '레전드' };
 
 /** 카드팩 개봉 연출 — 닫힌 팩 탭 → 카드가 하나씩 반짝이며 등장. */
 export function PackOpenModal({ results, onClose }: { results: DrawResult[] | null; onClose: () => void }) {
@@ -61,7 +59,7 @@ export function PackOpenModal({ results, onClose }: { results: DrawResult[] | nu
             {RANK[best] >= 1 && (
               <Animated.View entering={FadeIn.delay(results.length * 160 + 200)} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 16, backgroundColor: bestMeta.badgeBg, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 8, borderWidth: 1, borderColor: bestMeta.glow + '99' }}>
                 <Text style={{ fontSize: 15 }}>✨</Text>
-                <Text style={{ color: '#fff', fontSize: 14, fontFamily: fontDisplay, fontWeight: '900' }}>{TIER_LABEL[best]} 카드 등장!</Text>
+                <Text style={{ color: '#fff', fontSize: 14, fontFamily: fontDisplay, fontWeight: '900' }}>{RARITY_META[best].label} 카드 등장!</Text>
               </Animated.View>
             )}
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 14, justifyContent: 'center' }}>

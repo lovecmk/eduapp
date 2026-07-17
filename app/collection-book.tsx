@@ -7,17 +7,17 @@ import { ScreenHeader } from '../src/components/ui/ScreenHeader';
 import { CollectibleCard } from '../src/components/collection/CollectibleCard';
 import { PackOpenModal } from '../src/components/collection/PackOpenModal';
 import { COLLECTIBLES, COLLECTIBLE_BY_ID } from '../src/data/collectibles';
-import { RARITY_META, type RarityTier } from '../src/utils/rarity';
+import { RARITY_META, RARITY_RANK as RANK, RARITY_ORDER, type RarityTier } from '../src/utils/rarity';
 import { useTilt } from '../src/hooks/useTilt';
-import { useCollectionStore, type DrawResult } from '../src/store/collectionStore';
+import { useCollectionStore, STUDY_PER_PACK, type DrawResult } from '../src/store/collectionStore';
 import { fontCute, fontBody, fontMono, fontDisplay } from '../src/theme/tokens';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const GAP = 10;
 const COL_W = (SCREEN_W - 20 * 2 - GAP * 2) / 3;
-const RANK: Record<RarityTier, number> = { common: 0, rare: 1, epic: 2, legendary: 3 };
-const TIER_LABEL: Record<RarityTier, string> = { common: '노멀', rare: '레어', epic: '에픽', legendary: '레전드' };
-const ORDER: RarityTier[] = ['legendary', 'epic', 'rare', 'common'];
+// 도감은 높은 등급을 위에 노출(공용 오름차순을 뒤집는다).
+const ORDER: RarityTier[] = [...RARITY_ORDER].reverse();
+const label = (t: RarityTier) => RARITY_META[t].label;
 
 export default function CollectionBookScreen() {
   const { theme, fontScale: fs } = useTheme();
@@ -85,7 +85,7 @@ export default function CollectionBookScreen() {
               const ownT = byRarity[tier].filter((x) => owned[x.id]).length;
               return (
                 <View key={tier} style={{ flex: 1, alignItems: 'center', backgroundColor: c.surfaceAlt, borderRadius: 12, paddingVertical: 8 }}>
-                  <Text style={{ color: tier === 'common' ? c.textSecondary : RARITY_META[tier].glow, fontSize: 10.5, fontFamily: fontDisplay, fontWeight: '800' }}>{TIER_LABEL[tier]}</Text>
+                  <Text style={{ color: tier === 'common' ? c.textSecondary : RARITY_META[tier].glow, fontSize: 10.5, fontFamily: fontDisplay, fontWeight: '800' }}>{label(tier)}</Text>
                   <Text style={{ color: c.textPrimary, fontSize: 12.5, fontFamily: fontMono, fontWeight: '800', marginTop: 2 }}>{ownT}/{totalT}</Text>
                 </View>
               );
@@ -108,7 +108,7 @@ export default function CollectionBookScreen() {
             )}
           </View>
           <Text style={{ color: c.textSecondary, fontSize: 11, fontFamily: fontBody, marginTop: 10, textAlign: 'center' }}>
-            학습 {3 - (studyProgress % 3)}회 더 하면 카드팩 1개 · 매일 무료팩 1개
+            학습 {STUDY_PER_PACK - (studyProgress % STUDY_PER_PACK)}회 더 하면 카드팩 1개 · 매일 무료팩 1개
           </Text>
         </View>
 
@@ -117,7 +117,7 @@ export default function CollectionBookScreen() {
           <View key={tier} style={{ marginTop: 22 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 }}>
               <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: tier === 'common' ? c.textSecondary : RARITY_META[tier].glow }} />
-              <Text style={{ color: c.textPrimary, fontSize: 14 * fs, fontFamily: fontCute, fontWeight: '800' }}>{TIER_LABEL[tier]}</Text>
+              <Text style={{ color: c.textPrimary, fontSize: 14 * fs, fontFamily: fontCute, fontWeight: '800' }}>{label(tier)}</Text>
               <Text style={{ color: c.textSecondary, fontSize: 11.5, fontFamily: fontMono }}>{byRarity[tier].filter((x) => owned[x.id]).length}/{byRarity[tier].length}</Text>
             </View>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: GAP }}>

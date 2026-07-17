@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLLECTIBLES, COLLECTIBLE_BY_ID, DRAW_WEIGHTS, PACK_SIZE } from '../data/collectibles';
-import type { RarityTier } from '../utils/rarity';
+import { RARITY_ORDER, type RarityTier } from '../utils/rarity';
 
 export interface DrawResult {
   id: string;
@@ -10,12 +10,17 @@ export interface DrawResult {
   isNew: boolean;
 }
 
+/** 첫 방문에 지급하는 카드팩 수. */
+export const INITIAL_PACKS = 5;
+/** 학습 몇 회마다 카드팩 1개를 적립하는지. */
+export const STUDY_PER_PACK = 2;
+/** 일일 무료팩 지급 수. */
+export const DAILY_PACK = 1;
+
 const todayKey = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
-
-const RARITY_ORDER: RarityTier[] = ['common', 'rare', 'epic', 'legendary'];
 
 /** 가중치로 등급 1개를 뽑고, 그 등급의 카드 중 랜덤 1장 id 를 반환. */
 function drawOne(): string {
@@ -54,13 +59,12 @@ interface CollectionState {
   clearNew: (ids: string[]) => void;
 }
 
-const STUDY_PER_PACK = 3;
 
 export const useCollectionStore = create<CollectionState>()(
   persist(
     (set, get) => ({
       owned: {},
-      packs: 2, // 첫 방문에 바로 열어볼 수 있게 2팩 지급
+      packs: INITIAL_PACKS, // 첫 방문에 넉넉히 열어볼 수 있게 지급
       lastDailyPack: null,
       studyProgress: 0,
       newIds: [],
@@ -68,7 +72,7 @@ export const useCollectionStore = create<CollectionState>()(
       claimDaily: () => {
         const today = todayKey();
         if (get().lastDailyPack === today) return false;
-        set((s) => ({ packs: s.packs + 1, lastDailyPack: today }));
+        set((s) => ({ packs: s.packs + DAILY_PACK, lastDailyPack: today }));
         return true;
       },
 
@@ -106,6 +110,16 @@ export const useCollectionStore = create<CollectionState>()(
 
       clearNew: (ids) => set((s) => ({ newIds: s.newIds.filter((x) => !ids.includes(x)) })),
     }),
-    { name: 'collection', version: 1, storage: createJSONStorage(() => AsyncStorage) },
+    {
+      name: 'collection',
+      version: 2,
+      storage: createJSONStorage(() => AsyncStorage),
+      // v1 → v2: 팩 지급을 늘렸으니 기존 사용자에게도 보너스 팩 3개.
+      migrate: (persisted: unknown, from: number) => {
+        const state = persisted as CollectionState | undefined;
+        if (state && from < 2) state.packs = (state.packs ?? 0) + 3;
+        return state as CollectionState;
+      },
+    },
   ),
 );

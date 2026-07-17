@@ -17,7 +17,6 @@ const TIER_BG: Record<RarityTier, [string, string]> = {
   epic: ['#3A1D57', '#22103C'],
   legendary: ['#5A3B12', '#33210A'],
 };
-const TIER_LABEL_KO: Record<RarityTier, string> = { common: '노멀', rare: '레어', epic: '에픽', legendary: '레전드' };
 
 /**
  * 수집형 안전 카드 한 장.
@@ -67,7 +66,7 @@ export function CollectibleCard({
           {/* 상단: 등급 + 파워 */}
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
             <View style={{ backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: 999, paddingHorizontal: 7 * k, paddingVertical: 2 * k, borderWidth: 1, borderColor: borderColor + 'AA' }}>
-              <Text style={{ color: '#fff', fontSize: 9 * k, fontFamily: fontDisplay, fontWeight: '800', letterSpacing: 0.5 }}>{TIER_LABEL_KO[col.rarity]}</Text>
+              <Text style={{ color: '#fff', fontSize: 9 * k, fontFamily: fontDisplay, fontWeight: '800', letterSpacing: 0.5 }}>{meta.label}</Text>
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 * k }}>
               <Ionicons name="shield-checkmark" size={10 * k} color="#FCD34D" />

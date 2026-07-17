@@ -10,7 +10,7 @@ import { WrappedShareCard, SHARE_CARD_ASPECT } from '../src/components/share/Wra
 import { useAllCards } from '../src/hooks/useCards';
 import { useStudyStats } from '../src/hooks/useStats';
 import { computeAchievement, type AchievementSnapshot } from '../src/utils/achievement';
-import { getRarity, RARITY_META, type RarityTier } from '../src/utils/rarity';
+import { getRarity, RARITY_META, RARITY_RANK, type RarityTier } from '../src/utils/rarity';
 import { useTilt } from '../src/hooks/useTilt';
 import { useShareFeedStore } from '../src/store/shareFeedStore';
 import { fontCute, fontBody, fontMono } from '../src/theme/tokens';
@@ -28,7 +28,6 @@ interface Trophy {
   periodLabel: string;
 }
 
-const TIER_ORDER: Record<RarityTier, number> = { legendary: 0, epic: 1, rare: 2, common: 3 };
 
 export default function TrophyRoomScreen() {
   const { theme, fontScale: fs } = useTheme();
@@ -59,7 +58,7 @@ export default function TrophyRoomScreen() {
   }, [trophies]);
   const bestTier = (Object.keys(tierCounts) as RarityTier[])
     .filter((t) => tierCounts[t] > 0)
-    .sort((a, b) => TIER_ORDER[a] - TIER_ORDER[b])[0] ?? 'common';
+    .sort((a, b) => RARITY_RANK[b] - RARITY_RANK[a])[0] ?? 'common';
 
   const [selected, setSelected] = useState<Trophy | null>(null);
 
