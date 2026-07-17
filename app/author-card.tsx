@@ -9,7 +9,7 @@ import { SegmentedControl } from '../src/components/ui/SegmentedControl';
 import { Button } from '../src/components/ui/Button';
 import { Badge } from '../src/components/ui/Badge';
 import { ALL_CATEGORIES } from '../src/constants/categories';
-import { validateCardDraft, type CardDraft, type DraftError } from '../src/domain/models/CardDraft';
+import { validateCardDraft, type CardDraft } from '../src/domain/models/CardDraft';
 import type { CardCategory, CardType, CardDifficulty } from '../src/domain/models/LearningCard';
 import { useCreateCards } from '../src/hooks/useCards';
 import { fontCute, fontBody, fontMono, fontDisplay } from '../src/theme/tokens';

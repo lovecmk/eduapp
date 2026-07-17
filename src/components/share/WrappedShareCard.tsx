@@ -28,7 +28,7 @@ interface Props {
  * 희소 등급(Rarity)에 따라 무지개 테두리·별가루가 차등 부여되고, tilt 를 주면 광택이 일렁인다.
  * react-native-view-shot 의 captureRef 대상이 되도록 forwardRef 로 바깥 View 를 노출한다.
  */
-export const WrappedShareCard = React.forwardRef<View, Props>(function WrappedShareCard(
+const WrappedShareCardBase = React.forwardRef<View, Props>(function WrappedShareCard(
   { snapshot: s, author, width = 320, tilt, animated = false },
   ref,
 ) {
@@ -193,3 +193,6 @@ export const WrappedShareCard = React.forwardRef<View, Props>(function WrappedSh
     </View>
   );
 });
+
+// 피드·트로피룸에서 반복 렌더되는 SVG 카드 — snapshot/props 가 같으면 재렌더를 건너뛴다.
+export const WrappedShareCard = React.memo(WrappedShareCardBase);

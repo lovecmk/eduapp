@@ -23,7 +23,7 @@ const TIER_BG: Record<RarityTier, [string, string]> = {
  * - owned=false → 실루엣(미획득) 상태.
  * - rare 이상은 등급 그라데이션 테두리, tilt 를 주면 홀로그램 광택이 미끄러진다(상세 전용).
  */
-export function CollectibleCard({
+function CollectibleCardBase({
   id,
   owned = true,
   count = 1,
@@ -144,3 +144,6 @@ export function CollectibleCard({
     </View>
   );
 }
+
+// 도감·피드·팩오픈에서 다수가 반복 렌더되는 SVG 카드 — 부모 리렌더 시 불필요한 재렌더를 막는다.
+export const CollectibleCard = React.memo(CollectibleCardBase);

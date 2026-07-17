@@ -141,8 +141,7 @@ export default function CollectionBookScreen() {
 
 /** 카드 상세 — 기기 기울기에 홀로그램 광택이 반응. */
 function CollectibleDetailModal({ id, count, onClose }: { id: string | null; count: number; onClose: () => void }) {
-  const { theme, fontScale: fs } = useTheme();
-  const c = theme.colors;
+  const { fontScale: fs } = useTheme();
   const tilt = useTilt(!!id);
   const col = id ? COLLECTIBLE_BY_ID[id] : null;
   const meta = col ? RARITY_META[col.rarity] : null;

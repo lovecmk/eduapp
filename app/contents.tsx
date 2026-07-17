@@ -92,7 +92,7 @@ export default function ContentsScreen() {
           </View>
         ) : active ? (
           /* --- 선택된 과정: 난이도별 문제 --- */
-          <TrackDetail progress={active} onBack={() => setActiveId(null)} onCard={goCard} onStart={() => router.push(ROUTES.cards)} />
+          <TrackDetail progress={active} onBack={() => setActiveId(null)} onCard={goCard} />
         ) : (
           /* --- 과정 선택(목표) + 전체 둘러보기 --- */
           <>
@@ -133,8 +133,8 @@ export default function ContentsScreen() {
 }
 
 /* ---------- 과정 상세: 난이도별 섹션 ---------- */
-function TrackDetail({ progress, onBack, onCard, onStart }: {
-  progress: TrackProgress; onBack: () => void; onCard: (id: string) => void; onStart: () => void;
+function TrackDetail({ progress, onBack, onCard }: {
+  progress: TrackProgress; onBack: () => void; onCard: (id: string) => void;
 }) {
   const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;

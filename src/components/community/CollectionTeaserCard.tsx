@@ -3,7 +3,7 @@ import { View, Text, Pressable, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/ThemeProvider';
-import { fontDisplay, fontBody, fontMono, radius } from '../../theme/tokens';
+import { fontDisplay, fontBody, radius } from '../../theme/tokens';
 import { ROUTES } from '../../constants/routes';
 import { COLLECTIBLES } from '../../data/collectibles';
 import { CollectibleCard } from '../collection/CollectibleCard';

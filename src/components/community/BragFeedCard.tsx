@@ -3,7 +3,7 @@ import { View, Text, ScrollView, Pressable, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/ThemeProvider';
-import { fontDisplay, fontBody, fontMono } from '../../theme/tokens';
+import { fontDisplay, fontMono } from '../../theme/tokens';
 import { ROUTES } from '../../constants/routes';
 import { useShareFeedStore, REACTION_KINDS, REACTION_EMOJI } from '../../store/shareFeedStore';
 import { WrappedShareCard } from '../share/WrappedShareCard';

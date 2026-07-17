@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, ScrollView, Pressable, RefreshControl, Modal, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, Pressable, RefreshControl, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown, FadeIn, LinearTransition } from 'react-native-reanimated';
 import { useTheme } from '../src/theme/ThemeProvider';

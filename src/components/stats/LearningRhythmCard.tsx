@@ -4,7 +4,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/ThemeProvider';
 import { radius, fontDisplay, fontBody, fontMono } from '../../theme/tokens';
 import { useSrsStore } from '../../store/srsStore';
-import { dateKey } from '../../utils/dateKey';
 
 const DOW = ['일', '월', '화', '수', '목', '금', '토'];
 

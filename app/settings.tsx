@@ -7,7 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../src/theme/ThemeProvider';
 import { useSettingsStore, type ThemeMode, type FontScale } from '../src/store/settingsStore';
 import { useAuthStore } from '../src/store/authStore';
-import { useNotificationStore, NOTIFICATION_TYPE_META, type NotificationType } from '../src/store/notificationStore';
+import { NOTIFICATION_TYPE_META, type NotificationType } from '../src/store/notificationStore';
 import { SegmentedControl } from '../src/components/ui/SegmentedControl';
 import { Switch } from '../src/components/ui/Switch';
 import { Button } from '../src/components/ui/Button';
@@ -74,8 +74,6 @@ export default function SettingsScreen() {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const profileImage = useSettingsStore((s) => s.profileImage);
-  const mutedTypes = useNotificationStore((s) => s.mutedTypes);
-  const setMute = useNotificationStore((s) => s.setMute);
   const interests = useSettingsStore((s) => s.interests);
   const toggleInterest = useSettingsStore((s) => s.toggleInterest);
 
@@ -123,8 +121,6 @@ export default function SettingsScreen() {
       setResetting(false);
     }
   };
-
-  const trackColor = { true: c.primary, false: c.disabled };
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>

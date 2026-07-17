@@ -33,7 +33,6 @@ import { useSrsStore } from '../../src/store/srsStore';
 // 정답률 66.7% 가정에서 복습 카드는 무한 누적되지 않고 장기적으로 하루 4~5장 내외로 안정화된다.
 const NEW_PER_DAY = 3;
 const REVIEW_PER_DAY = 4;
-const DAILY_LIMIT = NEW_PER_DAY + REVIEW_PER_DAY; // 7
 const { height: SCREEN_H, width: SCREEN_W } = Dimensions.get('window');
 // 스와이프 트랙(원진섭)에서 좌우로 넘겨 분류하는 최소 이동 거리.
 const SWIPE_THRESHOLD = 90;

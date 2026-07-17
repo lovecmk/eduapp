@@ -8,7 +8,7 @@ import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { useTheme } from '../../src/theme/ThemeProvider';
 import { ScreenHeader } from '../../src/components/ui/ScreenHeader';
 import { CategoryTrail } from '../../src/components/ui/CategoryTrail';
-import { fontDisplay, fontBody } from '../../src/theme/tokens';
+import { fontDisplay } from '../../src/theme/tokens';
 import { getCategoryIcon, getCategoryColor } from '../../src/constants/categories';
 import { getDifficultyMeta } from '../../src/constants/difficulty';
 import { ROUTES } from '../../src/constants/routes';

@@ -125,8 +125,7 @@ export default function TrophyRoomScreen() {
 
 /** 트로피 상세 — 기기 기울기에 광택이 반응하는 큰 카드 + 등급 파티클. */
 function TrophyDetailModal({ trophy, onClose }: { trophy: Trophy | null; onClose: () => void }) {
-  const { theme, fontScale: fs } = useTheme();
-  const c = theme.colors;
+  const { fontScale: fs } = useTheme();
   const tilt = useTilt(!!trophy);
   const bigW = Math.min(SCREEN_W - 64, 320);
   const rarity = trophy ? getRarity(trophy.snapshot) : null;
