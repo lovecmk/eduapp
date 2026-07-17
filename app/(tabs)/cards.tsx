@@ -25,6 +25,7 @@ import type { LearningCard } from '../../src/domain/models/LearningCard';
 import { resolveCardImage } from '../../src/data/cardImages';
 import { useBookmarkStore } from '../../src/store/bookmarkStore';
 import { useReportStore } from '../../src/store/reportStore';
+import { useCollectionStore } from '../../src/store/collectionStore';
 import { useSrsStore } from '../../src/store/srsStore';
 
 // 하루 학습 상한(운영 지속가능성) — 신규 3장 + 복습 최대 4장 = 하루 최대 7장.
@@ -358,6 +359,8 @@ export default function CardsScreen() {
 
   useEffect(() => {
     if (!finished) return;
+    // 학습 세션을 마치면 안전 카드팩 적립(3회마다 1팩) — 수집 재미 요소.
+    useCollectionStore.getState().addStudyProgress();
     // 단일 카드(focus) 학습이 끝나면 원래 보던 컨텐츠로 곧장 복귀.
     // 카테고리 복습이 끝나면 복습 목록으로, 오늘의 학습이 끝나면 통계로 이동.
     const target = returnTo ?? (isCategoryMode ? ROUTES.review : ROUTES.stats);

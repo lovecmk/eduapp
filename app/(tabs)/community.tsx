@@ -8,6 +8,7 @@ import { LivePresenceCard } from '../../src/components/community/LivePresenceCar
 import { WeeklyChallengeCard } from '../../src/components/community/WeeklyChallengeCard';
 import { CommunityBuildCard } from '../../src/components/community/CommunityBuildCard';
 import { CommunityLeaderboardCard } from '../../src/components/community/CommunityLeaderboardCard';
+import { CollectionTeaserCard } from '../../src/components/community/CollectionTeaserCard';
 import { BragFeedCard } from '../../src/components/community/BragFeedCard';
 import { QuestionComposeModal } from '../../src/components/community/QuestionComposeModal';
 import { CommunitySkeleton } from '../../src/components/skeletons';
@@ -64,6 +65,7 @@ export default function CommunityScreen() {
         ) : (
           <>
             <LivePresenceCard />
+            <CollectionTeaserCard />
             <BragFeedCard />
             <WeeklyChallengeCard />
             <CommunityLeaderboardCard />

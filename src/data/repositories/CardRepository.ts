@@ -1,5 +1,7 @@
 import type { ICardRepository, TodaySessionOptions } from '../../domain/repositories/ICardRepository';
 import type { LearningCard, CardStatus, CardDifficulty } from '../../domain/models/LearningCard';
+import type { CardDraft } from '../../domain/models/CardDraft';
+import { draftToDTO } from '../../domain/models/CardDraft';
 import type { CardDTO } from '../dto/CardDTO';
 import { CardMapper } from '../mappers/CardMapper';
 import { apiClient } from '../network/ApiClient';
@@ -32,5 +34,15 @@ export class CardRepository implements ICardRepository {
   async markCard(id: string, status: CardStatus): Promise<LearningCard> {
     const dto = await apiClient.patch<CardDTO>(`/api/cards/${id}`, { status_cd: STATUS_TO_CD[status] });
     return CardMapper.toDomain(dto);
+  }
+
+  /** 문제 등록 — 초안을 서버 DTO 로 매핑해 순차 POST. 웹 등록 도구도 동일 body 를 쓰면 된다. */
+  async createCards(drafts: CardDraft[]): Promise<LearningCard[]> {
+    const created: LearningCard[] = [];
+    for (const d of drafts) {
+      const dto = await apiClient.post<CardDTO>('/api/cards', draftToDTO(d));
+      created.push(CardMapper.toDomain(dto));
+    }
+    return created;
   }
 }

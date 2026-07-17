@@ -1,5 +1,8 @@
 import type { ICardRepository, TodaySessionOptions } from '../../domain/repositories/ICardRepository';
 import type { LearningCard, CardStatus } from '../../domain/models/LearningCard';
+import type { CardDraft } from '../../domain/models/CardDraft';
+import { draftToSeedCard } from '../../domain/models/CardDraft';
+import { useAuthoredCardsStore } from '../../store/authoredCardsStore';
 import { CARD_SEED } from '../cards.seed';
 import { STUDY_SESSION_SECONDS } from '../../constants/difficulty';
 import { delay } from './_delay';
@@ -59,26 +62,51 @@ function createMockCards(): LearningCard[] {
 
 let mockCards = createMockCards();
 
+// 등록(authored) 카드의 진행 상태 — 시드 카드와 별도로 메모리에 보관.
+const authoredStatus: Record<string, CardStatus> = {};
+
+/** 등록 보관소의 시드카드를 런타임 학습카드로 변환(진행 상태 반영). */
+function authoredLearningCards(): LearningCard[] {
+  return useAuthoredCardsStore.getState().cards.map((seed) => ({
+    ...seed,
+    status: authoredStatus[seed.id] ?? 'new',
+    dueAt: day(0),
+  }));
+}
+
 export class MockCardRepository implements ICardRepository {
   async getTodayCards(opts?: TodaySessionOptions): Promise<LearningCard[]> {
     await delay(300);
-    let pool = mockCards.filter((c) => c.status !== 'mastered');
+    let pool = [...mockCards, ...authoredLearningCards()].filter((c) => c.status !== 'mastered');
     if (opts?.difficulty) pool = pool.filter((c) => c.difficulty === opts.difficulty);
     return packSession(pool);
   }
 
   async getAllCards(): Promise<LearningCard[]> {
     await delay(300);
-    return [...mockCards];
+    return [...mockCards, ...authoredLearningCards()];
   }
 
   async markCard(id: string, status: CardStatus): Promise<LearningCard> {
     await delay(200);
     const idx = mockCards.findIndex((c) => c.id === id);
-    if (idx < 0) throw new Error('목업 데이터에 없는 id입니다');
-    const updated = { ...mockCards[idx], status };
-    mockCards = [...mockCards];
-    mockCards[idx] = updated;
-    return updated;
+    if (idx >= 0) {
+      const updated = { ...mockCards[idx], status };
+      mockCards = [...mockCards];
+      mockCards[idx] = updated;
+      return updated;
+    }
+    // 등록 카드
+    const seed = useAuthoredCardsStore.getState().cards.find((c) => c.id === id);
+    if (!seed) throw new Error('목업 데이터에 없는 id입니다');
+    authoredStatus[id] = status;
+    return { ...seed, status, dueAt: day(0) };
+  }
+
+  async createCards(drafts: CardDraft[]): Promise<LearningCard[]> {
+    await delay(250);
+    const seeds = drafts.map((d) => draftToSeedCard(d));
+    useAuthoredCardsStore.getState().addCards(seeds);
+    return seeds.map((seed) => ({ ...seed, status: 'new' as CardStatus, dueAt: day(0) }));
   }
 }

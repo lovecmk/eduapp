@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, Platform } from 'react-native';
+import { View, Text, ScrollView, Platform, Pressable } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../src/theme/ThemeProvider';
 import { ScreenHeader } from '../src/components/ui/ScreenHeader';
@@ -7,6 +8,8 @@ import { Button } from '../src/components/ui/Button';
 import { fontDisplay, fontBody, fontMono } from '../src/theme/tokens';
 import { sendTestNotification, triggerServerAlert } from '../src/data/notifications/NotificationService';
 import { ENV_SUMMARY } from '../src/data/network/env';
+import { ROUTES } from '../src/constants/routes';
+import { useAuthoredCardsStore } from '../src/store/authoredCardsStore';
 
 type SendState = 'idle' | 'sending' | 'sent' | 'denied' | 'error';
 
@@ -19,6 +22,8 @@ const ALERT_VERSIONS = [
 export default function DeveloperScreen() {
   const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
+  const router = useRouter();
+  const authoredCount = useAuthoredCardsStore((s) => s.cards.length);
   const [state, setState] = useState<SendState>('idle');
   const [alertBusy, setAlertBusy] = useState<number | null>(null);
   const [alertMsg, setAlertMsg] = useState<string | null>(null);
@@ -101,6 +106,19 @@ export default function DeveloperScreen() {
             ))}
           </View>
         </View>
+
+        {/* 콘텐츠 관리 — 문제 등록(웹 등록 도구와 동일 메타데이터 계약) */}
+        <Pressable onPress={() => router.push(ROUTES.authorCard as never)}
+          style={{ backgroundColor: c.surface, borderColor: c.border, borderWidth: 1, borderRadius: 16, padding: 18, marginBottom: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: c.primary + '18', alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name="create-outline" size={20} color={c.primary} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontFamily: fontDisplay }}>문제 등록 · 콘텐츠</Text>
+            <Text style={{ color: c.textSecondary, fontSize: 12.5 * fs, fontFamily: fontBody, marginTop: 2 }}>폼/JSON으로 학습 카드 등록 · 등록 {authoredCount}개</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={c.textSecondary} />
+        </Pressable>
 
         <View style={{ backgroundColor: c.surface, borderColor: c.border, borderWidth: 1, borderRadius: 16, padding: 18 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>

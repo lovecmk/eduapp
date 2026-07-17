@@ -1,4 +1,5 @@
 import type { LearningCard, CardStatus, CardDifficulty } from '../models/LearningCard';
+import type { CardDraft } from '../models/CardDraft';
 
 /** 오늘의 학습 세션(3분 분량) 조회 옵션. */
 export interface TodaySessionOptions {
@@ -11,4 +12,6 @@ export interface ICardRepository {
   getTodayCards(opts?: TodaySessionOptions): Promise<LearningCard[]>;
   getAllCards(): Promise<LearningCard[]>;
   markCard(id: string, status: CardStatus): Promise<LearningCard>;
+  /** 문제(카드) 등록 — 초안 배열을 저장(서버 전환 시 POST /api/cards). 등록된 카드를 반환. */
+  createCards(drafts: CardDraft[]): Promise<LearningCard[]>;
 }
