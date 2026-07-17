@@ -6,6 +6,7 @@ import { ScreenHeader } from '../src/components/ui/ScreenHeader';
 import { Button } from '../src/components/ui/Button';
 import { fontDisplay, fontBody, fontMono } from '../src/theme/tokens';
 import { sendTestNotification, triggerServerAlert } from '../src/data/notifications/NotificationService';
+import { ENV_SUMMARY } from '../src/data/network/env';
 
 type SendState = 'idle' | 'sending' | 'sent' | 'denied' | 'error';
 
@@ -70,6 +71,35 @@ export default function DeveloperScreen() {
           <Text style={{ color: c.textSecondary, fontSize: 12.5 * fs, marginTop: 4, textAlign: 'center', lineHeight: 18, fontFamily: fontBody }}>
             테스트용 기능 모음입니다.
           </Text>
+        </View>
+
+        {/* 환경설정 — 현재 번들이 어떤 값으로 돌고 있는지 한눈에 확인(민감정보는 마스킹). */}
+        <View style={{ backgroundColor: c.surface, borderColor: c.border, borderWidth: 1, borderRadius: 16, padding: 18, marginBottom: 16 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+            <Ionicons name="server-outline" size={18} color={c.primary} />
+            <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontFamily: fontDisplay }}>환경 설정</Text>
+          </View>
+          <Text style={{ color: c.textSecondary, fontSize: 12.5 * fs, lineHeight: 19, marginBottom: 14, fontFamily: fontBody }}>
+            지금 실행 중인 번들에 적용된 환경변수(.env)입니다. 값은 빌드 타임에 구워지며, 실제 값 변경은 .env 를 수정한 뒤 다시 빌드해야 반영됩니다.
+          </Text>
+          <View style={{ gap: 2 }}>
+            {ENV_SUMMARY.map((row) => (
+              <View
+                key={row.label}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: c.surfaceAlt }}
+              >
+                <Ionicons
+                  name={row.ok ? 'checkmark-circle' : 'alert-circle'}
+                  size={16}
+                  color={row.ok ? c.success : c.warning}
+                />
+                <Text style={{ color: c.textSecondary, fontSize: 12.5 * fs, width: 92, fontFamily: fontBody }}>{row.label}</Text>
+                <Text style={{ color: c.textPrimary, fontSize: 12.5 * fs, flex: 1, fontFamily: fontMono }} numberOfLines={1}>
+                  {row.value}
+                </Text>
+              </View>
+            ))}
+          </View>
         </View>
 
         <View style={{ backgroundColor: c.surface, borderColor: c.border, borderWidth: 1, borderRadius: 16, padding: 18 }}>
