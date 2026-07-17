@@ -17,7 +17,7 @@ export function RadarChart({ data, size = 260, accent }: { data: RadarDatum[]; s
   const n = data.length;
   const cx = size / 2;
   const cy = size / 2;
-  const R = size / 2 - 34; // 라벨 여백
+  const R = size / 2 - 42; // 라벨 여백(좌우 라벨이 잘리지 않도록 넉넉히)
 
   const angleFor = (i: number) => (-90 + (360 / n) * i) * (Math.PI / 180);
   const point = (i: number, r: number) => ({
@@ -50,12 +50,14 @@ export function RadarChart({ data, size = 260, accent }: { data: RadarDatum[]; s
           const p = point(i, Math.max(0.04, d.value));
           return <Circle key={i} cx={p.x} cy={p.y} r={3.5} fill={d.color ?? primary} />;
         })}
-        {/* 라벨 */}
+        {/* 라벨 — 좌/우 축 라벨은 안쪽으로 자라도록 textAnchor 를 동적으로 정해 잘림 방지 */}
         <G>
           {data.map((d, i) => {
-            const lp = point(i, 1.2);
+            const lp = point(i, 1.16);
+            const dx = Math.cos(angleFor(i));
+            const anchor = Math.abs(dx) < 0.3 ? 'middle' : dx > 0 ? 'end' : 'start';
             return (
-              <SvgText key={i} x={lp.x} y={lp.y + 4} fontSize={11} fontWeight="700" fill={c.textSecondary} textAnchor="middle">
+              <SvgText key={i} x={lp.x} y={lp.y + 4} fontSize={11} fontWeight="700" fill={c.textSecondary} textAnchor={anchor}>
                 {d.label}
               </SvgText>
             );

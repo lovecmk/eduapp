@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Animated } from 'react-native';
+import { View, Text, Animated, Platform } from 'react-native';
 import Svg, { Defs, LinearGradient, RadialGradient, Stop, Rect, Circle } from 'react-native-svg';
 import { fontMono } from '../../theme/tokens';
 import type { AchievementSnapshot } from '../../utils/achievement';
@@ -62,7 +62,8 @@ export const WrappedShareCard = React.forwardRef<View, Props>(function WrappedSh
   return (
     <View
       ref={ref}
-      collapsable={false}
+      // collapsable 은 네이티브 캡처(view-shot)용 — 웹에서는 DOM 경고가 나므로 네이티브에서만 지정.
+      {...(Platform.OS === 'web' ? {} : { collapsable: false })}
       style={{ width: W, height: H, borderRadius: R, overflow: 'hidden', backgroundColor: '#1E1B4B' }}
     >
       {/* 그라디언트 배경 + 은은한 광원 */}

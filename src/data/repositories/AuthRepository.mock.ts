@@ -32,6 +32,8 @@ export class MockAuthRepository implements IAuthRepository {
     };
     await secureStorage.setItem(StorageKeys.accessToken, session.accessToken);
     await secureStorage.setItem(StorageKeys.refreshToken, session.refreshToken);
+    // 로그인한 사용자(이름)를 저장해, 앱을 재실행/새로고침해도 이름이 유지되도록 한다.
+    await secureStorage.setItem(StorageKeys.mockUser, JSON.stringify(session.user));
     return session;
   }
 
@@ -39,12 +41,22 @@ export class MockAuthRepository implements IAuthRepository {
     await delay(150);
     await secureStorage.removeItem(StorageKeys.accessToken);
     await secureStorage.removeItem(StorageKeys.refreshToken);
+    await secureStorage.removeItem(StorageKeys.mockUser);
   }
 
   async restore(): Promise<User | null> {
     const token = await secureStorage.getItem(StorageKeys.accessToken);
     if (!token) return null;
     await delay(200);
+    // 저장된 세션 사용자(로그인 이름)를 우선 복원하고, 없으면 기본 목업 사용자.
+    const saved = await secureStorage.getItem(StorageKeys.mockUser);
+    if (saved) {
+      try {
+        return { ...MOCK_USER, ...(JSON.parse(saved) as Partial<User>), createdAt: MOCK_USER.createdAt };
+      } catch {
+        // 파싱 실패 시 기본값으로 폴백
+      }
+    }
     return MOCK_USER;
   }
 }

@@ -46,4 +46,6 @@ export const secureStorage = {
 export const StorageKeys = {
   accessToken: 'accessToken',
   refreshToken: 'refreshToken',
+  /** 목업 세션 사용자(로그인한 이름을 재실행 후에도 유지) */
+  mockUser: 'mockUser',
 } as const;
