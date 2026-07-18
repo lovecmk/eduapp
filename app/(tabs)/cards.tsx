@@ -561,7 +561,7 @@ export default function CardsScreen() {
                 />
                 {!quizRevealed && (
                   <View style={{ marginTop: 18, alignItems: 'center' }}>
-                    <CardTimer seconds={card.studySeconds} resetKey={card.id} onExpire={() => setQuizRevealed(true)} />
+                    <CardTimer seconds={card.studySeconds} resetKey={card.id} onExpire={haptic} />
                   </View>
                 )}
               </ScrollView>
@@ -583,7 +583,7 @@ export default function CardsScreen() {
                   {card.question}
                 </Text>
                 <View style={{ marginTop: 20 }}>
-                  <CardTimer seconds={card.studySeconds} resetKey={card.id} onExpire={() => doFlip(true)} />
+                  <CardTimer seconds={card.studySeconds} resetKey={card.id} onExpire={haptic} />
                 </View>
               </View>
             )}
