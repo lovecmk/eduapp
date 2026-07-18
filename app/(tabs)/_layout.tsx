@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Text, View, Pressable, Image } from 'react-native';
+import { Text, View, Pressable } from 'react-native';
 import { Tabs, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,8 +15,8 @@ import { OfflineBanner } from '../../src/components/ui/OfflineBanner';
 import { BridgeLogo } from '../../src/components/ui/BridgeLogo';
 import { HeaderMenuSheet } from '../../src/components/ui/HeaderMenuSheet';
 import { PressableScale } from '../../src/components/ui/PressableScale';
+import { Avatar } from '../../src/components/ui/Avatar';
 import { useNotificationStore } from '../../src/store/notificationStore';
-import { useAuthStore } from '../../src/store/authStore';
 import { useSettingsStore } from '../../src/store/settingsStore';
 import { fontDisplay, shadowHeaderBottom } from '../../src/theme/tokens';
 import { ROUTES } from '../../src/constants/routes';
@@ -79,7 +79,6 @@ function MinimalHeader({ title }: { title: string }) {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
   const unreadCount = useNotificationStore((s) => s.unreadCount());
-  const user = useAuthStore((s) => s.user);
   const profileImage = useSettingsStore((s) => s.profileImage);
 
   return (
@@ -99,13 +98,7 @@ function MinimalHeader({ title }: { title: string }) {
 
         {/* 메뉴(아바타) */}
         <PressableScale onPress={() => setMenuOpen(true)} hitSlop={4} style={{ marginLeft: 4 }}>
-          {profileImage ? (
-            <Image source={{ uri: profileImage }} style={{ width: 30, height: 30, borderRadius: 15, borderWidth: 1.5, borderColor: c.border }} />
-          ) : (
-            <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ color: '#fff', fontSize: 14, fontFamily: fontDisplay }}>{user?.name?.charAt(0) ?? '현'}</Text>
-            </View>
-          )}
+          <Avatar uri={profileImage} size={30} ring={1.5} ringColor={c.border} />
         </PressableScale>
       </View>
 

@@ -1,8 +1,10 @@
 import React from 'react';
-import { View, Text, Pressable, Image, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { AnimatedSheet } from './AnimatedSheet';
+import { Avatar } from './Avatar';
+import { AchievementBadge } from './AchievementBadge';
 import { useTheme } from '../../theme/ThemeProvider';
 import { fontDisplay, fontBody, fontMono } from '../../theme/tokens';
 import { useAuthStore } from '../../store/authStore';
@@ -56,17 +58,12 @@ export function HeaderMenuSheet({ visible, onClose }: { visible: boolean; onClos
         <View style={{ paddingHorizontal: 20 }}>
           {/* 프로필 */}
           {user && (
-            <Pressable onPress={() => go(ROUTES.mypage)} style={[styles.profile, { backgroundColor: c.surface, borderColor: c.border }]}>
-              {profileImage ? (
-                <Image source={{ uri: profileImage }} style={[styles.avatar, { borderColor: meta?.accent ?? c.primary }]} />
-              ) : (
-                <View style={[styles.avatarFallback, { backgroundColor: c.primary }]}>
-                  <Text style={styles.avatarLetter}>{user.name.charAt(0)}</Text>
-                </View>
-              )}
+            <Pressable onPress={() => go(ROUTES.profile)} style={[styles.profile, { backgroundColor: c.surface, borderColor: c.border }]}>
+              <Avatar uri={profileImage} size={46} ring={2} ringColor={meta?.accent ?? c.primary} />
               <View style={{ flex: 1 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <Text style={{ color: c.textPrimary, fontSize: 16, fontFamily: fontDisplay }} numberOfLines={1}>{user.name}</Text>
+                  <AchievementBadge size={15} />
                   {meta && (
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: meta.accent + '1A', borderRadius: 999, paddingHorizontal: 7, paddingVertical: 2 }}>
                       <Ionicons name={meta.icon as IconName} size={10} color={meta.accent} />
@@ -74,7 +71,7 @@ export function HeaderMenuSheet({ visible, onClose }: { visible: boolean; onClos
                     </View>
                   )}
                 </View>
-                <Text style={{ color: c.textSecondary, fontSize: 12, marginTop: 2, fontFamily: fontBody }}>내 정보 보기</Text>
+                <Text style={{ color: c.textSecondary, fontSize: 12, marginTop: 2, fontFamily: fontBody }}>내 프로필 보기</Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color={c.textSecondary} />
             </Pressable>

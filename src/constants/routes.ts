@@ -13,6 +13,7 @@ export const ROUTES = {
   settings: '/settings',
   developer: '/developer',
   saved: '/saved',
+  profile: '/profile',
   trophy: '/trophy',
   collectionBook: '/collection-book',
   authorCard: '/author-card',

@@ -68,7 +68,7 @@ export default function TrophyRoomScreen() {
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
         <Text style={{ color: c.textPrimary, fontSize: 18 * fs, fontFamily: fontCute, fontWeight: '800' }}>나의 성취 박물관 🏛️</Text>
         <Text style={{ color: c.textSecondary, fontSize: 13 * fs, fontFamily: fontBody, marginTop: 6, lineHeight: 19 }}>
-          달성하고 자랑했던 랩드 카드가 모여요. 탭하면 크게 볼 수 있어요.
+          달성하고 플렉스한 성취 카드가 모여요. 탭하면 크게 볼 수 있어요.
         </Text>
 
         {/* 요약 배너 */}

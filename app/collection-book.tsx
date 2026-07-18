@@ -56,7 +56,7 @@ export default function CollectionBookScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
-      <ScreenHeader title="안전 카드 도감" />
+      <ScreenHeader title="안전 카드 컬렉션" />
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
         {/* 진행도 배너 */}
         <View style={{ backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 20, padding: 18 }}>
@@ -64,7 +64,7 @@ export default function CollectionBookScreen() {
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <Text style={{ fontSize: 22 }}>📖</Text>
               <View>
-                <Text style={{ color: c.textPrimary, fontSize: 16 * fs, fontFamily: fontCute, fontWeight: '800' }}>안전 카드 도감</Text>
+                <Text style={{ color: c.textPrimary, fontSize: 16 * fs, fontFamily: fontCute, fontWeight: '800' }}>안전 카드 컬렉션</Text>
                 <Text style={{ color: c.textSecondary, fontSize: 12 * fs, fontFamily: fontBody }}>수집 {uniqueOwned}/{total} · {pct}% 완성</Text>
               </View>
             </View>

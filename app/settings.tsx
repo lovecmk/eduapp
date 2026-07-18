@@ -64,11 +64,11 @@ export default function SettingsScreen() {
   const {
     themeMode, fontScale: fontScaleSetting, highContrast,
     notifications, biometricLoginEnabled, dailyTarget, shuffleCards, keepScreenOn, offlineMode,
-    prioritizeWeakSpots, dontKnowHaptic,
+    prioritizeWeakSpots, dontKnowHaptic, flexPromptEnabled, showAchievementBadge,
     setThemeMode, setFontScale, toggleHighContrast,
     updateNotificationSetting, setBiometricLogin, setDailyTarget,
     toggleShuffleCards, toggleKeepScreenOn, toggleOfflineMode, togglePrioritizeWeakSpots,
-    toggleDontKnowHaptic, resetAll,
+    toggleDontKnowHaptic, toggleFlexPrompt, toggleAchievementBadge, resetAll,
   } = useSettingsStore();
 
   const user = useAuthStore((s) => s.user);
@@ -254,6 +254,27 @@ export default function SettingsScreen() {
           />
         </SettingsGroup>
 
+        <SettingsGroup title="프로필 · 커뮤니티">
+          <SettingsItem
+            icon="person-circle-outline"
+            label="내 프로필"
+            description="사진·한 줄 소개 편집"
+            onPress={() => router.push(ROUTES.profile as never)}
+          />
+          <SettingsItem
+            icon="sparkles-outline"
+            label="자랑(플렉스) 유도"
+            description="목표 달성 시 성취 카드 자랑을 제안"
+            right={<Switch value={flexPromptEnabled} onValueChange={toggleFlexPrompt} />}
+          />
+          <SettingsItem
+            icon="shield-checkmark-outline"
+            label="성취 뱃지 표시"
+            description="닉네임 옆에 최고 등급 카드 뱃지 노출"
+            right={<Switch value={showAchievementBadge} onValueChange={toggleAchievementBadge} />}
+          />
+        </SettingsGroup>
+
         <SettingsGroup title="화면">
           <SettingsBlock label="테마">
             <SegmentedControl options={THEME_LABELS} selectedIndex={THEME_OPTIONS.indexOf(themeMode)} onChange={(i) => setThemeMode(THEME_OPTIONS[i])} />
@@ -285,8 +306,8 @@ export default function SettingsScreen() {
           <SettingsItem
             icon="person-circle-outline"
             label="프로필 관리"
-            description="이름·사진 변경"
-            onPress={() => router.push(ROUTES.mypage)}
+            description="사진·한 줄 소개 변경"
+            onPress={() => router.push(ROUTES.profile as never)}
           />
         </SettingsGroup>
 

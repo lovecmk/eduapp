@@ -201,7 +201,7 @@ export default function StatsScreen() {
           </View>
           <View style={{ flex: 1 }}>
             <Text style={{ color: '#fff', fontSize: 15 * fs, fontWeight: '800', fontFamily: fontCute }}>성취 카드 만들기</Text>
-            <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 12 * fs, fontFamily: fontBody, marginTop: 2 }}>나의 칭호·기록을 커뮤니티에 자랑해요</Text>
+            <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 12 * fs, fontFamily: fontBody, marginTop: 2 }}>나의 칭호·기록을 '오늘의 플렉스'에 올려요</Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color="#fff" />
         </Pressable>

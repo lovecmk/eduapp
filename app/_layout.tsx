@@ -1,6 +1,6 @@
 import 'react-native-gesture-handler';
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Animated, Easing, ActivityIndicator } from 'react-native';
+import { View, Text, Animated, Easing } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -90,6 +90,7 @@ function RootContent() {
         <Stack.Screen name="settings" />
         <Stack.Screen name="share" options={{ animation: 'slide_from_bottom' }} />
         <Stack.Screen name="trophy" />
+        <Stack.Screen name="profile" />
         <Stack.Screen name="collection-book" />
         <Stack.Screen name="author-card" options={{ animation: 'slide_from_bottom' }} />
         <Stack.Screen name="developer" />
@@ -110,9 +111,6 @@ function RootContent() {
             <Text style={{ color: theme.colors.textPrimary, fontSize: 22, marginTop: 20, letterSpacing: 1, fontFamily: fontDisplay }}>현장학습</Text>
             <Text style={{ color: theme.colors.textSecondary, fontSize: 13, marginTop: 6, fontFamily: fontBody }}>현장 안전학습, 매일 3분</Text>
           </Animated.View>
-          <View style={{ position: 'absolute', bottom: 64, alignItems: 'center' }}>
-            <ActivityIndicator size="small" color={theme.colors.primary} />
-          </View>
         </Animated.View>
       )}
       <UpdatePrompt

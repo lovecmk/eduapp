@@ -57,13 +57,13 @@ export default function ShareScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
-      <ScreenHeader title="성취 카드 공유" />
+      <ScreenHeader title="성취 카드 플렉스" />
       <ScrollView contentContainerStyle={{ padding: 24, alignItems: 'center', paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
         <Text style={{ color: c.textPrimary, fontSize: 18 * fs, fontWeight: '800', fontFamily: fontCute, textAlign: 'center' }}>
-          나의 학습 성취를 자랑해요
+          나의 성취, 플렉스 🎉
         </Text>
         <Text style={{ color: c.textSecondary, fontSize: 13 * fs, fontFamily: fontBody, textAlign: 'center', marginTop: 6, marginBottom: 20, lineHeight: 19 }}>
-          완성된 카드를 커뮤니티 자랑 피드에 올려{'\n'}서로의 성장을 증명하고 응원해요
+          완성한 성취 카드를 '오늘의 플렉스'에 올려{'\n'}서로의 성장을 응원해요
         </Text>
 
         {/* 미리보기 = 실제로 캡처되는 뷰. 기기를 기울이면 광택이 일렁이고 등급별 효과가 붙는다. */}
@@ -90,7 +90,7 @@ export default function ShareScreen() {
                 <Ionicons name="megaphone" size={19} color="#fff" />
               )}
               <Text style={{ color: '#fff', fontSize: 15 * fs, fontWeight: '800', fontFamily: fontCute }}>
-                {phase === 'uploading' ? '올리는 중...' : '커뮤니티에 자랑하기'}
+                {phase === 'uploading' ? '올리는 중...' : '플렉스 올리기'}
               </Text>
             </Pressable>
           )}

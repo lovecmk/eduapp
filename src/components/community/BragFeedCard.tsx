@@ -3,7 +3,7 @@ import { View, Text, ScrollView, Pressable, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/ThemeProvider';
-import { fontDisplay, fontMono } from '../../theme/tokens';
+import { fontDisplay, fontMono, radius } from '../../theme/tokens';
 import { ROUTES } from '../../constants/routes';
 import { useShareFeedStore, REACTION_KINDS, REACTION_EMOJI } from '../../store/shareFeedStore';
 import { WrappedShareCard } from '../share/WrappedShareCard';
@@ -15,8 +15,9 @@ const REACTION_TINT: Record<string, string> = { clap: '#F2B705', fire: '#FF6B35'
 const MINI_W = 158;
 
 /**
- * 커뮤니티 '성취 자랑 피드' — 유저가 올린 스포티파이 랩드 스타일 카드가 가로로 흐른다.
+ * 커뮤니티 '오늘의 플렉스' — 유저가 올린 성취 카드가 가로로 흐른다.
  * 업로드 이미지가 있으면 그대로, 없으면(웹 등) 스냅샷으로 카드를 재현해 항상 보이게 한다.
+ * 다른 커뮤니티 섹션과 동일한 surface 카드 컨테이너에 담아 톤을 통일한다.
  */
 export function BragFeedCard() {
   const { theme } = useTheme();
@@ -26,23 +27,23 @@ export function BragFeedCard() {
   const react = useShareFeedStore((s) => s.react);
 
   return (
-    <View style={{ marginBottom: 20 }}>
+    <View style={{ backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: radius.card, padding: 16, marginBottom: 14 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <Ionicons name="trophy" size={18} color="#F2B705" />
-          <Text style={{ color: c.textPrimary, fontSize: 16, fontFamily: fontDisplay }}>성취 자랑 피드</Text>
+          <Ionicons name="sparkles" size={16} color={c.primary} />
+          <Text style={{ color: c.textPrimary, fontSize: 15, fontFamily: fontDisplay }}>오늘의 플렉스</Text>
         </View>
         <Pressable onPress={() => router.push(ROUTES.share as never)}
-          style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.primary, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 }}>
-          <Ionicons name="megaphone" size={14} color="#fff" />
-          <Text style={{ color: '#fff', fontSize: 12.5, fontFamily: fontDisplay }}>나도 자랑하기</Text>
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.primary + '14', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 }}>
+          <Ionicons name="add" size={14} color={c.primary} />
+          <Text style={{ color: c.primary, fontSize: 12.5, fontFamily: fontDisplay }}>나도 플렉스</Text>
         </Pressable>
       </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: 8 }}>
         {posts.map((p) => (
           <View key={p.id} style={{ width: MINI_W, marginRight: 12 }}>
-            <View style={{ borderRadius: 16, overflow: 'hidden', boxShadow: '0 6px 16px rgba(37,99,235,0.18)' }}>
+            <View style={{ borderRadius: 16, overflow: 'hidden', boxShadow: `0 2px 8px ${c.border}` }}>
               {p.imageUri ? (
                 <Image source={{ uri: p.imageUri }} style={{ width: MINI_W, height: MINI_W / p.aspect, borderRadius: 16 }} resizeMode="cover" />
               ) : (

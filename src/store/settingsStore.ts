@@ -34,6 +34,12 @@ interface SettingsState {
   /** 관심 분야(대분류) — 개인화용 */
   interests: CardCategory[];
   profileImage: string | null;
+  /** 내 프로필 한 줄 소개(bio) */
+  bio: string;
+  /** 목표 달성 시 '플렉스(자랑) 올리기' 유도 노출 여부 */
+  flexPromptEnabled: boolean;
+  /** 닉네임 옆 성취 뱃지 표출 여부 */
+  showAchievementBadge: boolean;
 
   setThemeMode: (mode: ThemeMode) => void;
   setFontScale: (scale: FontScale) => void;
@@ -51,6 +57,9 @@ interface SettingsState {
   toggleDontKnowHaptic: () => void;
   toggleInterest: (cat: CardCategory) => void;
   setProfileImage: (uri: string | null) => void;
+  setBio: (bio: string) => void;
+  toggleFlexPrompt: () => void;
+  toggleAchievementBadge: () => void;
   /** 로컬 저장 데이터를 초기화하고 기본 설정으로 되돌린다(방어적 초기화). */
   resetAll: () => void;
 }
@@ -79,6 +88,11 @@ const DEFAULT_SETTINGS = {
   dontKnowHaptic: true,
   interests: [] as CardCategory[],
   profileImage: null as string | null,
+  bio: '',
+  // 기본 켜짐 — 목표 달성 순간 자연스럽게 자랑(플렉스)하도록 유도. 설정에서 끌 수 있다.
+  flexPromptEnabled: true,
+  // 기본 켜짐 — 획득한 최고 성취 뱃지를 닉네임 옆에 표출.
+  showAchievementBadge: true,
 };
 
 export const useSettingsStore = create<SettingsState>()(
@@ -102,6 +116,9 @@ export const useSettingsStore = create<SettingsState>()(
         interests: s.interests.includes(cat) ? s.interests.filter((x) => x !== cat) : [...s.interests, cat],
       })),
       setProfileImage: (uri) => set({ profileImage: uri }),
+      setBio: (bio) => set({ bio }),
+      toggleFlexPrompt: () => set((s) => ({ flexPromptEnabled: !s.flexPromptEnabled })),
+      toggleAchievementBadge: () => set((s) => ({ showAchievementBadge: !s.showAchievementBadge })),
       resetAll: () => set({ ...DEFAULT_SETTINGS }),
     }),
     {

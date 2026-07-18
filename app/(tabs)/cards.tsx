@@ -173,6 +173,7 @@ export default function CardsScreen() {
   const hasReported = useReportStore((s) => (card ? s.reports.some((r) => r.cardId === card.id) : false));
 
   const keepScreenOn = useSettingsStore((s) => s.keepScreenOn);
+  const flexPromptEnabled = useSettingsStore((s) => s.flexPromptEnabled);
   const toggleKeepScreenOn = useSettingsStore((s) => s.toggleKeepScreenOn);
 
   const resetCardAnims = useCallback(() => {
@@ -439,14 +440,18 @@ export default function CardsScreen() {
           <Animated.View style={{ width: barWidth, height: '100%', backgroundColor: c.primary, borderRadius: 2 }} />
         </View>
         <Text style={{ color: c.textSecondary, fontSize: 12 * fs, fontFamily: fontCute }}>{isFocusMode ? '컨텐츠로 돌아가는 중...' : isCategoryMode ? '복습 목록으로 이동 중...' : '통계 화면으로 이동 중...'}</Text>
-        {!isFocusMode && (
-          <Pressable
-            onPress={() => { progressAnim.stopAnimation(); router.push(ROUTES.share as never); }}
-            style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.primary, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 22, marginTop: 20, boxShadow: '0 6px 16px rgba(37,99,235,0.28)' }}
-          >
-            <Ionicons name="sparkles" size={18} color="#fff" />
-            <Text style={{ color: '#fff', fontSize: 15 * fs, fontWeight: '800', fontFamily: fontCute }}>성취 카드 자랑하기</Text>
-          </Pressable>
+        {/* 목표 달성 순간의 '플렉스(자랑) 유도' — 설정에서 끌 수 있다. */}
+        {!isFocusMode && flexPromptEnabled && (
+          <>
+            <Text style={{ color: c.textSecondary, fontSize: 12.5 * fs, fontFamily: fontCute, marginTop: 22, marginBottom: -4 }}>오늘의 목표 달성! 성취를 자랑해볼까요?</Text>
+            <Pressable
+              onPress={() => { progressAnim.stopAnimation(); router.push(ROUTES.share as never); }}
+              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.primary, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 22, marginTop: 12, boxShadow: '0 6px 16px rgba(37,99,235,0.28)' }}
+            >
+              <Ionicons name="sparkles" size={18} color="#fff" />
+              <Text style={{ color: '#fff', fontSize: 15 * fs, fontWeight: '800', fontFamily: fontCute }}>성취 카드 플렉스</Text>
+            </Pressable>
+          </>
         )}
         <View style={{ marginTop: 12 }}>
           <Button label="다시 학습하기" variant="outline" onPress={restart} />

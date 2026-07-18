@@ -1,12 +1,13 @@
 import React, { useMemo } from 'react';
-import { View, Text, ScrollView, Pressable, Image, Alert, Platform, Modal, Linking } from 'react-native';
+import { View, Text, ScrollView, Pressable, Modal, Linking } from 'react-native';
 import { useRouter } from 'expo-router';
-import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../src/theme/ThemeProvider';
 import { useAuthStore } from '../../src/store/authStore';
 import { useSettingsStore } from '../../src/store/settingsStore';
 import { Button } from '../../src/components/ui/Button';
+import { Avatar } from '../../src/components/ui/Avatar';
+import { AchievementBadge } from '../../src/components/ui/AchievementBadge';
 import { fontMono, fontCute, fontDisplay, fontBody } from '../../src/theme/tokens';
 import { ROUTES } from '../../src/constants/routes';
 import { useAllCards } from '../../src/hooks/useCards';
@@ -19,51 +20,21 @@ export default function MyPageScreen() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const { data: allCards = [] } = useAllCards();
-  const { profileImage, setProfileImage } = useSettingsStore();
+  const profileImage = useSettingsStore((s) => s.profileImage);
   const bookmarkCount = useBookmarkStore((s) => s.ids.length);
   const [linkModal, setLinkModal] = React.useState(false);
 
   const masteredCount = useMemo(() => allCards.filter((c) => c.status === 'mastered').length, [allCards]);
 
-  const pickImage = async () => {
-    if (Platform.OS === 'web') return;
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('권한 필요', '갤러리 접근 권한이 필요합니다');
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
-    if (!result.canceled && result.assets[0]) {
-      setProfileImage(result.assets[0].uri);
-    }
-  };
-
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
     <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, paddingBottom: 48 }}>
-      <Pressable onPress={pickImage} style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 12 }}>
-        {profileImage ? (
-          <Image source={{ uri: profileImage }} style={{ width: 56, height: 56, borderRadius: 28, borderWidth: 2, borderColor: c.primary }} />
-        ) : (
-          <View
-            style={{
-              width: 56, height: 56, borderRadius: 28, backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center',
-              boxShadow: `0 3px 10px ${c.primary}66`,
-            }}
-          >
-            <Text style={{ color: c.textOnPrimary, fontSize: 22 * fs, fontWeight: '800', fontFamily: fontCute }}>
-              {user?.name?.charAt(0) ?? '현'}
-            </Text>
-          </View>
-        )}
+      <Pressable onPress={() => router.push(ROUTES.profile as never)} style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 12 }}>
+        <Avatar uri={profileImage} size={56} ring={2} ringColor={c.primary} />
         <View style={{ flex: 1, gap: 4 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
             <Text style={{ color: c.textPrimary, fontSize: 18 * fs, fontWeight: '800', fontFamily: fontCute }} numberOfLines={1}>{user?.name ?? '현장 작업자'}</Text>
+            <AchievementBadge size={17} />
             {user ? (() => {
               const meta = MEMBERSHIP_META[user.membership];
               return (
@@ -75,12 +46,13 @@ export default function MyPageScreen() {
             })() : null}
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Text style={{ color: c.textSecondary, fontSize: 12, fontFamily: fontCute }}>탭하여 프로필 사진 변경</Text>
+            <Text style={{ color: c.textSecondary, fontSize: 12, fontFamily: fontCute }}>탭하여 내 프로필 보기</Text>
             <Pressable onPress={() => setLinkModal(true)} style={{ backgroundColor: c.surfaceAlt, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1, borderColor: c.border }}>
               <Text style={{ color: c.textSecondary, fontSize: 11, fontWeight: '600', fontFamily: fontCute }}>닉네임</Text>
             </Pressable>
           </View>
         </View>
+        <Ionicons name="chevron-forward" size={18} color={c.primary} />
       </Pressable>
 
       {/* 요약 통계 — 탭하면 전체 통계로 이동(발견성) */}
@@ -128,7 +100,7 @@ export default function MyPageScreen() {
           </View>
           <View>
             <Text style={{ color: '#fff', fontSize: 15 * fs, fontWeight: '800', fontFamily: fontCute }}>내 트로피룸 🏛️</Text>
-            <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 12, fontFamily: fontCute }}>내가 달성·자랑한 랩드 카드 모아보기</Text>
+            <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 12, fontFamily: fontCute }}>내가 달성·플렉스한 성취 카드 모아보기</Text>
           </View>
         </View>
         <Ionicons name="chevron-forward" size={18} color="#fff" />
