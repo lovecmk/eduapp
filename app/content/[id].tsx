@@ -85,7 +85,7 @@ export default function ContentDetailScreen() {
 
         {resolveCardImage(card.imageUrl) ? (
           <Animated.View entering={FadeInDown.delay(60).duration(360)} style={{ marginBottom: 14 }}>
-            <QuestionImage source={resolveCardImage(card.imageUrl)} height={200} />
+            <QuestionImage source={resolveCardImage(card.imageUrl)} height={248} />
           </Animated.View>
         ) : null}
 

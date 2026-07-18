@@ -23,7 +23,6 @@ export function BragFeedCard() {
   const c = theme.colors;
   const router = useRouter();
   const posts = useShareFeedStore((s) => s.posts);
-  const toggleLike = useShareFeedStore((s) => s.toggleLike);
   const react = useShareFeedStore((s) => s.react);
 
   return (
@@ -61,14 +60,10 @@ export function BragFeedCard() {
                 <Text style={{ color: '#fff', fontSize: 9, fontFamily: fontDisplay }}>{p.author.charAt(0)}</Text>
               </View>
               <Text numberOfLines={1} style={{ color: c.textPrimary, fontSize: 11.5, fontFamily: fontDisplay, flex: 1 }}>{p.author}</Text>
-              <Pressable onPress={() => toggleLike(p.id)} hitSlop={6} style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-                <Ionicons name={p.likedByMe ? 'heart' : 'heart-outline'} size={14} color={p.likedByMe ? c.error : c.textSecondary} />
-                <Text style={{ color: p.likedByMe ? c.error : c.textSecondary, fontSize: 11, fontFamily: fontMono }}>{p.likes}</Text>
-              </Pressable>
+              <Text style={{ color: c.textSecondary, fontSize: 10, fontFamily: fontMono }}>{timeAgoLabel(p.minutesAgo)}</Text>
             </View>
-            <Text style={{ color: c.textSecondary, fontSize: 10, fontFamily: fontMono, marginTop: 2 }}>{timeAgoLabel(p.minutesAgo)}</Text>
 
-            {/* 퀵 리액션 — 👏🔥👍 (탭 시 이모지 폭죽) */}
+            {/* 퀵 리액션 — 👏🔥👍 (탭 시 이모지 폭죽). 자랑 피드의 단일 반응 수단으로 통합. */}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 }}>
               {REACTION_KINDS.map((kind) => (
                 <EmojiBurstButton

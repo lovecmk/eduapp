@@ -93,8 +93,8 @@ function InsightsCard({ insights: ins }: { insights: LearningInsights }) {
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
         {chip('calendar', c.primary, '주간 활동', `${ins.activeDays}일 · ${ins.weeklyTotal}장`)}
         {chip('speedometer', c.success, '활동일 평균', `${ins.avgPerActiveDay}장/일`)}
-        {ins.topCategory ? chip('ribbon', getCategoryColor(ins.topCategory) ?? c.success, '강점 분야', `${ins.topCategory} ${Math.round(ins.topCategoryAccuracy)}%`) : null}
-        {ins.weakCategory ? chip('barbell', getCategoryColor(ins.weakCategory) ?? c.warning, '보강 필요', `${ins.weakCategory} ${Math.round(ins.weakCategoryAccuracy)}%`) : null}
+        {ins.topCategory ? chip('ribbon', getCategoryColor(ins.topCategory) ?? c.success, '강점 분야 · 정답률', `${ins.topCategory} ${Math.round(ins.topCategoryAccuracy)}%`) : null}
+        {ins.weakCategory ? chip('barbell', getCategoryColor(ins.weakCategory) ?? c.warning, '보강 필요 · 정답률', `${ins.weakCategory} ${Math.round(ins.weakCategoryAccuracy)}%`) : null}
       </View>
     </Card>
   );

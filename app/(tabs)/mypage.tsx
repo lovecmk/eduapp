@@ -83,7 +83,8 @@ export default function MyPageScreen() {
         </View>
       </Pressable>
 
-      <View style={{ flexDirection: 'row', gap: 10, marginVertical: 16 }}>
+      {/* 요약 통계 — 탭하면 전체 통계로 이동(발견성) */}
+      <Pressable onPress={() => router.push(ROUTES.stats)} style={{ flexDirection: 'row', gap: 10, marginVertical: 16 }}>
         {[
           { value: `${allCards.length}`, label: '전체 카드' },
           { value: `${masteredCount}`, label: '마스터' },
@@ -94,7 +95,9 @@ export default function MyPageScreen() {
             <Text style={{ color: c.textSecondary, fontSize: 11, marginTop: 4, fontFamily: fontCute }}>{s.label}</Text>
           </View>
         ))}
-      </View>
+      </Pressable>
+
+      <MyRow icon="stats-chart-outline" title="학습 통계" desc="학습 성향·복습 현황·순위 자세히 보기" onPress={() => router.push(ROUTES.stats)} />
 
       <Pressable onPress={() => router.push(ROUTES.saved)}
         style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: c.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: c.border, marginVertical: 8 }}>

@@ -504,7 +504,7 @@ export default function CardsScreen() {
           {...(isSwipeTrack ? panResponder.panHandlers : {})}
           style={{ flex: 1, transform: [{ translateX }, { translateY: cardTranslateY }, { scale: cardScale }], opacity: cardCombinedOpacity }}
         >
-         <Pressable onPress={onCardPress} disabled={!isSwipeTrack} style={{ flex: 1 }}>
+         <Pressable onPress={onCardPress} disabled={exiting} style={{ flex: 1 }}>
           {/* 앞면 */}
           <Animated.View
             // Android 는 backfaceVisibility 가 불안정해 숨겨진 뒷면이 터치를 가로챈다.
@@ -542,7 +542,7 @@ export default function CardsScreen() {
               <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingVertical: 6 }}>
                 {resolveCardImage(card.imageUrl) && (
                   <View style={{ width: '100%', marginBottom: 14 }}>
-                    <QuestionImage source={resolveCardImage(card.imageUrl)} height={130} />
+                    <QuestionImage source={resolveCardImage(card.imageUrl)} height={172} />
                   </View>
                 )}
                 {!!card.situation && (
@@ -569,7 +569,7 @@ export default function CardsScreen() {
               <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
                 {resolveCardImage(card.imageUrl) ? (
                   <View style={{ width: '100%', marginBottom: 18 }}>
-                    <QuestionImage source={resolveCardImage(card.imageUrl)} height={150} />
+                    <QuestionImage source={resolveCardImage(card.imageUrl)} height={200} />
                   </View>
                 ) : (
                   <Ionicons name={getCategoryIcon(card.category)} size={40 * fs} color={c.primary} style={{ marginBottom: 12, opacity: 0.6 }} />
