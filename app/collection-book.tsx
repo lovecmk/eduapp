@@ -1,15 +1,16 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, ScrollView, Pressable, Dimensions, Modal } from 'react-native';
+import { View, Text, ScrollView, Pressable, Dimensions, Modal, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTheme } from '../src/theme/ThemeProvider';
 import { ScreenHeader } from '../src/components/ui/ScreenHeader';
 import { CollectibleCard } from '../src/components/collection/CollectibleCard';
 import { PackOpenModal } from '../src/components/collection/PackOpenModal';
-import { COLLECTIBLES, COLLECTIBLE_BY_ID } from '../src/data/collectibles';
+import { COLLECTIBLES, COLLECTIBLE_BY_ID, PACK_SIZE } from '../src/data/collectibles';
 import { RARITY_META, RARITY_RANK as RANK, RARITY_ORDER, type RarityTier } from '../src/utils/rarity';
 import { useTilt } from '../src/hooks/useTilt';
-import { useCollectionStore, STUDY_PER_PACK, type DrawResult } from '../src/store/collectionStore';
+import { useCollectionStore, STUDY_PER_PACK, DAILY_PACK, INITIAL_PACKS, type DrawResult } from '../src/store/collectionStore';
 import { fontCute, fontBody, fontMono, fontDisplay } from '../src/theme/tokens';
 
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -49,7 +50,15 @@ export default function CollectionBookScreen() {
 
   const onOpen = () => {
     const res = openPack();
-    if (res) setDrawn(res);
+    if (res) {
+      if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+      setDrawn(res);
+    }
+  };
+  const onClaimDaily = () => {
+    if (claimDaily() && Platform.OS !== 'web') {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    }
   };
   const onCloseDraw = () => setDrawn(null);
   const onDetail = (id: string) => { if (owned[id]) { setDetailId(id); if (newIds.includes(id)) clearNew([id]); } };
@@ -97,19 +106,57 @@ export default function CollectionBookScreen() {
             <Pressable onPress={onOpen} disabled={packs <= 0}
               style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, backgroundColor: packs > 0 ? c.primary : c.disabled, borderRadius: 14, height: 48 }}>
               <Ionicons name="gift" size={18} color="#fff" />
-              <Text style={{ color: '#fff', fontSize: 14 * fs, fontFamily: fontCute, fontWeight: '800' }}>카드팩 열기</Text>
+              <Text style={{ color: '#fff', fontSize: 14 * fs, fontFamily: fontCute, fontWeight: '800' }}>{packs > 0 ? `카드팩 열기 (${packs})` : '보유한 팩 없음'}</Text>
             </Pressable>
             {canClaimDaily && (
-              <Pressable onPress={() => claimDaily()}
+              <Pressable onPress={onClaimDaily}
                 style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.warning, borderRadius: 14, height: 48, paddingHorizontal: 16 }}>
                 <Ionicons name="calendar" size={16} color="#fff" />
                 <Text style={{ color: '#fff', fontSize: 13 * fs, fontFamily: fontCute, fontWeight: '800' }}>오늘의 무료팩</Text>
               </Pressable>
             )}
           </View>
-          <Text style={{ color: c.textSecondary, fontSize: 11, fontFamily: fontBody, marginTop: 10, textAlign: 'center' }}>
-            학습 {STUDY_PER_PACK - (studyProgress % STUDY_PER_PACK)}회 더 하면 카드팩 1개 · 매일 무료팩 1개
-          </Text>
+          {/* 다음 카드팩까지 남은 학습 진행 — '어떻게 더 얻지?'에 즉답 */}
+          <View style={{ marginTop: 14 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+              <Text style={{ color: c.textSecondary, fontSize: 11.5 * fs, fontFamily: fontBody }}>다음 무료 카드팩까지</Text>
+              <Text style={{ color: c.textPrimary, fontSize: 11.5 * fs, fontFamily: fontMono, fontWeight: '700' }}>
+                학습 {STUDY_PER_PACK - (studyProgress % STUDY_PER_PACK)}회
+              </Text>
+            </View>
+            <View style={{ height: 6, backgroundColor: c.surfaceAlt, borderRadius: 3, overflow: 'hidden' }}>
+              <View style={{ width: `${((studyProgress % STUDY_PER_PACK) / STUDY_PER_PACK) * 100}%`, height: '100%', backgroundColor: c.success, borderRadius: 3 }} />
+            </View>
+          </View>
+        </View>
+
+        {/* 카드팩 획득 방법 — '얻는 법'을 한눈에 */}
+        <View style={{ backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 20, padding: 18, marginTop: 14 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 14 }}>
+            <Ionicons name="sparkles" size={16} color={c.primary} />
+            <Text style={{ color: c.textPrimary, fontSize: 14 * fs, fontFamily: fontCute, fontWeight: '800' }}>카드팩 얻는 방법</Text>
+          </View>
+          {[
+            { icon: 'school', color: c.success, title: `학습 ${STUDY_PER_PACK}회마다 1팩`, desc: '카드를 학습하면 자동으로 적립돼요' },
+            { icon: 'calendar', color: c.warning, title: `매일 무료팩 ${DAILY_PACK}개`, desc: canClaimDaily ? '오늘 무료팩이 준비돼 있어요!' : '내일 다시 받을 수 있어요' },
+            { icon: 'gift', color: c.primary, title: `첫 가입 보너스 ${INITIAL_PACKS}팩`, desc: '처음 시작할 때 넉넉히 지급돼요' },
+          ].map((m) => (
+            <View key={m.title} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8 }}>
+              <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: m.color + '18', alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name={m.icon as keyof typeof Ionicons.glyphMap} size={17} color={m.color} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: c.textPrimary, fontSize: 13.5 * fs, fontFamily: fontCute, fontWeight: '700' }}>{m.title}</Text>
+                <Text style={{ color: c.textSecondary, fontSize: 11.5 * fs, fontFamily: fontBody, marginTop: 1 }}>{m.desc}</Text>
+              </View>
+            </View>
+          ))}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8, backgroundColor: c.surfaceAlt, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 9 }}>
+            <Text style={{ fontSize: 13 }}>💎</Text>
+            <Text style={{ color: c.textSecondary, fontSize: 11.5 * fs, fontFamily: fontBody, flex: 1, lineHeight: 16 }}>
+              한 팩({PACK_SIZE}장)에는 레어 이상 카드가 최소 1장 나와요
+            </Text>
+          </View>
         </View>
 
         {/* 등급별 그리드 */}
@@ -161,7 +208,7 @@ function CollectibleDetailModal({ id, count, onClose }: { id: string | null; cou
               <Text style={{ fontSize: 15 }}>💡</Text>
               <Text style={{ color: '#fff', fontSize: 12.5 * fs, fontFamily: fontBody, flex: 1, lineHeight: 18 }}>{col.tip}</Text>
             </View>
-            <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11.5 * fs, fontFamily: fontMono, marginTop: 14 }}>기기를 기울여 홀로그램을 감상하세요</Text>
+            <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11.5 * fs, fontFamily: fontMono, marginTop: 14 }}>{Platform.OS === 'web' ? '마우스를 움직여 홀로그램을 감상하세요' : '기기를 기울여 홀로그램을 감상하세요'}</Text>
           </Pressable>
         )}
       </Pressable>

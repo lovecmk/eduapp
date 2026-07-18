@@ -4,7 +4,10 @@ package service
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"sort"
+	"strconv"
 	"time"
 
 	"github.com/lovecmk/eduapp/backend/internal/domain"
@@ -120,6 +123,39 @@ func (s *CardService) TodaySession(ctx context.Context, userID string, opt Sessi
 		acc += cardSeconds(c)
 	}
 	return session, nil
+}
+
+// Create 는 새 학습카드(콘텐츠)를 저장하고 저장된 카드를 반환한다.
+// 프런트의 문제 등록 화면(author-card)이 보내는 draftToDTO 페이로드를 받아
+// 서버 카드로 영속화한다. 진행 상태(Progress)는 만들지 않으므로 모든 사용자에게 NEW 로 보인다.
+func (s *CardService) Create(ctx context.Context, card domain.Card) (*domain.Card, error) {
+	if card.ID == "" {
+		card.ID = newCardID()
+	}
+	// 누락 필드는 프런트 draftToSeedCard 와 동일한 기본값으로 보정한다.
+	if card.StudySeconds <= 0 {
+		card.StudySeconds = 40
+	}
+	if card.DifficultyCd == "" {
+		card.DifficultyCd = domain.Medium
+	}
+	if card.CardTypeCd == "" {
+		card.CardTypeCd = domain.Explanation
+	}
+	if err := s.repo.InsertCards(ctx, []domain.Card{card}); err != nil {
+		return nil, err
+	}
+	return &card, nil
+}
+
+// newCardID 는 사용자 등록 카드의 고유 id 를 만든다(usr- 접두사로 시드 id 와 구분).
+func newCardID() string {
+	var b [8]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		// 엔트로피 실패 시에도 충돌 확률이 낮은 시각 기반 id 로 폴백.
+		return "usr-" + strconv.FormatInt(time.Now().UnixNano(), 36)
+	}
+	return "usr-" + hex.EncodeToString(b[:])
 }
 
 // Mark 는 개인 진행 상태를 갱신하고 갱신된 카드를 반환한다.

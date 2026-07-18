@@ -12,6 +12,8 @@ import { fontMono, fontCute, fontDisplay, fontBody } from '../../src/theme/token
 import { ROUTES } from '../../src/constants/routes';
 import { useAllCards } from '../../src/hooks/useCards';
 import { useBookmarkStore } from '../../src/store/bookmarkStore';
+import { useCollectionStore } from '../../src/store/collectionStore';
+import { COLLECTIBLES } from '../../src/data/collectibles';
 import { MEMBERSHIP_META } from '../../src/domain/models/User';
 
 export default function MyPageScreen() {
@@ -22,9 +24,13 @@ export default function MyPageScreen() {
   const { data: allCards = [] } = useAllCards();
   const profileImage = useSettingsStore((s) => s.profileImage);
   const bookmarkCount = useBookmarkStore((s) => s.ids.length);
+  const ownedCollectibles = useCollectionStore((s) => s.owned);
+  const packs = useCollectionStore((s) => s.packs);
   const [linkModal, setLinkModal] = React.useState(false);
 
   const masteredCount = useMemo(() => allCards.filter((c) => c.status === 'mastered').length, [allCards]);
+  const collectedCount = Object.keys(ownedCollectibles).length;
+  const collectibleTotal = COLLECTIBLES.length;
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
@@ -90,6 +96,25 @@ export default function MyPageScreen() {
         ) : (
           <Ionicons name="chevron-forward" size={18} color={c.primary} />
         )}
+      </Pressable>
+
+      <Pressable onPress={() => router.push(ROUTES.collectionBook as never)}
+        style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: c.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: c.border, marginVertical: 8 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <Ionicons name="albums-outline" size={20} color={c.textPrimary} />
+          <View>
+            <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontWeight: '700', fontFamily: fontCute }}>안전 카드 도감</Text>
+            <Text style={{ color: c.textSecondary, fontSize: 12, fontFamily: fontCute }}>수집 {collectedCount}/{collectibleTotal}장 · 카드팩 모아 열기</Text>
+          </View>
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          {packs > 0 && (
+            <View style={{ backgroundColor: c.error, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 }}>
+              <Text style={{ color: '#fff', fontSize: 12, fontWeight: '800', fontFamily: fontMono }}>팩 {packs}</Text>
+            </View>
+          )}
+          <Ionicons name="chevron-forward" size={18} color={c.primary} />
+        </View>
       </Pressable>
 
       <Pressable onPress={() => router.push(ROUTES.trophy as never)}

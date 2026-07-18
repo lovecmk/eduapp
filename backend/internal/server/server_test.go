@@ -168,6 +168,42 @@ func TestEndToEnd(t *testing.T) {
 		t.Fatalf("mark result=%v, want MASTERED", marked["status_cd"])
 	}
 
+	// 9-b) 카드 등록 → 새 카드가 전체 목록에 추가되고 NEW 로 보인다(문제 등록 도구 연결).
+	res, data = doJSON(t, app, "POST", "/api/cards", tok, map[string]any{
+		"category_cd":     "전기 위험",
+		"sub_category_nm": "감전",
+		"topic_nm":        "누전",
+		"title_txt":       "테스트 카드",
+		"question_txt":    "누전차단기의 주 목적은?",
+		"card_type_cd":    "EXPLANATION",
+		"principle_txt":   "감전 보호가 주 목적이다.",
+	})
+	if res.StatusCode != 201 {
+		t.Fatalf("create card status=%d body=%s", res.StatusCode, data)
+	}
+	var created map[string]any
+	if err := json.Unmarshal(data, &created); err != nil {
+		t.Fatalf("create decode: %v (%s)", err, data)
+	}
+	if created["status_cd"] != "NEW" || created["question_txt"] != "누전차단기의 주 목적은?" {
+		t.Fatalf("create result=%+v", created)
+	}
+	// 미인증 등록은 401.
+	if res, _ := doJSON(t, app, "POST", "/api/cards", "", map[string]any{"question_txt": "x", "category_cd": "공통"}); res.StatusCode != 401 {
+		t.Fatalf("create without auth status=%d, want 401", res.StatusCode)
+	}
+	// 필수 항목 누락은 400.
+	if res, _ := doJSON(t, app, "POST", "/api/cards", tok, map[string]any{"title_txt": "제목만"}); res.StatusCode != 400 {
+		t.Fatalf("create missing required status=%d, want 400", res.StatusCode)
+	}
+	// 등록 후 전체 카드가 62장.
+	_, data = doJSON(t, app, "GET", "/api/cards", tok, nil)
+	var all2 []map[string]any
+	_ = json.Unmarshal(data, &all2)
+	if len(all2) != 62 {
+		t.Fatalf("after create all cards=%d, want 62", len(all2))
+	}
+
 	// 10) stats
 	res, data = doJSON(t, app, "GET", "/api/stats", tok, nil)
 	if res.StatusCode != 200 {
@@ -178,7 +214,8 @@ func TestEndToEnd(t *testing.T) {
 		TotalLearned int `json:"total_learned"`
 	}
 	_ = json.Unmarshal(data, &stats)
-	if stats.TotalCards != 61 || stats.TotalLearned < 1 {
+	// 앞서 카드 1장을 등록했으므로 전체 62장.
+	if stats.TotalCards != 62 || stats.TotalLearned < 1 {
 		t.Fatalf("stats=%+v", stats)
 	}
 

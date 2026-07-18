@@ -71,6 +71,7 @@ func New(d Deps) *fiber.App {
 
 	protected.Get("/cards", cardH.All)
 	protected.Get("/cards/today", cardH.Today)
+	protected.Post("/cards", cardH.Create)
 	protected.Patch("/cards/:id", cardH.Mark)
 	protected.Get("/stats", statsH.Get)
 	protected.Get("/community/live", commH.Live)
