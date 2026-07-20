@@ -15,6 +15,7 @@ import { MomentModal } from '../../src/components/home/MomentModal';
 import { HomeSkeleton } from '../../src/components/skeletons';
 import { LivePresenceStrip } from '../../src/components/community/LivePresenceStrip';
 import { LearningCalendar } from '../../src/components/community/LearningCalendar';
+import { AttendanceStampCard } from '../../src/components/attendance/AttendanceStampCard';
 import { fontMono, fontDisplay, fontBody } from '../../src/theme/tokens';
 import { calcEmblems, getAcquiredEmblems } from '../../src/utils/emblems';
 import { getTimeContext, pickGreeting } from '../../src/utils/timeContext';
@@ -224,6 +225,9 @@ export default function HomeScreen() {
             </View>
           )}
         </Card>
+
+        {/* 접속 출석 도장 */}
+        <AttendanceStampCard />
 
         {/* 학습 현황 — 학습 히트맵 캘린더 */}
         <LearningCalendar />

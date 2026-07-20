@@ -16,6 +16,8 @@ export const ROUTES = {
   profile: '/profile',
   trophy: '/trophy',
   collectionBook: '/collection-book',
+  packRules: '/pack-rules',
+  admin: '/admin',
   authorCard: '/author-card',
   support: '/support',
   share: '/share',

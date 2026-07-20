@@ -64,11 +64,11 @@ export default function SettingsScreen() {
   const {
     themeMode, fontScale: fontScaleSetting, highContrast,
     notifications, biometricLoginEnabled, dailyTarget, shuffleCards, keepScreenOn, offlineMode,
-    prioritizeWeakSpots, dontKnowHaptic, flexPromptEnabled, showAchievementBadge,
+    prioritizeWeakSpots, dontKnowHaptic, flexPromptEnabled, showAchievementBadge, collectionEnabled,
     setThemeMode, setFontScale, toggleHighContrast,
     updateNotificationSetting, setBiometricLogin, setDailyTarget,
     toggleShuffleCards, toggleKeepScreenOn, toggleOfflineMode, togglePrioritizeWeakSpots,
-    toggleDontKnowHaptic, toggleFlexPrompt, toggleAchievementBadge, resetAll,
+    toggleDontKnowHaptic, toggleFlexPrompt, toggleAchievementBadge, toggleCollectionEnabled, resetAll,
   } = useSettingsStore();
 
   const user = useAuthStore((s) => s.user);
@@ -275,6 +275,31 @@ export default function SettingsScreen() {
           />
         </SettingsGroup>
 
+        <SettingsGroup title="카드 수집 (베타)">
+          <SettingsItem
+            icon="albums-outline"
+            label="카드 수집·카드팩 사용"
+            description="회의 확정 전까지 설정에서만 켤 수 있어요"
+            right={<Switch value={collectionEnabled} onValueChange={toggleCollectionEnabled} />}
+          />
+          {collectionEnabled && (
+            <>
+              <SettingsItem
+                icon="library-outline"
+                label="안전 카드 컬렉션"
+                description="수집한 카드·카드팩 열기"
+                onPress={() => router.push(ROUTES.collectionBook as never)}
+              />
+              <SettingsItem
+                icon="gift-outline"
+                label="카드팩 획득 조건"
+                description="학습·출석·연속 등 상세 조건 보기"
+                onPress={() => router.push(ROUTES.packRules as never)}
+              />
+            </>
+          )}
+        </SettingsGroup>
+
         <SettingsGroup title="화면">
           <SettingsBlock label="테마">
             <SegmentedControl options={THEME_LABELS} selectedIndex={THEME_OPTIONS.indexOf(themeMode)} onChange={(i) => setThemeMode(THEME_OPTIONS[i])} />
@@ -317,6 +342,7 @@ export default function SettingsScreen() {
           <SettingsItem icon="download-outline" label="시스템 로그 다운로드" onPress={() => { void downloadSystemLog(); }} />
           <SettingsItem icon="document-text-outline" label="이용약관 · 개인정보처리방침" onPress={() => Linking.openURL('https://bridge.kfpa.or.kr/')} />
           <SettingsItem icon="construct-outline" label="개발자 모드" description="테스트용 기능" onPress={() => router.push(ROUTES.developer)} />
+          <SettingsItem icon="shield-half-outline" label="관리 콘솔" description="웹 관리자 페이지 (사용자·규칙·카드·플래그)" onPress={() => router.push(ROUTES.admin as never)} />
         </SettingsGroup>
 
         <SettingsGroup title="데이터">

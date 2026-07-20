@@ -40,6 +40,8 @@ interface SettingsState {
   flexPromptEnabled: boolean;
   /** 닉네임 옆 성취 뱃지 표출 여부 */
   showAchievementBadge: boolean;
+  /** 카드 수집·카드팩 시스템 노출 여부(회의 확정 전까지 설정으로만 접속) */
+  collectionEnabled: boolean;
 
   setThemeMode: (mode: ThemeMode) => void;
   setFontScale: (scale: FontScale) => void;
@@ -60,6 +62,7 @@ interface SettingsState {
   setBio: (bio: string) => void;
   toggleFlexPrompt: () => void;
   toggleAchievementBadge: () => void;
+  toggleCollectionEnabled: () => void;
   /** 로컬 저장 데이터를 초기화하고 기본 설정으로 되돌린다(방어적 초기화). */
   resetAll: () => void;
 }
@@ -93,6 +96,8 @@ const DEFAULT_SETTINGS = {
   flexPromptEnabled: true,
   // 기본 켜짐 — 획득한 최고 성취 뱃지를 닉네임 옆에 표출.
   showAchievementBadge: true,
+  // 기본 꺼짐 — 카드 수집·카드팩 시스템은 회의 확정 전까지 설정으로만 접속.
+  collectionEnabled: false,
 };
 
 export const useSettingsStore = create<SettingsState>()(
@@ -119,6 +124,7 @@ export const useSettingsStore = create<SettingsState>()(
       setBio: (bio) => set({ bio }),
       toggleFlexPrompt: () => set((s) => ({ flexPromptEnabled: !s.flexPromptEnabled })),
       toggleAchievementBadge: () => set((s) => ({ showAchievementBadge: !s.showAchievementBadge })),
+      toggleCollectionEnabled: () => set((s) => ({ collectionEnabled: !s.collectionEnabled })),
       resetAll: () => set({ ...DEFAULT_SETTINGS }),
     }),
     {

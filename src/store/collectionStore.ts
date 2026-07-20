@@ -46,9 +46,13 @@ interface CollectionState {
   studyProgress: number;
   /** 최근 새로 획득해 아직 확인 안 한 카드들(도감 NEW 뱃지) */
   newIds: string[];
+  /** 카드팩 획득 규칙 수령 횟수(ruleId → 수령 횟수) */
+  claimedRules: Record<string, number>;
 
   /** 오늘 무료팩을 아직 안 받았으면 지급. 받았으면 false. */
   claimDaily: () => boolean;
+  /** 획득 조건 규칙을 수령 — 팩을 지급하고 수령 횟수를 누적. */
+  claimRule: (ruleId: string, packs: number, times?: number) => void;
   /** 학습 세션 완료 등으로 진행 적립 — 3회마다 팩 1개 지급. */
   addStudyProgress: () => void;
   /** 팩 즉시 지급(디버그/보상). */
@@ -68,6 +72,7 @@ export const useCollectionStore = create<CollectionState>()(
       lastDailyPack: null,
       studyProgress: 0,
       newIds: [],
+      claimedRules: {},
 
       claimDaily: () => {
         const today = todayKey();
@@ -84,6 +89,12 @@ export const useCollectionStore = create<CollectionState>()(
         }),
 
       grantPack: (n = 1) => set((s) => ({ packs: s.packs + n })),
+
+      claimRule: (ruleId, packs, times = 1) =>
+        set((s) => ({
+          packs: s.packs + packs,
+          claimedRules: { ...s.claimedRules, [ruleId]: (s.claimedRules[ruleId] ?? 0) + times },
+        })),
 
       openPack: () => {
         if (get().packs <= 0) return null;

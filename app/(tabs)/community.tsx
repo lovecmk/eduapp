@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTheme } from '../../src/theme/ThemeProvider';
+import { useSettingsStore } from '../../src/store/settingsStore';
 import { LivePresenceCard } from '../../src/components/community/LivePresenceCard';
 import { WeeklyChallengeCard } from '../../src/components/community/WeeklyChallengeCard';
 import { CommunityBuildCard } from '../../src/components/community/CommunityBuildCard';
@@ -29,6 +30,7 @@ export default function CommunityScreen() {
   const c = theme.colors;
   const router = useRouter();
   const questions = useQnaStore((s) => s.questions);
+  const collectionEnabled = useSettingsStore((s) => s.collectionEnabled);
   const { data: liveData, isLoading: liveLoading } = useCommunity();
   const [composeOpen, setComposeOpen] = useState(false);
   // 회전 창(window)의 시작 오프셋 — 30초마다 앞으로 밀며 질문을 순환 노출.
@@ -65,7 +67,7 @@ export default function CommunityScreen() {
         ) : (
           <>
             <LivePresenceCard />
-            <CollectionTeaserCard />
+            {collectionEnabled && <CollectionTeaserCard />}
             <BragFeedCard />
             <WeeklyChallengeCard />
             <CommunityLeaderboardCard />
