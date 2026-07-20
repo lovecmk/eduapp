@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, Modal, Pressable, Platform, Dimensions } from 'react-native';
+import { View, Text, Modal, Pressable, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
+import { hapticSuccess, hapticWarning } from '../../utils/haptics';
 import Animated, { ZoomIn, FadeIn } from 'react-native-reanimated';
 import { CollectibleCard } from './CollectibleCard';
 import { COLLECTIBLE_BY_ID } from '../../data/collectibles';
@@ -29,10 +29,9 @@ export function PackOpenModal({ results, onClose }: { results: DrawResult[] | nu
 
   const open = () => {
     setOpened(true);
-    if (Platform.OS !== 'web') {
-      const strong = RANK[best] >= 2;
-      Haptics.notificationAsync(strong ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Warning).catch(() => {});
-    }
+    // 희귀도 2 이상은 '대박' 성공감, 그 이하는 부드러운 주의감으로 결과를 손끝에 예고한다.
+    if (RANK[best] >= 2) hapticSuccess();
+    else hapticWarning();
   };
 
   const cardW = Math.min((SCREEN_W - 48 - 14) / 2, 150);

@@ -91,13 +91,13 @@ function MinimalHeader({ title }: { title: string }) {
         <Text style={{ color: c.textPrimary, fontSize: 16, marginLeft: 8, flex: 1, fontFamily: fontDisplay }}>{title}</Text>
 
         {/* 알림 */}
-        <PressableScale onPress={() => router.push(ROUTES.notifications as never)} style={{ padding: 6, marginRight: 2 }} hitSlop={4}>
+        <PressableScale haptic onPress={() => router.push(ROUTES.notifications as never)} style={{ padding: 6, marginRight: 2 }} hitSlop={4}>
           <Ionicons name="notifications-outline" size={23} color={c.textPrimary} />
           {unreadCount > 0 && <NotificationBadge count={unreadCount} />}
         </PressableScale>
 
         {/* 메뉴(아바타) */}
-        <PressableScale onPress={() => setMenuOpen(true)} hitSlop={4} style={{ marginLeft: 4 }}>
+        <PressableScale haptic onPress={() => setMenuOpen(true)} hitSlop={4} style={{ marginLeft: 4 }}>
           <Avatar uri={profileImage} size={30} ring={1.5} ringColor={c.border} />
         </PressableScale>
       </View>

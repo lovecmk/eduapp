@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { View, Text, ScrollView, Pressable, Dimensions, Modal, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
+import { hapticImpact, hapticSuccess } from '../src/utils/haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTheme } from '../src/theme/ThemeProvider';
 import { ScreenHeader } from '../src/components/ui/ScreenHeader';
@@ -51,14 +51,12 @@ export default function CollectionBookScreen() {
   const onOpen = () => {
     const res = openPack();
     if (res) {
-      if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+      hapticImpact();
       setDrawn(res);
     }
   };
   const onClaimDaily = () => {
-    if (claimDaily() && Platform.OS !== 'web') {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-    }
+    if (claimDaily()) hapticSuccess();
   };
   const onCloseDraw = () => setDrawn(null);
   const onDetail = (id: string) => { if (owned[id]) { setDetailId(id); if (newIds.includes(id)) clearNew([id]); } };

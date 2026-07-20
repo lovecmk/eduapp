@@ -2,10 +2,10 @@
 // 웹에서는 expo-notifications 스케줄링이 동작하지 않으므로 Platform 가드로 감싼다.
 import { Platform, Vibration } from 'react-native';
 import * as Notifications from 'expo-notifications';
-import * as Haptics from 'expo-haptics';
 import Constants from 'expo-constants';
 import { env } from '../network/env';
 import { apiClient } from '../network/ApiClient';
+import { hapticSuccess } from '../../utils/haptics';
 
 const isNative = Platform.OS !== 'web';
 
@@ -43,10 +43,10 @@ function buzz(): void {
   if (!isNative) return;
   try {
     Vibration.vibrate(VIBRATION_PATTERN);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   } catch {
     // 일부 기기/에뮬레이터는 진동 미지원 — 무시.
   }
+  hapticSuccess();
 }
 
 export async function requestNotificationPermission(): Promise<boolean> {

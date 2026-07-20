@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, ScrollView, Pressable, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
+import { hapticSuccess, hapticWarning } from '../src/utils/haptics';
 import { ScreenHeader } from '../src/components/ui/ScreenHeader';
 import { Button } from '../src/components/ui/Button';
 import { useTheme } from '../src/theme/ThemeProvider';
@@ -22,11 +22,8 @@ export default function RedeemScreen() {
   const onRedeem = () => {
     const r = redeemCode(code);
     setResult(r);
-    if (Platform.OS !== 'web') {
-      void Haptics.notificationAsync(
-        r.ok ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Warning,
-      );
-    }
+    if (r.ok) hapticSuccess();
+    else hapticWarning();
     if (r.ok) setCode('');
   };
 

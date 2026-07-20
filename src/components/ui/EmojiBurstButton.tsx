@@ -1,6 +1,6 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { Pressable, Text, View, Animated, Easing, Platform, type ViewStyle } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import { Pressable, Text, View, Animated, Easing, type ViewStyle } from 'react-native';
+import { hapticTap } from '../../utils/haptics';
 import { useTheme } from '../../theme/ThemeProvider';
 import { fontMono } from '../../theme/tokens';
 
@@ -69,7 +69,7 @@ export function EmojiBurstButton({
   }, [pop]);
 
   const handle = useCallback(() => {
-    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    hapticTap();
     burst();
     onPress();
   }, [burst, onPress]);

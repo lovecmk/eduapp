@@ -1,7 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, Text, ScrollView, Pressable } from 'react-native';
-import * as Haptics from 'expo-haptics';
-import { Platform } from 'react-native';
+import { hapticSuccess } from '../src/utils/haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../src/theme/ThemeProvider';
 import { ScreenHeader } from '../src/components/ui/ScreenHeader';
@@ -39,7 +38,7 @@ export default function PackRulesScreen() {
   const onClaim = (ruleId: string, packsReward: number, unitReward: number) => {
     const times = Math.max(1, Math.round(packsReward / unitReward));
     claimRule(ruleId, packsReward, times);
-    if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    hapticSuccess();
   };
 
   return (

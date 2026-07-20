@@ -1,7 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, Text, Pressable } from 'react-native';
-import * as Haptics from 'expo-haptics';
-import { Platform } from 'react-native';
+import { hapticSuccess } from '../../utils/haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/ThemeProvider';
 import { radius, fontDisplay, fontBody, fontMono, fontCute } from '../../theme/tokens';
@@ -50,7 +49,7 @@ export function AttendanceStampCard() {
 
   const onCheckIn = () => {
     const ok = checkIn();
-    if (ok && Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    if (ok) hapticSuccess();
     void hasToday; void streakFn; // 셀렉터 참조 유지
   };
 

@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { View, Text, Pressable, Animated, ScrollView, Dimensions, Platform, BackHandler, Modal, PanResponder } from 'react-native';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
+import { hapticTap, hapticSuccess, hapticError } from '../../src/utils/haptics';
 import { useTheme } from '../../src/theme/ThemeProvider';
 import { useAuthStore } from '../../src/store/authStore';
 import { useSettingsStore } from '../../src/store/settingsStore';
@@ -38,8 +38,7 @@ const { height: SCREEN_H, width: SCREEN_W } = Dimensions.get('window');
 const SWIPE_THRESHOLD = 90;
 
 function haptic() {
-  if (Platform.OS === 'web') return;
-  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  hapticTap();
 }
 
 // Fisher–Yates 셔플 — 원본을 건드리지 않고 새 배열을 반환.
@@ -53,8 +52,8 @@ function shuffle<T>(arr: T[]): T[] {
 }
 
 function notify(ok: boolean) {
-  if (Platform.OS === 'web') return;
-  Haptics.notificationAsync(ok ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Error);
+  if (ok) hapticSuccess();
+  else hapticError();
 }
 
 export default function CardsScreen() {
@@ -111,8 +110,8 @@ export default function CardsScreen() {
 
   // '모를 때(빨간 버튼/왼쪽 스와이프)'에만 주는 최소 햅틱 — 설정으로 끌 수 있다.
   const dnkHaptic = useCallback(() => {
-    if (!dontKnowHaptic || Platform.OS === 'web') return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (!dontKnowHaptic) return;
+    hapticTap();
   }, [dontKnowHaptic]);
   const srsCards = useSrsStore((s) => s.cards);
 
