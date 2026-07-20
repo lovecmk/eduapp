@@ -1,4 +1,4 @@
-import type { IAuthRepository, AuthSession } from '../../domain/repositories/IAuthRepository';
+import type { IAuthRepository, AuthSession, SignupInput } from '../../domain/repositories/IAuthRepository';
 import type { User } from '../../domain/models/User';
 import type { AuthResultDTO, UserDTO } from '../dto/UserDTO';
 import { UserMapper } from '../mappers/UserMapper';
@@ -15,6 +15,26 @@ export class AuthRepository implements IAuthRepository {
       accessToken: dto.access_token,
       refreshToken: dto.refresh_token,
     };
+  }
+
+  async register(input: SignupInput): Promise<AuthSession> {
+    const dto = await apiClient.post<AuthResultDTO>('/api/auth/register', input);
+    await secureStorage.setItem(StorageKeys.accessToken, dto.access_token);
+    await secureStorage.setItem(StorageKeys.refreshToken, dto.refresh_token);
+    return {
+      user: UserMapper.toDomain(dto.user),
+      accessToken: dto.access_token,
+      refreshToken: dto.refresh_token,
+    };
+  }
+
+  async resetPassword(username: string, email: string, newPassword: string): Promise<void> {
+    await apiClient.post('/api/auth/reset-password', { username, email, newPassword });
+  }
+
+  async isUsernameTaken(username: string): Promise<boolean> {
+    const dto = await apiClient.get<{ taken: boolean }>(`/api/auth/username-available?username=${encodeURIComponent(username)}`);
+    return dto.taken;
   }
 
   async logout(): Promise<void> {

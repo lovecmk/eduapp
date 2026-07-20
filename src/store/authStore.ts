@@ -1,6 +1,7 @@
 // 인증 상태 스토어 — PART 1.7 authStore (로그인/세션 복구)
 import { create } from 'zustand';
 import type { User } from '../domain/models/User';
+import type { SignupInput } from '../domain/repositories/IAuthRepository';
 import { authRepository } from '../data/repositories';
 
 interface AuthState {
@@ -12,6 +13,8 @@ interface AuthState {
   login: (id: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
   restore: () => Promise<void>;
+  register: (input: SignupInput) => Promise<boolean>;
+  resetPassword: (username: string, email: string, newPassword: string) => Promise<boolean>;
   clearError: () => void;
   setName: (name: string) => void;
 }
@@ -45,6 +48,30 @@ export const useAuthStore = create<AuthState>((set) => ({
       set({ user, bootstrapped: true });
     } catch {
       set({ user: null, bootstrapped: true });
+    }
+  },
+
+  register: async (input) => {
+    set({ loading: true, error: null });
+    try {
+      const session = await authRepository.register(input);
+      set({ user: session.user, loading: false });
+      return true;
+    } catch (e) {
+      set({ error: e instanceof Error ? e.message : '회원가입에 실패했습니다', loading: false });
+      return false;
+    }
+  },
+
+  resetPassword: async (username, email, newPassword) => {
+    set({ loading: true, error: null });
+    try {
+      await authRepository.resetPassword(username, email, newPassword);
+      set({ loading: false });
+      return true;
+    } catch (e) {
+      set({ error: e instanceof Error ? e.message : '비밀번호 재설정에 실패했습니다', loading: false });
+      return false;
     }
   },
 
