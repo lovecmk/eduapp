@@ -57,6 +57,10 @@ eduapp/
 | 캘린더 고도화 | components/community/LearningCalendar | srs·attendance 파생 | store/srsStore·attendanceStore |
 | 카드팩 획득 조건 | app/pack-rules.tsx | data/packRules(규칙+평가) | store/collectionStore(claimedRules) |
 | 관리 콘솔 | app/admin.tsx | mockUserDb·packRules·collectibles | settings·authoredCards |
+| 닉네임·중복확인 | app/(auth)/signup, components/auth/AvailabilityField | AuthRepository.isUsernameTaken/isNicknameTaken, mockUserDb | authStore |
+| 내 정보 수정 | app/edit-profile.tsx | AuthRepository.updateProfile, mockUserDb.updateUser | authStore.updateProfile |
+| QR 명함 | app/qr-card.tsx | utils/qrcode(순수 TS 인코더)·components/ui/QRCode(svg) | authStore·settings |
+| 가챠 코드 교환 | app/redeem.tsx | data/gachaCodes | collectionStore.redeemCode/redeemedCodes |
 
 ## 접근 게이트(설정)
 
@@ -67,7 +71,9 @@ eduapp/
 ## 실서버 전환 체크리스트
 
 1. `EXPO_PUBLIC_API_BASE_URL`(+ `EXPO_PUBLIC_USE_MOCK_DATA=false`) 설정.
-2. `src/data/repositories/*Repository.ts` 의 엔드포인트 구현 확정
-   (auth: `/api/auth/login|register|reset-password`).
+2. `src/data/repositories/*Repository.ts` 의 엔드포인트 구현 확정.
+   auth 엔드포인트는 Go 백엔드에 구현 완료:
+   `POST /api/auth/login|register`, `GET /api/auth/username-available|nickname-available`,
+   `GET/PATCH /api/auth/me`. (비밀번호 재설정 `reset-password` 는 미구현.)
 3. `data/auth/mockUserDb`, `data/packRules`(규칙 테이블), 출석/컬렉션 로컬 저장을
    서버 API + 관리 콘솔(admin) CRUD 로 대체.

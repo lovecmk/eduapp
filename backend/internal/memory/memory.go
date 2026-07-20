@@ -4,6 +4,7 @@ package memory
 
 import (
 	"context"
+	"strings"
 	"sync"
 
 	"github.com/lovecmk/eduapp/backend/internal/domain"
@@ -32,6 +33,18 @@ func (r *UserRepo) FindByLoginID(_ context.Context, loginID string) (*domain.Use
 	return &u, nil
 }
 
+func (r *UserRepo) FindByNickname(_ context.Context, nickname string) (*domain.User, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	for _, u := range r.byID {
+		if u.Nickname != "" && strings.EqualFold(u.Nickname, nickname) {
+			uu := u
+			return &uu, nil
+		}
+	}
+	return nil, ports.ErrNotFound{Entity: "user"}
+}
+
 func (r *UserRepo) FindByID(_ context.Context, id string) (*domain.User, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -45,6 +58,17 @@ func (r *UserRepo) FindByID(_ context.Context, id string) (*domain.User, error) 
 func (r *UserRepo) Create(_ context.Context, u *domain.User) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	r.byID[u.ID] = *u
+	r.login[u.LoginID] = u.ID
+	return nil
+}
+
+func (r *UserRepo) Update(_ context.Context, u *domain.User) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if _, ok := r.byID[u.ID]; !ok {
+		return ports.ErrNotFound{Entity: "user"}
+	}
 	r.byID[u.ID] = *u
 	r.login[u.LoginID] = u.ID
 	return nil

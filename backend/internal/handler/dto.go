@@ -78,7 +78,9 @@ func toCardDTOList(cards []domain.CardWithProgress) []CardDTO {
 // UserDTO 는 src/data/dto/UserDTO.ts 와 일치한다.
 type UserDTO struct {
 	ID           int    `json:"id"`
+	LoginID      string `json:"login_id,omitempty"`
 	UserNm       string `json:"user_nm"`
+	Nickname     string `json:"nickname,omitempty"`
 	EmailAddr    string `json:"email_addr"`
 	OrgNm        string `json:"org_nm,omitempty"`
 	JobTitle     string `json:"job_title,omitempty"`
@@ -98,7 +100,9 @@ func toUserDTO(u *domain.User) UserDTO {
 	// 프런트 UserDTO.id 는 number 타입이라, 문자열 _id 를 안정적 정수로 축약해 노출한다.
 	return UserDTO{
 		ID:           hashID(u.ID),
+		LoginID:      u.LoginID,
 		UserNm:       u.UserNm,
+		Nickname:     u.Nickname,
 		EmailAddr:    u.EmailAddr,
 		OrgNm:        u.OrgNm,
 		JobTitle:     u.JobTitle,

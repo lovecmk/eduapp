@@ -3,6 +3,7 @@ package mongo
 import (
 	"context"
 	"errors"
+	"regexp"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -21,6 +22,12 @@ func NewUserRepo(db *mongo.Database) *UserRepo {
 
 func (r *UserRepo) FindByLoginID(ctx context.Context, loginID string) (*domain.User, error) {
 	return r.findOne(ctx, bson.M{"login_id": loginID})
+}
+
+func (r *UserRepo) FindByNickname(ctx context.Context, nickname string) (*domain.User, error) {
+	// 대소문자 무시 정확 매칭(정규식 특수문자 이스케이프).
+	pattern := "^" + regexp.QuoteMeta(nickname) + "$"
+	return r.findOne(ctx, bson.M{"nickname": bson.M{"$regex": pattern, "$options": "i"}})
 }
 
 func (r *UserRepo) FindByID(ctx context.Context, id string) (*domain.User, error) {
@@ -42,6 +49,17 @@ func (r *UserRepo) findOne(ctx context.Context, filter bson.M) (*domain.User, er
 func (r *UserRepo) Create(ctx context.Context, u *domain.User) error {
 	_, err := r.col.InsertOne(ctx, u)
 	return err
+}
+
+func (r *UserRepo) Update(ctx context.Context, u *domain.User) error {
+	res, err := r.col.ReplaceOne(ctx, bson.M{"_id": u.ID}, u)
+	if err != nil {
+		return err
+	}
+	if res.MatchedCount == 0 {
+		return ports.ErrNotFound{Entity: "user"}
+	}
+	return nil
 }
 
 func (r *UserRepo) Count(ctx context.Context) (int64, error) {

@@ -1,5 +1,5 @@
 // TODO: 실제 API 연동 필요 - 담당: 백엔드팀 (POST /api/auth/login, /register, /reset-password)
-import type { IAuthRepository, AuthSession, SignupInput } from '../../domain/repositories/IAuthRepository';
+import type { IAuthRepository, AuthSession, SignupInput, ProfileUpdateInput } from '../../domain/repositories/IAuthRepository';
 import type { User } from '../../domain/models/User';
 import { secureStorage, StorageKeys } from '../storage/secureStorage';
 import { mockUserDb } from '../auth/mockUserDb';
@@ -41,7 +41,9 @@ export class MockAuthRepository implements IAuthRepository {
     await delay(500);
     const user: User = {
       id: `u-${Date.now()}`,
+      loginId: input.username.trim(),
       name: input.name.trim(),
+      nickname: input.nickname.trim() || undefined,
       email: input.email.trim(),
       org: input.org?.trim() || undefined,
       jobTitle: undefined,
@@ -51,6 +53,25 @@ export class MockAuthRepository implements IAuthRepository {
     };
     await mockUserDb.create({ username: input.username.trim(), password: input.password, user });
     return this.persistSession(user);
+  }
+
+  async isNicknameTaken(nickname: string, excludeUserId?: string): Promise<boolean> {
+    if (!nickname.trim()) return false;
+    return mockUserDb.isNicknameTaken(nickname, excludeUserId);
+  }
+
+  async updateProfile(userId: string, patch: ProfileUpdateInput): Promise<User> {
+    await delay(400);
+    const clean: Partial<User> = {};
+    if (patch.name !== undefined) clean.name = patch.name.trim();
+    if (patch.nickname !== undefined) clean.nickname = patch.nickname.trim() || undefined;
+    if (patch.email !== undefined) clean.email = patch.email.trim();
+    if (patch.org !== undefined) clean.org = patch.org.trim() || undefined;
+    if (patch.jobTitle !== undefined) clean.jobTitle = patch.jobTitle.trim() || undefined;
+    const updated = await mockUserDb.updateUser(userId, clean);
+    // 세션 캐시(secureStorage)도 갱신해 앱 재시작(restore) 후에도 유지되게 한다.
+    await secureStorage.setItem(StorageKeys.mockUser, JSON.stringify(updated));
+    return updated;
   }
 
   async resetPassword(username: string, email: string, newPassword: string): Promise<void> {

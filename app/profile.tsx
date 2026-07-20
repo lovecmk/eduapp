@@ -11,7 +11,7 @@ import { ScreenHeader } from '../src/components/ui/ScreenHeader';
 import { Avatar } from '../src/components/ui/Avatar';
 import { AchievementBadge, useTopBadgeTier } from '../src/components/ui/AchievementBadge';
 import { fontCute, fontMono, fontBody, fontDisplay } from '../src/theme/tokens';
-import { MEMBERSHIP_META } from '../src/domain/models/User';
+import { MEMBERSHIP_META, displayName } from '../src/domain/models/User';
 import { RARITY_META } from '../src/utils/rarity';
 import { COLLECTIBLE_BY_ID } from '../src/data/collectibles';
 import { useAllCards } from '../src/hooks/useCards';
@@ -57,7 +57,15 @@ export default function ProfileScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
-      <ScreenHeader title="내 프로필" />
+      <ScreenHeader
+        title="내 프로필"
+        right={
+          <Pressable onPress={() => router.push(ROUTES.editProfile as never)} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, padding: 4 }}>
+            <Ionicons name="create-outline" size={18} color={c.primary} />
+            <Text style={{ color: c.primary, fontSize: 13, fontWeight: '700', fontFamily: fontCute }}>수정</Text>
+          </Pressable>
+        }
+      />
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 48 }} showsVerticalScrollIndicator={false}>
         {/* 프로필 헤더 — 큰 아바타 + 이름 + 성취 뱃지 */}
         <View style={{ alignItems: 'center', marginTop: 8, marginBottom: 20 }}>
@@ -69,9 +77,12 @@ export default function ProfileScreen() {
           </Pressable>
 
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
-            <Text style={{ color: c.textPrimary, fontSize: 22 * fs, fontWeight: '800', fontFamily: fontCute }}>{user?.name ?? '현장 작업자'}</Text>
+            <Text style={{ color: c.textPrimary, fontSize: 22 * fs, fontWeight: '800', fontFamily: fontCute }}>{displayName(user)}</Text>
             <AchievementBadge size={20} />
           </View>
+          {user?.loginId ? (
+            <Text style={{ color: c.textSecondary, fontSize: 12 * fs, marginTop: 3, fontFamily: fontMono }}>@{user.loginId}</Text>
+          ) : null}
 
           {user ? (() => {
             const meta = MEMBERSHIP_META[user.membership];

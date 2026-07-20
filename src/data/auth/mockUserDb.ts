@@ -20,6 +20,7 @@ const SEED: MockAccount[] = [
     user: {
       id: 'u-wonjinseop',
       name: '원진섭',
+      nickname: '불끄는진섭',
       email: 'won@example.com',
       org: '안전관리본부',
       jobTitle: '현장 안전관리자',
@@ -34,6 +35,7 @@ const SEED: MockAccount[] = [
     user: {
       id: 'u-kim',
       name: '김현장',
+      nickname: '현장왕김씨',
       email: 'kim@example.com',
       org: '안전관리본부',
       jobTitle: '현장 안전관리자',
@@ -45,7 +47,11 @@ const SEED: MockAccount[] = [
 ];
 
 function reviveDates(accounts: MockAccount[]): MockAccount[] {
-  return accounts.map((a) => ({ ...a, user: { ...a.user, createdAt: new Date(a.user.createdAt) } }));
+  // loginId 는 표시 전용 파생값 — 저장소에 없으면 username 으로 백필한다.
+  return accounts.map((a) => ({
+    ...a,
+    user: { ...a.user, loginId: a.user.loginId ?? a.username, createdAt: new Date(a.user.createdAt) },
+  }));
 }
 
 async function readAll(): Promise<MockAccount[]> {
@@ -75,13 +81,46 @@ export const mockUserDb = {
     return !!(await this.find(username));
   },
 
+  /** 닉네임 중복 여부. excludeUserId 를 넘기면 그 사용자 본인은 제외한다. */
+  async isNicknameTaken(nickname: string, excludeUserId?: string): Promise<boolean> {
+    const target = nickname.trim().toLowerCase();
+    if (!target) return false;
+    const all = await readAll();
+    return all.some(
+      (a) =>
+        a.user.id !== excludeUserId &&
+        (a.user.nickname ?? '').trim().toLowerCase() === target,
+    );
+  },
+
   async create(account: MockAccount): Promise<void> {
     const all = await readAll();
     if (all.some((a) => a.username.toLowerCase() === account.username.trim().toLowerCase())) {
       throw new Error('이미 사용 중인 아이디입니다');
     }
+    const nick = (account.user.nickname ?? '').trim().toLowerCase();
+    if (nick && all.some((a) => (a.user.nickname ?? '').trim().toLowerCase() === nick)) {
+      throw new Error('이미 사용 중인 닉네임입니다');
+    }
     all.push(account);
     await writeAll(all);
+  },
+
+  /** 사용자 프로필(계정)을 부분 갱신하고 갱신된 User 를 반환. */
+  async updateUser(userId: string, patch: Partial<User>): Promise<User> {
+    const all = await readAll();
+    const idx = all.findIndex((a) => a.user.id === userId);
+    if (idx === -1) throw new Error('사용자를 찾을 수 없습니다');
+    if (patch.nickname !== undefined) {
+      const nick = patch.nickname.trim().toLowerCase();
+      if (nick && all.some((a, i) => i !== idx && (a.user.nickname ?? '').trim().toLowerCase() === nick)) {
+        throw new Error('이미 사용 중인 닉네임입니다');
+      }
+    }
+    const updated: User = { ...all[idx].user, ...patch };
+    all[idx] = { ...all[idx], user: updated };
+    await writeAll(all);
+    return updated;
   },
 
   async updatePassword(username: string, email: string, newPassword: string): Promise<void> {

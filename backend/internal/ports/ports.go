@@ -12,8 +12,11 @@ import (
 // UserRepository 는 사용자 영속화 포트.
 type UserRepository interface {
 	FindByLoginID(ctx context.Context, loginID string) (*domain.User, error)
+	FindByNickname(ctx context.Context, nickname string) (*domain.User, error)
 	FindByID(ctx context.Context, id string) (*domain.User, error)
 	Create(ctx context.Context, u *domain.User) error
+	// Update 는 기존 사용자를 덮어쓴다(내 정보 수정용).
+	Update(ctx context.Context, u *domain.User) error
 	Count(ctx context.Context) (int64, error)
 }
 

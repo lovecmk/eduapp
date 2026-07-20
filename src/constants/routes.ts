@@ -14,6 +14,7 @@ export const ROUTES = {
   developer: '/developer',
   saved: '/saved',
   profile: '/profile',
+  editProfile: '/edit-profile',
   trophy: '/trophy',
   collectionBook: '/collection-book',
   packRules: '/pack-rules',

@@ -96,6 +96,7 @@ type User struct {
 	ID           string     `bson:"_id"`
 	LoginID      string     `bson:"login_id"`
 	UserNm       string     `bson:"user_nm"`
+	Nickname     string     `bson:"nickname"`
 	EmailAddr    string     `bson:"email_addr"`
 	OrgNm        string     `bson:"org_nm"`
 	JobTitle     string     `bson:"job_title"`

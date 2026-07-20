@@ -91,6 +91,9 @@ function RootContent() {
         <Stack.Screen name="share" options={{ animation: 'slide_from_bottom' }} />
         <Stack.Screen name="trophy" />
         <Stack.Screen name="profile" />
+        <Stack.Screen name="edit-profile" />
+        <Stack.Screen name="qr-card" options={{ animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="redeem" options={{ animation: 'slide_from_bottom' }} />
         <Stack.Screen name="collection-book" />
         <Stack.Screen name="pack-rules" />
         <Stack.Screen name="admin" />

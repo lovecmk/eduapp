@@ -1,7 +1,7 @@
 // 인증 상태 스토어 — PART 1.7 authStore (로그인/세션 복구)
 import { create } from 'zustand';
 import type { User } from '../domain/models/User';
-import type { SignupInput } from '../domain/repositories/IAuthRepository';
+import type { SignupInput, ProfileUpdateInput } from '../domain/repositories/IAuthRepository';
 import { authRepository } from '../data/repositories';
 
 interface AuthState {
@@ -15,6 +15,8 @@ interface AuthState {
   restore: () => Promise<void>;
   register: (input: SignupInput) => Promise<boolean>;
   resetPassword: (username: string, email: string, newPassword: string) => Promise<boolean>;
+  /** 내 정보(이름·닉네임·이메일·소속·직무) 부분 수정. 성공 시 true. */
+  updateProfile: (patch: ProfileUpdateInput) => Promise<boolean>;
   clearError: () => void;
   setName: (name: string) => void;
 }
@@ -71,6 +73,23 @@ export const useAuthStore = create<AuthState>((set) => ({
       return true;
     } catch (e) {
       set({ error: e instanceof Error ? e.message : '비밀번호 재설정에 실패했습니다', loading: false });
+      return false;
+    }
+  },
+
+  updateProfile: async (patch) => {
+    const current = useAuthStore.getState().user;
+    if (!current) {
+      set({ error: '로그인이 필요합니다' });
+      return false;
+    }
+    set({ loading: true, error: null });
+    try {
+      const updated = await authRepository.updateProfile(current.id, patch);
+      set({ user: updated, loading: false });
+      return true;
+    } catch (e) {
+      set({ error: e instanceof Error ? e.message : '정보 수정에 실패했습니다', loading: false });
       return false;
     }
   },

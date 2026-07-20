@@ -1,4 +1,4 @@
-import type { IAuthRepository, AuthSession, SignupInput } from '../../domain/repositories/IAuthRepository';
+import type { IAuthRepository, AuthSession, SignupInput, ProfileUpdateInput } from '../../domain/repositories/IAuthRepository';
 import type { User } from '../../domain/models/User';
 import type { AuthResultDTO, UserDTO } from '../dto/UserDTO';
 import { UserMapper } from '../mappers/UserMapper';
@@ -35,6 +35,17 @@ export class AuthRepository implements IAuthRepository {
   async isUsernameTaken(username: string): Promise<boolean> {
     const dto = await apiClient.get<{ taken: boolean }>(`/api/auth/username-available?username=${encodeURIComponent(username)}`);
     return dto.taken;
+  }
+
+  async isNicknameTaken(nickname: string, excludeUserId?: string): Promise<boolean> {
+    const q = excludeUserId ? `&exclude=${encodeURIComponent(excludeUserId)}` : '';
+    const dto = await apiClient.get<{ taken: boolean }>(`/api/auth/nickname-available?nickname=${encodeURIComponent(nickname)}${q}`);
+    return dto.taken;
+  }
+
+  async updateProfile(userId: string, patch: ProfileUpdateInput): Promise<User> {
+    const dto = await apiClient.patch<UserDTO>('/api/auth/me', patch);
+    return UserMapper.toDomain(dto);
   }
 
   async logout(): Promise<void> {

@@ -329,6 +329,68 @@ func TestTelegramWhitelist(t *testing.T) {
 	}
 }
 
+// TestAuthLifecycle 는 회원가입 → 중복확인 → 내 정보 수정 흐름을 검증한다.
+func TestAuthLifecycle(t *testing.T) {
+	deps := buildApp(t)
+	app := server.New(*deps)
+
+	// 1) 아이디/닉네임 중복확인 — 신규는 미사용.
+	_, data := doJSON(t, app, "GET", "/api/auth/username-available?username=newbie", "", nil)
+	if string(data) == "" || indexOf(string(data), `"taken":false`) < 0 {
+		t.Fatalf("username-available want taken=false, got %s", data)
+	}
+
+	// 2) 회원가입
+	res, data := doJSON(t, app, "POST", "/api/auth/register", "", map[string]string{
+		"username": "newbie", "password": "pw1234", "name": "새내기", "nickname": "안전지킴이", "email": "new@x.com", "org": "현장1팀",
+	})
+	if res.StatusCode != 200 {
+		t.Fatalf("register status=%d body=%s", res.StatusCode, data)
+	}
+	var auth struct {
+		AccessToken string `json:"access_token"`
+		User        struct {
+			LoginID  string `json:"login_id"`
+			Nickname string `json:"nickname"`
+		} `json:"user"`
+	}
+	if err := json.Unmarshal(data, &auth); err != nil {
+		t.Fatalf("register decode: %v", err)
+	}
+	if auth.AccessToken == "" || auth.User.LoginID != "newbie" || auth.User.Nickname != "안전지킴이" {
+		t.Fatalf("register user fields wrong: %s", data)
+	}
+
+	// 3) 같은 아이디 재가입 → 409
+	if res, _ := doJSON(t, app, "POST", "/api/auth/register", "", map[string]string{"username": "newbie", "password": "x"}); res.StatusCode != 409 {
+		t.Fatalf("duplicate register status=%d, want 409", res.StatusCode)
+	}
+
+	// 4) 이제 아이디/닉네임은 사용 중.
+	_, data = doJSON(t, app, "GET", "/api/auth/username-available?username=newbie", "", nil)
+	if indexOf(string(data), `"taken":true`) < 0 {
+		t.Fatalf("username-available want taken=true, got %s", data)
+	}
+	_, data = doJSON(t, app, "GET", "/api/auth/nickname-available?nickname=안전지킴이", "", nil)
+	if indexOf(string(data), `"taken":true`) < 0 {
+		t.Fatalf("nickname-available want taken=true, got %s", data)
+	}
+
+	// 5) 내 정보 수정(PATCH /me) — 닉네임/이메일 변경.
+	res, data = doJSON(t, app, "PATCH", "/api/auth/me", auth.AccessToken, map[string]string{"nickname": "베테랑", "email": "vet@x.com"})
+	if res.StatusCode != 200 {
+		t.Fatalf("update me status=%d body=%s", res.StatusCode, data)
+	}
+	if indexOf(string(data), `"베테랑"`) < 0 || indexOf(string(data), "vet@x.com") < 0 {
+		t.Fatalf("update me not applied: %s", data)
+	}
+
+	// 6) 기존 닉네임(데모왕)으로 변경 시도 → 409 충돌.
+	if res, _ := doJSON(t, app, "PATCH", "/api/auth/me", auth.AccessToken, map[string]string{"nickname": "데모왕"}); res.StatusCode != 409 {
+		t.Fatalf("nickname conflict status=%d, want 409", res.StatusCode)
+	}
+}
+
 func contains(s, sub string) bool {
 	return len(s) >= len(sub) && (s == sub || indexOf(s, sub) >= 0)
 }

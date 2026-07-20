@@ -62,9 +62,13 @@ func New(d Deps) *fiber.App {
 	// 인증 (무인증 진입점 + 인증 필요 me)
 	auth := api.Group("/auth")
 	auth.Post("/login", authH.Login)
+	auth.Post("/register", authH.Register)
 	auth.Post("/refresh", authH.Refresh)
 	auth.Post("/logout", authH.Logout)
+	auth.Get("/username-available", authH.UsernameAvailable)
+	auth.Get("/nickname-available", authH.NicknameAvailable)
 	auth.Get("/me", middleware.RequireAuth(d.Tokens), authH.Me)
+	auth.Patch("/me", middleware.RequireAuth(d.Tokens), authH.UpdateMe)
 
 	// 이하 모두 인증 필요.
 	protected := api.Group("", middleware.RequireAuth(d.Tokens))
