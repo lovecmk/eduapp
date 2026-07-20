@@ -1,0 +1,109 @@
+# Android APK 빌드 (로컬 빌드 · Expo 계정/EAS 불필요)
+#
+# GitHub 러너에서 직접 네이티브 빌드를 수행한다.
+#  1) npm ci → .env 주입(시크릿 없으면 목업 폴백)
+#  2) Android SDK/NDK(35, ndk 27.1) 설치
+#  3) `expo prebuild` 로 android/ 생성
+#  4) `gradlew assembleRelease` 로 APK 생성
+#     (Expo 템플릿은 release 를 debug 키로 서명하므로 그대로 설치 가능한 APK 가 나온다)
+#  5) APK 를 아티팩트로 업로드 → Actions 실행 페이지에서 zip 으로 내려받는다.
+#
+# EAS(클라우드) 빌드는 eas-build.yml 이 담당한다. 이 워크플로는 EXPO_TOKEN 이 필요 없다.
+name: Build Android APK (Local)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - 'src/**'
+      - 'assets/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'app.json'
+      - '.github/workflows/build-apk.yml'
+  workflow_dispatch:
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    env:
+      CI: '1'
+      EXPO_NO_TELEMETRY: '1'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # deploy.yml 과 동일한 방식: 시크릿이 비어 있어도 env.ts 가 목업으로 폴백한다.
+      - name: Inject .env from Secrets
+        run: |
+          cat > .env <<EOF
+          EXPO_PUBLIC_API_BASE_URL=${{ secrets.EXPO_PUBLIC_API_BASE_URL }}
+          EXPO_PUBLIC_API_TIMEOUT_MS=${{ secrets.EXPO_PUBLIC_API_TIMEOUT_MS || '10000' }}
+          EXPO_PUBLIC_USE_MOCK_DATA=${{ secrets.EXPO_PUBLIC_USE_MOCK_DATA }}
+          EXPO_PUBLIC_SENTRY_DSN=${{ secrets.EXPO_PUBLIC_SENTRY_DSN }}
+          EOF
+          echo ".env 생성 완료 (값은 마스킹됨)"
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      # RN 0.76.9(SDK 52) 이 요구하는 정확한 패키지 버전으로 고정.
+      - name: Install Android SDK packages
+        run: |
+          sdkmanager --install \
+            "platform-tools" \
+            "platforms;android-35" \
+            "build-tools;35.0.0" \
+            "ndk;27.1.12297006"
+
+      # android/ 네이티브 프로젝트 생성 (Expo 로그인 불필요).
+      - name: Expo prebuild (android)
+        run: npx expo prebuild --platform android --no-install
+
+      - name: Build release APK
+        run: |
+          cd android
+          ./gradlew assembleRelease --no-daemon --stacktrace
+
+      - name: Collect APK
+        id: collect
+        run: |
+          APP_VERSION=$(node -p "require('./app.json').expo.version")
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          SRC=android/app/build/outputs/apk/release/app-release.apk
+          mkdir -p out
+          OUT="out/eduapp-v${APP_VERSION}-${SHORT_SHA}.apk"
+          cp "$SRC" "$OUT"
+          echo "apk_path=$OUT" >> "$GITHUB_OUTPUT"
+          echo "### 📦 APK 빌드 완료" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- 파일: \`$(basename "$OUT")\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- 크기: $(du -h "$OUT" | cut -f1)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- 아티팩트 \`eduapp-android-apk\` 를 zip 으로 내려받으세요." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: eduapp-android-apk
+          path: ${{ steps.collect.outputs.apk_path }}
+          if-no-files-found: error
+          retention-days: 30
