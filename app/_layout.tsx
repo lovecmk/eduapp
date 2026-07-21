@@ -105,7 +105,7 @@ function RootContent() {
       {!ready && (
         // 부팅 스플래시 — 화면 정중앙에 로고·앱 이름·로딩 표시를 세로로 배치한 브랜드 로딩 화면.
         // 로딩이 끝나면 통째로 페이드아웃되며 앱으로 넘어간다.
-        <Animated.View style={{ position: 'absolute', inset: 0, alignItems: 'center', justifyContent: 'center', zIndex: 999, opacity, backgroundColor: '#FFFFFF' }}>
+        <Animated.View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', zIndex: 999, opacity, backgroundColor: '#FFFFFF' }}>
           {/* 네이티브 스플래시(흰 배경 + splash-icon.png = KFPA 로고)에서 그대로 이어지도록,
               라이트/다크 무관하게 동일한 흰 배경 + KFPA 로고로 고정해 '하나의 인트로'가 되게 한다. */}
           <Animated.View style={{ alignItems: 'center', transform: [{ scale: logoScale }] }}>
