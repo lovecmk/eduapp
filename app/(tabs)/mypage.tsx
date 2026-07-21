@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, ScrollView, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,6 +7,7 @@ import { useAuthStore } from '../../src/store/authStore';
 import { useSettingsStore } from '../../src/store/settingsStore';
 import { Avatar } from '../../src/components/ui/Avatar';
 import { AchievementBadge } from '../../src/components/ui/AchievementBadge';
+import { RewardsGuideSheet } from '../../src/components/rewards/RewardsGuideSheet';
 import { fontMono, fontCute, fontDisplay, fontBody } from '../../src/theme/tokens';
 import { ROUTES } from '../../src/constants/routes';
 import { useAllCards } from '../../src/hooks/useCards';
@@ -25,10 +26,26 @@ export default function MyPageScreen() {
   const bookmarkCount = useBookmarkStore((s) => s.ids.length);
   const ownedCollectibles = useCollectionStore((s) => s.owned);
   const packs = useCollectionStore((s) => s.packs);
+  const rewardsGuideSeen = useSettingsStore((s) => s.rewardsGuideSeen);
+  const markRewardsGuideSeen = useSettingsStore((s) => s.markRewardsGuideSeen);
 
   const masteredCount = useMemo(() => allCards.filter((c) => c.status === 'mastered').length, [allCards]);
   const collectedCount = Object.keys(ownedCollectibles).length;
   const collectibleTotal = COLLECTIBLES.length;
+
+  // 보상 안내 시트 — 초보자가 처음 MY 탭에 오면 한 번 자동으로 띄워
+  // 엠블럼/도감/트로피의 차이를 알려준다. 이후에는 [안내] 버튼으로만 연다.
+  const [guideOpen, setGuideOpen] = useState(false);
+  useEffect(() => {
+    if (!rewardsGuideSeen) {
+      const t = setTimeout(() => setGuideOpen(true), 600);
+      return () => clearTimeout(t);
+    }
+  }, [rewardsGuideSeen]);
+  const closeGuide = () => {
+    setGuideOpen(false);
+    if (!rewardsGuideSeen) markRewardsGuideSeen();
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
@@ -96,13 +113,42 @@ export default function MyPageScreen() {
         )}
       </Pressable>
 
+      {/* ── 내 컬렉션 · 성취 ─────────────────────────────────────────────
+          엠블럼(실력)·도감(수집)·트로피(달성)를 한 곳에 모아 성격 태그로 구분한다.
+          [안내] 버튼으로 셋의 차이를 언제든 다시 볼 수 있다(초보자 배려). */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 18, marginBottom: 4, paddingHorizontal: 2 }}>
+        <Text style={{ color: c.textPrimary, fontSize: 14 * fs, fontWeight: '800', fontFamily: fontDisplay }}>내 컬렉션 · 성취</Text>
+        <Pressable onPress={() => setGuideOpen(true)} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: c.primary + '14', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 }}>
+          <Ionicons name="help-circle" size={14} color={c.primary} />
+          <Text style={{ color: c.primary, fontSize: 12 * fs, fontWeight: '800', fontFamily: fontCute }}>안내</Text>
+        </Pressable>
+      </View>
+
+      <Pressable onPress={() => router.push(ROUTES.stats)}
+        style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: c.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: c.border, marginVertical: 6 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+          <Ionicons name="ribbon-outline" size={20} color={c.textPrimary} />
+          <View style={{ flex: 1 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontWeight: '700', fontFamily: fontCute }}>엠블럼</Text>
+              <TypeChip label="실력" color="#2563EB" />
+            </View>
+            <Text style={{ color: c.textSecondary, fontSize: 12, fontFamily: fontCute }}>분야별 마스터로 오르는 실력 등급 뱃지</Text>
+          </View>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={c.primary} />
+      </Pressable>
+
       <Pressable onPress={() => router.push(ROUTES.collectionBook as never)}
-        style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: c.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: c.border, marginVertical: 8 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+        style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: c.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: c.border, marginVertical: 6 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
           <Ionicons name="albums-outline" size={20} color={c.textPrimary} />
-          <View>
-            <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontWeight: '700', fontFamily: fontCute }}>안전 카드 도감</Text>
-            <Text style={{ color: c.textSecondary, fontSize: 12, fontFamily: fontCute }}>수집 {collectedCount}/{collectibleTotal}장 · 카드팩 모아 열기</Text>
+          <View style={{ flex: 1 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontWeight: '700', fontFamily: fontCute }}>안전 카드 도감</Text>
+              <TypeChip label="수집" color="#7E57C2" />
+            </View>
+            <Text style={{ color: c.textSecondary, fontSize: 12, fontFamily: fontCute }}>수집 {collectedCount}/{collectibleTotal}장 · 카드팩 열어 모으기</Text>
           </View>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -116,17 +162,18 @@ export default function MyPageScreen() {
       </Pressable>
 
       <Pressable onPress={() => router.push(ROUTES.trophy as never)}
-        style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: c.primary, borderRadius: 16, padding: 16, marginVertical: 8, boxShadow: '0 8px 20px rgba(37,99,235,0.28)' }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' }}>
-            <Ionicons name="trophy" size={22} color="#fff" />
-          </View>
-          <View>
-            <Text style={{ color: '#fff', fontSize: 15 * fs, fontWeight: '800', fontFamily: fontCute }}>내 트로피룸 🏛️</Text>
-            <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 12, fontFamily: fontCute }}>내가 달성·플렉스한 성취 카드 모아보기</Text>
+        style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: c.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: c.border, marginVertical: 6 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+          <Ionicons name="trophy-outline" size={20} color={c.textPrimary} />
+          <View style={{ flex: 1 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontWeight: '700', fontFamily: fontCute }}>트로피룸</Text>
+              <TypeChip label="달성" color="#F2B705" />
+            </View>
+            <Text style={{ color: c.textSecondary, fontSize: 12, fontFamily: fontCute }}>목표 달성·플렉스한 성취 기록 보관함</Text>
           </View>
         </View>
-        <Ionicons name="chevron-forward" size={18} color="#fff" />
+        <Ionicons name="chevron-forward" size={18} color={c.primary} />
       </Pressable>
 
       <MyRow icon="person-circle-outline" title="내 정보 수정" desc="닉네임 · 이름 · 이메일 · 소속 변경" onPress={() => router.push(ROUTES.editProfile as never)} />
@@ -136,6 +183,18 @@ export default function MyPageScreen() {
       <MyRow icon="headset-outline" title="고객센터 · 문의" desc="문의하기, 자주 묻는 질문" onPress={() => router.push(ROUTES.support)} />
       <MyRow icon="settings-outline" title="설정" desc="알림, 테마, 계정 관리" onPress={() => router.push(ROUTES.settings)} />
       </ScrollView>
+
+      {/* 보상 3종 안내 — 첫 진입 자동 1회 + [안내] 버튼 */}
+      <RewardsGuideSheet visible={guideOpen} onClose={closeGuide} />
+    </View>
+  );
+}
+
+/** 보상 성격을 한 단어로 구분하는 색상 태그(실력/수집/달성). */
+function TypeChip({ label, color }: { label: string; color: string }) {
+  return (
+    <View style={{ backgroundColor: color + '1A', borderRadius: 999, paddingHorizontal: 7, paddingVertical: 1.5 }}>
+      <Text style={{ color, fontSize: 10.5, fontWeight: '800', fontFamily: fontCute }}>{label}</Text>
     </View>
   );
 }

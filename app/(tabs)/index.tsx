@@ -18,6 +18,8 @@ import { LearningCalendar } from '../../src/components/community/LearningCalenda
 import { fontMono, fontDisplay, fontBody } from '../../src/theme/tokens';
 import { calcEmblems, getAcquiredEmblems } from '../../src/utils/emblems';
 import { getDaylight } from '../../src/utils/daylight';
+import { AmbientSky } from '../../src/components/home/AmbientSky';
+import { useWeather } from '../../src/hooks/useWeather';
 import { useFactionStore } from '../../src/store/factionStore';
 import { computeMoment, encourageLine, type Moment } from '../../src/utils/moments';
 import { ROUTES } from '../../src/constants/routes';
@@ -73,9 +75,12 @@ export default function HomeScreen() {
   // 시간대(아침/저녁)를 '의도적으로 문구로 띄우지 않는다'. 인사·문구는 시간 중립으로 두고,
   // 지금이 언제쯤인지는 아래 해/달 아이콘으로만 은은하게 전한다.
   const greeting = useMemo(() => NEUTRAL_GREETINGS[Math.floor(Math.random() * NEUTRAL_GREETINGS.length)], []);
-  // 시간대를 해/달로 간접 표현(4단계) — 라벨 텍스트 대신 아이콘 하나로.
+  // 시간대 4단계 — 이제 '문구/히어로 아이콘'이 아니라 홈 '배경(AmbientSky)'으로만 표현한다.
+  // 히어로에는 시간과 무관한 고정 안전 아이콘(방패)을 둔다.
   const daylight = useMemo(() => getDaylight(), []);
-  // 아주 미세한 효과 — 해/달이 천천히 숨쉬듯 은은하게 떠오른다(느린 루프).
+  // 날씨 — 배경 앰비언트(비/눈/맑음) 구동용. 실패해도 조용히 시간대 효과만 남는다.
+  const { data: weather } = useWeather();
+  // 아주 미세한 효과 — 히어로 안전 아이콘이 천천히 숨쉬듯 은은하게 빛난다(느린 루프).
   const glowAnim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     const loop = Animated.loop(
@@ -177,6 +182,9 @@ export default function HomeScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
+      {/* 시간대 + 날씨 배경 앰비언트 — 아침 햇살 / 노을 / 밤하늘 / 비·눈을 은은히 표현.
+          (실제 날씨 API 는 추후 연동. 그전까지는 시간대 효과 위주로 담백하게.) */}
+      <AmbientSky phase={daylight.phase} condition={weather?.condition} />
       <ScrollView
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.primary} />}
         contentContainerStyle={{ padding: 20 }}
@@ -212,12 +220,13 @@ export default function HomeScreen() {
               )}
             </View>
 
-            {/* 시간대 — '아침/저녁' 라벨 대신 해·달 아이콘으로 간접 표현(4단계).
+            {/* 히어로 상징 — 시간과 무관한 고정 '안전(방패)' 아이콘.
+                시간대·날씨는 화면 배경(AmbientSky)이 대신 전한다.
                 아주 미세하게 숨쉬듯 은은한 글로우 효과만 준다. */}
             <View style={{ width: rs(84), height: rs(84), marginLeft: 8, alignSelf: 'flex-start', marginTop: rs(24), alignItems: 'center', justifyContent: 'center' }}>
-              <Animated.View style={{ position: 'absolute', width: rs(84), height: rs(84), borderRadius: rs(42), backgroundColor: daylight.tint, opacity: glowAnim.interpolate({ inputRange: [0, 1], outputRange: [0.12, 0.24] }), transform: [{ scale: glowScale }] }} />
+              <Animated.View style={{ position: 'absolute', width: rs(84), height: rs(84), borderRadius: rs(42), backgroundColor: 'rgba(255,255,255,0.9)', opacity: glowAnim.interpolate({ inputRange: [0, 1], outputRange: [0.12, 0.22] }), transform: [{ scale: glowScale }] }} />
               <Animated.View style={{ width: rs(70), height: rs(70), borderRadius: rs(35), backgroundColor: 'rgba(255,255,255,0.16)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.30)', alignItems: 'center', justifyContent: 'center', opacity: glowOpacity, transform: [{ scale: glowScale }] }}>
-                <Ionicons name={daylight.icon} size={rs(38)} color="#fff" />
+                <Ionicons name="shield-checkmark" size={rs(38)} color="#fff" />
               </Animated.View>
             </View>
           </View>

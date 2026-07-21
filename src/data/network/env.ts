@@ -65,6 +65,13 @@ export const env = {
   apiTimeoutMs: readNumber(process.env.EXPO_PUBLIC_API_TIMEOUT_MS, 10_000),
   useMockData: resolveUseMock(),
   sentryDsn: readString(process.env.EXPO_PUBLIC_SENTRY_DSN),
+  // 날씨 API 연동용 슬롯 — 추후 사용자가 채움. 값이 없으면 목업('맑음')으로 폴백한다.
+  // 자체 백엔드가 프록시하면 apiBaseUrl 만으로 충분하고, 서드파티(OpenWeather 등)를
+  // 직접 호출할 경우 아래 키/기본 지역을 사용한다.
+  weather: {
+    apiKey: readString(process.env.EXPO_PUBLIC_WEATHER_API_KEY),
+    defaultRegion: readString(process.env.EXPO_PUBLIC_WEATHER_REGION, 'Seoul'),
+  },
   /** 현재 실행 중인 번들의 버전 정보 — OTA 비교 기준값. */
   build: {
     version: appVersion,

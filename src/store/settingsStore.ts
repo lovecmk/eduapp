@@ -42,6 +42,8 @@ interface SettingsState {
   showAchievementBadge: boolean;
   /** 카드 수집·카드팩 시스템 노출 여부(회의 확정 전까지 설정으로만 접속) */
   collectionEnabled: boolean;
+  /** 보상 안내(엠블럼·도감·트로피 차이) 시트를 한 번이라도 봤는지 — 초보자 자동 안내용. */
+  rewardsGuideSeen: boolean;
 
   setThemeMode: (mode: ThemeMode) => void;
   setFontScale: (scale: FontScale) => void;
@@ -63,6 +65,8 @@ interface SettingsState {
   toggleFlexPrompt: () => void;
   toggleAchievementBadge: () => void;
   toggleCollectionEnabled: () => void;
+  /** 보상 안내 시트를 봤다고 표시(다시 자동으로 뜨지 않음). */
+  markRewardsGuideSeen: () => void;
   /** 로컬 저장 데이터를 초기화하고 기본 설정으로 되돌린다(방어적 초기화). */
   resetAll: () => void;
 }
@@ -98,6 +102,8 @@ const DEFAULT_SETTINGS = {
   showAchievementBadge: true,
   // 기본 꺼짐 — 카드 수집·카드팩 시스템은 회의 확정 전까지 설정으로만 접속.
   collectionEnabled: false,
+  // 기본 꺼짐 — 컬렉션·성취 화면 첫 진입 시 안내를 한 번 자동으로 띄운다.
+  rewardsGuideSeen: false,
 };
 
 export const useSettingsStore = create<SettingsState>()(
@@ -125,6 +131,7 @@ export const useSettingsStore = create<SettingsState>()(
       toggleFlexPrompt: () => set((s) => ({ flexPromptEnabled: !s.flexPromptEnabled })),
       toggleAchievementBadge: () => set((s) => ({ showAchievementBadge: !s.showAchievementBadge })),
       toggleCollectionEnabled: () => set((s) => ({ collectionEnabled: !s.collectionEnabled })),
+      markRewardsGuideSeen: () => set({ rewardsGuideSeen: true }),
       resetAll: () => set({ ...DEFAULT_SETTINGS }),
     }),
     {

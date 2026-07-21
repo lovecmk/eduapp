@@ -10,11 +10,14 @@ import { StatsRepository } from './StatsRepository';
 import { MockStatsRepository } from './StatsRepository.mock';
 import { CommunityRepository } from './CommunityRepository';
 import { MockCommunityRepository } from './CommunityRepository.mock';
+import { WeatherRepository } from './WeatherRepository';
+import { MockWeatherRepository } from './WeatherRepository.mock';
 
 import type { IAuthRepository } from '../../domain/repositories/IAuthRepository';
 import type { ICardRepository } from '../../domain/repositories/ICardRepository';
 import type { IStatsRepository } from '../../domain/repositories/IStatsRepository';
 import type { ICommunityRepository } from '../../domain/repositories/ICommunityRepository';
+import type { IWeatherRepository } from '../../domain/repositories/IWeatherRepository';
 
 export const authRepository: IAuthRepository = env.useMockData
   ? new MockAuthRepository()
@@ -31,3 +34,9 @@ export const statsRepository: IStatsRepository = env.useMockData
 export const communityRepository: ICommunityRepository = env.useMockData
   ? new MockCommunityRepository()
   : new CommunityRepository();
+
+// 날씨 — 홈 배경 앰비언트 효과용. 실제 날씨 API 연동은 추후(사용자) 예정이며,
+// 그전까지는 목업('맑음')으로 폴백한다. 연동 시 WeatherRepository 만 채우면 된다.
+export const weatherRepository: IWeatherRepository = env.useMockData
+  ? new MockWeatherRepository()
+  : new WeatherRepository();
