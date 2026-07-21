@@ -77,3 +77,16 @@ eduapp/
    `GET/PATCH /api/auth/me`. (비밀번호 재설정 `reset-password` 는 미구현.)
 3. `data/auth/mockUserDb`, `data/packRules`(규칙 테이블), 출석/컬렉션 로컬 저장을
    서버 API + 관리 콘솔(admin) CRUD 로 대체.
+
+## 서버 배포 & 이식 (backend/)
+
+Go 백엔드는 **포트-어댑터** 구조라 저장소를 `STORE` 환경변수로 고른다
+(`postgres` 운영 · `memory` 무DB 테스트 · `mongo` 레거시). 호스트가 사내든 외부
+Ubuntu 든 **같은 명령**으로 돌고 설정만 `.env` 로 다르다.
+
+- **테스트로 올려보기**: `cd backend && make up-test` — DB 0대·무설정(재시작 시 리셋).
+- **본격 운영**: `.env` 채우고 `make up` — PostgreSQL(볼륨 영속) + Caddy 자동 HTTPS.
+- **이식**: `.env` 복사 + `make backup` 덤프를 새 호스트에서 복원. 규모가 커지면
+  DB 만 관리형(RDS·Cloud SQL·Supabase·Neon)으로 분리, API 컨테이너는 그대로.
+
+자세한 절차·보안 체크리스트·마이그레이션 전략은 **`backend/README.md`** 참고.

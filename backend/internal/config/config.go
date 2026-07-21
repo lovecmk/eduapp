@@ -13,9 +13,10 @@ import (
 // Config 는 서버 구동에 필요한 모든 설정값의 집합이다.
 type Config struct {
 	Port            string        // HTTP 포트
-	Store           string        // 저장소 종류: "mongo"(기본) | "memory"(무DB 로컬/데모)
+	Store           string        // 저장소 종류: "mongo"(기본) | "postgres" | "memory"(무DB 로컬/데모)
 	MongoURI        string        // MongoDB 연결 문자열
 	MongoDB         string        // 데이터베이스 이름
+	DatabaseURL     string        // PostgreSQL 연결 문자열(STORE=postgres 일 때)
 	JWTSecret       []byte        // 액세스/리프레시 토큰 서명 키
 	AccessTTL       time.Duration // 액세스 토큰 유효기간
 	RefreshTTL      time.Duration // 리프레시 토큰 유효기간
@@ -40,6 +41,7 @@ func Load() Config {
 		Store:           getEnv("STORE", "mongo"),
 		MongoURI:        getEnv("MONGO_URI", "mongodb://localhost:27017"),
 		MongoDB:         getEnv("MONGO_DB", "eduapp"),
+		DatabaseURL:     getEnv("DATABASE_URL", "postgres://eduapp:eduapp@localhost:5432/eduapp?sslmode=disable"),
 		JWTSecret:       []byte(getEnv("JWT_SECRET", "dev-insecure-secret-change-me")),
 		AccessTTL:       getDuration("ACCESS_TTL", 15*time.Minute),
 		RefreshTTL:      getDuration("REFRESH_TTL", 30*24*time.Hour),

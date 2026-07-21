@@ -17,6 +17,7 @@ import (
 	"github.com/lovecmk/eduapp/backend/internal/memory"
 	mongoadapter "github.com/lovecmk/eduapp/backend/internal/mongo"
 	"github.com/lovecmk/eduapp/backend/internal/ports"
+	postgresadapter "github.com/lovecmk/eduapp/backend/internal/postgres"
 	"github.com/lovecmk/eduapp/backend/internal/seed"
 	"github.com/lovecmk/eduapp/backend/internal/server"
 	"github.com/lovecmk/eduapp/backend/internal/service"
@@ -29,18 +30,38 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
+	// 운영 저장소인데 JWT 시크릿이 기본(취약)값이면 경고 — 무설정 테스트는 허용하되
+	// 영속 DB 를 켠 배포에서는 반드시 교체하도록 유도한다(외부 노출 시 계정 위조 위험).
+	if cfg.Store != "memory" && string(cfg.JWTSecret) == "dev-insecure-secret-change-me" {
+		log.Printf("[warn] JWT_SECRET 이 기본 취약값입니다 — 운영 배포 전 `make secret` 으로 교체하세요")
+	}
+
 	// 저장소 선택 — 포트-어댑터 구조 덕에 구현만 교체된다(서비스 코드는 동일).
 	var (
 		userRepo ports.UserRepository
 		cardRepo ports.CardRepository
 		pushRepo ports.PushTokenRepository
 	)
-	if cfg.Store == "memory" {
+	switch cfg.Store {
+	case "memory":
 		userRepo = memory.NewUserRepo()
 		cardRepo = memory.NewCardRepo()
 		pushRepo = memory.NewPushTokenRepo()
-		log.Printf("[store] 인메모리 모드(무 MongoDB)")
-	} else {
+		log.Printf("[store] 인메모리 모드(무 DB)")
+	case "postgres":
+		pool, err := postgresadapter.Connect(ctx, cfg.DatabaseURL)
+		if err != nil {
+			log.Fatalf("[postgres] 연결 실패: %v", err)
+		}
+		defer pool.Close()
+		if err := postgresadapter.EnsureSchema(ctx, pool); err != nil {
+			log.Fatalf("[postgres] 스키마 적용 실패: %v", err)
+		}
+		log.Printf("[postgres] 연결됨")
+		userRepo = postgresadapter.NewUserRepo(pool)
+		cardRepo = postgresadapter.NewCardRepo(pool)
+		pushRepo = postgresadapter.NewPushTokenRepo(pool)
+	default: // "mongo"
 		db, disconnect, err := mongoadapter.Connect(ctx, cfg.MongoURI, cfg.MongoDB)
 		if err != nil {
 			log.Fatalf("[mongo] 연결 실패: %v", err)

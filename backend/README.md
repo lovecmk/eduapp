@@ -1,4 +1,4 @@
-# eduapp 백엔드 (Go Fiber + MongoDB)
+# eduapp 백엔드 (Go Fiber + PostgreSQL)
 
 현장 안전학습 앱(Expo)의 백엔드. 프런트엔드의 데이터 계약(`src/data/dto/*`,
 `src/data/repositories/*`)과 1:1로 일치하는 REST API 를 제공한다.
@@ -13,7 +13,7 @@
 ## 아키텍처 (포트–어댑터 / 클린 아키텍처)
 
 ```
-handler(HTTP·Fiber) → service(유스케이스) → ports(인터페이스) ← mongo | memory (어댑터)
+handler(HTTP·Fiber) → service(유스케이스) → ports(인터페이스) ← postgres | memory | mongo (어댑터)
                                           └ domain(순수 모델, 인프라 무의존)
 ```
 
@@ -22,31 +22,72 @@ handler(HTTP·Fiber) → service(유스케이스) → ports(인터페이스) ←
 | domain | `internal/domain` | 순수 비즈니스 모델(카드·유저·진행). 인프라 import 없음 |
 | ports | `internal/ports` | 저장소 인터페이스. 서비스는 이것에만 의존 |
 | service | `internal/service` | 3분 세션 패킹·난이도 규칙·통계·인증 등 유스케이스 |
-| adapters | `internal/mongo`, `internal/memory` | ports 구현(교체 가능) |
+| adapters | `internal/postgres`, `internal/memory`, `internal/mongo` | ports 구현(`STORE` 로 교체) |
 | handler | `internal/handler` | HTTP ↔ DTO(snake_case) 변환 |
 | infra | `internal/server`,`middleware`,`token`,`config`,`seed` | Fiber 조립·JWT·설정·시드 |
 
-**이식성**: 서비스가 `ports` 인터페이스에만 의존하므로 저장소를 Mongo →
-Postgres/메모리 등으로 바꿔도 서비스·핸들러 코드는 그대로다. 모든 외부 주소·비밀은
-환경변수로만 주입된다(`internal/config`). 다른 호스트/클라우드로 옮길 때
-`.env` 만 바꾸면 된다.
+**이식성**: 서비스가 `ports` 인터페이스에만 의존하므로 저장소를 `STORE` 값
+(`postgres`/`memory`/`mongo`)만으로 바꿔도 서비스·핸들러 코드는 그대로다.
+모든 외부 주소·비밀은 환경변수로만 주입된다(`internal/config`). 다른
+호스트/클라우드로 옮길 때 `.env` 교체 + DB 덤프 복원이면 끝이다(아래 "배포 & 이식").
 
 ## 실행
 
+`make help` 로 전체 명령을 볼 수 있다. 자주 쓰는 것:
+
 ```bash
-# 1) DB까지 원클릭 (권장)
-docker compose up --build          # API :8080, Mongo :27017
+# 1) 로컬 개발 — DB 없이 즉시 (STORE=memory, 재시작 시 초기화)
+make run                 # == STORE=memory go run ./cmd/server
 
-# 2) 로컬 Go + 로컬 Mongo
-cp .env.example .env
-go run ./cmd/server
+# 2) 도커: 테스트 스택(무 DB) 원클릭 — "테스트로 올려보기"
+make up-test             # docker compose --profile test up --build → API :8080
 
-# 3) DB 없이 스모크 테스트(인메모리)
-STORE=memory go run ./cmd/server
+# 3) 도커: 운영 스택(Postgres 영속 + 자동 HTTPS)
+cp .env.example .env     # JWT_SECRET(make secret)·POSTGRES_PASSWORD·DOMAIN 채우기
+make up                  # docker compose --profile prod up -d → Caddy→API→Postgres
 ```
 
 부팅 시 `SEED_ON_START=true` 면 카드 61장과 데모 계정을 자동 주입한다.
 데모 로그인: **id `demo` / pw `demo1234`**.
+`STORE=postgres` 는 접속 후 임베드 스키마(`internal/postgres/schema.sql`)를
+멱등 적용하므로 빈 DB 에 바로 붙여도 된다.
+
+## 배포 & 이식
+
+호스트가 아직 미정이어도(사내/외부 Ubuntu 무관) **같은 명령**으로 돈다 —
+설정만 `.env` 로 다르다. 단계별 전략:
+
+| 단계 | 저장소 | 명령 | 특징 |
+|------|--------|------|------|
+| 테스트로 올려보기 | `memory` | `make up-test` | DB 0대·무설정. 재시작 시 리셋(데모에 이상적) |
+| 본격 운영 | `postgres` | `make up` | Postgres 볼륨 영속 + Caddy 자동 HTTPS |
+
+**보안(외부 노출 대비, 내부 배포에도 권장)**
+- `make secret` 로 `JWT_SECRET` 생성해 `.env` 에 넣는다. 기본 취약값으로 운영
+  스토어를 켜면 부팅 로그가 경고한다.
+- `POSTGRES_PASSWORD` 를 강한 값으로. 도메인 확정 후 `CORS_ORIGINS` 를 앱
+  오리진으로 좁힌다.
+- `DOMAIN=api.example.com` 을 주면 Caddy 가 Let's Encrypt 인증서를 자동 발급.
+  비우면 `:80` 평문(사내망용).
+
+**백업 & 다른 호스트로 이식**
+```bash
+make backup                        # ./backups/eduapp-YYYYmmdd-HHMMSS.sql.gz
+# (권장) 호스트 crontab 에 나이틀리 등록 — scripts/backup.sh 주석 참고
+
+# 새 호스트: 코드 clone → .env 복사 → make up → 덤프 복원
+gunzip -c eduapp-XXXX.sql.gz | docker compose --profile prod exec -T postgres \
+  psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
+```
+Postgres 는 관리형(RDS·Cloud SQL·Supabase·Neon)으로 옮겨도 `DATABASE_URL` 만
+바꾸면 되므로, 규모가 커지면 DB 를 외부로 분리하고 API 컨테이너는 그대로 둔다.
+
+## 스키마 진화(마이그레이션)
+
+현재는 `internal/postgres/schema.sql` 을 부팅 시 멱등 적용한다(`CREATE ... IF NOT
+EXISTS`) — 신규 배포에 충분하다. 컬럼 변경/데이터 이관이 필요해지면
+`goose`/`golang-migrate` 로 버전 관리 마이그레이션을 도입한다(포트-어댑터 구조라
+서비스 코드 영향 없음).
 
 ## API
 
@@ -104,8 +145,14 @@ STORE=memory go run ./cmd/server
 ## 테스트
 
 ```bash
-go test ./...   # 인메모리 저장소로 라우팅·인증·세션·DTO 엔드투엔드 검증
+make test       # == go test ./...  인메모리 저장소로 라우팅·인증·세션·DTO 검증
+
+# 실제 Postgres 대상 통합 스모크(저장소 왕복·업서트·text[]·nullable 검증)
+DATABASE_URL_TEST=postgres://eduapp@localhost:5432/eduapp?sslmode=disable make test-pg
 ```
+
+`internal/postgres/smoke_test.go` 는 `DATABASE_URL_TEST` 가 없으면 자동 스킵되므로
+일반 CI/무DB 환경에서도 안전하다.
 
 ## 프런트 연동
 
