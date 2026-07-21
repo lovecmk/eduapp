@@ -43,6 +43,12 @@ function RootContent() {
   const notificationsEnabled = useSettingsStore((s) => s.notifications.enabled);
   const [splashDone, setSplashDone] = useState(false);
   const opacity = useRef(new Animated.Value(1)).current;
+  // 인트로 로고의 '안착' 애니메이션 값. 네이티브 스플래시(작은 로고)에서 JS 오버레이로
+  // 넘어오는 순간, 로고가 딱 튀며 크기가 바뀌어 '아이콘이 2개'처럼 보이던 현상을 없애기
+  // 위해, JS 로고를 네이티브와 비슷한 크기에서 시작해 큰 크기로 부드럽게 이어 키운다.
+  const iconScale = useRef(new Animated.Value(0.82)).current;
+  // 앱 이름·태그라인은 네이티브 스플래시엔 없으므로, 로고 안착 직후 살짝 떠오르게 한다.
+  const textOpacity = useRef(new Animated.Value(0)).current;
   // 앱 폰트와 함께 아이콘 폰트(Ionicons)도 미리 로드해, 첫 렌더에서 아이콘이
   // 비어 보이는(로딩 전 빈 글리프) 현상을 방지한다.
   const [fontsLoaded, fontError] = useFonts({ ...APP_FONTS, ...Ionicons.font });
@@ -68,6 +74,24 @@ function RootContent() {
   }, [fontsLoaded, fontError]);
 
   useEffect(() => {
+    // 등장 — 네이티브 스플래시에서 이어받아 로고가 '튀지' 않고 큰 크기로 부드럽게
+    // 안착하며, 곧이어 앱 이름·태그라인이 서서히 떠오른다. (단일 큰 로고 인트로)
+    Animated.parallel([
+      Animated.timing(iconScale, {
+        toValue: 1,
+        duration: 460,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(textOpacity, {
+        toValue: 1,
+        duration: 420,
+        delay: 160,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start();
+
     const t = setTimeout(() => {
       Animated.timing(opacity, {
         toValue: 0,
@@ -75,7 +99,7 @@ function RootContent() {
         easing: Easing.out(Easing.cubic),
         useNativeDriver: true,
       }).start(() => setSplashDone(true));
-    }, 900);
+    }, 1100);
     return () => clearTimeout(t);
   }, []);
 
@@ -120,21 +144,24 @@ function RootContent() {
         // '그대로 이어지는' 단 하나의 인트로. 로딩이 끝나면 통째로 페이드아웃되며 앱으로 넘어간다.
         // 라이트/다크 무관하게 동일한 흰 배경 + KFPA 로고로 고정한다.
         <Animated.View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999, opacity, backgroundColor: '#FFFFFF' }}>
-          {/* 로고 — 네이티브 스플래시와 '동일한 크기·위치(화면 정중앙 200dp)'로 고정해
-              전환 순간 로고가 튀거나 겹쳐 보이지 않고 완전히 포개지게 한다. */}
+          {/* 로고 — 네이티브 스플래시(작은 로고)에서 시작해 화면 정중앙에서 큰 크기로
+              부드럽게 안착한다. 크기가 튀며 '아이콘 2개'처럼 보이던 현상을 없앤다. */}
           <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
-            <Image
-              source={require('../assets/splash-icon.png')}
-              style={{ width: 200, height: 200 }}
-              contentFit="contain"
-              transition={0}
-            />
+            <Animated.View style={{ transform: [{ scale: iconScale }] }}>
+              <Image
+                source={require('../assets/splash-icon.png')}
+                style={{ width: 200, height: 200 }}
+                contentFit="contain"
+                transition={0}
+              />
+            </Animated.View>
           </View>
-          {/* 앱 이름·태그라인 — 로고 위치를 밀지 않도록 화면 중앙 아래에 절대배치. */}
-          <View style={{ position: 'absolute', left: 0, right: 0, top: '50%', marginTop: 116, alignItems: 'center' }}>
-            <Text style={{ color: '#1F2937', fontSize: 22, letterSpacing: 1, fontFamily: fontDisplay }}>현장학습</Text>
-            <Text style={{ color: '#6B7280', fontSize: 13, marginTop: 6, fontFamily: fontBody }}>현장 안전학습, 매일 3분</Text>
-          </View>
+          {/* 앱 이름·태그라인 — 로고 위치를 밀지 않도록 화면 중앙 아래에 절대배치하고,
+              로고가 안착한 뒤 서서히 떠오르게 한다. */}
+          <Animated.View style={{ position: 'absolute', left: 0, right: 0, top: '50%', marginTop: 116, alignItems: 'center', opacity: textOpacity }}>
+            <Text style={{ color: '#1F2937', fontSize: 24, letterSpacing: 2, fontFamily: fontDisplay }}>현장학습</Text>
+            <Text style={{ color: '#6B7280', fontSize: 13, marginTop: 8, letterSpacing: 0.3, fontFamily: fontBody }}>하루 3분, 현장 안전 습관</Text>
+          </Animated.View>
         </Animated.View>
       )}
       <UpdatePrompt
