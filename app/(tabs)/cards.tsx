@@ -195,12 +195,12 @@ export default function CardsScreen() {
   const doFlip = useCallback((next: boolean) => {
     haptic();
     setFlipped(next);
-    // 통통 튀며(살짝 작아졌다 스프링으로 복귀) 뒤집히는 귀여운 효과.
+    // 뒤집힘 — 과하게 튀지 않고 살짝만 눌렸다 매끄럽게 제자리로 돌아오는 차분한 전환.
     Animated.parallel([
-      Animated.spring(flipAnim, { toValue: next ? 1 : 0, useNativeDriver: true, friction: 6, tension: 26 }),
+      Animated.spring(flipAnim, { toValue: next ? 1 : 0, useNativeDriver: true, friction: 9, tension: 30 }),
       Animated.sequence([
-        Animated.timing(scaleAnim, { toValue: 0.9, duration: 130, useNativeDriver: true }),
-        Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, friction: 3.5, tension: 55 }),
+        Animated.timing(scaleAnim, { toValue: 0.97, duration: 120, useNativeDriver: true }),
+        Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, friction: 8, tension: 60 }),
       ]),
     ]).start();
   }, [flipAnim, scaleAnim]);
@@ -235,15 +235,15 @@ export default function CardsScreen() {
     else setIndex(nextIdx);
   }, [card, index, deck.length, markCardMutation, resetCardAnims, enterAnim]);
 
-  // 새 카드가 화면에 올라올 때마다 통통 튀며(스프링) 부드럽게 등장한다(귀여운 전환).
+  // 새 카드가 화면에 올라올 때 — 과한 바운스 없이 잔잔하게 떠오르며 등장한다(편안한 전환).
   useEffect(() => {
     if (!card || finished) return;
     enterAnim.setValue(0);
     const spring = Animated.spring(enterAnim, {
       toValue: 1,
       useNativeDriver: true,
-      friction: 7,
-      tension: 58,
+      friction: 10,
+      tension: 48,
     });
     spring.start();
     return () => spring.stop();
@@ -484,9 +484,9 @@ export default function CardsScreen() {
   const knowOpacity = translateX.interpolate({ inputRange: [30, 110], outputRange: [0, 1], extrapolate: 'clamp' });
   const dontKnowOpacity = translateX.interpolate({ inputRange: [-110, -30], outputRange: [1, 0], extrapolate: 'clamp' });
 
-  // 새 카드 등장(pop-in): 살짝 작고 아래에서 올라오며 페이드 인. 기존 뒤집기/스와이프 값과 합성.
-  const enterScale = enterAnim.interpolate({ inputRange: [0, 1], outputRange: [0.86, 1] });
-  const enterTranslateY = enterAnim.interpolate({ inputRange: [0, 1], outputRange: [28, 0] });
+  // 새 카드 등장(fade-in): 아주 살짝 아래에서 떠오르며 페이드 인. 기존 뒤집기/스와이프 값과 합성.
+  const enterScale = enterAnim.interpolate({ inputRange: [0, 1], outputRange: [0.97, 1] });
+  const enterTranslateY = enterAnim.interpolate({ inputRange: [0, 1], outputRange: [12, 0] });
   const cardScale = Animated.multiply(scaleAnim, enterScale);
   const cardTranslateY = Animated.add(translateY, enterTranslateY);
   const cardCombinedOpacity = Animated.multiply(cardOpacity, enterAnim);
@@ -531,7 +531,7 @@ export default function CardsScreen() {
               transform: [{ perspective: 1200 }, { rotateY: frontRotate }],
               backfaceVisibility: 'hidden',
               opacity: frontOpacity,
-              boxShadow: '0 4px 16px rgba(0,0,0,0.06)', elevation: 4,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.04)', elevation: 2,
             }}
           >
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
@@ -613,7 +613,7 @@ export default function CardsScreen() {
               transform: [{ perspective: 1200 }, { rotateY: backRotate }],
               backfaceVisibility: 'hidden',
               opacity: backOpacity,
-              boxShadow: '0 4px 16px rgba(0,0,0,0.06)', elevation: 4,
+              boxShadow: '0 2px 8px rgba(0,0,0,0.04)', elevation: 2,
             }}
           >
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>

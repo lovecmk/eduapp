@@ -23,19 +23,19 @@ import { ROUTES } from '../../src/constants/routes';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
-// 탭 선택 시 아이콘이 살짝 '통' 튀어오르며 자리잡는 마이크로 인터랙션.
-// (선택된 탭만 커졌다가 스프링으로 안착 — 트렌디한 촉감을 더한다.)
+// 탭 선택 시 아이콘이 아주 살짝 커졌다 제자리로 안착하는 절제된 마이크로 인터랙션.
+// (과한 바운스 없이 — simple & luxury. 눌렀다는 감만 은은하게 전한다.)
 function TabIcon({ icon, color, focused }: { icon: IconName; color: string; focused: boolean }) {
-  const scale = useSharedValue(focused ? 1 : 0.9);
+  const scale = useSharedValue(focused ? 1 : 0.94);
 
   useEffect(() => {
     if (focused) {
       scale.value = withSequence(
-        withTiming(1.24, { duration: 130 }),
-        withSpring(1, { damping: 7, stiffness: 240 }),
+        withTiming(1.06, { duration: 110 }),
+        withSpring(1, { damping: 18, stiffness: 170 }),
       );
     } else {
-      scale.value = withTiming(0.9, { duration: 160 });
+      scale.value = withTiming(0.94, { duration: 180 });
     }
   }, [focused]);
 
@@ -146,10 +146,10 @@ export default function TabsLayout() {
       backBehavior="history"
       screenOptions={{
         header: ({ route }) => <MinimalHeader title={TITLES[route.name] ?? ''} />,
-        // 탭 전환 시 화면이 딱딱 끊기지 않고, 이동 방향으로 살짝 밀리며(shift)
-        // 부드럽게 교차되도록 한다. 짧은 지속시간으로 반응성은 유지.
-        animation: 'shift',
-        transitionSpec: { animation: 'timing', config: { duration: 220 } },
+        // 탭 전환 — 옆으로 미는 과한 이동 대신 잔잔한 교차 페이드로 자연스럽게 넘긴다.
+        // 짧은 지속시간으로 반응성은 유지하면서 시선의 피로를 줄인다.
+        animation: 'fade',
+        transitionSpec: { animation: 'timing', config: { duration: 180 } },
         tabBarActiveTintColor: c.primary,
         tabBarInactiveTintColor: c.textSecondary,
         tabBarStyle: { backgroundColor: c.surface, borderTopColor: c.border, height: 64, paddingBottom: 6 },
