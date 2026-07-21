@@ -81,6 +81,8 @@ function RootContent() {
         {/* 로그인 ↔ 홈은 '앱 안으로 진입/이탈'하는 전환이므로, 옆으로 미는(slide)
             대신 부드럽게 교차 페이드시켜 어수선함 없이 자연스럽게 넘어가게 한다. */}
         <Stack.Screen name="(auth)" options={{ animation: 'fade', animationDuration: 280 }} />
+        {/* 회원가입 직후 진영 선택 — 뒤로가기로 되돌아가지 않도록 페이드로 진입. */}
+        <Stack.Screen name="faction-select" options={{ animation: 'fade', animationDuration: 280 }} />
         <Stack.Screen name="(tabs)" options={{ animation: 'fade', animationDuration: 280 }} />
         <Stack.Screen name="contents" />
         <Stack.Screen name="content/[id]" />

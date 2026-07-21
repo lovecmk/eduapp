@@ -104,7 +104,8 @@ export default function SignupScreen() {
       email: email.trim(),
       org: org.trim(),
     });
-    if (ok) router.replace(ROUTES.home);
+    // 가입 성공 직후 진영(팀)을 선택하게 한다 — 포켓몬 GO식 초반 진영 선택.
+    if (ok) router.replace(ROUTES.factionSelect as never);
   };
 
   return (

@@ -3,6 +3,7 @@ import { Text, View, Pressable } from 'react-native';
 import { Tabs, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import type { BottomTabBarButtonProps } from '@react-navigation/bottom-tabs';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -70,6 +71,24 @@ function NotificationBadge({ count }: { count: number }) {
     >
       <Text style={{ color: '#fff', fontSize: 9, fontWeight: '800' }}>{count > 9 ? '9+' : count}</Text>
     </Animated.View>
+  );
+}
+
+// 하단 탭 버튼 — Android 기본 '원형 리플'(과하게 퍼지는 물결)을 걷어내고,
+// 눌린 순간에만 아이콘이 은은하게 흐려졌다 돌아오는 차분한 피드백으로 바꾼다.
+function TabBarButton({ children, style, onPress }: BottomTabBarButtonProps) {
+  return (
+    <Pressable
+      onPress={(e) => onPress?.(e)}
+      android_ripple={null}
+      style={(state) => [
+        style,
+        { flex: 1, alignItems: 'center', justifyContent: 'center' },
+        state.pressed && { opacity: 0.55 },
+      ]}
+    >
+      {children as React.ReactNode}
+    </Pressable>
   );
 }
 
@@ -150,6 +169,7 @@ export default function TabsLayout() {
         // 짧은 지속시간으로 반응성은 유지하면서 시선의 피로를 줄인다.
         animation: 'fade',
         transitionSpec: { animation: 'timing', config: { duration: 180 } },
+        tabBarButton: (props) => <TabBarButton {...props} />,
         tabBarActiveTintColor: c.primary,
         tabBarInactiveTintColor: c.textSecondary,
         tabBarStyle: { backgroundColor: c.surface, borderTopColor: c.border, height: 64, paddingBottom: 6 },

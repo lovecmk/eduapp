@@ -2,6 +2,7 @@ export const ROUTES = {
   login: '/(auth)/login',
   signup: '/(auth)/signup',
   findPw: '/(auth)/find-pw',
+  factionSelect: '/faction-select',
   home: '/(tabs)',
   cards: '/(tabs)/cards',
   review: '/(tabs)/review',

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, Pressable, Animated, ScrollView, Dimensions, Platform, BackHandler, Modal, PanResponder } from 'react-native';
+import { View, Text, Pressable, Animated, ScrollView, Dimensions, Platform, BackHandler, Modal, PanResponder, Easing } from 'react-native';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { hapticTap, hapticSuccess, hapticError } from '../../src/utils/haptics';
@@ -195,15 +195,15 @@ export default function CardsScreen() {
   const doFlip = useCallback((next: boolean) => {
     haptic();
     setFlipped(next);
-    // 뒤집힘 — 과하게 튀지 않고 살짝만 눌렸다 매끄럽게 제자리로 돌아오는 차분한 전환.
-    Animated.parallel([
-      Animated.spring(flipAnim, { toValue: next ? 1 : 0, useNativeDriver: true, friction: 9, tension: 30 }),
-      Animated.sequence([
-        Animated.timing(scaleAnim, { toValue: 0.97, duration: 120, useNativeDriver: true }),
-        Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true, friction: 8, tension: 60 }),
-      ]),
-    ]).start();
-  }, [flipAnim, scaleAnim]);
+    // 뒤집힘 — 튀는 스프링·스케일 팝 없이, 부드러운 이징으로 한 번에 매끄럽게 넘긴다.
+    // (통통 튀던 과한 느낌을 걷어내고 종이를 넘기듯 잔잔하게.)
+    Animated.timing(flipAnim, {
+      toValue: next ? 1 : 0,
+      duration: 360,
+      easing: Easing.inOut(Easing.ease),
+      useNativeDriver: true,
+    }).start();
+  }, [flipAnim]);
 
   // 퀴즈(OX/객관식) 보기 선택 → 정답/오답 이펙트(햅틱) 후 자동으로 카드가 뒤집혀 해설을 보여준다.
   const handleQuizPick = useCallback((i: number) => {
@@ -528,10 +528,10 @@ export default function CardsScreen() {
               position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
               backgroundColor: c.surface, borderWidth: 1, borderColor: c.border,
               borderRadius: 20, padding: 24,
-              transform: [{ perspective: 1200 }, { rotateY: frontRotate }],
+              transform: [{ perspective: 1600 }, { rotateY: frontRotate }],
               backfaceVisibility: 'hidden',
               opacity: frontOpacity,
-              boxShadow: '0 2px 8px rgba(0,0,0,0.04)', elevation: 2,
+              boxShadow: '0 1px 4px rgba(15,23,42,0.05)', elevation: 1,
             }}
           >
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
@@ -610,10 +610,10 @@ export default function CardsScreen() {
               position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
               backgroundColor: c.surface, borderWidth: 1, borderColor: c.border,
               borderRadius: 20, padding: 22,
-              transform: [{ perspective: 1200 }, { rotateY: backRotate }],
+              transform: [{ perspective: 1600 }, { rotateY: backRotate }],
               backfaceVisibility: 'hidden',
               opacity: backOpacity,
-              boxShadow: '0 2px 8px rgba(0,0,0,0.04)', elevation: 2,
+              boxShadow: '0 1px 4px rgba(15,23,42,0.05)', elevation: 1,
             }}
           >
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
