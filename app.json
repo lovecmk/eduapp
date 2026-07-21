@@ -14,7 +14,10 @@
       "enabled": true,
       "checkAutomatically": "ON_LOAD",
       "fallbackToCacheTimeout": 0,
-      "url": "https://u.expo.dev/e19dea99-7f73-41b8-83d6-d6b0b99fbe91"
+      "url": "https://u.expo.dev/e19dea99-7f73-41b8-83d6-d6b0b99fbe91",
+      "requestHeaders": {
+        "expo-channel-name": "production"
+      }
     },
     "splash": {
       "image": "./assets/splash-icon.png",

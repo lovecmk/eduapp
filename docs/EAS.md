@@ -73,6 +73,25 @@ eas update:configure      # updates.url / runtimeVersion 자동 구성
 eas channel:view production   # 연결 확인(없으면 첫 update 시 생성됨)
 ```
 
+> ⚠️ **로컬 APK 빌드(`build-apk.yml`)는 채널을 `eas.json` 에서 못 읽는다.**
+> `eas build`(클라우드)만 `eas.json` 의 `channel` 을 네이티브에 구워 넣는다.
+> 이 앱의 실제 안드로이드 APK 는 `expo prebuild` + `gradlew` 로 만드는 **로컬
+> 빌드**라 `eas.json` 을 거치지 않으므로, 채널이 안 박히면 설치본이 어느 브랜치를
+> 볼지 몰라 `checkForUpdateAsync` 가 항상 `isAvailable:false` 를 반환한다(=OTA
+> 영영 안 옴). 그래서 채널을 `app.json` 의 `updates.requestHeaders` 로 직접
+> 명시한다:
+>
+> ```json
+> "updates": {
+>   "url": "https://u.expo.dev/<projectId>",
+>   "requestHeaders": { "expo-channel-name": "production" }
+> }
+> ```
+>
+> 이 헤더가 AndroidManifest 에 구워져, prebuild 로 만든 APK 도 production 브랜치의
+> OTA 를 정상 수신한다. **이 값을 넣은 뒤 APK 를 다시 빌드·설치해야** 기존 설치본에
+> 반영된다(이미 깔린 구버전 APK 에는 소급 적용 불가).
+
 ### 4) 최초 네이티브 빌드
 OTA 는 "이미 설치된 빌드"에만 적용되므로, 먼저 production 빌드가 한 번은 있어야 한다.
 
