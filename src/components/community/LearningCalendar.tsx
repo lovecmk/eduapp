@@ -3,8 +3,9 @@ import { View, Text, Pressable, StyleSheet, Modal, ScrollView } from 'react-nati
 import { Image } from 'expo-image';
 import { resolveCardImage } from '../../data/cardImages';
 import { Ionicons } from '@expo/vector-icons';
+import { hapticSuccess } from '../../utils/haptics';
 import { useTheme } from '../../theme/ThemeProvider';
-import { radius, fontMono, fontDisplay, fontBody } from '../../theme/tokens';
+import { radius, fontMono, fontDisplay, fontBody, fontCute } from '../../theme/tokens';
 import { Button } from '../ui/Button';
 import { AnimatedSheet } from '../ui/AnimatedSheet';
 import { getCategoryIcon, getCategoryColor } from '../../constants/categories';
@@ -62,6 +63,7 @@ export function LearningCalendar() {
   const srsCards = useSrsStore((s) => s.cards);
   const stamps = useAttendanceStore((s) => s.stamps);
   const streak = useAttendanceStore((s) => s.currentStreak)();
+  const checkIn = useAttendanceStore((s) => s.checkIn);
 
   const cardById = useMemo(() => {
     const m = new Map<string, LearningCard>();
@@ -96,6 +98,10 @@ export function LearningCalendar() {
 
   const prev = () => { if (month === 0) { setYear((y) => y - 1); setMonth(11); } else setMonth((m) => m - 1); };
   const next = () => { if (month === 11) { setYear((y) => y + 1); setMonth(0); } else setMonth((m) => m + 1); };
+
+  // 오늘 출석 여부 · 캘린더에서 바로 도장 찍기(별도 카드 없이 통합).
+  const checkedToday = !!stamps[todayStr];
+  const onCheckIn = () => { if (checkIn()) hapticSuccess(); };
 
   const selectedCards = useMemo(() => {
     if (!selected) return { reviewed: [] as LearningCard[], due: [] as LearningCard[] };
@@ -178,6 +184,19 @@ export function LearningCalendar() {
         <View style={[styles.dueDot, { backgroundColor: c.warning, marginTop: 0 }]} />
         <Text style={[styles.legendText, { color: c.textSecondary }]}>복습 예정</Text>
       </View>
+
+      {/* 오늘 출석 — 캘린더에 자연스럽게 통합(별도 카드 없이 바로 도장 찍기) */}
+      {checkedToday ? (
+        <View style={[styles.checkIn, { backgroundColor: c.success + '18' }]}>
+          <Ionicons name="checkmark-circle" size={18} color={c.success} />
+          <Text style={{ color: c.success, fontSize: 14, fontFamily: fontCute, fontWeight: '800' }}>오늘 출석 완료!</Text>
+        </View>
+      ) : (
+        <Pressable onPress={onCheckIn} style={[styles.checkIn, { backgroundColor: c.primary }]}>
+          <Ionicons name="hand-left" size={17} color="#fff" />
+          <Text style={{ color: '#fff', fontSize: 14, fontFamily: fontCute, fontWeight: '800' }}>오늘 출석 도장 찍기</Text>
+        </Pressable>
+      )}
 
       {/* 월 선택 */}
       <Modal visible={pickerOpen} transparent animationType="fade" onRequestClose={() => setPickerOpen(false)}>
@@ -324,6 +343,7 @@ const styles = StyleSheet.create({
   dayText: { fontSize: 13, fontWeight: '700', fontFamily: fontMono },
   dueDot: { width: 5, height: 5, borderRadius: 3, marginTop: 2 },
   legend: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 14 },
+  checkIn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 14, paddingVertical: 13, marginTop: 14 },
   legendText: { fontSize: 10, fontFamily: fontBody },
   legendBox: { width: 12, height: 12, borderRadius: 3 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center' },

@@ -15,7 +15,6 @@ import { MomentModal } from '../../src/components/home/MomentModal';
 import { HomeSkeleton } from '../../src/components/skeletons';
 import { LivePresenceStrip } from '../../src/components/community/LivePresenceStrip';
 import { LearningCalendar } from '../../src/components/community/LearningCalendar';
-import { AttendanceStampCard } from '../../src/components/attendance/AttendanceStampCard';
 import { fontMono, fontDisplay, fontBody } from '../../src/theme/tokens';
 import { calcEmblems, getAcquiredEmblems } from '../../src/utils/emblems';
 import { getTimeContext, pickGreeting } from '../../src/utils/timeContext';
@@ -174,8 +173,8 @@ export default function HomeScreen() {
               )}
             </View>
 
-            {/* 시간대 캐릭터 */}
-            <View style={{ width: rs(84), height: rs(84), borderRadius: rs(42), marginLeft: 8, backgroundColor: 'rgba(255,255,255,0.16)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.28)', alignItems: 'center', justifyContent: 'center' }}>
+            {/* 시간대 캐릭터 — 우상단 시간대 배지와 겹치지 않도록 아래로 내려 배치 */}
+            <View style={{ width: rs(84), height: rs(84), borderRadius: rs(42), marginLeft: 8, alignSelf: 'flex-start', marginTop: rs(30), backgroundColor: 'rgba(255,255,255,0.16)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.28)', alignItems: 'center', justifyContent: 'center' }}>
               <Text style={{ fontSize: rs(44) }}>{time.character}</Text>
             </View>
           </View>
@@ -226,10 +225,7 @@ export default function HomeScreen() {
           )}
         </Card>
 
-        {/* 접속 출석 도장 */}
-        <AttendanceStampCard />
-
-        {/* 학습 현황 — 학습 히트맵 캘린더 */}
+        {/* 학습 히트맵 캘린더 — 출석 도장 체크인을 캘린더에 통합 */}
         <LearningCalendar />
 
         <DailyQuestsCard />

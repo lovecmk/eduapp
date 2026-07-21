@@ -18,6 +18,11 @@ const CODES: GachaCode[] = [
   { code: 'FIRE3MIN', packs: 2, label: '매일 3분 챌린지 카드팩 2개' },
 ];
 
+/** 진행 중인 이벤트 쿠폰 목록(공개용). 실서버 전환 시 GET /api/events 로 대체. */
+export function listGachaCodes(): GachaCode[] {
+  return CODES;
+}
+
 /** 코드 입력값을 정규화(공백 제거·대문자). */
 export function normalizeGachaCode(input: string): string {
   return input.trim().toUpperCase().replace(/\s+/g, '');

@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { View, Text, ScrollView, Pressable, RefreshControl, StyleSheet } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown, FadeIn, LinearTransition } from 'react-native-reanimated';
 import { useTheme } from '../src/theme/ThemeProvider';
@@ -7,11 +8,20 @@ import { ScreenHeader } from '../src/components/ui/ScreenHeader';
 import { CenterModal } from '../src/components/ui/CenterModal';
 import { AnimatedSheet } from '../src/components/ui/AnimatedSheet';
 import { Button } from '../src/components/ui/Button';
+import { ROUTES } from '../src/constants/routes';
 import { fontDisplay, fontBody, fontMono } from '../src/theme/tokens';
 import {
   useNotificationStore, NOTIFICATION_TYPE_META, timeAgoLabel, timeGroup,
   type NotificationType, type AppNotification, type TimeGroup,
 } from '../src/store/notificationStore';
+
+// 알림 종류별 연결 서비스 — 항목을 누르면 해당 화면으로 이동한다.
+const ROUTE_BY_TYPE: Record<NotificationType, string> = {
+  remind: ROUTES.review,       // 복습 리마인더 → 복습 화면
+  new: ROUTES.contents,        // 새 컨텐츠 → 전체 컨텐츠
+  achievement: ROUTES.trophy,  // 성취·보상 → 트로피
+  system: ROUTES.settings,     // 공지·시스템 → 설정(업데이트 내역)
+};
 
 const FILTERS: { key: 'all' | NotificationType; label: string }[] = [
   { key: 'all', label: '전체' },
@@ -24,6 +34,7 @@ const FILTERS: { key: 'all' | NotificationType; label: string }[] = [
 export default function NotificationsScreen() {
   const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
+  const router = useRouter();
 
   const items = useNotificationStore((s) => s.items);
   const mutedTypes = useNotificationStore((s) => s.mutedTypes);
@@ -46,6 +57,13 @@ export default function NotificationsScreen() {
     refresh();
     await new Promise((r) => setTimeout(r, 600));
     setRefreshing(false);
+  };
+
+  // 알림 항목 탭 — 읽음 처리 후 종류에 맞는 서비스 화면으로 이동한다.
+  const openNotification = (n: AppNotification) => {
+    markRead(n.id);
+    const route = ROUTE_BY_TYPE[n.type];
+    if (route) router.push(route as never);
   };
 
   const filtered = useMemo(
@@ -164,7 +182,7 @@ export default function NotificationsScreen() {
                 return (
                   <Animated.View key={n.id} entering={FadeInDown.delay(i * 40).duration(320)} layout={LinearTransition.springify()}>
                     <Pressable
-                      onPress={() => markRead(n.id)}
+                      onPress={() => openNotification(n)}
                       style={[styles.item, { backgroundColor: c.surface, borderColor: n.read ? c.border : meta.color + '55' }]}
                     >
                       <View style={[styles.itemIcon, { backgroundColor: meta.color + '1A' }]}>

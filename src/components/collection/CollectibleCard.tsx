@@ -74,11 +74,6 @@ function CollectibleCardBase({
             </View>
           </View>
 
-          {/* 아트(이모지) */}
-          <View style={{ alignItems: 'center' }}>
-            <Text style={{ fontSize: 46 * k }}>{col.emoji}</Text>
-          </View>
-
           {/* 하단: 이름 + 카테고리 */}
           <View>
             <Text numberOfLines={1} style={{ color: '#fff', fontSize: 12.5 * k, fontFamily: fontDisplay, fontWeight: '800', textAlign: 'center' }}>{col.name}</Text>
@@ -91,6 +86,14 @@ function CollectibleCardBase({
           <Text style={{ fontSize: 40 * k, opacity: 0.18 }}>❓</Text>
           <Ionicons name="lock-closed" size={13 * k} color="rgba(255,255,255,0.35)" />
           <Text style={{ color: 'rgba(255,255,255,0.4)', fontSize: 9.5 * k, fontFamily: fontDisplay }}>미획득</Text>
+        </View>
+      )}
+
+      {/* 아트(이모지) — 뒤 글로우 원(cx=W*0.5, cy=H*0.36)의 정중앙에 오도록 오버레이로 배치.
+          위 0~H*0.72 영역의 세로 중앙 = H*0.36 = 원의 중심. */}
+      {owned && (
+        <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: H * 0.72, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ fontSize: 46 * k }}>{col.emoji}</Text>
         </View>
       )}
 
