@@ -76,7 +76,7 @@ export default function CommunityScreen() {
   }, [onRefresh]);
 
   return (
-    <View style={{ flex: 1, backgroundColor: c.bg }}>
+    <View style={{ flex: 1, backgroundColor: 'transparent' }}>
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 36 }} showsVerticalScrollIndicator={false} onScroll={onScroll} scrollEventThrottle={16}>
         {/* 함께 학습 — 실시간 데이터가 도착하기 전엔 스켈레톤으로 자리를 지킨다 */}
         {liveLoading && !liveData ? (

@@ -21,6 +21,7 @@ import { fontCute } from '../../src/theme/tokens';
 import { getCategoryIcon } from '../../src/constants/categories';
 import { ROUTES } from '../../src/constants/routes';
 import { useTodayCards, useAllCards, useMarkCard } from '../../src/hooks/useCards';
+import { useDailyQuota, recordNewLearned } from '../../src/hooks/useDailyQuota';
 import type { LearningCard } from '../../src/domain/models/LearningCard';
 import { resolveCardImage } from '../../src/data/cardImages';
 import { useBookmarkStore } from '../../src/store/bookmarkStore';
@@ -28,11 +29,11 @@ import { useReportStore } from '../../src/store/reportStore';
 import { useCollectionStore } from '../../src/store/collectionStore';
 import { useSrsStore } from '../../src/store/srsStore';
 
-// 하루 학습 상한(운영 지속가능성) — 신규 3장 + 복습 최대 4장 = 하루 최대 7장.
-// '하루 3분' 목표를 지키고 휴가·출장 후 누적으로 지치지 않도록 학습량을 고정한다.
-// 정답률 66.7% 가정에서 복습 카드는 무한 누적되지 않고 장기적으로 하루 4~5장 내외로 안정화된다.
-const NEW_PER_DAY = 3;
-const REVIEW_PER_DAY = 4;
+// 하루 학습 정책(운영 지속가능성 · '하루 3분'):
+//  · '오늘의 학습'은 신규 카드만, 하루 상한(DAILY_NEW_LIMIT)까지만 진행할 수 있다.
+//    상한을 채우면 그날은 더 이상 새 학습을 시작할 수 없다.
+//  · 복습은 자유다 — 이전에 학습한 자료는 '복습' 탭에서 상한 없이 계속 볼 수 있다.
+//  상한/사용량은 백엔드(learningQuotaRepository)가 권위를 갖고, 오프라인은 로컬 스토어로 집행한다.
 const { height: SCREEN_H, width: SCREEN_W } = Dimensions.get('window');
 // 스와이프 트랙(원진섭)에서 좌우로 넘겨 분류하는 최소 이동 거리.
 const SWIPE_THRESHOLD = 90;
@@ -114,9 +115,11 @@ export default function CardsScreen() {
     hapticTap();
   }, [dontKnowHaptic]);
   const srsCards = useSrsStore((s) => s.cards);
+  // 오늘 남은 신규 학습 수(하루 상한). 복습·단일카드 모드는 상한과 무관.
+  const quota = useDailyQuota();
 
-  // 오늘의 학습 = 신규 3장 + 복습 최대 4장(총 최대 7장). 카테고리 복습은 해당 카테고리 전체.
-  // 복습 카드는 예정일이 오래된 순(가장 오래 방치된 카드)으로 우선 배치한다.
+  // 오늘의 학습 = 신규 카드만, 하루 남은 상한(quota.remaining)까지. 카테고리 복습은 해당 카테고리 전체.
+  // 이전에 학습한 자료의 반복은 '복습' 탭에서 자유롭게 진행한다(여기선 신규만 다룬다).
   const computedDeck = useMemo(() => {
     // 단일 카드(focus) 모드는 순서 옵션과 무관(1장).
     if (isFocusMode) return (allQuery.data ?? []).filter((x) => x.id === focusId);
@@ -126,12 +129,8 @@ export default function CardsScreen() {
       base = (allQuery.data ?? []).filter((x) => x.category === category);
     } else {
       const today = todayQuery.data ?? [];
-      const news = today.filter((x) => x.status === 'new').slice(0, NEW_PER_DAY);
-      const reviews = today
-        .filter((x) => x.status === 'learning')
-        .sort((a, b) => (a.dueAt?.getTime() ?? 0) - (b.dueAt?.getTime() ?? 0))
-        .slice(0, REVIEW_PER_DAY);
-      base = [...news, ...reviews];
+      // 오늘 남은 상한만큼만 신규 카드를 담는다(상한 소진 시 빈 덱 → '오늘 학습 완료' 안내).
+      base = today.filter((x) => x.status === 'new').slice(0, quota.remaining);
     }
 
     // 약점 우선이 켜져 있으면 자주 잊는(lapses↑)·기억 약한(box↓) 카드를 앞으로.
@@ -145,7 +144,7 @@ export default function CardsScreen() {
     }
     if (shuffleCards) return shuffle(base);
     return base;
-  }, [isFocusMode, focusId, isCategoryMode, category, allQuery.data, todayQuery.data, prioritizeWeakSpots, shuffleCards, srsCards]);
+  }, [isFocusMode, focusId, isCategoryMode, category, allQuery.data, todayQuery.data, prioritizeWeakSpots, shuffleCards, srsCards, quota.remaining]);
 
   // 덱은 세션 시작 시 한 번만 확정한다.
   // 카드를 마킹하면 cards 쿼리가 무효화되어 목록이 새로 내려오는데, 그때마다 덱을 다시 계산하면
@@ -223,6 +222,9 @@ export default function CardsScreen() {
     if (!card) return;
     if (autoFlipTimer.current) clearTimeout(autoFlipTimer.current);
     markCardMutation.mutate({ id: card.id, status });
+    // '오늘의 학습'(신규) 모드에서 카드 하나를 마치면 하루 상한 사용량에 반영한다.
+    // (카테고리 복습·단일 카드 학습은 상한과 무관하므로 집계하지 않는다.)
+    if (!isCategoryMode && !isFocusMode && card.status === 'new') recordNewLearned(1);
     setDoneCount((n) => n + 1);
     setFlipped(false);
     setQuizPick(null);
@@ -233,7 +235,7 @@ export default function CardsScreen() {
     const nextIdx = index + 1;
     if (nextIdx >= deck.length) setFinished(true);
     else setIndex(nextIdx);
-  }, [card, index, deck.length, markCardMutation, resetCardAnims, enterAnim]);
+  }, [card, index, deck.length, markCardMutation, resetCardAnims, enterAnim, isCategoryMode, isFocusMode]);
 
   // 새 카드가 화면에 올라올 때 — 과한 바운스 없이 잔잔하게 떠오르며 등장한다(편안한 전환).
   useEffect(() => {
@@ -431,6 +433,33 @@ export default function CardsScreen() {
     return (
       <View style={{ flex: 1, backgroundColor: c.bg, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
         <ErrorState message="학습 카드를 불러올 수 없어요" onRetry={refetch} />
+      </View>
+    );
+  }
+
+  // 오늘의 신규 학습 상한을 모두 채운 상태로 진입 — '오늘 학습 완료' 안내 + 복습 유도.
+  // (복습·단일카드 모드는 상한과 무관하므로 제외.)
+  if (!isCategoryMode && !isFocusMode && !finished && quota.remaining === 0) {
+    return (
+      <View style={{ flex: 1, backgroundColor: c.bg, alignItems: 'center', justifyContent: 'center', padding: 28 }}>
+        <View style={{ width: 84, height: 84, borderRadius: 42, backgroundColor: c.success + '1A', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+          <Ionicons name="checkmark-done" size={44} color={c.success} />
+        </View>
+        <Text style={{ color: c.textPrimary, fontSize: 22 * fs, fontWeight: '800', fontFamily: fontCute }}>오늘 학습 완료!</Text>
+        <Text style={{ color: c.textSecondary, marginTop: 8, textAlign: 'center', lineHeight: 21 * fs, fontFamily: fontCute }}>
+          오늘 신규 학습 {quota.limit}장을 모두 마쳤어요. 무리하지 않는 게 오래 가는 비결이에요.{'\n'}이전에 배운 내용은 <Text style={{ color: c.primary, fontWeight: '800' }}>복습</Text>에서 자유롭게 이어갈 수 있어요.
+        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 18, backgroundColor: c.surfaceAlt, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 7 }}>
+          <Ionicons name="time-outline" size={15} color={c.textSecondary} />
+          <Text style={{ color: c.textSecondary, fontSize: 12.5 * fs, fontFamily: fontCute }}>내일 자정에 새 학습이 열려요</Text>
+        </View>
+        <Pressable
+          onPress={() => router.replace(ROUTES.review as never)}
+          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.primary, borderRadius: 14, paddingVertical: 15, paddingHorizontal: 28, marginTop: 24, boxShadow: '0 6px 16px rgba(37,99,235,0.28)' }}
+        >
+          <Ionicons name="refresh" size={18} color="#fff" />
+          <Text style={{ color: '#fff', fontSize: 15 * fs, fontWeight: '800', fontFamily: fontCute }}>복습하러 가기</Text>
+        </Pressable>
       </View>
     );
   }

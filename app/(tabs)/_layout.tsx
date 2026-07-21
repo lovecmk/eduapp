@@ -13,6 +13,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useTheme } from '../../src/theme/ThemeProvider';
 import { OfflineBanner } from '../../src/components/ui/OfflineBanner';
+import { WeatherBackground } from '../../src/components/ui/WeatherBackground';
 import { BridgeLogo } from '../../src/components/ui/BridgeLogo';
 import { HeaderMenuSheet } from '../../src/components/ui/HeaderMenuSheet';
 import { PressableScale } from '../../src/components/ui/PressableScale';
@@ -158,6 +159,9 @@ export default function TabsLayout() {
   const insets = useSafeAreaInsets();
   return (
     <View style={{ flex: 1, paddingTop: insets.top, backgroundColor: c.bg }}>
+      {/* 전역 날씨/시간대 배경 — 학습카드(cards)를 제외한 모든 탭 뒤에 은은히 깔린다.
+          각 탭 화면 루트를 투명으로 두면 이 배경이 비쳐 보인다(cards 는 불투명 유지). */}
+      <WeatherBackground />
       <OfflineBanner />
       <Tabs
       // 뒤로가기 시 '직전에 보던 탭'으로 되돌아가도록 한다(기본값은 항상 첫 탭=홈으로 튕김).
@@ -165,6 +169,8 @@ export default function TabsLayout() {
       backBehavior="history"
       screenOptions={{
         header: ({ route }) => <MinimalHeader title={TITLES[route.name] ?? ''} />,
+        // 각 탭 씬 배경을 투명으로 — 뒤의 전역 날씨 배경이 비쳐 보이게 한다.
+        sceneStyle: { backgroundColor: 'transparent' },
         // 탭 전환 — 옆으로 미는 과한 이동 대신 잔잔한 교차 페이드로 자연스럽게 넘긴다.
         // 짧은 지속시간으로 반응성은 유지하면서 시선의 피로를 줄인다.
         animation: 'fade',

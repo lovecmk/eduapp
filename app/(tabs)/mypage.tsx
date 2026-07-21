@@ -48,7 +48,7 @@ export default function MyPageScreen() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: c.bg }}>
+    <View style={{ flex: 1, backgroundColor: 'transparent' }}>
     <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, paddingBottom: 48 }}>
       <Pressable onPress={() => router.push(ROUTES.profile as never)} style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 12 }}>
         <Avatar uri={profileImage} size={56} ring={2} ringColor={c.primary} />
@@ -90,6 +90,7 @@ export default function MyPageScreen() {
         ))}
       </Pressable>
 
+      <SectionLabel>학습</SectionLabel>
       <MyRow icon="stats-chart-outline" title="학습 통계" desc="학습 성향·복습 현황·순위 자세히 보기" onPress={() => router.push(ROUTES.stats)} />
 
       <Pressable onPress={() => router.push(ROUTES.saved)}
@@ -176,7 +177,12 @@ export default function MyPageScreen() {
         <Ionicons name="chevron-forward" size={18} color={c.primary} />
       </Pressable>
 
+      <SectionLabel>커뮤니티</SectionLabel>
+      <MyRow icon="search-outline" title="닉네임으로 친구 찾기" desc="닉네임을 검색해 다른 점검자의 진행도를 확인해요" onPress={() => router.push(ROUTES.userSearch as never)} />
+
+      <SectionLabel>계정 · 설정</SectionLabel>
       <MyRow icon="person-circle-outline" title="내 정보 수정" desc="닉네임 · 이름 · 이메일 · 소속 변경" onPress={() => router.push(ROUTES.editProfile as never)} />
+      <MyRow icon="eye-outline" title="프로필 공개 범위" desc="내 진행도를 누구에게 어디까지 보여줄지 설정" onPress={() => router.push(ROUTES.privacy as never)} />
       {/* 내 QR 명함 — 우선 비활성화(제거). 코드는 주석으로 보존.
       <MyRow icon="qr-code-outline" title="내 QR 명함" desc="QR로 내 프로필을 빠르게 공유" onPress={() => router.push('/qr-card' as never)} /> */}
       <MyRow icon="ticket-outline" title="이벤트 · 쿠폰" desc="이벤트 쿠폰으로 카드팩 받기" onPress={() => router.push('/redeem' as never)} />
@@ -187,6 +193,17 @@ export default function MyPageScreen() {
       {/* 보상 3종 안내 — 첫 진입 자동 1회 + [안내] 버튼 */}
       <RewardsGuideSheet visible={guideOpen} onClose={closeGuide} />
     </View>
+  );
+}
+
+/** 성격이 비슷한 메뉴를 묶는 섹션 제목 — MY 화면 그룹 구분용. */
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  const { theme, fontScale: fs } = useTheme();
+  const c = theme.colors;
+  return (
+    <Text style={{ color: c.textSecondary, fontSize: 12.5 * fs, fontWeight: '800', fontFamily: fontDisplay, marginTop: 18, marginBottom: 2, paddingHorizontal: 2, letterSpacing: 0.2 }}>
+      {children}
+    </Text>
   );
 }
 

@@ -101,6 +101,9 @@ function RootContent() {
         <Stack.Screen name="author-card" options={{ animation: 'slide_from_bottom' }} />
         <Stack.Screen name="developer" />
         <Stack.Screen name="notifications" options={{ animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="user-search" />
+        <Stack.Screen name="u/[id]" />
+        <Stack.Screen name="privacy" />
       </Stack>
       <UpdatePrompt
         visible={ready && updateAvailable}

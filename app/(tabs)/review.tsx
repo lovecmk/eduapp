@@ -65,7 +65,7 @@ export default function ReviewScreen() {
   }
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: c.bg }} contentContainerStyle={{ padding: 20 }} showsVerticalScrollIndicator={false}>
+    <ScrollView style={{ flex: 1, backgroundColor: 'transparent' }} contentContainerStyle={{ padding: 20 }} showsVerticalScrollIndicator={false}>
       <Text style={{ color: c.textPrimary, fontSize: 20 * fs, fontFamily: fontDisplay, marginBottom: 4 }}>복습</Text>
       <Text style={{ color: c.textSecondary, fontSize: 13 * fs, marginBottom: 18, fontFamily: fontBody }}>
         학습했던 카테고리를 골라 다시 학습해요

@@ -17,15 +17,13 @@ import { LivePresenceStrip } from '../../src/components/community/LivePresenceSt
 import { LearningCalendar } from '../../src/components/community/LearningCalendar';
 import { fontMono, fontDisplay, fontBody } from '../../src/theme/tokens';
 import { calcEmblems, getAcquiredEmblems } from '../../src/utils/emblems';
-import { getDaylight } from '../../src/utils/daylight';
-import { AmbientSky } from '../../src/components/home/AmbientSky';
-import { useWeather } from '../../src/hooks/useWeather';
 import { useFactionStore } from '../../src/store/factionStore';
 import { computeMoment, encourageLine, type Moment } from '../../src/utils/moments';
 import { ROUTES } from '../../src/constants/routes';
 import { useAllCards, useTodayCards } from '../../src/hooks/useCards';
 import { useStudyStats } from '../../src/hooks/useStats';
 import { useReview } from '../../src/hooks/useReview';
+import { useDailyQuota } from '../../src/hooks/useDailyQuota';
 
 // 시간 중립 인사 문구 — '아침/저녁'을 직접 말하지 않고, 시간대는 해/달 아이콘으로만 전한다.
 const NEUTRAL_GREETINGS = [
@@ -68,6 +66,7 @@ export default function HomeScreen() {
   const { data: todayCards = [], refetch: refetchToday } = useTodayCards();
   const { data: stats, isLoading: statsLoading, error: statsError, refetch: refetchStats } = useStudyStats();
   const { dueTodayCount } = useReview();
+  const quota = useDailyQuota();
 
   const masteredCount = useMemo(() => allCards.filter((x) => x.status === 'mastered').length, [allCards]);
 
@@ -75,11 +74,8 @@ export default function HomeScreen() {
   // 시간대(아침/저녁)를 '의도적으로 문구로 띄우지 않는다'. 인사·문구는 시간 중립으로 두고,
   // 지금이 언제쯤인지는 아래 해/달 아이콘으로만 은은하게 전한다.
   const greeting = useMemo(() => NEUTRAL_GREETINGS[Math.floor(Math.random() * NEUTRAL_GREETINGS.length)], []);
-  // 시간대 4단계 — 이제 '문구/히어로 아이콘'이 아니라 홈 '배경(AmbientSky)'으로만 표현한다.
+  // 시간대·날씨는 이제 앱 '전역 배경(WeatherBackground)'이 대신 표현한다.
   // 히어로에는 시간과 무관한 고정 안전 아이콘(방패)을 둔다.
-  const daylight = useMemo(() => getDaylight(), []);
-  // 날씨 — 배경 앰비언트(비/눈/맑음) 구동용. 실패해도 조용히 시간대 효과만 남는다.
-  const { data: weather } = useWeather();
   // 아주 미세한 효과 — 히어로 안전 아이콘이 천천히 숨쉬듯 은은하게 빛난다(느린 루프).
   const glowAnim = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -181,10 +177,8 @@ export default function HomeScreen() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: c.bg }}>
-      {/* 시간대 + 날씨 배경 앰비언트 — 아침 햇살 / 노을 / 밤하늘 / 비·눈을 은은히 표현.
-          (실제 날씨 API 는 추후 연동. 그전까지는 시간대 효과 위주로 담백하게.) */}
-      <AmbientSky phase={daylight.phase} condition={weather?.condition} />
+    // 배경은 전역 WeatherBackground 가 그린다 — 여기선 투명으로 두어 날씨가 비쳐 보이게.
+    <View style={{ flex: 1, backgroundColor: 'transparent' }}>
       <ScrollView
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.primary} />}
         contentContainerStyle={{ padding: 20 }}
@@ -237,10 +231,10 @@ export default function HomeScreen() {
         {/* 학습 시작 · 복습 */}
         <Card>
           <View style={{ flexDirection: 'row', gap: 10 }}>
-            <Pressable onPress={() => router.push(ROUTES.cards)} style={{ flex: 1, backgroundColor: c.primary, borderRadius: 14, paddingVertical: 13, alignItems: 'center', gap: 3 }}>
-              <Ionicons name="school" size={20} color="#fff" />
-              <Text style={{ color: '#fff', fontSize: 13.5 * fs, fontFamily: fontDisplay }}>학습 시작</Text>
-              <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 10.5, fontFamily: fontMono }}>새 카드 {todayCards.length}</Text>
+            <Pressable onPress={() => router.push(ROUTES.cards)} style={{ flex: 1, backgroundColor: quota.canLearn ? c.primary : c.success, borderRadius: 14, paddingVertical: 13, alignItems: 'center', gap: 3 }}>
+              <Ionicons name={quota.canLearn ? 'school' : 'checkmark-done'} size={20} color="#fff" />
+              <Text style={{ color: '#fff', fontSize: 13.5 * fs, fontFamily: fontDisplay }}>{quota.canLearn ? '학습 시작' : '오늘 학습 완료'}</Text>
+              <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 10.5, fontFamily: fontMono }}>{quota.canLearn ? `오늘 ${quota.remaining}/${quota.limit}장 남음` : `내일 또 만나요`}</Text>
             </Pressable>
             <Pressable onPress={() => router.push(ROUTES.review)} style={{ flex: 1, backgroundColor: c.surfaceAlt, borderRadius: 14, paddingVertical: 13, alignItems: 'center', gap: 3 }}>
               <View>

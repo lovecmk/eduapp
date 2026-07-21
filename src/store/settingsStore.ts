@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { CardCategory } from '../domain/models/LearningCard';
+import type { ProfileVisibility } from '../domain/models/PublicProfile';
+import { DEFAULT_VISIBILITY } from '../domain/models/PublicProfile';
 
 export type ThemeMode = 'light' | 'dark' | 'dim' | 'system';
 export type FontScale = 'xsmall' | 'small' | 'medium' | 'large' | 'xlarge';
@@ -44,6 +46,8 @@ interface SettingsState {
   collectionEnabled: boolean;
   /** 보상 안내(엠블럼·도감·트로피 차이) 시트를 한 번이라도 봤는지 — 초보자 자동 안내용. */
   rewardsGuideSeen: boolean;
+  /** 내 프로필 공개 범위 — 다른 사용자에게 진행도를 어디까지 보여줄지. */
+  profileVisibility: ProfileVisibility;
 
   setThemeMode: (mode: ThemeMode) => void;
   setFontScale: (scale: FontScale) => void;
@@ -67,6 +71,8 @@ interface SettingsState {
   toggleCollectionEnabled: () => void;
   /** 보상 안내 시트를 봤다고 표시(다시 자동으로 뜨지 않음). */
   markRewardsGuideSeen: () => void;
+  /** 프로필 공개 범위의 특정 항목을 토글. */
+  toggleVisibility: (key: keyof ProfileVisibility) => void;
   /** 로컬 저장 데이터를 초기화하고 기본 설정으로 되돌린다(방어적 초기화). */
   resetAll: () => void;
 }
@@ -104,6 +110,8 @@ const DEFAULT_SETTINGS = {
   collectionEnabled: false,
   // 기본 꺼짐 — 컬렉션·성취 화면 첫 진입 시 안내를 한 번 자동으로 띄운다.
   rewardsGuideSeen: false,
+  // 프로필 공개 범위 기본값 — 진행도·스트릭·엠블럼 공개, 컬렉션 비공개.
+  profileVisibility: DEFAULT_VISIBILITY,
 };
 
 export const useSettingsStore = create<SettingsState>()(
@@ -132,6 +140,8 @@ export const useSettingsStore = create<SettingsState>()(
       toggleAchievementBadge: () => set((s) => ({ showAchievementBadge: !s.showAchievementBadge })),
       toggleCollectionEnabled: () => set((s) => ({ collectionEnabled: !s.collectionEnabled })),
       markRewardsGuideSeen: () => set({ rewardsGuideSeen: true }),
+      toggleVisibility: (key) =>
+        set((s) => ({ profileVisibility: { ...s.profileVisibility, [key]: !s.profileVisibility[key] } })),
       resetAll: () => set({ ...DEFAULT_SETTINGS }),
     }),
     {
