@@ -1,6 +1,7 @@
 import 'react-native-gesture-handler';
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Animated, Easing } from 'react-native';
+import { Image } from 'expo-image';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -13,7 +14,6 @@ import { ThemeProvider, useTheme } from '../src/theme/ThemeProvider';
 import { useAuthStore } from '../src/store/authStore';
 import { useSettingsStore } from '../src/store/settingsStore';
 import { syncPushTokenWithServer } from '../src/data/notifications/NotificationService';
-import { BridgeLogo } from '../src/components/ui/BridgeLogo';
 import { fontDisplay, fontBody } from '../src/theme/tokens';
 import { ErrorBoundary } from '../src/components/ui/ErrorBoundary';
 import { UpdatePrompt } from '../src/components/ui/UpdatePrompt';
@@ -107,10 +107,15 @@ function RootContent() {
         // 로딩이 끝나면 통째로 페이드아웃되며 앱으로 넘어간다.
         <Animated.View style={{ position: 'absolute', inset: 0, alignItems: 'center', justifyContent: 'center', zIndex: 999, opacity, backgroundColor: theme.colors.bg }}>
           {/* 네이티브 스플래시(splash-icon.png = KFPA 로고)에서 그대로 이어지도록, 카드 박스 없이
-              동일한 로고만 화면 중앙에 두어 '하나의 로고가 잠깐 떴다 사라지는' 인상을 준다. */}
+              동일한 KFPA 로고 이미지만 화면 중앙에 두어 '하나의 로고가 잠깐 떴다 사라지는' 인상을 준다. */}
           <Animated.View style={{ alignItems: 'center', transform: [{ scale: logoScale }] }}>
-            <BridgeLogo size={92} />
-            <Text style={{ color: theme.colors.textPrimary, fontSize: 22, marginTop: 22, letterSpacing: 1, fontFamily: fontDisplay }}>현장학습</Text>
+            <Image
+              source={require('../assets/splash-icon.png')}
+              style={{ width: 200, height: 200 }}
+              contentFit="contain"
+              transition={0}
+            />
+            <Text style={{ color: theme.colors.textPrimary, fontSize: 22, marginTop: 4, letterSpacing: 1, fontFamily: fontDisplay }}>현장학습</Text>
             <Text style={{ color: theme.colors.textSecondary, fontSize: 13, marginTop: 6, fontFamily: fontBody }}>현장 안전학습, 매일 3분</Text>
           </Animated.View>
         </Animated.View>
