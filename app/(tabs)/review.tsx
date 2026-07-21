@@ -6,7 +6,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTheme } from '../../src/theme/ThemeProvider';
 import { ReviewSkeleton } from '../../src/components/skeletons';
 import { ErrorState } from '../../src/components/ui/ErrorState';
-import { fontDisplay, fontBody, fontMono } from '../../src/theme/tokens';
+import { fontDisplay, fontBody, fontMono, fontCute } from '../../src/theme/tokens';
 import { getCategoryIcon, getCategoryColor } from '../../src/constants/categories';
 import { ROUTES } from '../../src/constants/routes';
 import { useAllCards } from '../../src/hooks/useCards';
@@ -66,9 +66,14 @@ export default function ReviewScreen() {
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: 'transparent' }} contentContainerStyle={{ padding: 20 }} showsVerticalScrollIndicator={false}>
-      <Text style={{ color: c.textPrimary, fontSize: 20 * fs, fontFamily: fontDisplay, marginBottom: 4 }}>복습</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+        <Text style={{ color: c.textPrimary, fontSize: 20 * fs, fontFamily: fontDisplay }}>복습</Text>
+        <View style={{ backgroundColor: c.success + '1A', borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 }}>
+          <Text style={{ color: c.success, fontSize: 11 * fs, fontWeight: '800', fontFamily: fontCute }}>상한 없이 자유</Text>
+        </View>
+      </View>
       <Text style={{ color: c.textSecondary, fontSize: 13 * fs, marginBottom: 18, fontFamily: fontBody }}>
-        학습했던 카테고리를 골라 다시 학습해요
+        오늘 학습을 다 했어도, 배웠던 내용은 언제든 다시 볼 수 있어요
       </Text>
 
       {/* 학습한 카테고리 */}

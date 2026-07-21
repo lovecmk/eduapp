@@ -15,7 +15,7 @@ import { MomentModal } from '../../src/components/home/MomentModal';
 import { HomeSkeleton } from '../../src/components/skeletons';
 import { LivePresenceStrip } from '../../src/components/community/LivePresenceStrip';
 import { LearningCalendar } from '../../src/components/community/LearningCalendar';
-import { fontMono, fontDisplay, fontBody } from '../../src/theme/tokens';
+import { fontMono, fontDisplay, fontBody, fontCute } from '../../src/theme/tokens';
 import { calcEmblems, getAcquiredEmblems } from '../../src/utils/emblems';
 import { useFactionStore } from '../../src/store/factionStore';
 import { computeMoment, encourageLine, type Moment } from '../../src/utils/moments';
@@ -63,7 +63,7 @@ export default function HomeScreen() {
   const [moment, setMoment] = useState<Moment | null>(null);
 
   const { data: allCards = [], isLoading: cardsLoading, refetch: refetchAll } = useAllCards();
-  const { data: todayCards = [], refetch: refetchToday } = useTodayCards();
+  const { refetch: refetchToday } = useTodayCards();
   const { data: stats, isLoading: statsLoading, error: statsError, refetch: refetchStats } = useStudyStats();
   const { dueTodayCount } = useReview();
   const quota = useDailyQuota();
@@ -228,27 +228,59 @@ export default function HomeScreen() {
 
         <LivePresenceStrip />
 
-        {/* 학습 시작 · 복습 */}
+        {/* 오늘의 학습 리추얼 — '하루 딱 5장, 3분'을 눈으로 체감하게: 5칸 진행 + 명확한 학습/복습 구분.
+            학습은 하루 상한이 있는 '오늘의 목표'(끝이 있는 리추얼), 복습은 언제든 '자유'임을 대비시켜 보여준다. */}
         <Card>
-          <View style={{ flexDirection: 'row', gap: 10 }}>
-            <Pressable onPress={() => router.push(ROUTES.cards)} style={{ flex: 1, backgroundColor: quota.canLearn ? c.primary : c.success, borderRadius: 14, paddingVertical: 13, alignItems: 'center', gap: 3 }}>
-              <Ionicons name={quota.canLearn ? 'school' : 'checkmark-done'} size={20} color="#fff" />
-              <Text style={{ color: '#fff', fontSize: 13.5 * fs, fontFamily: fontDisplay }}>{quota.canLearn ? '학습 시작' : '오늘 학습 완료'}</Text>
-              <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 10.5, fontFamily: fontMono }}>{quota.canLearn ? `오늘 ${quota.remaining}/${quota.limit}장 남음` : `내일 또 만나요`}</Text>
-            </Pressable>
-            <Pressable onPress={() => router.push(ROUTES.review)} style={{ flex: 1, backgroundColor: c.surfaceAlt, borderRadius: 14, paddingVertical: 13, alignItems: 'center', gap: 3 }}>
-              <View>
-                <Ionicons name="refresh" size={20} color={c.primary} />
-                {dueTodayCount > 0 && (
-                  <View style={{ position: 'absolute', top: -4, right: -8, backgroundColor: c.warning, borderRadius: 8, minWidth: 16, height: 16, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3 }}>
-                    <Text style={{ color: '#fff', fontSize: 9, fontFamily: fontMono, fontWeight: '800' }}>{dueTodayCount}</Text>
-                  </View>
-                )}
-              </View>
-              <Text style={{ color: c.textPrimary, fontSize: 13.5 * fs, fontFamily: fontDisplay }}>복습</Text>
-              <Text style={{ color: c.textSecondary, fontSize: 10.5, fontFamily: fontMono }}>{dueTodayCount > 0 ? `${dueTodayCount}개 대기` : '완료'}</Text>
-            </Pressable>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Ionicons name="school" size={16} color={c.primary} />
+              <Text style={{ color: c.textPrimary, fontSize: 14.5 * fs, fontFamily: fontDisplay }}>오늘의 학습</Text>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.surfaceAlt, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 4 }}>
+              <Ionicons name="hourglass-outline" size={11} color={c.textSecondary} />
+              <Text style={{ color: c.textSecondary, fontSize: 11 * fs, fontFamily: fontCute, fontWeight: '700' }}>하루 {quota.limit}장 · 3분이면 충분</Text>
+            </View>
           </View>
+
+          {/* 5칸 진행 도트 — 채워진 칸 = 오늘 마친 학습. '끝이 보이는' 하루 목표를 시각화. */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 12, paddingHorizontal: 2 }}>
+            {Array.from({ length: quota.limit }).map((_, i) => {
+              const done = i < quota.used;
+              return (
+                <View key={i} style={{ flex: 1, height: 8, borderRadius: 4, backgroundColor: done ? c.primary : c.surfaceAlt, borderWidth: done ? 0 : 1, borderColor: c.border }} />
+              );
+            })}
+            <Text style={{ color: quota.canLearn ? c.primary : c.success, fontSize: 12.5 * fs, fontFamily: fontMono, fontWeight: '900', marginLeft: 4, minWidth: 34, textAlign: 'right' }}>{quota.used}/{quota.limit}</Text>
+          </View>
+
+          {/* 오늘의 학습 CTA — 진행 중이면 '이어서', 다 하면 축하 상태 */}
+          <Pressable onPress={() => router.push(ROUTES.cards)} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: quota.canLearn ? c.primary : c.success + '18', borderRadius: 14, padding: 14, borderWidth: quota.canLearn ? 0 : 1, borderColor: c.success + '55' }}>
+            <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: quota.canLearn ? 'rgba(255,255,255,0.2)' : c.success + '22', alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name={quota.canLearn ? 'play' : 'checkmark-done'} size={20} color={quota.canLearn ? '#fff' : c.success} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: quota.canLearn ? '#fff' : c.success, fontSize: 15 * fs, fontFamily: fontDisplay }}>{quota.canLearn ? (quota.used > 0 ? '이어서 학습하기' : '오늘 학습 시작') : '오늘 학습 완료! 🎉'}</Text>
+              <Text style={{ color: quota.canLearn ? 'rgba(255,255,255,0.85)' : c.textSecondary, fontSize: 11.5 * fs, marginTop: 2, fontFamily: fontCute }}>{quota.canLearn ? `${quota.remaining}장 남았어요 · 무리 말고 딱 오늘 치만` : '내일 자정에 새 5장이 열려요'}</Text>
+            </View>
+            {quota.canLearn && <Ionicons name="chevron-forward" size={20} color="#fff" />}
+          </Pressable>
+
+          {/* 복습 — '언제든 자유'임을 명확히(상한 없음). 대기 개수는 부담이 아니라 '기다리는 카드'로. */}
+          <Pressable onPress={() => router.push(ROUTES.review)} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.surface, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: c.border, marginTop: 10 }}>
+            <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: c.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="refresh" size={20} color={c.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontFamily: fontDisplay }}>복습</Text>
+                <View style={{ backgroundColor: c.success + '1A', borderRadius: 999, paddingHorizontal: 7, paddingVertical: 1.5 }}>
+                  <Text style={{ color: c.success, fontSize: 10.5, fontFamily: fontCute, fontWeight: '800' }}>언제든 자유</Text>
+                </View>
+              </View>
+              <Text style={{ color: c.textSecondary, fontSize: 11.5 * fs, marginTop: 2, fontFamily: fontCute }}>{dueTodayCount > 0 ? `복습할 카드 ${dueTodayCount}장이 기다려요` : '지금은 복습할 카드가 없어요'}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={c.primary} />
+          </Pressable>
         </Card>
 
         {/* 학습 현황 + 통계 보기 */}
@@ -264,7 +296,7 @@ export default function HomeScreen() {
             <ErrorState message="통계를 불러올 수 없습니다" onRetry={refetchStats} />
           ) : (
             <View style={{ flexDirection: 'row', gap: 8 }}>
-              <StatPill value={`${todayCards.length}개`} label="오늘의 학습" icon="today" />
+              <StatPill value={`${quota.used}/${quota.limit}`} label="오늘 학습" icon="today" />
               <StatPill value={`${stats?.totalLearned ?? masteredCount}개`} label="누적 학습" icon="book" />
               <StatPill value={`${stats?.streakDays ?? '-'}일`} label="연속 학습" icon="flame" />
             </View>
