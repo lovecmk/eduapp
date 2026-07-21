@@ -26,7 +26,9 @@ function buildMonth(d: Date, now: Date): BuildingMonth {
   const dayProgress = isCurrent ? now.getDate() : daysInMonth;
   const dailyBase = 7_800 + (seed % 5_400); // 하루 ~7.8k–13.2k 문제
   const problems = Math.round(dailyBase * dayProgress + (seed % 9_000));
-  return { month: key, label: monthLabel(d, now), problems, floors: Math.floor(problems / BUILDING_FLOOR_SIZE) };
+  // 그 달 우승 진영 — 시드로 결정(달마다 달라져 히스토리 색이 다양해진다).
+  const winner = (['frost', 'flame', 'volt'] as const)[seed % 3];
+  return { month: key, label: monthLabel(d, now), problems, floors: Math.floor(problems / BUILDING_FLOOR_SIZE), winner };
 }
 
 /** 이번 달(진행 중) + 지난 6개월 히스토리. */

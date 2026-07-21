@@ -94,18 +94,23 @@ export class CommunityRepository implements ICommunityRepository {
 /** 서버 building 응답 매핑 — 아직 미구현이면 누적치로부터 이번 달만 근사 계산. */
 function mapBuilding(dto: CommunityDTO): CommunitySnapshot['building'] {
   const FLOOR = 20_000;
+  // 서버 응답에 winner 가 없을 수 있으니 기본값('frost')으로 보강한다.
+  const withWinner = (m: { month: string; label: string; problems: number; floors: number; winner?: string }) => ({
+    ...m,
+    winner: m.winner ?? 'frost',
+  });
   if (dto.building) {
     return {
       floorSize: dto.building.floor_size || FLOOR,
-      current: dto.building.current,
-      history: dto.building.history ?? [],
+      current: withWinner(dto.building.current),
+      history: (dto.building.history ?? []).map(withWinner),
     };
   }
   const now = new Date();
   const problems = Math.max(0, Math.round((dto.total_cards_all_time ?? 0) % (FLOOR * 40)));
   return {
     floorSize: FLOOR,
-    current: { month: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`, label: `${now.getMonth() + 1}월`, problems, floors: Math.floor(problems / FLOOR) },
+    current: { month: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`, label: `${now.getMonth() + 1}월`, problems, floors: Math.floor(problems / FLOOR), winner: 'frost' },
     history: [],
   };
 }

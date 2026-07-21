@@ -531,7 +531,6 @@ export default function CardsScreen() {
               transform: [{ perspective: 1600 }, { rotateY: frontRotate }],
               backfaceVisibility: 'hidden',
               opacity: frontOpacity,
-              boxShadow: '0 1px 4px rgba(15,23,42,0.05)', elevation: 1,
             }}
           >
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
@@ -613,7 +612,6 @@ export default function CardsScreen() {
               transform: [{ perspective: 1600 }, { rotateY: backRotate }],
               backfaceVisibility: 'hidden',
               opacity: backOpacity,
-              boxShadow: '0 1px 4px rgba(15,23,42,0.05)', elevation: 1,
             }}
           >
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
@@ -667,12 +665,12 @@ export default function CardsScreen() {
             // 버튼 위치 교체 — 왼쪽: 다음에 한번 더 / 오른쪽: 학습 완료
             <View style={{ flexDirection: 'row', gap: 10, height: 52 }}>
               <Pressable onPress={againUp} disabled={exiting}
-                style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#FF3B30', borderRadius: 14, height: 52, boxShadow: '0 3px 8px rgba(255,59,48,0.28)', elevation: 4 }}>
+                style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.warning, borderRadius: 14, height: 52, boxShadow: `0 3px 8px ${c.warning}3D` }}>
                 <Ionicons name="refresh-circle" size={19} color="#fff" />
                 <Text style={{ color: '#fff', fontSize: 15 * fs, fontWeight: '700', fontFamily: fontCute }}>다음에 한번 더</Text>
               </Pressable>
               <Pressable onPress={completeLeft} disabled={exiting}
-                style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#2563EB', borderRadius: 14, height: 52, boxShadow: '0 3px 8px rgba(37,99,235,0.28)', elevation: 4 }}>
+                style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.success, borderRadius: 14, height: 52, boxShadow: `0 3px 8px ${c.success}3D` }}>
                 <Ionicons name="checkmark-circle" size={19} color="#fff" />
                 <Text style={{ color: '#fff', fontSize: 15 * fs, fontWeight: '700', fontFamily: fontCute }}>학습 완료</Text>
               </Pressable>
@@ -689,12 +687,12 @@ export default function CardsScreen() {
             {flipped ? (
               <View style={{ flexDirection: 'row', gap: 10, height: 52 }}>
                 <Pressable onPress={completeLeft} disabled={exiting}
-                  style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#2563EB', borderRadius: 14, height: 52, boxShadow: '0 3px 8px rgba(37,99,235,0.28)', elevation: 4 }}>
+                  style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.success, borderRadius: 14, height: 52, boxShadow: `0 3px 8px ${c.success}3D` }}>
                   <Ionicons name="checkmark-circle" size={19} color="#fff" />
                   <Text style={{ color: '#fff', fontSize: 15 * fs, fontWeight: '700', fontFamily: fontCute }}>학습 완료</Text>
                 </Pressable>
                 <Pressable onPress={againUp} disabled={exiting}
-                  style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: '#FF3B30', borderRadius: 14, height: 52, boxShadow: '0 3px 8px rgba(255,59,48,0.28)', elevation: 4 }}>
+                  style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.warning, borderRadius: 14, height: 52, boxShadow: `0 3px 8px ${c.warning}3D` }}>
                   <Ionicons name="arrow-up-circle" size={19} color="#fff" />
                   <Text style={{ color: '#fff', fontSize: 15 * fs, fontWeight: '700', fontFamily: fontCute }}>다음에 한번 더</Text>
                 </Pressable>

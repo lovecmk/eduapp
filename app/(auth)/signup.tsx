@@ -104,8 +104,8 @@ export default function SignupScreen() {
       email: email.trim(),
       org: org.trim(),
     });
-    // 가입 성공 직후 진영(팀)을 선택하게 한다 — 포켓몬 GO식 초반 진영 선택.
-    if (ok) router.replace(ROUTES.factionSelect as never);
+    // 가입 성공 → 홈으로 진입. 진영(팀) 선택은 홈 진입 시점에 유도한다(홈에서 faction==null 이면 자동 안내).
+    if (ok) router.replace(ROUTES.home);
   };
 
   return (

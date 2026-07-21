@@ -43,6 +43,8 @@ export interface BuildingMonth {
   problems: number;
   /** 그 달에 올린 층수 */
   floors: number;
+  /** 그 달 진영 대항전에서 이긴 진영 id ('frost' | 'flame' | 'volt') */
+  winner: string;
 }
 
 /**

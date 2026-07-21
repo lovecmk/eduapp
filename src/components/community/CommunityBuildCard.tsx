@@ -11,6 +11,7 @@ import {
   getFaction,
   factionStandings,
   type BuildingVariant,
+  type FactionId,
 } from '../../constants/factions';
 import { ROUTES } from '../../constants/routes';
 
@@ -196,18 +197,22 @@ export function CommunityBuildCard() {
             <View style={{ marginTop: 4 }}>
               {history.map((h) => {
                 const pct = bestFloors > 0 ? Math.round((h.floors / bestFloors) * 100) : 0;
+                // 지난 달 기록은 그 달 '우승 진영' 색으로 표시(달마다 색이 다르다).
+                const wf = FACTIONS[h.winner as FactionId] ?? myFaction;
+                const barColor = wf?.color ?? buildColor;
                 return (
                   <View key={h.month} style={styles.histRow}>
-                    <Text style={{ width: 62, color: c.textSecondary, fontSize: 12, fontFamily: fontDisplay }}>{h.label}</Text>
+                    <Text style={{ width: 58, color: c.textSecondary, fontSize: 12, fontFamily: fontDisplay }}>{h.label}</Text>
+                    <Text style={{ width: 20, textAlign: 'center', fontSize: 13 }}>{wf?.emoji ?? '🏗️'}</Text>
                     <View style={{ flex: 1, height: 8, backgroundColor: c.surfaceAlt, borderRadius: 4, overflow: 'hidden', marginRight: 10 }}>
-                      <View style={{ width: `${Math.max(6, pct)}%`, height: '100%', backgroundColor: buildColor + 'AA', borderRadius: 4 }} />
+                      <View style={{ width: `${Math.max(6, pct)}%`, height: '100%', backgroundColor: barColor + 'CC', borderRadius: 4 }} />
                     </View>
                     <Text style={{ color: c.textPrimary, fontSize: 12.5, fontFamily: fontMono, fontWeight: '800' }}>{h.floors}층</Text>
                   </View>
                 );
               })}
               <Text style={{ color: c.textSecondary, fontSize: 10.5, fontFamily: fontBody, marginTop: 6, textAlign: 'center' }}>
-                한 층 = {floorSize.toLocaleString()}문제 · 매월 1일 0층부터 다시 시작해요
+                한 층 = {floorSize.toLocaleString()}문제 · 색은 그 달 우승 진영 · 매월 1일 0층부터 다시 시작해요
               </Text>
             </View>
           )}

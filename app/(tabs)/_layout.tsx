@@ -177,7 +177,9 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen name="index" options={{ title: '홈', tabBarIcon: ({ color, focused }) => <TabIcon icon={focused ? TAB_ICON.index.active : TAB_ICON.index.inactive} color={color} focused={focused} /> }} />
-      <Tabs.Screen name="cards" options={{ title: '학습', tabBarIcon: ({ color, focused }) => <TabIcon icon={focused ? TAB_ICON.cards.active : TAB_ICON.cards.inactive} color={color} focused={focused} /> }} />
+      {/* 학습 탭은 카드(perspective/rotateY 변환 + 큰 콘텐츠)라 교차 페이드 시 잔상이 강하게 남는다.
+          이 화면만 페이드를 끄고 즉시 전환해(잔상 원천 제거) 깔끔하게 넘긴다. */}
+      <Tabs.Screen name="cards" options={{ title: '학습', animation: 'none', tabBarIcon: ({ color, focused }) => <TabIcon icon={focused ? TAB_ICON.cards.active : TAB_ICON.cards.inactive} color={color} focused={focused} /> }} />
       <Tabs.Screen name="review" options={{ title: '복습', tabBarIcon: ({ color, focused }) => <TabIcon icon={focused ? TAB_ICON.review.active : TAB_ICON.review.inactive} color={color} focused={focused} /> }} />
       <Tabs.Screen name="community" options={{ title: '커뮤니티', tabBarIcon: ({ color, focused }) => <TabIcon icon={focused ? TAB_ICON.community.active : TAB_ICON.community.inactive} color={color} focused={focused} /> }} />
       <Tabs.Screen name="mypage" options={{ title: 'MY', tabBarIcon: ({ color, focused }) => <TabIcon icon={focused ? TAB_ICON.mypage.active : TAB_ICON.mypage.inactive} color={color} focused={focused} /> }} />
