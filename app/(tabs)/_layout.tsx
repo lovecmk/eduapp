@@ -146,6 +146,10 @@ export default function TabsLayout() {
       backBehavior="history"
       screenOptions={{
         header: ({ route }) => <MinimalHeader title={TITLES[route.name] ?? ''} />,
+        // 탭 전환 시 화면이 딱딱 끊기지 않고, 이동 방향으로 살짝 밀리며(shift)
+        // 부드럽게 교차되도록 한다. 짧은 지속시간으로 반응성은 유지.
+        animation: 'shift',
+        transitionSpec: { animation: 'timing', config: { duration: 220 } },
         tabBarActiveTintColor: c.primary,
         tabBarInactiveTintColor: c.textSecondary,
         tabBarStyle: { backgroundColor: c.surface, borderTopColor: c.border, height: 64, paddingBottom: 6 },
