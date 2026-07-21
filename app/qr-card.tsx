@@ -1,3 +1,18 @@
+// 내 QR 명함 — 우선 제거(비활성화). 아래 원본 구현은 요청에 따라 주석으로 보존한다.
+// 다시 활성화하려면 아래 블록 주석을 해제하고, app/(tabs)/mypage.tsx 의 진입 MyRow 와
+// app/_layout.tsx 의 <Stack.Screen name="qr-card" /> 주석도 함께 해제하면 된다.
+//
+// expo-router 는 app/ 하위 파일을 자동으로 라우트로 등록하므로, 라우트 파일 자체는
+// 유효한 default export 를 유지해야 한다(빌드 오류 방지). 링크가 모두 제거되어 도달할 수 없고,
+// 혹시 직접 진입하더라도 아무것도 표시하지 않도록 홈으로 되돌린다.
+
+import { Redirect } from 'expo-router';
+
+export default function QRCardScreen() {
+  return <Redirect href="/(tabs)/mypage" />;
+}
+
+/* ── 원본 구현(주석 보존) ─────────────────────────────────────────────
 import React, { useMemo } from 'react';
 import { View, Text, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,7 +26,7 @@ import { displayName, MEMBERSHIP_META } from '../src/domain/models/User';
 import { fontCute, fontMono, fontBody } from '../src/theme/tokens';
 import { useResponsive } from '../src/theme/responsive';
 
-/** 프로필을 여는 딥링크(웹 프로필로도 연결 가능한 형태). */
+// 프로필을 여는 딥링크(웹 프로필로도 연결 가능한 형태).
 function profileLink(loginId?: string, nickname?: string): string {
   const base = 'https://bridge.kfpa.or.kr/u/';
   const id = encodeURIComponent(loginId ?? 'guest');
@@ -42,7 +57,6 @@ export default function QRCardScreen() {
           동료에게 QR을 보여주면{'\n'}내 프로필을 바로 열 수 있어요.
         </Text>
 
-        {/* 명함 카드 */}
         <View
           style={{
             backgroundColor: c.surface,
@@ -71,7 +85,6 @@ export default function QRCardScreen() {
             ) : null}
           </View>
 
-          {/* QR — 항상 흰 배경/검은 모듈로 그려 스캔 대비를 보장(테마 무관). */}
           <View style={{ backgroundColor: '#FFFFFF', padding: 16, borderRadius: 16, marginTop: 20 }}>
             <QRCode value={link} size={qrSize} ecLevel="M" color="#111111" background="#FFFFFF" />
           </View>
@@ -89,3 +102,4 @@ export default function QRCardScreen() {
     </View>
   );
 }
+────────────────────────────────────────────────────────────────────── */

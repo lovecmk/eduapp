@@ -431,9 +431,9 @@ export default function CardsScreen() {
     return (
       <View style={{ flex: 1, backgroundColor: c.bg, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
         <Text style={{ fontSize: 52, marginBottom: 12 }}>🎉</Text>
-        <Text style={{ color: c.textPrimary, fontSize: 22 * fs, fontWeight: '800', fontFamily: fontCute }}>학습 완료!</Text>
+        <Text style={{ color: c.textPrimary, fontSize: 22 * fs, fontWeight: '800', fontFamily: fontCute }}>{isCategoryMode ? '복습 완료!' : '학습 완료!'}</Text>
         <Text style={{ color: c.textSecondary, marginTop: 6, marginBottom: 28, fontFamily: fontCute }}>
-          {isFocusMode ? '이 카드 학습을 마쳤어요' : isCategoryMode ? `${category} · ${doneCount}장 복습 완료` : `오늘 ${doneCount}장 학습 완료 · 3분이면 충분해요`}
+          {isFocusMode ? '이 카드 학습을 마쳤어요' : isCategoryMode ? `${category} · ${doneCount}장 복습 완료 · 잘하셨어요!` : `오늘 ${doneCount}장 학습 완료 · 3분이면 충분해요`}
         </Text>
         <View style={{ width: '60%', height: 4, backgroundColor: c.surfaceAlt, borderRadius: 2, overflow: 'hidden', marginBottom: 24 }}>
           <Animated.View style={{ width: barWidth, height: '100%', backgroundColor: c.primary, borderRadius: 2 }} />
@@ -710,31 +710,38 @@ export default function CardsScreen() {
               <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: c.warning + '18', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
                 <Ionicons name="exit-outline" size={26} color={c.warning} />
               </View>
-              <Text style={{ color: c.textPrimary, fontSize: 17 * fs, fontWeight: '800', fontFamily: fontCute }}>학습을 멈출까요?</Text>
+              <Text style={{ color: c.textPrimary, fontSize: 17 * fs, fontWeight: '800', fontFamily: fontCute }}>{isCategoryMode ? '복습을 멈출까요?' : '학습을 멈출까요?'}</Text>
               <Text style={{ color: c.textSecondary, fontSize: 13 * fs, textAlign: 'center', marginTop: 6, lineHeight: 19, fontFamily: fontCute }}>
-                진행 중인 학습은 저장되지 않아요.{'\n'}어디로 이동할까요?
+                {isCategoryMode ? '진행 중인 복습은 저장되지 않아요.' : '진행 중인 학습은 저장되지 않아요.'}{'\n'}어디로 이동할까요?
               </Text>
             </View>
 
             <Pressable onPress={() => setExitConfirm(false)}
               style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.primary, borderRadius: 14, paddingVertical: 14, marginTop: 8 }}>
               <Ionicons name="play" size={16} color="#fff" />
-              <Text style={{ color: '#fff', fontSize: 15 * fs, fontWeight: '700', fontFamily: fontCute }}>계속 학습하기</Text>
+              <Text style={{ color: '#fff', fontSize: 15 * fs, fontWeight: '700', fontFamily: fontCute }}>{isCategoryMode ? '계속 복습하기' : '계속 학습하기'}</Text>
             </Pressable>
 
-            {isCategoryMode && (
-              <Pressable onPress={() => leaveSession(ROUTES.review)}
+            {/* 복습(카테고리) 세션은 '온 곳'인 복습 목록으로 돌아가는 것이 자연스럽다.
+                복습 중 나가면 홈으로 튕기던 UX 대신, 복습으로 되돌아가기를 기본 이탈 경로로 강조한다. */}
+            {isCategoryMode ? (
+              <>
+                <Pressable onPress={() => leaveSession(ROUTES.review)}
+                  style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.surfaceAlt, borderWidth: 1, borderColor: c.primary, borderRadius: 14, paddingVertical: 13, marginTop: 10 }}>
+                  <Ionicons name="refresh-outline" size={16} color={c.primary} />
+                  <Text style={{ color: c.primary, fontSize: 14 * fs, fontWeight: '700', fontFamily: fontCute }}>복습 목록으로 돌아가기</Text>
+                </Pressable>
+                <Pressable onPress={() => leaveSession(ROUTES.home)} hitSlop={6} style={{ alignItems: 'center', paddingVertical: 12, marginTop: 4 }}>
+                  <Text style={{ color: c.textSecondary, fontSize: 13 * fs, fontFamily: fontCute }}>홈으로 나가기</Text>
+                </Pressable>
+              </>
+            ) : (
+              <Pressable onPress={() => leaveSession(ROUTES.home)}
                 style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.surfaceAlt, borderWidth: 1, borderColor: c.border, borderRadius: 14, paddingVertical: 13, marginTop: 10 }}>
-                <Ionicons name="refresh-outline" size={16} color={c.textPrimary} />
-                <Text style={{ color: c.textPrimary, fontSize: 14 * fs, fontFamily: fontCute }}>복습 목록으로</Text>
+                <Ionicons name="home-outline" size={16} color={c.textPrimary} />
+                <Text style={{ color: c.textPrimary, fontSize: 14 * fs, fontFamily: fontCute }}>홈으로 나가기</Text>
               </Pressable>
             )}
-
-            <Pressable onPress={() => leaveSession(ROUTES.home)}
-              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.surfaceAlt, borderWidth: 1, borderColor: c.border, borderRadius: 14, paddingVertical: 13, marginTop: 10 }}>
-              <Ionicons name="home-outline" size={16} color={c.textPrimary} />
-              <Text style={{ color: c.textPrimary, fontSize: 14 * fs, fontFamily: fontCute }}>홈으로 나가기</Text>
-            </Pressable>
           </View>
         </View>
       </Modal>

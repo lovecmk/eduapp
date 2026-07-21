@@ -130,7 +130,8 @@ export default function MyPageScreen() {
       </Pressable>
 
       <MyRow icon="person-circle-outline" title="내 정보 수정" desc="닉네임 · 이름 · 이메일 · 소속 변경" onPress={() => router.push(ROUTES.editProfile as never)} />
-      <MyRow icon="qr-code-outline" title="내 QR 명함" desc="QR로 내 프로필을 빠르게 공유" onPress={() => router.push('/qr-card' as never)} />
+      {/* 내 QR 명함 — 우선 비활성화(제거). 코드는 주석으로 보존.
+      <MyRow icon="qr-code-outline" title="내 QR 명함" desc="QR로 내 프로필을 빠르게 공유" onPress={() => router.push('/qr-card' as never)} /> */}
       <MyRow icon="gift-outline" title="가챠 코드 교환" desc="이벤트 코드를 입력해 카드팩 받기" onPress={() => router.push('/redeem' as never)} />
       <MyRow icon="headset-outline" title="고객센터 · 문의" desc="문의하기, 자주 묻는 질문" onPress={() => router.push(ROUTES.support)} />
       <MyRow icon="settings-outline" title="설정" desc="알림, 테마, 계정 관리" onPress={() => router.push(ROUTES.settings)} />

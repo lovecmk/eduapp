@@ -92,7 +92,8 @@ function RootContent() {
         <Stack.Screen name="trophy" />
         <Stack.Screen name="profile" />
         <Stack.Screen name="edit-profile" />
-        <Stack.Screen name="qr-card" options={{ animation: 'slide_from_bottom' }} />
+        {/* 내 QR 명함 — 우선 비활성화(제거). 라우트/코드는 주석으로 보존.
+        <Stack.Screen name="qr-card" options={{ animation: 'slide_from_bottom' }} /> */}
         <Stack.Screen name="redeem" options={{ animation: 'slide_from_bottom' }} />
         <Stack.Screen name="collection-book" />
         <Stack.Screen name="pack-rules" />
@@ -105,15 +106,11 @@ function RootContent() {
         // 부팅 스플래시 — 화면 정중앙에 로고·앱 이름·로딩 표시를 세로로 배치한 브랜드 로딩 화면.
         // 로딩이 끝나면 통째로 페이드아웃되며 앱으로 넘어간다.
         <Animated.View style={{ position: 'absolute', inset: 0, alignItems: 'center', justifyContent: 'center', zIndex: 999, opacity, backgroundColor: theme.colors.bg }}>
+          {/* 네이티브 스플래시(splash-icon.png = KFPA 로고)에서 그대로 이어지도록, 카드 박스 없이
+              동일한 로고만 화면 중앙에 두어 '하나의 로고가 잠깐 떴다 사라지는' 인상을 준다. */}
           <Animated.View style={{ alignItems: 'center', transform: [{ scale: logoScale }] }}>
-            <View style={{
-              width: 108, height: 108, borderRadius: 30, backgroundColor: theme.colors.surface,
-              borderWidth: 1, borderColor: theme.colors.border, alignItems: 'center', justifyContent: 'center',
-              boxShadow: `0 12px 34px ${theme.colors.primary}22`,
-            }}>
-              <BridgeLogo size={64} />
-            </View>
-            <Text style={{ color: theme.colors.textPrimary, fontSize: 22, marginTop: 20, letterSpacing: 1, fontFamily: fontDisplay }}>현장학습</Text>
+            <BridgeLogo size={92} />
+            <Text style={{ color: theme.colors.textPrimary, fontSize: 22, marginTop: 22, letterSpacing: 1, fontFamily: fontDisplay }}>현장학습</Text>
             <Text style={{ color: theme.colors.textSecondary, fontSize: 13, marginTop: 6, fontFamily: fontBody }}>현장 안전학습, 매일 3분</Text>
           </Animated.View>
         </Animated.View>

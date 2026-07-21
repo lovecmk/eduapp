@@ -254,9 +254,9 @@ function DayDetailSheet({
           </View>
 
           <ScrollView style={{ maxHeight: 420 }} showsVerticalScrollIndicator={false}>
-            <SectionTitle icon="checkmark-done" color={c.success} text={`복습한 카드 ${reviewed.length}`} />
+            <SectionTitle icon="checkmark-done" color={c.success} text={`학습한 카드 ${reviewed.length}`} />
             {reviewed.length === 0 ? (
-              <Text style={[styles.empty, { color: c.textSecondary }]}>이 날은 복습 기록이 없어요</Text>
+              <Text style={[styles.empty, { color: c.textSecondary }]}>이 날은 학습 기록이 없어요</Text>
             ) : reviewed.map((card) => <CardRow key={`r${card.id}`} card={card} />)}
 
             {due.length > 0 && (

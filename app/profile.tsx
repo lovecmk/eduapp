@@ -171,13 +171,6 @@ export default function ProfileScreen() {
           </View>
           <Ionicons name="chevron-forward" size={18} color={c.primary} />
         </Pressable>
-        <Pressable onPress={() => router.push(ROUTES.settings as never)} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: c.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: c.border }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-            <Ionicons name="options-outline" size={20} color={c.textPrimary} />
-            <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontFamily: fontCute }}>뱃지·자랑 유도 설정</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={c.primary} />
-        </Pressable>
       </ScrollView>
     </View>
   );

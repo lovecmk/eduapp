@@ -13,6 +13,7 @@ import { computeAchievement, type AchievementSnapshot } from '../src/utils/achie
 import { getRarity, RARITY_META, RARITY_RANK, type RarityTier } from '../src/utils/rarity';
 import { useTilt } from '../src/hooks/useTilt';
 import { useShareFeedStore } from '../src/store/shareFeedStore';
+import { BragFeedCard } from '../src/components/community/BragFeedCard';
 import { fontCute, fontBody, fontMono } from '../src/theme/tokens';
 import { ROUTES } from '../src/constants/routes';
 
@@ -116,6 +117,10 @@ export default function TrophyRoomScreen() {
             <Text style={{ color: c.textSecondary, fontSize: 12 * fs, fontFamily: fontCute }}>새 카드 만들기</Text>
           </Pressable>
         </View>
+
+        {/* 커뮤니티 '오늘의 플렉스' — 커뮤니티 탭에서 옮겨와 MY(트로피룸)에서만 접근. */}
+        <Text style={{ color: c.textPrimary, fontSize: 16 * fs, fontFamily: fontCute, fontWeight: '800', marginTop: 26, marginBottom: 12 }}>커뮤니티 플렉스</Text>
+        <BragFeedCard />
       </ScrollView>
 
       <TrophyDetailModal trophy={selected} onClose={() => setSelected(null)} />

@@ -73,7 +73,7 @@ function NotificationBadge({ count }: { count: number }) {
   );
 }
 
-function MinimalHeader({ title }: { title: string }) {
+function MinimalHeader({ title, showBack }: { title: string; showBack?: boolean }) {
   const { theme } = useTheme();
   const c = theme.colors;
   const router = useRouter();
@@ -81,13 +81,26 @@ function MinimalHeader({ title }: { title: string }) {
   const unreadCount = useNotificationStore((s) => s.unreadCount());
   const profileImage = useSettingsStore((s) => s.profileImage);
 
+  // 탭이지만 상세처럼 진입하는 화면(예: 통계는 MY·홈에서 push)은 뒤로가기 버튼을 노출해
+  // 어느 플랫폼에서든 '온 곳(예: MY)'으로 자연스럽게 되돌아가게 한다.
+  const goBack = () => {
+    if (router.canGoBack()) router.back();
+    else router.push(ROUTES.home as never);
+  };
+
   return (
     <>
       {/* 기존 전체폭 앱바 — 하단에만 살짝 그림자를 얹어 콘텐츠와 분리. */}
       <View style={{ height: 58, flexDirection: 'row', alignItems: 'center', backgroundColor: c.bg, borderBottomWidth: 1, borderBottomColor: c.border, paddingHorizontal: 16, boxShadow: shadowHeaderBottom(theme.shadow), zIndex: 10 }}>
-        <Pressable onPress={() => router.push(ROUTES.home as never)} hitSlop={6}>
-          <BridgeLogo size={28} />
-        </Pressable>
+        {showBack ? (
+          <PressableScale haptic onPress={goBack} hitSlop={6} style={{ paddingRight: 6, marginLeft: -4 }}>
+            <Ionicons name="chevron-back" size={26} color={c.textPrimary} />
+          </PressableScale>
+        ) : (
+          <Pressable onPress={() => router.push(ROUTES.home as never)} hitSlop={6}>
+            <BridgeLogo size={28} />
+          </Pressable>
+        )}
         <Text style={{ color: c.textPrimary, fontSize: 16, marginLeft: 8, flex: 1, fontFamily: fontDisplay }}>{title}</Text>
 
         {/* 알림 */}
@@ -128,6 +141,9 @@ export default function TabsLayout() {
     <View style={{ flex: 1, paddingTop: insets.top, backgroundColor: c.bg }}>
       <OfflineBanner />
       <Tabs
+      // 뒤로가기 시 '직전에 보던 탭'으로 되돌아가도록 한다(기본값은 항상 첫 탭=홈으로 튕김).
+      // 예: MY → 학습 통계 진입 후 뒤로가기 → 다시 MY 로 자연스럽게 복귀.
+      backBehavior="history"
       screenOptions={{
         header: ({ route }) => <MinimalHeader title={TITLES[route.name] ?? ''} />,
         tabBarActiveTintColor: c.primary,
@@ -141,8 +157,9 @@ export default function TabsLayout() {
       <Tabs.Screen name="review" options={{ title: '복습', tabBarIcon: ({ color, focused }) => <TabIcon icon={focused ? TAB_ICON.review.active : TAB_ICON.review.inactive} color={color} focused={focused} /> }} />
       <Tabs.Screen name="community" options={{ title: '커뮤니티', tabBarIcon: ({ color, focused }) => <TabIcon icon={focused ? TAB_ICON.community.active : TAB_ICON.community.inactive} color={color} focused={focused} /> }} />
       <Tabs.Screen name="mypage" options={{ title: 'MY', tabBarIcon: ({ color, focused }) => <TabIcon icon={focused ? TAB_ICON.mypage.active : TAB_ICON.mypage.inactive} color={color} focused={focused} /> }} />
-      {/* 통계는 하단 탭에서 숨기고 홈 '통계 보기'·헤더 메뉴에서 진입 */}
-      <Tabs.Screen name="stats" options={{ href: null }} />
+      {/* 통계는 하단 탭에서 숨기고 홈 '통계 보기'·MY·헤더 메뉴에서 push 로 진입.
+          상세처럼 진입하므로 뒤로가기 버튼을 단 헤더로 교체해 온 곳으로 되돌아가게 한다. */}
+      <Tabs.Screen name="stats" options={{ href: null, header: () => <MinimalHeader title={TITLES.stats} showBack /> }} />
     </Tabs>
     </View>
   );

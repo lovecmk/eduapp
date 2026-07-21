@@ -10,7 +10,7 @@ import { WeeklyChallengeCard } from '../../src/components/community/WeeklyChalle
 import { CommunityBuildCard } from '../../src/components/community/CommunityBuildCard';
 import { CommunityLeaderboardCard } from '../../src/components/community/CommunityLeaderboardCard';
 import { CollectionTeaserCard } from '../../src/components/community/CollectionTeaserCard';
-import { BragFeedCard } from '../../src/components/community/BragFeedCard';
+// '오늘의 플렉스' 피드는 커뮤니티에서 제거하고 MY(트로피룸)에서만 접근하도록 이동했다.
 import { QuestionComposeModal } from '../../src/components/community/QuestionComposeModal';
 import { CommunitySkeleton } from '../../src/components/skeletons';
 import { useCommunity } from '../../src/hooks/useCommunity';
@@ -68,7 +68,6 @@ export default function CommunityScreen() {
           <>
             <LivePresenceCard />
             {collectionEnabled && <CollectionTeaserCard />}
-            <BragFeedCard />
             <WeeklyChallengeCard />
             <CommunityLeaderboardCard />
             <CommunityBuildCard />
