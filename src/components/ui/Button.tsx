@@ -2,9 +2,10 @@
 // colorOverride 로 시맨틱 컬러(success/error)와 UI 키트 형태를 동시 만족 — PART 3.3
 import React from 'react';
 import { Pressable, Text, StyleSheet, ActivityIndicator, type ViewStyle } from 'react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, withSpring } from 'react-native-reanimated';
 import { useTheme } from '../../theme/ThemeProvider';
 import { radius } from '../../theme/tokens';
+import { hapticTap } from '../../utils/haptics';
 
 type Variant = 'filled' | 'outline';
 
@@ -17,6 +18,7 @@ export function Button({
   colorOverride,
   colorOverridePressed,
   style,
+  haptic = true,
 }: {
   label: string;
   variant?: Variant;
@@ -26,6 +28,8 @@ export function Button({
   colorOverride?: string;
   colorOverridePressed?: string;
   style?: ViewStyle;
+  /** 손가락이 닿는 순간 주는 가벼운 촉감(기본 on). 결과 알림 햅틱과 겹치면 false 로 끈다. */
+  haptic?: boolean;
 }) {
   const { theme, fontScale } = useTheme();
   const c = theme.colors;
@@ -40,8 +44,12 @@ export function Button({
         accessibilityRole="button"
         onPress={onPress}
         disabled={disabled || loading}
-        onPressIn={() => { scale.value = withTiming(0.97, { duration: 80 }); }}
-        onPressOut={() => { scale.value = withTiming(1, { duration: 120 }); }}
+        onPressIn={() => {
+          scale.value = withTiming(0.94, { duration: 90 });
+          // 손끝이 닿는 즉시(누름 확정 전) 미세 확인감 — 반응이 빠르게 느껴진다.
+          if (haptic && !disabled && !loading) hapticTap();
+        }}
+        onPressOut={() => { scale.value = withSpring(1, { damping: 9, stiffness: 260 }); }}
         style={({ pressed }) => [
           styles.base,
           variant === 'filled' && {

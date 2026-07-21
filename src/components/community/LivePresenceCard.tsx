@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/ThemeProvider';
 import { radius, fontDisplay, fontBody, fontMono } from '../../theme/tokens';
 import { useCommunity } from '../../hooks/useCommunity';
+import { Skeleton, SkeletonCircle } from '../ui/Skeleton';
 import type { LiveActivity } from '../../domain/models/Community';
 
 function pulseText(a: LiveActivity): string {
@@ -75,7 +76,21 @@ export function LivePresenceCard() {
   }, [activities.length]);
 
   if (isLoading && !data) {
-    return <View style={[styles.card, styles.skeleton, { backgroundColor: c.surfaceAlt, borderColor: c.border }]} />;
+    return (
+      <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.border }]}>
+        <View style={styles.header}>
+          <Skeleton width="45%" height={15} />
+          <Skeleton width={50} height={18} />
+        </View>
+        <View style={[styles.companionRow]}>
+          {Array.from({ length: 5 }).map((_, i) => (
+            <SkeletonCircle key={i} size={32} style={{ marginLeft: i === 0 ? 0 : -10 }} />
+          ))}
+        </View>
+        <Skeleton width="100%" height={38} radius={12} style={{ marginTop: 12 }} />
+        <Skeleton width="100%" height={8} radius={4} style={{ marginTop: 16 }} />
+      </View>
+    );
   }
   if (!data) return null;
 
@@ -159,7 +174,6 @@ export function LivePresenceCard() {
 
 const styles = StyleSheet.create({
   card: { borderRadius: radius.card, borderWidth: 1, padding: 16, marginBottom: 14 },
-  skeleton: { height: 210 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   headerTitle: { fontSize: 15, fontFamily: fontDisplay },

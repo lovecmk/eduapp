@@ -7,8 +7,7 @@ import Animated, {
   interpolateColor,
   Easing,
 } from 'react-native-reanimated';
-import * as Haptics from 'expo-haptics';
-import { Platform } from 'react-native';
+import { hapticSelection } from '../../utils/haptics';
 import { useTheme } from '../../theme/ThemeProvider';
 
 const TRACK_W = 48;
@@ -49,9 +48,7 @@ export function Switch({
 
   const handlePress = () => {
     if (disabled) return;
-    if (Platform.OS !== 'web') {
-      Haptics.selectionAsync().catch(() => {});
-    }
+    hapticSelection();
     onValueChange(!value);
   };
 

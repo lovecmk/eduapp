@@ -7,7 +7,7 @@ interface Props {
 }
 
 export function BridgeLogo({ size = 48 }: Props) {
-  const { theme, isDark } = useTheme();
+  const { isDark } = useTheme();
   const primary = isDark ? '#FFFFFF' : '#1A1D24';
   const secondary = isDark ? '#C0C4D0' : '#6B7280';
 

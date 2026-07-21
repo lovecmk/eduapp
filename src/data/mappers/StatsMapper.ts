@@ -13,6 +13,20 @@ export class StatsMapper {
       weekly: dto.weekly ?? [],
       categoryBreakdown: dto.category_breakdown ?? [],
       rankings: dto.rankings ?? [],
+      insights: dto.insights
+        ? {
+            weeklyTotal: dto.insights.weekly_total ?? 0,
+            activeDays: dto.insights.active_days ?? 0,
+            avgPerActiveDay: dto.insights.avg_per_active_day ?? 0,
+            topCategory: dto.insights.top_category ?? '',
+            topCategoryAccuracy: dto.insights.top_category_accuracy ?? 0,
+            weakCategory: dto.insights.weak_category ?? '',
+            weakCategoryAccuracy: dto.insights.weak_category_accuracy ?? 0,
+            level: dto.insights.level ?? 1,
+            levelTitle: dto.insights.level_title ?? '',
+            nextLevelIn: dto.insights.next_level_in ?? 0,
+          }
+        : undefined,
     };
   }
 }

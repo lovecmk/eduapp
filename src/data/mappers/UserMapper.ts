@@ -16,7 +16,9 @@ export class UserMapper {
     }
     return {
       id: String(dto.id),
+      loginId: dto.login_id?.trim() || undefined,
       name: dto.user_nm?.trim() ?? '(이름 없음)',
+      nickname: dto.nickname?.trim() || undefined,
       email: dto.email_addr,
       org: dto.org_nm?.trim(),
       jobTitle: dto.job_title?.trim(),

@@ -1,8 +1,10 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { View, Text, ScrollView, FlatList, ActivityIndicator, Pressable, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, FlatList, Pressable, RefreshControl } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../src/theme/ThemeProvider';
 import { useAuthStore } from '../../src/store/authStore';
+import { ROUTES } from '../../src/constants/routes';
 import { Button } from '../../src/components/ui/Button';
 import { Card } from '../../src/components/ui/Card';
 import { ErrorState } from '../../src/components/ui/ErrorState';
@@ -11,12 +13,14 @@ import { ReviewStatusCard } from '../../src/components/review/ReviewStatusCard';
 import { LearningPersonaCard } from '../../src/components/stats/LearningPersonaCard';
 import { LearningRhythmCard } from '../../src/components/stats/LearningRhythmCard';
 import { WeeklyChart } from '../../src/components/stats/WeeklyChart';
+import { StatsSkeleton } from '../../src/components/skeletons';
 import { useSettingsStore } from '../../src/store/settingsStore';
 import { fontMono, fontCute, fontDisplay, fontBody } from '../../src/theme/tokens';
 import { getCategoryIcon, getCategoryColor } from '../../src/constants/categories';
 import { calcEmblems, emblemRankingMock, EMBLEM_DEFS, type EmblemProgress } from '../../src/utils/emblems';
 import { useAllCards } from '../../src/hooks/useCards';
 import { useStudyStats } from '../../src/hooks/useStats';
+import type { LearningInsights } from '../../src/domain/models/StudyStats';
 
 function StatTile({ icon, color, value, label }: { icon: keyof typeof Ionicons.glyphMap; color: string; value: string; label: string }) {
   const { theme, fontScale } = useTheme();
@@ -50,10 +54,57 @@ function RankingRow({ rank, nickname, score, isMe }: { rank: number; nickname: s
   );
 }
 
+/** 파생 학습 인사이트 카드 — 레벨/주간 활동/강·약 분야를 한눈에(통계 강화). */
+function InsightsCard({ insights: ins }: { insights: LearningInsights }) {
+  const { theme, fontScale } = useTheme();
+  const c = theme.colors;
+  const fs = fontScale;
+  const levelPct = Math.min(100, Math.round(((10 - ins.nextLevelIn) / 10) * 100));
+  const chip = (icon: keyof typeof Ionicons.glyphMap, color: string, label: string, value: string) => (
+    <View style={{ flex: 1, minWidth: '46%', backgroundColor: c.surfaceAlt, borderRadius: 12, padding: 11 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 5 }}>
+        <Ionicons name={icon} size={13} color={color} />
+        <Text style={{ color: c.textSecondary, fontSize: 11, fontFamily: fontBody }}>{label}</Text>
+      </View>
+      <Text numberOfLines={1} style={{ color: c.textPrimary, fontSize: 13.5 * fs, fontWeight: '800', fontFamily: fontCute }}>{value}</Text>
+    </View>
+  );
+  return (
+    <Card style={{ marginBottom: 20 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 }}>
+        <Ionicons name="bulb" size={16} color={c.warning} />
+        <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontWeight: '700', fontFamily: fontCute }}>학습 인사이트</Text>
+      </View>
+
+      {/* 레벨 진행 */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <View style={{ backgroundColor: c.primary + '18', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
+            <Text style={{ color: c.primary, fontSize: 12 * fs, fontWeight: '900', fontFamily: fontMono }}>Lv.{ins.level}</Text>
+          </View>
+          <Text style={{ color: c.textPrimary, fontSize: 13 * fs, fontWeight: '700', fontFamily: fontCute }}>{ins.levelTitle}</Text>
+        </View>
+        <Text style={{ color: c.textSecondary, fontSize: 11, fontFamily: fontMono }}>다음 레벨까지 {ins.nextLevelIn}장</Text>
+      </View>
+      <View style={{ height: 8, backgroundColor: c.surfaceAlt, borderRadius: 4, overflow: 'hidden', marginBottom: 14 }}>
+        <View style={{ width: `${levelPct}%`, height: '100%', backgroundColor: c.primary, borderRadius: 4 }} />
+      </View>
+
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+        {chip('calendar', c.primary, '주간 활동', `${ins.activeDays}일 · ${ins.weeklyTotal}장`)}
+        {chip('speedometer', c.success, '활동일 평균', `${ins.avgPerActiveDay}장/일`)}
+        {ins.topCategory ? chip('ribbon', getCategoryColor(ins.topCategory) ?? c.success, '강점 분야 · 정답률', `${ins.topCategory} ${Math.round(ins.topCategoryAccuracy)}%`) : null}
+        {ins.weakCategory ? chip('barbell', getCategoryColor(ins.weakCategory) ?? c.warning, '보강 필요 · 정답률', `${ins.weakCategory} ${Math.round(ins.weakCategoryAccuracy)}%`) : null}
+      </View>
+    </Card>
+  );
+}
+
 export default function StatsScreen() {
   const { theme, fontScale } = useTheme();
   const c = theme.colors;
   const fs = fontScale;
+  const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const interests = useSettingsStore((s) => s.interests);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -119,11 +170,7 @@ export default function StatsScreen() {
   const queryError = error || cardsError;
 
   if (loading && !stats && !queryError) {
-    return (
-      <View style={{ flex: 1, backgroundColor: c.bg, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator color={c.primary} />
-      </View>
-    );
+    return <StatsSkeleton />;
   }
 
   if (queryError && !stats) {
@@ -146,6 +193,19 @@ export default function StatsScreen() {
           <StatTile icon="trophy" color="#F2705B" value={`${stats?.bestStreak ?? 0}일`} label="최고 기록" />
         </View>
 
+        {/* 성취 카드 자랑하기 — 스포티파이 랩드 스타일 카드로 커뮤니티에 공유 */}
+        <Pressable onPress={() => router.push(ROUTES.share as never)}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.primary, borderRadius: 16, padding: 16, marginBottom: 20, boxShadow: '0 6px 16px rgba(37,99,235,0.28)' }}>
+          <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name="sparkles" size={20} color="#fff" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: '#fff', fontSize: 15 * fs, fontWeight: '800', fontFamily: fontCute }}>성취 카드 만들기</Text>
+            <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 12 * fs, fontFamily: fontBody, marginTop: 2 }}>나의 칭호·기록을 '오늘의 플렉스'에 올려요</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#fff" />
+        </Pressable>
+
         <LearningPersonaCard cards={allCards} interests={interests} />
 
         <LearningRhythmCard />
@@ -153,6 +213,8 @@ export default function StatsScreen() {
         <ReviewStatusCard />
 
         <WeeklyChart weekly={stats?.weekly ?? []} />
+
+        {stats?.insights && <InsightsCard insights={stats.insights} />}
 
         <Card style={{ marginBottom: 20 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 }}>

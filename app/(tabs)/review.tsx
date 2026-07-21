@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTheme } from '../../src/theme/ThemeProvider';
-import { SkeletonLoader } from '../../src/components/ui/SkeletonLoader';
+import { ReviewSkeleton } from '../../src/components/skeletons';
 import { ErrorState } from '../../src/components/ui/ErrorState';
 import { fontDisplay, fontBody, fontMono } from '../../src/theme/tokens';
 import { getCategoryIcon, getCategoryColor } from '../../src/constants/categories';
@@ -54,7 +54,7 @@ export default function ReviewScreen() {
   ];
 
   if (isLoading && allCards.length === 0 && !error) {
-    return <View style={{ flex: 1, backgroundColor: c.bg }}><SkeletonLoader count={3} /></View>;
+    return <ReviewSkeleton />;
   }
   if (error && allCards.length === 0) {
     return (

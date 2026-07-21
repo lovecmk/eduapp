@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { TextInput, View, Text, StyleSheet, type TextInputProps } from 'react-native';
 import { useTheme } from '../../theme/ThemeProvider';
-import { radius, fontBody, fontDisplay } from '../../theme/tokens';
+import { fontBody, fontDisplay } from '../../theme/tokens';
 
 type FieldStatus = 'default' | 'success' | 'error' | 'disabled';
 

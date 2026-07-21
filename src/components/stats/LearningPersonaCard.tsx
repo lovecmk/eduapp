@@ -5,31 +5,11 @@ import { useTheme } from '../../theme/ThemeProvider';
 import { radius, fontDisplay, fontBody, fontMono } from '../../theme/tokens';
 import { ALL_CATEGORIES, CATEGORY_COLOR } from '../../constants/categories';
 import { EMBLEM_DEFS } from '../../utils/emblems';
+import { buildPersona } from '../../utils/achievement';
 import { RadarChart, type RadarDatum } from './RadarChart';
 import type { LearningCard, CardCategory } from '../../domain/models/LearningCard';
 
 const EMOJI: Record<string, string> = Object.fromEntries(EMBLEM_DEFS.map((d) => [d.category, d.emoji]));
-
-interface Persona {
-  emoji: string;
-  title: string;
-  desc: string;
-}
-
-function buildPersona(values: { cat: CardCategory; value: number; total: number }[]): Persona {
-  const withData = values.filter((v) => v.total > 0);
-  const learned = withData.filter((v) => v.value > 0);
-  if (learned.length === 0) return { emoji: '🐣', title: '새내기 점검가', desc: '이제 막 학습을 시작했어요. 함께 채워가요!' };
-
-  const sorted = [...withData].sort((a, b) => b.value - a.value);
-  const top = sorted[0];
-  const spread = top.value - sorted[sorted.length - 1].value;
-  const masteredCats = withData.filter((v) => v.value >= 0.6).length;
-
-  if (masteredCats >= 4) return { emoji: '🧭', title: '올라운드 마스터', desc: '전 분야를 고르게 마스터한 만능 점검가예요!' };
-  if (spread < 0.18) return { emoji: '⚖️', title: '균형잡힌 점검가', desc: '어느 한쪽에 치우치지 않고 골고루 학습하고 있어요.' };
-  return { emoji: EMOJI[top.cat] ?? '🎯', title: `${top.cat} 스페셜리스트`, desc: `${top.cat} 분야에 특히 강해요. 든든한 전문가!` };
-}
 
 /** 학습 성향 카드 — 레이더 차트 + 귀여운 페르소나 + 강화 추천. */
 export function LearningPersonaCard({ cards, interests }: { cards: LearningCard[]; interests: CardCategory[] }) {

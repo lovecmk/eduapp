@@ -18,7 +18,7 @@ export const lightTheme = {
     twitter: '#1DA1F2',
     google: '#DB4437',
   },
-  shadow: { color: '#0F172A', opacity: 0.08, radius: 16, offsetY: 6 },
+  shadow: { color: '#0F172A', opacity: 0.07, radius: 22, offsetY: 8 },
 };
 
 export const darkTheme = {
@@ -29,9 +29,10 @@ export const darkTheme = {
     bg: '#0F1118',
     surface: '#1A1D28',
     surfaceAlt: '#242736',
-    border: '#2E3140',
+    border: '#31344A',
     textPrimary: '#F2F3F8',
-    textSecondary: '#9CA0B0',
+    // 세밀화: 어두운 배경에서 보조 텍스트 가독성을 위해 명도를 소폭 상향.
+    textSecondary: '#A7ACBC',
     textOnPrimary: '#FFFFFF',
     success: '#30D158',
     warning: '#FF9F0A',
@@ -44,10 +45,11 @@ export const darkTheme = {
   shadow: { color: '#000000', opacity: 0.45, radius: 16, offsetY: 6 },
 };
 
+// 전반적으로 더 둥글고 말랑한(귀여운) 톤 — 모서리 반경을 넉넉히.
 export const radius = {
   pillButton: 999,
-  input: 8,
-  card: 16,
+  input: 14,
+  card: 22,
   iconCircle: 999,
 } as const;
 
@@ -99,9 +101,10 @@ export const dimTheme = {
     bg: '#1C1920',
     surface: '#2A2530',
     surfaceAlt: '#332E3A',
-    border: '#3D3845',
+    border: '#423C4A',
     textPrimary: '#E8E0D8',
-    textSecondary: '#9C9290',
+    // 세밀화: 딤 테마 보조 텍스트 명도 소폭 상향(따뜻한 톤 유지).
+    textSecondary: '#AAA09E',
     textOnPrimary: '#FFFFFF',
     success: '#30D158',
     warning: '#FFB454',
@@ -119,6 +122,15 @@ export function shadowBox(sh: typeof lightTheme.shadow): string {
   const g = parseInt(sh.color.slice(3, 5), 16);
   const b = parseInt(sh.color.slice(5, 7), 16);
   return `0 ${sh.offsetY}px ${sh.radius}px rgba(${r},${g},${b},${sh.opacity})`;
+}
+
+/** 헤더/앱바 하단 경계용 — 아래쪽으로만 살짝 떨어지는 은은한 그림자. */
+export function shadowHeaderBottom(sh: typeof lightTheme.shadow): string {
+  const r = parseInt(sh.color.slice(1, 3), 16);
+  const g = parseInt(sh.color.slice(3, 5), 16);
+  const b = parseInt(sh.color.slice(5, 7), 16);
+  const opacity = Math.min(sh.opacity, 0.12);
+  return `0 3px 6px rgba(${r},${g},${b},${opacity})`;
 }
 
 export type Theme = {

@@ -11,6 +11,7 @@ import { getCategoryIcon, getCategoryColor } from '../../constants/categories';
 import { dateKey, dayDiff } from '../../utils/dateKey';
 import { useAllCards } from '../../hooks/useCards';
 import { useSrsStore } from '../../store/srsStore';
+import { useAttendanceStore } from '../../store/attendanceStore';
 import type { LearningCard } from '../../domain/models/LearningCard';
 
 const DAYS = ['일', '월', '화', '수', '목', '금', '토'];
@@ -59,6 +60,8 @@ export function LearningCalendar() {
   const { data: allCards = [] } = useAllCards();
   const history = useSrsStore((s) => s.history);
   const srsCards = useSrsStore((s) => s.cards);
+  const stamps = useAttendanceStore((s) => s.stamps);
+  const streak = useAttendanceStore((s) => s.currentStreak)();
 
   const cardById = useMemo(() => {
     const m = new Map<string, LearningCard>();
@@ -81,6 +84,15 @@ export function LearningCalendar() {
 
   const todayStr = dateKey(now);
   const cells = getMonthCells(year, month);
+  const monthPrefix = `${year}-${month}-`;
+  const learnedDays = useMemo(
+    () => Object.keys(history).filter((k) => k.startsWith(monthPrefix) && (history[k]?.length ?? 0) > 0).length,
+    [history, monthPrefix],
+  );
+  const attendedDays = useMemo(
+    () => Object.keys(stamps).filter((k) => k.startsWith(monthPrefix)).length,
+    [stamps, monthPrefix],
+  );
 
   const prev = () => { if (month === 0) { setYear((y) => y - 1); setMonth(11); } else setMonth((m) => m - 1); };
   const next = () => { if (month === 11) { setYear((y) => y + 1); setMonth(0); } else setMonth((m) => m + 1); };
@@ -103,6 +115,13 @@ export function LearningCalendar() {
         <Pressable onPress={next} hitSlop={8} style={styles.arrow}><Ionicons name="chevron-forward" size={20} color={c.primary} /></Pressable>
       </View>
 
+      {/* 월간 요약 — 학습일 / 출석일 / 연속 */}
+      <View style={styles.summaryRow}>
+        <SummaryPill icon="school" color={c.primary} value={`${learnedDays}일`} label="학습" />
+        <SummaryPill icon="ribbon" color={c.success} value={`${attendedDays}일`} label="출석" />
+        <SummaryPill icon="flame" color="#FF6B35" value={`${streak}일`} label="연속" />
+      </View>
+
       <View style={styles.weekRow}>
         {DAYS.map((d) => (
           <Text key={d} style={[styles.weekLabel, { color: d === '일' ? '#EF4444' : d === '토' ? '#3B82F6' : c.textSecondary }]}>{d}</Text>
@@ -118,6 +137,7 @@ export function LearningCalendar() {
               const isToday = key === todayStr;
               const reviewCount = history[key]?.length ?? 0;
               const dueCount = dueByDate.get(key) ?? 0;
+              const attended = !!stamps[key];
               const bg = heatColor(reviewCount, c.primary, c.surfaceAlt);
               const intense = reviewCount > 4;
               return (
@@ -130,12 +150,16 @@ export function LearningCalendar() {
                     <Text style={[styles.dayText, {
                       color: intense ? '#fff' : dow === 0 ? '#EF4444' : dow === 6 ? '#3B82F6' : c.textPrimary,
                     }]}>{d}</Text>
+                    {/* 출석 도장 — 우상단 미니 체크 */}
+                    {attended && (
+                      <View style={styles.stampBadge}>
+                        <Ionicons name="checkmark-sharp" size={8} color="#fff" />
+                      </View>
+                    )}
                   </View>
-                  {dueCount > 0 && !isToday ? (
-                    <View style={[styles.dueDot, { backgroundColor: c.warning }]} />
-                  ) : (
-                    <View style={{ height: 5, marginTop: 2 }} />
-                  )}
+                  <View style={styles.dotRow}>
+                    {dueCount > 0 && !isToday ? <View style={[styles.dueDot, { backgroundColor: c.warning }]} /> : null}
+                  </View>
                 </Pressable>
               );
             })}
@@ -195,6 +219,18 @@ export function LearningCalendar() {
         due={selectedCards.due}
         onClose={() => setSelected(null)}
       />
+    </View>
+  );
+}
+
+function SummaryPill({ icon, color, value, label }: { icon: keyof typeof Ionicons.glyphMap; color: string; value: string; label: string }) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+  return (
+    <View style={[styles.summaryPill, { backgroundColor: c.surfaceAlt }]}>
+      <Ionicons name={icon} size={15} color={color} />
+      <Text style={{ color: c.textPrimary, fontSize: 14, fontFamily: fontMono, fontWeight: '800' }}>{value}</Text>
+      <Text style={{ color: c.textSecondary, fontSize: 10.5, fontFamily: fontBody }}>{label}</Text>
     </View>
   );
 }
@@ -273,8 +309,12 @@ function CardRow({ card }: { card: LearningCard }) {
 
 const styles = StyleSheet.create({
   container: { borderRadius: radius.card, borderWidth: 1, padding: 16, marginBottom: 14 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   arrow: { padding: 4 },
+  summaryRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
+  summaryPill: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 12, paddingVertical: 8 },
+  stampBadge: { position: 'absolute', top: -3, right: -3, width: 14, height: 14, borderRadius: 7, backgroundColor: '#22C55E', alignItems: 'center', justifyContent: 'center' },
+  dotRow: { flexDirection: 'row', gap: 3, height: 5, marginTop: 2, alignItems: 'center', justifyContent: 'center' },
   weekRow: { flexDirection: 'row', marginBottom: 8 },
   weekLabel: { flex: 1, textAlign: 'center', fontSize: 12, fontWeight: '600' },
   grid: {},

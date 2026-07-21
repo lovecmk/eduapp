@@ -1,0 +1,30 @@
+# 로컬/이식용 원클릭 스택 — API + MongoDB.
+# 사용: docker compose up --build
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+  api:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      - mongo
+    environment:
+      PORT: "8080"
+      STORE: mongo
+      MONGO_URI: mongodb://mongo:27017
+      MONGO_DB: eduapp
+      JWT_SECRET: change-me-to-a-long-random-secret
+      SEED_ON_START: "true"
+      CORS_ORIGINS: "*"
+      STUDY_SESSION_SEC: "180"
+    ports:
+      - "8080:8080"
+
+volumes:
+  mongo-data:

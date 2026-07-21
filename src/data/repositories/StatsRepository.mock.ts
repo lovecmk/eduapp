@@ -53,6 +53,18 @@ export class MockStatsRepository implements IStatsRepository {
         { rank: 2, nickname: '박현장', score: 85 },
         { rank: 3, nickname: '최예방', score: 72 },
       ],
+      insights: {
+        weeklyTotal: 31,
+        activeDays: 6,
+        avgPerActiveDay: 5.2,
+        topCategory: '전기 위험',
+        topCategoryAccuracy: 72,
+        weakCategory: '위험물',
+        weakCategoryAccuracy: 60,
+        level: 3,
+        levelTitle: '현장 입문자',
+        nextLevelIn: 7,
+      },
     };
   }
 }

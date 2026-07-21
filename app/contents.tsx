@@ -7,7 +7,7 @@ import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { useTheme } from '../src/theme/ThemeProvider';
 import { ScreenHeader } from '../src/components/ui/ScreenHeader';
 import { SearchBar } from '../src/components/ui/SearchBar';
-import { SkeletonLoader } from '../src/components/ui/SkeletonLoader';
+import { ContentsSkeleton } from '../src/components/skeletons';
 import { ErrorState } from '../src/components/ui/ErrorState';
 import { CategoryTrail } from '../src/components/ui/CategoryTrail';
 import { fontDisplay, fontBody, fontMono } from '../src/theme/tokens';
@@ -55,7 +55,7 @@ export default function ContentsScreen() {
   }, [allCards, search]);
 
   if (isLoading && allCards.length === 0 && !error) {
-    return <View style={{ flex: 1, backgroundColor: c.bg }}><ScreenHeader title="학습 목표" /><SkeletonLoader count={5} /></View>;
+    return <View style={{ flex: 1, backgroundColor: c.bg }}><ScreenHeader title="학습 목표" /><ContentsSkeleton /></View>;
   }
   if (error && allCards.length === 0) {
     return <View style={{ flex: 1, backgroundColor: c.bg }}><ScreenHeader title="학습 목표" /><ErrorState message="컨텐츠를 불러올 수 없어요" onRetry={refetch} /></View>;
@@ -92,7 +92,7 @@ export default function ContentsScreen() {
           </View>
         ) : active ? (
           /* --- 선택된 과정: 난이도별 문제 --- */
-          <TrackDetail progress={active} onBack={() => setActiveId(null)} onCard={goCard} onStart={() => router.push(ROUTES.cards)} />
+          <TrackDetail progress={active} onBack={() => setActiveId(null)} onCard={goCard} />
         ) : (
           /* --- 과정 선택(목표) + 전체 둘러보기 --- */
           <>
@@ -133,8 +133,8 @@ export default function ContentsScreen() {
 }
 
 /* ---------- 과정 상세: 난이도별 섹션 ---------- */
-function TrackDetail({ progress, onBack, onCard, onStart }: {
-  progress: TrackProgress; onBack: () => void; onCard: (id: string) => void; onStart: () => void;
+function TrackDetail({ progress, onBack, onCard }: {
+  progress: TrackProgress; onBack: () => void; onCard: (id: string) => void;
 }) {
   const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;

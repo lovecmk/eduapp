@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, KeyboardAvoidingView, Platform, ScrollView, Pressable, Modal, Linking } from 'react-native';
+import { View, Text, KeyboardAvoidingView, Platform, ScrollView, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,36 +8,10 @@ import { TextField } from '../../src/components/ui/TextField';
 import { SocialButtonRow } from '../../src/components/ui/SocialButton';
 import { BridgeLogo } from '../../src/components/ui/BridgeLogo';
 import { useTheme } from '../../src/theme/ThemeProvider';
-import { fontMono, fontDisplay, fontBody } from '../../src/theme/tokens';
+import { fontDisplay, fontBody } from '../../src/theme/tokens';
 import { isBiometricAvailable, tryBiometricLogin } from '../../src/data/auth/BiometricAuth';
 import { useAuthStore } from '../../src/store/authStore';
 import { ROUTES } from '../../src/constants/routes';
-
-function LinkModal({ visible, onClose, title, desc }: { visible: boolean; onClose: () => void; title: string; desc: string }) {
-  const { theme, fontScale } = useTheme();
-  const c = theme.colors;
-  const fs = fontScale;
-  return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' }} onPress={onClose}>
-        <Pressable onPress={() => {}} style={{ backgroundColor: c.surface, borderRadius: 24, padding: 24, marginHorizontal: 32, width: '82%', maxWidth: 340, borderWidth: 1, borderColor: c.border }}>
-          <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: c.primary + '18', alignSelf: 'center', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
-            <Ionicons name="link-outline" size={26} color={c.primary} />
-          </View>
-          <Text style={{ color: c.textPrimary, fontSize: 17 * fs, textAlign: 'center', marginBottom: 8, fontFamily: fontDisplay }}>{title}</Text>
-          <Text style={{ color: c.textSecondary, fontSize: 13 * fs, textAlign: 'center', lineHeight: 20, marginBottom: 16, fontFamily: fontBody }}>{desc}</Text>
-          <View style={{ backgroundColor: c.surfaceAlt, borderRadius: 12, padding: 10, marginBottom: 20, alignItems: 'center' }}>
-            <Text style={{ color: c.primary, fontSize: 12, fontWeight: '600', fontFamily: fontMono }}>bridge.kfpa.or.kr</Text>
-          </View>
-          <View style={{ flexDirection: 'row', gap: 10 }}>
-            <View style={{ flex: 1 }}><Button label="취소" variant="outline" onPress={onClose} /></View>
-            <View style={{ flex: 1 }}><Button label="이동하기" variant="filled" onPress={() => { Linking.openURL('https://bridge.kfpa.or.kr/'); onClose(); }} /></View>
-          </View>
-        </Pressable>
-      </Pressable>
-    </Modal>
-  );
-}
 
 export default function LoginScreen() {
   const { theme, fontScale: fs } = useTheme();
@@ -47,8 +21,6 @@ export default function LoginScreen() {
   const [pw, setPw] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
   const [bioAvailable, setBioAvailable] = useState(false);
-  const [showSignup, setShowSignup] = useState(false);
-  const [showFindPw, setShowFindPw] = useState(false);
   const { login, loading, error: authError, clearError } = useAuthStore();
 
   useEffect(() => { isBiometricAvailable().then(setBioAvailable); }, []);
@@ -103,13 +75,19 @@ export default function LoginScreen() {
           <Button label="로그인" variant="filled" loading={loading} onPress={onLogin} style={{ marginTop: 4 }} />
 
           <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 18, gap: 18, alignItems: 'center' }}>
-            <Pressable onPress={() => setShowSignup(true)} hitSlop={8}>
+            <Pressable onPress={() => router.push(ROUTES.signup)} hitSlop={8}>
               <Text style={{ color: c.textSecondary, fontSize: 13 * fs, fontFamily: fontBody }}>회원가입</Text>
             </Pressable>
             <View style={{ width: 1, height: 12, backgroundColor: c.border }} />
-            <Pressable onPress={() => setShowFindPw(true)} hitSlop={8}>
+            <Pressable onPress={() => router.push(ROUTES.findPw)} hitSlop={8}>
               <Text style={{ color: c.textSecondary, fontSize: 13 * fs, fontFamily: fontBody }}>비밀번호 찾기</Text>
             </Pressable>
+          </View>
+
+          {/* 데모 계정 안내 — 실서버 연동 전 시연/회의용 */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 16, backgroundColor: c.surfaceAlt, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 12 }}>
+            <Ionicons name="information-circle-outline" size={14} color={c.textSecondary} />
+            <Text style={{ color: c.textSecondary, fontSize: 11.5 * fs, fontFamily: fontBody }}>데모 계정 · 원진섭 / demo1234</Text>
           </View>
 
           {bioAvailable && (
@@ -132,8 +110,6 @@ export default function LoginScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      <LinkModal visible={showSignup} onClose={() => setShowSignup(false)} title="회원가입" desc={'회원가입은\n브릿지 웹사이트에서 가능합니다'} />
-      <LinkModal visible={showFindPw} onClose={() => setShowFindPw(false)} title="비밀번호 찾기" desc={'비밀번호 변경은\n브릿지 웹사이트에서 가능합니다'} />
     </SafeAreaView>
   );
 }

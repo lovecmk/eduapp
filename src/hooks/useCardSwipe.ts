@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
-import { Animated, PanResponder, Dimensions, Platform } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import { Animated, PanResponder, Dimensions } from 'react-native';
+import { hapticTap, hapticImpact } from '../utils/haptics';
 
 const SWIPE_THRESHOLD = 100;
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -22,8 +22,7 @@ export function useCardSwipe(onSwipeComplete: (dir: 'left' | 'right') => void) {
   }, []);
 
   const fireHaptic = useCallback(() => {
-    if (Platform.OS === 'web') return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    hapticTap();
   }, []);
 
   const resetPosition = useCallback(() => {
@@ -56,9 +55,9 @@ export function useCardSwipe(onSwipeComplete: (dir: 'left' | 'right') => void) {
       onPanResponderMove: (_, g) => {
         translateX.setValue(g.dx);
         rotate.setValue(Math.max(-0.4, Math.min(0.4, g.dx / 250)));
-        if (Math.abs(g.dx) > SWIPE_THRESHOLD && !hapticTriggered.current && Platform.OS !== 'web') {
+        if (Math.abs(g.dx) > SWIPE_THRESHOLD && !hapticTriggered.current) {
           hapticTriggered.current = true;
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          hapticImpact();
         }
         if (Math.abs(g.dx) <= SWIPE_THRESHOLD) hapticTriggered.current = false;
       },

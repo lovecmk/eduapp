@@ -20,7 +20,7 @@ function splitSteps(text: string): string[] {
  * 결론(핵심) → 원리 → 진행 프로세스 → 화재의 3요소 → 출처 순으로 표출.
  * 학습(cards)·복습(review)·상세(content)에서 동일한 형태로 재사용한다.
  */
-export function CardBackBody({ card, scroll }: { card: LearningCard; scroll?: boolean }) {
+export function CardBackBody({ card }: { card: LearningCard }) {
   const { theme, fontScale } = useTheme();
   const c = theme.colors;
   const fs = fontScale;

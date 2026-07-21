@@ -1,9 +1,10 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/ThemeProvider';
 import { radius, fontCute } from '../../theme/tokens';
 import { MEMBERSHIP_META, type MembershipTier } from '../../domain/models/User';
+import { Avatar } from '../ui/Avatar';
 
 /** 계정/멤버십 요약 카드 — 프로필 이미지, 이름, 소속, 등급 배지를 한 곳에 표시. */
 export function MembershipCard({
@@ -26,13 +27,7 @@ export function MembershipCard({
   return (
     <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.border }]}>
       <View style={styles.row}>
-        {profileImage ? (
-          <Image source={{ uri: profileImage }} style={[styles.avatar, { borderColor: meta.accent }]} />
-        ) : (
-          <View style={[styles.avatarFallback, { backgroundColor: c.primary }]}>
-            <Text style={[styles.avatarLetter, { color: c.textOnPrimary }]}>{name.charAt(0)}</Text>
-          </View>
-        )}
+        <Avatar uri={profileImage} size={52} ring={2} ringColor={meta.accent} />
 
         <View style={{ flex: 1 }}>
           <Text style={[styles.name, { color: c.textPrimary, fontSize: 17 * fontScale }]} numberOfLines={1}>

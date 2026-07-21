@@ -23,6 +23,14 @@ class ApiClient {
         },
         signal: controller.signal,
       });
+    } catch (e) {
+      // fetch 실패는 원시 에러(타임아웃 시 AbortError, 네트워크 단절 시 TypeError)로
+      // 던져진다. Repository/UI 레이어가 ApiError 로 일관되게 처리하도록 정규화한다.
+      // (status 0 = 응답을 받기 전 클라이언트/네트워크 단계 실패)
+      if ((e as { name?: string })?.name === 'AbortError') {
+        throw new ApiError(0, `요청 시간이 초과되었습니다 (${env.apiTimeoutMs}ms)`);
+      }
+      throw new ApiError(0, '네트워크에 연결할 수 없어요. 연결 상태를 확인해주세요.');
     } finally {
       clearTimeout(timeout);
     }

@@ -3,7 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { useTheme } from '../../theme/ThemeProvider';
 import { getCategoryColor } from '../../constants/categories';
 
-export function Badge({ label, color }: { label: string; color?: string }) {
+export const Badge = React.memo(function Badge({ label, color }: { label: string; color?: string }) {
   const { theme, fontScale } = useTheme();
   const tint = color ?? getCategoryColor(label) ?? theme.colors.textSecondary;
   return (
@@ -11,7 +11,7 @@ export function Badge({ label, color }: { label: string; color?: string }) {
       <Text style={[styles.text, { color: tint, fontSize: 12 * fontScale }]}>{label}</Text>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   chip: {

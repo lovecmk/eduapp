@@ -2,14 +2,14 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { View, Text, Pressable, Animated, ScrollView, Dimensions, Platform, BackHandler, Modal, PanResponder } from 'react-native';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
+import { hapticTap, hapticSuccess, hapticError } from '../../src/utils/haptics';
 import { useTheme } from '../../src/theme/ThemeProvider';
 import { useAuthStore } from '../../src/store/authStore';
 import { useSettingsStore } from '../../src/store/settingsStore';
 import { getUxTrack } from '../../src/utils/uxTrack';
 import { Button } from '../../src/components/ui/Button';
 import { Badge } from '../../src/components/ui/Badge';
-import { SkeletonLoader } from '../../src/components/ui/SkeletonLoader';
+import { CardStudySkeleton } from '../../src/components/skeletons';
 import { ErrorState } from '../../src/components/ui/ErrorState';
 import { QuestionImage } from '../../src/components/ui/QuestionImage';
 import { CategoryTrail } from '../../src/components/ui/CategoryTrail';
@@ -21,28 +21,39 @@ import { fontCute } from '../../src/theme/tokens';
 import { getCategoryIcon } from '../../src/constants/categories';
 import { ROUTES } from '../../src/constants/routes';
 import { useTodayCards, useAllCards, useMarkCard } from '../../src/hooks/useCards';
+import type { LearningCard } from '../../src/domain/models/LearningCard';
 import { resolveCardImage } from '../../src/data/cardImages';
 import { useBookmarkStore } from '../../src/store/bookmarkStore';
 import { useReportStore } from '../../src/store/reportStore';
+import { useCollectionStore } from '../../src/store/collectionStore';
+import { useSrsStore } from '../../src/store/srsStore';
 
 // 하루 학습 상한(운영 지속가능성) — 신규 3장 + 복습 최대 4장 = 하루 최대 7장.
 // '하루 3분' 목표를 지키고 휴가·출장 후 누적으로 지치지 않도록 학습량을 고정한다.
 // 정답률 66.7% 가정에서 복습 카드는 무한 누적되지 않고 장기적으로 하루 4~5장 내외로 안정화된다.
 const NEW_PER_DAY = 3;
 const REVIEW_PER_DAY = 4;
-const DAILY_LIMIT = NEW_PER_DAY + REVIEW_PER_DAY; // 7
 const { height: SCREEN_H, width: SCREEN_W } = Dimensions.get('window');
 // 스와이프 트랙(원진섭)에서 좌우로 넘겨 분류하는 최소 이동 거리.
 const SWIPE_THRESHOLD = 90;
 
 function haptic() {
-  if (Platform.OS === 'web') return;
-  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  hapticTap();
+}
+
+// Fisher–Yates 셔플 — 원본을 건드리지 않고 새 배열을 반환.
+function shuffle<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
 }
 
 function notify(ok: boolean) {
-  if (Platform.OS === 'web') return;
-  Haptics.notificationAsync(ok ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Error);
+  if (ok) hapticSuccess();
+  else hapticError();
 }
 
 export default function CardsScreen() {
@@ -75,31 +86,85 @@ export default function CardsScreen() {
   const translateY = useRef(new Animated.Value(0)).current;
   const cardOpacity = useRef(new Animated.Value(1)).current;
   const scaleAnim = useRef(new Animated.Value(1)).current; // 뒤집을 때 통통 튀는 스케일(귀여운 효과)
+  const enterAnim = useRef(new Animated.Value(0)).current; // 다음 카드가 통통 튀며 등장하는 값(0→1)
   const progressAnim = useRef(new Animated.Value(0)).current;
   // 퀴즈 정답 선택 후 자동으로 뒤집기까지의 타이머.
   const autoFlipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 복습 탭에서 카테고리를 눌러 진입하면 category 파라미터로 해당 카테고리만 학습한다.
-  const { category } = useLocalSearchParams<{ category?: string }>();
+  // content 상세의 "이 카드 학습하기"로 진입하면 focusId(그 카드 1장)만 학습하고,
+  // 끝나면 returnTo 경로(원래 보던 컨텐츠)로 되돌아간다.
+  const { category, focusId, returnTo } = useLocalSearchParams<{ category?: string; focusId?: string; returnTo?: string }>();
   const isCategoryMode = !!category;
+  const isFocusMode = !!focusId;
 
   const todayQuery = useTodayCards();
   const allQuery = useAllCards();
-  const { isLoading, error, refetch } = isCategoryMode ? allQuery : todayQuery;
+  const { isLoading, error, refetch } = (isCategoryMode || isFocusMode) ? allQuery : todayQuery;
   const markCardMutation = useMarkCard();
+
+  // 학습 옵션(설정) — 카드 순서 섞기 / 약점 우선 복습 / '모를 때' 햅틱.
+  const shuffleCards = useSettingsStore((s) => s.shuffleCards);
+  const prioritizeWeakSpots = useSettingsStore((s) => s.prioritizeWeakSpots);
+  const dontKnowHaptic = useSettingsStore((s) => s.dontKnowHaptic);
+
+  // '모를 때(빨간 버튼/왼쪽 스와이프)'에만 주는 최소 햅틱 — 설정으로 끌 수 있다.
+  const dnkHaptic = useCallback(() => {
+    if (!dontKnowHaptic) return;
+    hapticTap();
+  }, [dontKnowHaptic]);
+  const srsCards = useSrsStore((s) => s.cards);
 
   // 오늘의 학습 = 신규 3장 + 복습 최대 4장(총 최대 7장). 카테고리 복습은 해당 카테고리 전체.
   // 복습 카드는 예정일이 오래된 순(가장 오래 방치된 카드)으로 우선 배치한다.
-  const deck = useMemo(() => {
-    if (isCategoryMode) return (allQuery.data ?? []).filter((x) => x.category === category);
-    const today = todayQuery.data ?? [];
-    const news = today.filter((x) => x.status === 'new').slice(0, NEW_PER_DAY);
-    const reviews = today
-      .filter((x) => x.status === 'learning')
-      .sort((a, b) => (a.dueAt?.getTime() ?? 0) - (b.dueAt?.getTime() ?? 0))
-      .slice(0, REVIEW_PER_DAY);
-    return [...news, ...reviews];
-  }, [isCategoryMode, category, allQuery.data, todayQuery.data]);
+  const computedDeck = useMemo(() => {
+    // 단일 카드(focus) 모드는 순서 옵션과 무관(1장).
+    if (isFocusMode) return (allQuery.data ?? []).filter((x) => x.id === focusId);
+
+    let base: LearningCard[];
+    if (isCategoryMode) {
+      base = (allQuery.data ?? []).filter((x) => x.category === category);
+    } else {
+      const today = todayQuery.data ?? [];
+      const news = today.filter((x) => x.status === 'new').slice(0, NEW_PER_DAY);
+      const reviews = today
+        .filter((x) => x.status === 'learning')
+        .sort((a, b) => (a.dueAt?.getTime() ?? 0) - (b.dueAt?.getTime() ?? 0))
+        .slice(0, REVIEW_PER_DAY);
+      base = [...news, ...reviews];
+    }
+
+    // 약점 우선이 켜져 있으면 자주 잊는(lapses↑)·기억 약한(box↓) 카드를 앞으로.
+    // 그렇지 않고 섞기가 켜져 있으면 무작위로 배열한다(두 옵션은 배타적으로 적용).
+    if (prioritizeWeakSpots) {
+      const weakScore = (id: string) => {
+        const st = srsCards[id];
+        return st ? st.lapses * 3 - st.box : 0;
+      };
+      return [...base].sort((a, b) => weakScore(b.id) - weakScore(a.id));
+    }
+    if (shuffleCards) return shuffle(base);
+    return base;
+  }, [isFocusMode, focusId, isCategoryMode, category, allQuery.data, todayQuery.data, prioritizeWeakSpots, shuffleCards, srsCards]);
+
+  // 덱은 세션 시작 시 한 번만 확정한다.
+  // 카드를 마킹하면 cards 쿼리가 무효화되어 목록이 새로 내려오는데, 그때마다 덱을 다시 계산하면
+  // (1) 'mastered' 카드는 오늘 목록에서 빠져 뒤 카드가 앞으로 당겨지므로 index 가 다른 카드를 가리켜 문제가 건너뛰어지고,
+  // (2) 'learning' 으로 바뀐 신규 카드는 복습 구간에 다시 편입되어 같은 문제가 두 번 나온다.
+  // 진행 중인 세션의 덱은 데이터 갱신과 무관하게 고정되어야 한다.
+  const [sessionDeck, setSessionDeck] = useState<LearningCard[] | null>(null);
+  const sessionKey = isFocusMode ? `focus:${focusId}` : isCategoryMode ? `category:${category}` : 'today';
+
+  useEffect(() => {
+    // 카테고리 전환·단일카드 진입 등으로 세션 대상이 바뀌면 덱을 다시 뽑는다.
+    setSessionDeck(null);
+  }, [sessionKey]);
+
+  useEffect(() => {
+    if (sessionDeck === null && computedDeck.length > 0) setSessionDeck(computedDeck);
+  }, [sessionDeck, computedDeck]);
+
+  const deck = sessionDeck ?? computedDeck;
   const card = deck[index];
 
   const toggleBookmark = useBookmarkStore((s) => s.toggle);
@@ -107,6 +172,7 @@ export default function CardsScreen() {
   const hasReported = useReportStore((s) => (card ? s.reports.some((r) => r.cardId === card.id) : false));
 
   const keepScreenOn = useSettingsStore((s) => s.keepScreenOn);
+  const flexPromptEnabled = useSettingsStore((s) => s.flexPromptEnabled);
   const toggleKeepScreenOn = useSettingsStore((s) => s.toggleKeepScreenOn);
 
   const resetCardAnims = useCallback(() => {
@@ -153,33 +219,48 @@ export default function CardsScreen() {
     setQuizPick(null);
     setQuizRevealed(false);
     resetCardAnims();
+    enterAnim.setValue(0); // 다음 카드는 등장 애니메이션이 재생되도록 숨긴 상태에서 시작.
     setExiting(false);
     const nextIdx = index + 1;
     if (nextIdx >= deck.length) setFinished(true);
     else setIndex(nextIdx);
-  }, [card, index, deck.length, markCardMutation, resetCardAnims]);
+  }, [card, index, deck.length, markCardMutation, resetCardAnims, enterAnim]);
+
+  // 새 카드가 화면에 올라올 때마다 통통 튀며(스프링) 부드럽게 등장한다(귀여운 전환).
+  useEffect(() => {
+    if (!card || finished) return;
+    enterAnim.setValue(0);
+    const spring = Animated.spring(enterAnim, {
+      toValue: 1,
+      useNativeDriver: true,
+      friction: 7,
+      tension: 58,
+    });
+    spring.start();
+    return () => spring.stop();
+  }, [card?.id, finished, enterAnim]);
 
   // "학습 완료" → 왼쪽으로 넘김.
   const completeLeft = useCallback(() => {
     if (exiting) return;
     setExiting(true);
-    haptic();
+    // '아는 것(학습 완료)'은 조용히 넘긴다 — 넘김 햅틱은 '모를 때'에만.
     Animated.parallel([
       Animated.timing(translateX, { toValue: -SCREEN_W - 80, duration: 300, useNativeDriver: true }),
       Animated.timing(cardOpacity, { toValue: 0, duration: 260, useNativeDriver: true }),
     ]).start(() => advance('mastered'));
   }, [exiting, translateX, cardOpacity, advance]);
 
-  // "다음에 한번 더" → 위로 올림.
+  // "다음에 한번 더"(모를 때 = 빨간 버튼) → 위로 올림. 최소 햅틱을 준다.
   const againUp = useCallback(() => {
     if (exiting) return;
     setExiting(true);
-    haptic();
+    dnkHaptic();
     Animated.parallel([
       Animated.timing(translateY, { toValue: -SCREEN_H, duration: 320, useNativeDriver: true }),
       Animated.timing(cardOpacity, { toValue: 0, duration: 280, useNativeDriver: true }),
     ]).start(() => advance('learning'));
-  }, [exiting, translateY, cardOpacity, advance]);
+  }, [exiting, translateY, cardOpacity, advance, dnkHaptic]);
 
   // ── 스와이프 트랙(원진섭) 전용 동작 ───────────────────────────────
   const solveHintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -205,12 +286,13 @@ export default function CardsScreen() {
   const swipeAway = useCallback((dir: 'left' | 'right', status: 'mastered' | 'learning') => {
     if (exiting) return;
     setExiting(true);
-    haptic();
+    // 왼쪽(모르는 것=다시)만 최소 햅틱, 오른쪽(아는 것)은 조용히.
+    if (status === 'learning') dnkHaptic();
     Animated.parallel([
       Animated.timing(translateX, { toValue: dir === 'right' ? SCREEN_W + 100 : -SCREEN_W - 100, duration: 280, useNativeDriver: true }),
       Animated.timing(cardOpacity, { toValue: 0, duration: 240, useNativeDriver: true }),
     ]).start(() => advance(status));
-  }, [exiting, translateX, cardOpacity, advance]);
+  }, [exiting, translateX, cardOpacity, advance, dnkHaptic]);
 
   // 스와이프 시도 — 퀴즈 미풀이면 막고, 아니면 방향에 맞게 분류.
   const trySwipe = useCallback((dir: 'left' | 'right') => {
@@ -243,19 +325,32 @@ export default function CardsScreen() {
   const swipeEnabledRef = useRef(false);
   swipeEnabledRef.current = isSwipeTrack && !exiting && !finished && !!card;
 
+  // 카드를 왼쪽으로 끄는 동작이 안드로이드 가장자리 '뒤로가기' 제스처로 오인되면
+  // 시스템이 뒤로가기를 보내고, 하단 탭 네비게이터가 첫 탭(홈)으로 이동해 버린다.
+  // 카드를 만지는 중/직후에 들어온 뒤로가기는 스와이프의 부작용으로 보고 삼킨다.
+  const lastCardTouchRef = useRef(0);
+  const SWIPE_BACK_GUARD_MS = 700;
+  const markCardTouch = () => { lastCardTouchRef.current = Date.now(); };
+
   const panResponder = useRef(
     PanResponder.create({
+      // 터치 시작을 기록만 하고 응답자는 가로채지 않는다(탭·퀴즈 보기 선택은 그대로 동작).
+      onStartShouldSetPanResponderCapture: () => { markCardTouch(); return false; },
       onMoveShouldSetPanResponder: (_, g) =>
         swipeEnabledRef.current && Math.abs(g.dx) > 14 && Math.abs(g.dx) > Math.abs(g.dy) * 1.4,
       onPanResponderMove: (_, g) => {
+        markCardTouch();
         translateX.setValue(g.dx);
       },
       onPanResponderRelease: (_, g) => {
+        markCardTouch();
         if (g.dx > SWIPE_THRESHOLD) trySwipeRef.current('right');
         else if (g.dx < -SWIPE_THRESHOLD) trySwipeRef.current('left');
         else Animated.spring(translateX, { toValue: 0, useNativeDriver: true, friction: 6 }).start();
       },
       onPanResponderTerminate: () => {
+        // 시스템 제스처가 터치를 가져가면 여기로 온다 — 카드는 제자리로 되돌린다.
+        markCardTouch();
         Animated.spring(translateX, { toValue: 0, useNativeDriver: true, friction: 6 }).start();
       },
     }),
@@ -263,15 +358,21 @@ export default function CardsScreen() {
 
   useEffect(() => {
     if (!finished) return;
-    // 카테고리 복습 세션이 끝나면 복습 목록으로, 오늘의 학습이 끝나면 통계로 이동.
-    const target = isCategoryMode ? ROUTES.review : ROUTES.stats;
-    Animated.timing(progressAnim, { toValue: 1, duration: 2000, useNativeDriver: false }).start(({ finished: ok }) => {
+    // 학습 세션을 마치면 안전 카드팩 적립(3회마다 1팩) — 수집 재미 요소.
+    useCollectionStore.getState().addStudyProgress();
+    // 단일 카드(focus) 학습이 끝나면 원래 보던 컨텐츠로 곧장 복귀.
+    // 카테고리 복습이 끝나면 복습 목록으로, 오늘의 학습이 끝나면 통계로 이동.
+    const target = returnTo ?? (isCategoryMode ? ROUTES.review : ROUTES.stats);
+    const dur = returnTo ? 900 : 2000;
+    Animated.timing(progressAnim, { toValue: 1, duration: dur, useNativeDriver: false }).start(({ finished: ok }) => {
       if (ok) router.replace(target as any);
     });
   }, [finished]);
 
   const restart = () => {
     if (autoFlipTimer.current) clearTimeout(autoFlipTimer.current);
+    // 최신 학습 상태로 덱을 다시 뽑는다.
+    setSessionDeck(null);
     setIndex(0);
     setDoneCount(0);
     setFlipped(false);
@@ -290,7 +391,13 @@ export default function CardsScreen() {
     useCallback(() => {
       if (Platform.OS !== 'android') return;
       const onBack = () => {
-        if (sessionActive && !exitConfirm) {
+        // 카드 스와이프가 가장자리 뒤로가기 제스처로 오인된 경우 — 홈으로 튕기지 않도록 삼킨다.
+        if (isSwipeTrack && Date.now() - lastCardTouchRef.current < SWIPE_BACK_GUARD_MS) return true;
+        if (exitConfirm) {
+          setExitConfirm(false); // 모달이 떠 있으면 모달만 닫는다(홈 이동 차단)
+          return true;
+        }
+        if (sessionActive) {
           setExitConfirm(true);
           return true; // 기본 뒤로가기(홈 이동) 차단
         }
@@ -298,7 +405,7 @@ export default function CardsScreen() {
       };
       const sub = BackHandler.addEventListener('hardwareBackPress', onBack);
       return () => sub.remove();
-    }, [sessionActive, exitConfirm]),
+    }, [sessionActive, exitConfirm, isSwipeTrack]),
   );
 
   const leaveSession = useCallback((target: string) => {
@@ -308,11 +415,7 @@ export default function CardsScreen() {
   }, [router]);
 
   if (isLoading && deck.length === 0 && !error) {
-    return (
-      <View style={{ flex: 1, backgroundColor: c.bg }}>
-        <SkeletonLoader count={3} />
-      </View>
-    );
+    return <CardStudySkeleton />;
   }
 
   if (error && deck.length === 0) {
@@ -330,13 +433,26 @@ export default function CardsScreen() {
         <Text style={{ fontSize: 52, marginBottom: 12 }}>🎉</Text>
         <Text style={{ color: c.textPrimary, fontSize: 22 * fs, fontWeight: '800', fontFamily: fontCute }}>학습 완료!</Text>
         <Text style={{ color: c.textSecondary, marginTop: 6, marginBottom: 28, fontFamily: fontCute }}>
-          {isCategoryMode ? `${category} · ${doneCount}장 복습 완료` : `오늘 ${doneCount}장 학습 완료 · 3분이면 충분해요`}
+          {isFocusMode ? '이 카드 학습을 마쳤어요' : isCategoryMode ? `${category} · ${doneCount}장 복습 완료` : `오늘 ${doneCount}장 학습 완료 · 3분이면 충분해요`}
         </Text>
         <View style={{ width: '60%', height: 4, backgroundColor: c.surfaceAlt, borderRadius: 2, overflow: 'hidden', marginBottom: 24 }}>
           <Animated.View style={{ width: barWidth, height: '100%', backgroundColor: c.primary, borderRadius: 2 }} />
         </View>
-        <Text style={{ color: c.textSecondary, fontSize: 12 * fs, fontFamily: fontCute }}>{isCategoryMode ? '복습 목록으로 이동 중...' : '통계 화면으로 이동 중...'}</Text>
-        <View style={{ marginTop: 20 }}>
+        <Text style={{ color: c.textSecondary, fontSize: 12 * fs, fontFamily: fontCute }}>{isFocusMode ? '컨텐츠로 돌아가는 중...' : isCategoryMode ? '복습 목록으로 이동 중...' : '통계 화면으로 이동 중...'}</Text>
+        {/* 목표 달성 순간의 '플렉스(자랑) 유도' — 설정에서 끌 수 있다. */}
+        {!isFocusMode && flexPromptEnabled && (
+          <>
+            <Text style={{ color: c.textSecondary, fontSize: 12.5 * fs, fontFamily: fontCute, marginTop: 22, marginBottom: -4 }}>오늘의 목표 달성! 성취를 자랑해볼까요?</Text>
+            <Pressable
+              onPress={() => { progressAnim.stopAnimation(); router.push(ROUTES.share as never); }}
+              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.primary, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 22, marginTop: 12, boxShadow: '0 6px 16px rgba(37,99,235,0.28)' }}
+            >
+              <Ionicons name="sparkles" size={18} color="#fff" />
+              <Text style={{ color: '#fff', fontSize: 15 * fs, fontWeight: '800', fontFamily: fontCute }}>성취 카드 플렉스</Text>
+            </Pressable>
+          </>
+        )}
+        <View style={{ marginTop: 12 }}>
           <Button label="다시 학습하기" variant="outline" onPress={restart} />
         </View>
       </View>
@@ -349,9 +465,21 @@ export default function CardsScreen() {
   const frontRotate = flipAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] });
   const backRotate = flipAnim.interpolate({ inputRange: [0, 1], outputRange: ['180deg', '360deg'] });
 
+  // backfaceVisibility 만으로는 숨겨진 면이 그대로 비쳐 보여 문제가 두 개 겹쳐 보인다(웹·Android 모두 재현).
+  // 뒤집힘의 절반을 기준으로 보이는 면만 불투명하게 만들어, backfaceVisibility 지원 여부와 무관하게 한 면만 보이도록 한다.
+  const frontOpacity = flipAnim.interpolate({ inputRange: [0, 0.499, 0.5, 1], outputRange: [1, 1, 0, 0], extrapolate: 'clamp' });
+  const backOpacity = flipAnim.interpolate({ inputRange: [0, 0.499, 0.5, 1], outputRange: [0, 0, 1, 1], extrapolate: 'clamp' });
+
   // 스와이프 트랙 — 좌우로 밀 때 나타나는 "아는 것/모르는 것" 라벨 투명도.
   const knowOpacity = translateX.interpolate({ inputRange: [30, 110], outputRange: [0, 1], extrapolate: 'clamp' });
   const dontKnowOpacity = translateX.interpolate({ inputRange: [-110, -30], outputRange: [1, 0], extrapolate: 'clamp' });
+
+  // 새 카드 등장(pop-in): 살짝 작고 아래에서 올라오며 페이드 인. 기존 뒤집기/스와이프 값과 합성.
+  const enterScale = enterAnim.interpolate({ inputRange: [0, 1], outputRange: [0.86, 1] });
+  const enterTranslateY = enterAnim.interpolate({ inputRange: [0, 1], outputRange: [28, 0] });
+  const cardScale = Animated.multiply(scaleAnim, enterScale);
+  const cardTranslateY = Animated.add(translateY, enterTranslateY);
+  const cardCombinedOpacity = Animated.multiply(cardOpacity, enterAnim);
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
@@ -378,9 +506,9 @@ export default function CardsScreen() {
       <View style={{ flex: 1, padding: 20, paddingBottom: 8 }}>
         <Animated.View
           {...(isSwipeTrack ? panResponder.panHandlers : {})}
-          style={{ flex: 1, transform: [{ translateX }, { translateY }, { scale: scaleAnim }], opacity: cardOpacity }}
+          style={{ flex: 1, transform: [{ translateX }, { translateY: cardTranslateY }, { scale: cardScale }], opacity: cardCombinedOpacity }}
         >
-         <Pressable onPress={onCardPress} disabled={!isSwipeTrack} style={{ flex: 1 }}>
+         <Pressable onPress={onCardPress} disabled={exiting} style={{ flex: 1 }}>
           {/* 앞면 */}
           <Animated.View
             // Android 는 backfaceVisibility 가 불안정해 숨겨진 뒷면이 터치를 가로챈다.
@@ -392,6 +520,7 @@ export default function CardsScreen() {
               borderRadius: 20, padding: 24,
               transform: [{ perspective: 1200 }, { rotateY: frontRotate }],
               backfaceVisibility: 'hidden',
+              opacity: frontOpacity,
               boxShadow: '0 4px 16px rgba(0,0,0,0.06)', elevation: 4,
             }}
           >
@@ -417,7 +546,7 @@ export default function CardsScreen() {
               <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingVertical: 6 }}>
                 {resolveCardImage(card.imageUrl) && (
                   <View style={{ width: '100%', marginBottom: 14 }}>
-                    <QuestionImage source={resolveCardImage(card.imageUrl)} height={130} />
+                    <QuestionImage source={resolveCardImage(card.imageUrl)} height={172} />
                   </View>
                 )}
                 {!!card.situation && (
@@ -436,7 +565,7 @@ export default function CardsScreen() {
                 />
                 {!quizRevealed && (
                   <View style={{ marginTop: 18, alignItems: 'center' }}>
-                    <CardTimer seconds={card.studySeconds} resetKey={card.id} onExpire={() => setQuizRevealed(true)} />
+                    <CardTimer seconds={card.studySeconds} resetKey={card.id} onExpire={haptic} />
                   </View>
                 )}
               </ScrollView>
@@ -444,7 +573,7 @@ export default function CardsScreen() {
               <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
                 {resolveCardImage(card.imageUrl) ? (
                   <View style={{ width: '100%', marginBottom: 18 }}>
-                    <QuestionImage source={resolveCardImage(card.imageUrl)} height={150} />
+                    <QuestionImage source={resolveCardImage(card.imageUrl)} height={200} />
                   </View>
                 ) : (
                   <Ionicons name={getCategoryIcon(card.category)} size={40 * fs} color={c.primary} style={{ marginBottom: 12, opacity: 0.6 }} />
@@ -458,7 +587,7 @@ export default function CardsScreen() {
                   {card.question}
                 </Text>
                 <View style={{ marginTop: 20 }}>
-                  <CardTimer seconds={card.studySeconds} resetKey={card.id} onExpire={() => doFlip(true)} />
+                  <CardTimer seconds={card.studySeconds} resetKey={card.id} onExpire={haptic} />
                 </View>
               </View>
             )}
@@ -473,6 +602,7 @@ export default function CardsScreen() {
               borderRadius: 20, padding: 22,
               transform: [{ perspective: 1200 }, { rotateY: backRotate }],
               backfaceVisibility: 'hidden',
+              opacity: backOpacity,
               boxShadow: '0 4px 16px rgba(0,0,0,0.06)', elevation: 4,
             }}
           >
@@ -500,10 +630,10 @@ export default function CardsScreen() {
           {/* 스와이프 방향 라벨 — 오른쪽=아는 것, 왼쪽=모르는 것 */}
           {isSwipeTrack && (
             <>
-              <Animated.View pointerEvents="none" style={{ position: 'absolute', top: 18, left: 18, opacity: knowOpacity, transform: [{ rotate: '-12deg' }], borderWidth: 3, borderColor: c.success, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 4, backgroundColor: c.success + '1A' }}>
+              <Animated.View pointerEvents="none" style={{ position: 'absolute', top: 18, left: 18, opacity: knowOpacity, borderWidth: 3, borderColor: c.success, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 4, backgroundColor: c.success + '1A' }}>
                 <Text style={{ color: c.success, fontSize: 16 * fs, fontWeight: '900', fontFamily: fontCute }}>아는 것 👍</Text>
               </Animated.View>
-              <Animated.View pointerEvents="none" style={{ position: 'absolute', top: 18, right: 18, opacity: dontKnowOpacity, transform: [{ rotate: '12deg' }], borderWidth: 3, borderColor: c.warning, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 4, backgroundColor: c.warning + '1A' }}>
+              <Animated.View pointerEvents="none" style={{ position: 'absolute', top: 18, right: 18, opacity: dontKnowOpacity, borderWidth: 3, borderColor: c.warning, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 4, backgroundColor: c.warning + '1A' }}>
                 <Text style={{ color: c.warning, fontSize: 16 * fs, fontWeight: '900', fontFamily: fontCute }}>모르는 것 🔁</Text>
               </Animated.View>
             </>

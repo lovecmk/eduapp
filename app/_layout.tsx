@@ -1,6 +1,6 @@
 import 'react-native-gesture-handler';
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Animated, Easing, ActivityIndicator } from 'react-native';
+import { View, Text, Animated, Easing } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -11,6 +11,8 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { ThemeProvider, useTheme } from '../src/theme/ThemeProvider';
 import { useAuthStore } from '../src/store/authStore';
+import { useSettingsStore } from '../src/store/settingsStore';
+import { syncPushTokenWithServer } from '../src/data/notifications/NotificationService';
 import { BridgeLogo } from '../src/components/ui/BridgeLogo';
 import { fontDisplay, fontBody } from '../src/theme/tokens';
 import { ErrorBoundary } from '../src/components/ui/ErrorBoundary';
@@ -29,6 +31,8 @@ function RootContent() {
   const { theme, isDark } = useTheme();
   const restore = useAuthStore((s) => s.restore);
   const bootstrapped = useAuthStore((s) => s.bootstrapped);
+  const user = useAuthStore((s) => s.user);
+  const notificationsEnabled = useSettingsStore((s) => s.notifications.enabled);
   const [splashDone, setSplashDone] = useState(false);
   const opacity = useRef(new Animated.Value(1)).current;
   // 로고가 은은히 커지며 등장하는 스케일 애니메이션.
@@ -41,6 +45,14 @@ function RootContent() {
   useEffect(() => {
     restore();
   }, []);
+
+  // 로그인 완료 + 알림 On 상태면 원격 푸시 토큰을 서버에 등록/갱신한다.
+  // (목업/웹/API 미설정 시에는 내부 가드로 조용히 no-op 처리된다.)
+  useEffect(() => {
+    if (bootstrapped && user && notificationsEnabled) {
+      void syncPushTokenWithServer();
+    }
+  }, [bootstrapped, user, notificationsEnabled]);
 
   useEffect(() => {
     // 로고 등장(스프링) — 부드럽게 살짝 커지며 자리잡는다.
@@ -76,6 +88,16 @@ function RootContent() {
         <Stack.Screen name="content/[id]" />
         <Stack.Screen name="collection/[type]" />
         <Stack.Screen name="settings" />
+        <Stack.Screen name="share" options={{ animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="trophy" />
+        <Stack.Screen name="profile" />
+        <Stack.Screen name="edit-profile" />
+        <Stack.Screen name="qr-card" options={{ animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="redeem" options={{ animation: 'slide_from_bottom' }} />
+        <Stack.Screen name="collection-book" />
+        <Stack.Screen name="pack-rules" />
+        <Stack.Screen name="admin" />
+        <Stack.Screen name="author-card" options={{ animation: 'slide_from_bottom' }} />
         <Stack.Screen name="developer" />
         <Stack.Screen name="notifications" options={{ animation: 'slide_from_bottom' }} />
       </Stack>
@@ -94,9 +116,6 @@ function RootContent() {
             <Text style={{ color: theme.colors.textPrimary, fontSize: 22, marginTop: 20, letterSpacing: 1, fontFamily: fontDisplay }}>현장학습</Text>
             <Text style={{ color: theme.colors.textSecondary, fontSize: 13, marginTop: 6, fontFamily: fontBody }}>현장 안전학습, 매일 3분</Text>
           </Animated.View>
-          <View style={{ position: 'absolute', bottom: 64, alignItems: 'center' }}>
-            <ActivityIndicator size="small" color={theme.colors.primary} />
-          </View>
         </Animated.View>
       )}
       <UpdatePrompt

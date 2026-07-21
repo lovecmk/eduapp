@@ -4,10 +4,16 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTheme } from '../../src/theme/ThemeProvider';
+import { useSettingsStore } from '../../src/store/settingsStore';
 import { LivePresenceCard } from '../../src/components/community/LivePresenceCard';
 import { WeeklyChallengeCard } from '../../src/components/community/WeeklyChallengeCard';
 import { CommunityBuildCard } from '../../src/components/community/CommunityBuildCard';
+import { CommunityLeaderboardCard } from '../../src/components/community/CommunityLeaderboardCard';
+import { CollectionTeaserCard } from '../../src/components/community/CollectionTeaserCard';
+import { BragFeedCard } from '../../src/components/community/BragFeedCard';
 import { QuestionComposeModal } from '../../src/components/community/QuestionComposeModal';
+import { CommunitySkeleton } from '../../src/components/skeletons';
+import { useCommunity } from '../../src/hooks/useCommunity';
 import { fontDisplay, fontBody, fontMono } from '../../src/theme/tokens';
 import { getCategoryColor } from '../../src/constants/categories';
 import { ROUTES } from '../../src/constants/routes';
@@ -24,6 +30,8 @@ export default function CommunityScreen() {
   const c = theme.colors;
   const router = useRouter();
   const questions = useQnaStore((s) => s.questions);
+  const collectionEnabled = useSettingsStore((s) => s.collectionEnabled);
+  const { data: liveData, isLoading: liveLoading } = useCommunity();
   const [composeOpen, setComposeOpen] = useState(false);
   // 회전 창(window)의 시작 오프셋 — 30초마다 앞으로 밀며 질문을 순환 노출.
   const [offset, setOffset] = useState(0);
@@ -53,10 +61,19 @@ export default function CommunityScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 36 }} showsVerticalScrollIndicator={false}>
-        {/* 함께 학습 */}
-        <LivePresenceCard />
-        <WeeklyChallengeCard />
-        <CommunityBuildCard />
+        {/* 함께 학습 — 실시간 데이터가 도착하기 전엔 스켈레톤으로 자리를 지킨다 */}
+        {liveLoading && !liveData ? (
+          <CommunitySkeleton />
+        ) : (
+          <>
+            <LivePresenceCard />
+            {collectionEnabled && <CollectionTeaserCard />}
+            <BragFeedCard />
+            <WeeklyChallengeCard />
+            <CommunityLeaderboardCard />
+            <CommunityBuildCard />
+          </>
+        )}
 
         {/* 질문 & 답변 */}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8, marginBottom: 12 }}>

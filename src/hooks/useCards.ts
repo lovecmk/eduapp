@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { cardRepository } from '../data/repositories';
-import type { LearningCard, CardStatus } from '../domain/models/LearningCard';
+import type { LearningCard, CardStatus, CardDifficulty } from '../domain/models/LearningCard';
+import type { CardDraft } from '../domain/models/CardDraft';
 
 const CARDS_KEY = 'cards';
 
@@ -12,10 +13,10 @@ export function useAllCards() {
   });
 }
 
-export function useTodayCards() {
+export function useTodayCards(difficulty?: CardDifficulty) {
   return useQuery({
-    queryKey: [CARDS_KEY, 'today'],
-    queryFn: () => cardRepository.getTodayCards(),
+    queryKey: [CARDS_KEY, 'today', difficulty ?? 'all'],
+    queryFn: () => cardRepository.getTodayCards(difficulty ? { difficulty } : undefined),
     staleTime: 30_000,
   });
 }
@@ -27,6 +28,16 @@ export function useCardEntities() {
     entities[card.id] = card;
   }
   return entities;
+}
+
+export function useCreateCards() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (drafts: CardDraft[]) => cardRepository.createCards(drafts),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: [CARDS_KEY] });
+    },
+  });
 }
 
 export function useMarkCard() {

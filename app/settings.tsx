@@ -7,7 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../src/theme/ThemeProvider';
 import { useSettingsStore, type ThemeMode, type FontScale } from '../src/store/settingsStore';
 import { useAuthStore } from '../src/store/authStore';
-import { useNotificationStore, NOTIFICATION_TYPE_META, type NotificationType } from '../src/store/notificationStore';
+import { NOTIFICATION_TYPE_META, type NotificationType } from '../src/store/notificationStore';
 import { SegmentedControl } from '../src/components/ui/SegmentedControl';
 import { Switch } from '../src/components/ui/Switch';
 import { Button } from '../src/components/ui/Button';
@@ -27,6 +27,7 @@ import {
   requestNotificationPermission,
   scheduleDailyReminder,
   cancelAllReminders,
+  syncPushTokenWithServer,
 } from '../src/data/notifications/NotificationService';
 
 const THEME_OPTIONS: ThemeMode[] = ['light', 'dark', 'dim', 'system'];
@@ -63,17 +64,16 @@ export default function SettingsScreen() {
   const {
     themeMode, fontScale: fontScaleSetting, highContrast,
     notifications, biometricLoginEnabled, dailyTarget, shuffleCards, keepScreenOn, offlineMode,
-    prioritizeWeakSpots,
+    prioritizeWeakSpots, dontKnowHaptic, flexPromptEnabled, showAchievementBadge, collectionEnabled,
     setThemeMode, setFontScale, toggleHighContrast,
     updateNotificationSetting, setBiometricLogin, setDailyTarget,
-    toggleShuffleCards, toggleKeepScreenOn, toggleOfflineMode, togglePrioritizeWeakSpots, resetAll,
+    toggleShuffleCards, toggleKeepScreenOn, toggleOfflineMode, togglePrioritizeWeakSpots,
+    toggleDontKnowHaptic, toggleFlexPrompt, toggleAchievementBadge, toggleCollectionEnabled, resetAll,
   } = useSettingsStore();
 
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const profileImage = useSettingsStore((s) => s.profileImage);
-  const mutedTypes = useNotificationStore((s) => s.mutedTypes);
-  const setMute = useNotificationStore((s) => s.setMute);
   const interests = useSettingsStore((s) => s.interests);
   const toggleInterest = useSettingsStore((s) => s.toggleInterest);
 
@@ -99,6 +99,8 @@ export default function SettingsScreen() {
       const granted = await requestNotificationPermission();
       if (!granted && Platform.OS !== 'web') return;
       await scheduleDailyReminder(notifications.dailyReminderTime);
+      // 실서버 사용 시 원격 푸시 토큰도 함께 등록(서버·텔레그램 알림 수신용).
+      void syncPushTokenWithServer();
     } else {
       await cancelAllReminders();
     }
@@ -119,8 +121,6 @@ export default function SettingsScreen() {
       setResetting(false);
     }
   };
-
-  const trackColor = { true: c.primary, false: c.disabled };
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
@@ -246,6 +246,58 @@ export default function SettingsScreen() {
             description="학습 중 화면 꺼짐 방지"
             right={<Switch value={keepScreenOn} onValueChange={toggleKeepScreenOn} />}
           />
+          <SettingsItem
+            icon="pulse-outline"
+            label="'모를 때' 진동"
+            description="빨간 버튼(다음에 한번 더)에만 미세한 진동"
+            right={<Switch value={dontKnowHaptic} onValueChange={toggleDontKnowHaptic} />}
+          />
+        </SettingsGroup>
+
+        <SettingsGroup title="프로필 · 커뮤니티">
+          <SettingsItem
+            icon="person-circle-outline"
+            label="내 프로필"
+            description="사진·한 줄 소개 편집"
+            onPress={() => router.push(ROUTES.profile as never)}
+          />
+          <SettingsItem
+            icon="sparkles-outline"
+            label="자랑(플렉스) 유도"
+            description="목표 달성 시 성취 카드 자랑을 제안"
+            right={<Switch value={flexPromptEnabled} onValueChange={toggleFlexPrompt} />}
+          />
+          <SettingsItem
+            icon="shield-checkmark-outline"
+            label="성취 뱃지 표시"
+            description="닉네임 옆에 최고 등급 카드 뱃지 노출"
+            right={<Switch value={showAchievementBadge} onValueChange={toggleAchievementBadge} />}
+          />
+        </SettingsGroup>
+
+        <SettingsGroup title="카드 수집 (베타)">
+          <SettingsItem
+            icon="albums-outline"
+            label="카드 수집·카드팩 사용"
+            description="회의 확정 전까지 설정에서만 켤 수 있어요"
+            right={<Switch value={collectionEnabled} onValueChange={toggleCollectionEnabled} />}
+          />
+          {collectionEnabled && (
+            <>
+              <SettingsItem
+                icon="library-outline"
+                label="안전 카드 컬렉션"
+                description="수집한 카드·카드팩 열기"
+                onPress={() => router.push(ROUTES.collectionBook as never)}
+              />
+              <SettingsItem
+                icon="gift-outline"
+                label="카드팩 획득 조건"
+                description="학습·출석·연속 등 상세 조건 보기"
+                onPress={() => router.push(ROUTES.packRules as never)}
+              />
+            </>
+          )}
         </SettingsGroup>
 
         <SettingsGroup title="화면">
@@ -279,8 +331,8 @@ export default function SettingsScreen() {
           <SettingsItem
             icon="person-circle-outline"
             label="프로필 관리"
-            description="이름·사진 변경"
-            onPress={() => router.push(ROUTES.mypage)}
+            description="사진·한 줄 소개 변경"
+            onPress={() => router.push(ROUTES.profile as never)}
           />
         </SettingsGroup>
 
@@ -290,6 +342,7 @@ export default function SettingsScreen() {
           <SettingsItem icon="download-outline" label="시스템 로그 다운로드" onPress={() => { void downloadSystemLog(); }} />
           <SettingsItem icon="document-text-outline" label="이용약관 · 개인정보처리방침" onPress={() => Linking.openURL('https://bridge.kfpa.or.kr/')} />
           <SettingsItem icon="construct-outline" label="개발자 모드" description="테스트용 기능" onPress={() => router.push(ROUTES.developer)} />
+          <SettingsItem icon="shield-half-outline" label="관리 콘솔" description="웹 관리자 페이지 (사용자·규칙·카드·플래그)" onPress={() => router.push(ROUTES.admin as never)} />
         </SettingsGroup>
 
         <SettingsGroup title="데이터">

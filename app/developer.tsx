@@ -1,18 +1,32 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, Platform } from 'react-native';
+import { View, Text, ScrollView, Platform, Pressable } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../src/theme/ThemeProvider';
 import { ScreenHeader } from '../src/components/ui/ScreenHeader';
 import { Button } from '../src/components/ui/Button';
 import { fontDisplay, fontBody, fontMono } from '../src/theme/tokens';
-import { sendTestNotification } from '../src/data/notifications/NotificationService';
+import { sendTestNotification, triggerServerAlert } from '../src/data/notifications/NotificationService';
+import { ENV_SUMMARY } from '../src/data/network/env';
+import { ROUTES } from '../src/constants/routes';
+import { useAuthoredCardsStore } from '../src/store/authoredCardsStore';
 
 type SendState = 'idle' | 'sending' | 'sent' | 'denied' | 'error';
+
+const ALERT_VERSIONS = [
+  { v: 1 as const, label: '알림 1 · 긴급 안전 점검', icon: 'warning' as const },
+  { v: 2 as const, label: '알림 2 · 오늘의 학습 리마인더', icon: 'time' as const },
+  { v: 3 as const, label: '알림 3 · 복습 주기 도래', icon: 'repeat' as const },
+];
 
 export default function DeveloperScreen() {
   const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
+  const router = useRouter();
+  const authoredCount = useAuthoredCardsStore((s) => s.cards.length);
   const [state, setState] = useState<SendState>('idle');
+  const [alertBusy, setAlertBusy] = useState<number | null>(null);
+  const [alertMsg, setAlertMsg] = useState<string | null>(null);
 
   const onSend = async () => {
     setState('sending');
@@ -21,6 +35,24 @@ export default function DeveloperScreen() {
       setState(ok ? 'sent' : 'denied');
     } catch {
       setState('error');
+    }
+  };
+
+  // 서버발(發) 알림 3버전 — 텔레그램 /alert1~3 과 동일한 브로드캐스트 경로.
+  const onServerAlert = async (v: 1 | 2 | 3) => {
+    setAlertBusy(v);
+    setAlertMsg(null);
+    try {
+      const res = await triggerServerAlert(v);
+      if (!res) {
+        setAlertMsg('실서버 연결이 필요해요(목업/웹에서는 동작하지 않습니다).');
+      } else {
+        setAlertMsg(`✅ "${res.label}" 발송 — ${res.sent}대 기기에 전송했어요.`);
+      }
+    } catch {
+      setAlertMsg('알림 발송에 실패했어요. 잠시 후 다시 시도해주세요.');
+    } finally {
+      setAlertBusy(null);
     }
   };
 
@@ -45,6 +77,48 @@ export default function DeveloperScreen() {
             테스트용 기능 모음입니다.
           </Text>
         </View>
+
+        {/* 환경설정 — 현재 번들이 어떤 값으로 돌고 있는지 한눈에 확인(민감정보는 마스킹). */}
+        <View style={{ backgroundColor: c.surface, borderColor: c.border, borderWidth: 1, borderRadius: 16, padding: 18, marginBottom: 16 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+            <Ionicons name="server-outline" size={18} color={c.primary} />
+            <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontFamily: fontDisplay }}>환경 설정</Text>
+          </View>
+          <Text style={{ color: c.textSecondary, fontSize: 12.5 * fs, lineHeight: 19, marginBottom: 14, fontFamily: fontBody }}>
+            지금 실행 중인 번들에 적용된 환경변수(.env)입니다. 값은 빌드 타임에 구워지며, 실제 값 변경은 .env 를 수정한 뒤 다시 빌드해야 반영됩니다.
+          </Text>
+          <View style={{ gap: 2 }}>
+            {ENV_SUMMARY.map((row) => (
+              <View
+                key={row.label}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 9, borderBottomWidth: 1, borderBottomColor: c.surfaceAlt }}
+              >
+                <Ionicons
+                  name={row.ok ? 'checkmark-circle' : 'alert-circle'}
+                  size={16}
+                  color={row.ok ? c.success : c.warning}
+                />
+                <Text style={{ color: c.textSecondary, fontSize: 12.5 * fs, width: 92, fontFamily: fontBody }}>{row.label}</Text>
+                <Text style={{ color: c.textPrimary, fontSize: 12.5 * fs, flex: 1, fontFamily: fontMono }} numberOfLines={1}>
+                  {row.value}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        {/* 콘텐츠 관리 — 문제 등록(웹 등록 도구와 동일 메타데이터 계약) */}
+        <Pressable onPress={() => router.push(ROUTES.authorCard as never)}
+          style={{ backgroundColor: c.surface, borderColor: c.border, borderWidth: 1, borderRadius: 16, padding: 18, marginBottom: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: c.primary + '18', alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name="create-outline" size={20} color={c.primary} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontFamily: fontDisplay }}>문제 등록 · 콘텐츠</Text>
+            <Text style={{ color: c.textSecondary, fontSize: 12.5 * fs, fontFamily: fontBody, marginTop: 2 }}>폼/JSON으로 학습 카드 등록 · 등록 {authoredCount}개</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={c.textSecondary} />
+        </Pressable>
 
         <View style={{ backgroundColor: c.surface, borderColor: c.border, borderWidth: 1, borderRadius: 16, padding: 18 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
@@ -73,6 +147,36 @@ export default function DeveloperScreen() {
             <Text style={{ color: c.textSecondary, fontSize: 11 * fs, marginTop: 10, fontFamily: fontMono }}>
               * 웹에서는 브라우저 알림으로 대체됩니다.
             </Text>
+          )}
+        </View>
+
+        {/* 서버발(發) 알림 3버전 — 텔레그램 /alert1~3 과 동일 경로 */}
+        <View style={{ backgroundColor: c.surface, borderColor: c.border, borderWidth: 1, borderRadius: 16, padding: 18, marginTop: 16 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+            <Ionicons name="megaphone-outline" size={18} color={c.primary} />
+            <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontFamily: fontDisplay }}>서버 알림 발송 (3버전)</Text>
+          </View>
+          <Text style={{ color: c.textSecondary, fontSize: 12.5 * fs, lineHeight: 19, marginBottom: 14, fontFamily: fontBody }}>
+            등록된 모든 기기로 알림을 동시에 보냅니다. 텔레그램 봇의 /alert1~3 명령과 완전히 같은 경로로 동작해요.
+          </Text>
+
+          <View style={{ gap: 8 }}>
+            {ALERT_VERSIONS.map((a) => (
+              <Button
+                key={a.v}
+                label={a.label}
+                variant="outline"
+                loading={alertBusy === a.v}
+                onPress={() => onServerAlert(a.v)}
+              />
+            ))}
+          </View>
+
+          {alertMsg && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14, backgroundColor: c.surfaceAlt, borderRadius: 12, padding: 12 }}>
+              <Ionicons name="information-circle-outline" size={18} color={c.primary} />
+              <Text style={{ color: c.textPrimary, fontSize: 12.5 * fs, flex: 1, lineHeight: 18, fontFamily: fontBody }}>{alertMsg}</Text>
+            </View>
           )}
         </View>
       </ScrollView>

@@ -7,6 +7,12 @@ import Constants from 'expo-constants';
  * Metro 번들러에 의해 정적으로 인라인되어 `process.env` 로 노출된다.
  * 로컬 개발 환경처럼 변수가 비어 있어도 앱이 죽지 않고 목업으로 폴백되도록
  * 모든 접근을 이 파일 한 곳에서 방어적으로 처리한다.
+ *
+ * 새 환경변수를 추가할 때 지켜야 할 규칙(단일 소스):
+ *  1) 반드시 `EXPO_PUBLIC_` 접두사를 붙인다(그래야 번들에 인라인된다).
+ *  2) 이 파일의 `readString`/`readNumber`/`readBool` 로만 읽어 기본값을 준다.
+ *  3) `.env.example` 에 주석과 함께 예시를 추가한다.
+ *  4) 필요하면 `env` 객체에 노출하고, 개발자 화면(ENV_SUMMARY)에서 확인 가능하게 한다.
  */
 
 function readString(value: string | undefined, fallback = ''): string {
@@ -19,6 +25,13 @@ function readNumber(value: string | undefined, fallback: number): number {
   return Number.isFinite(n) && n > 0 ? n : fallback;
 }
 
+function readBool(value: string | undefined): boolean | undefined {
+  const v = value?.trim().toLowerCase();
+  if (v === 'true' || v === '1' || v === 'yes') return true;
+  if (v === 'false' || v === '0' || v === 'no') return false;
+  return undefined;
+}
+
 const apiBaseUrl = readString(process.env.EXPO_PUBLIC_API_BASE_URL);
 
 /**
@@ -29,9 +42,8 @@ const apiBaseUrl = readString(process.env.EXPO_PUBLIC_API_BASE_URL);
  * `.env` 없이 화면을 그대로 테스트할 수 있다.
  */
 function resolveUseMock(): boolean {
-  const flag = process.env.EXPO_PUBLIC_USE_MOCK_DATA?.trim().toLowerCase();
-  if (flag === 'true') return true;
-  if (flag === 'false') return false;
+  const flag = readBool(process.env.EXPO_PUBLIC_USE_MOCK_DATA);
+  if (flag !== undefined) return flag;
   return apiBaseUrl.length === 0;
 }
 
@@ -60,3 +72,64 @@ export const env = {
     commit: readString(process.env.EXPO_PUBLIC_COMMIT_SHA, 'local'),
   },
 } as const;
+
+/**
+ * 환경설정 요약 — 개발자 화면에서 "지금 어떤 값으로 돌고 있는지" 한눈에 확인하기 위한
+ * 읽기 전용 뷰. 민감정보(토큰·DSN 전체)는 노출하지 않고 마스킹/유무만 표시한다.
+ */
+export const ENV_SUMMARY: { label: string; value: string; ok: boolean }[] = [
+  {
+    label: 'API 주소',
+    value: apiBaseUrl || '(미설정 · 목업 폴백)',
+    ok: env.useMockData || apiBaseUrl.length > 0,
+  },
+  {
+    label: '데이터 소스',
+    value: env.useMockData ? '목업(Mock)' : '실서버(Live)',
+    ok: true,
+  },
+  {
+    label: '요청 타임아웃',
+    value: `${env.apiTimeoutMs.toLocaleString()}ms`,
+    ok: env.apiTimeoutMs >= 3_000,
+  },
+  {
+    label: 'Sentry',
+    value: env.sentryDsn ? '연결됨' : '비활성',
+    ok: true,
+  },
+  {
+    label: '빌드',
+    value: `v${env.build.version} (#${env.build.buildNumber || 'dev'} · ${env.build.commit})`,
+    ok: true,
+  },
+];
+
+/**
+ * 설정 불일치/실수를 잡아내는 개발용 검증. 프로덕션에서는 조용하지만,
+ * 개발 중에는 콘솔에 경고를 남겨 `.env` 오설정을 빠르게 발견하게 한다.
+ */
+export function collectConfigWarnings(): string[] {
+  const w: string[] = [];
+  if (!env.useMockData && !apiBaseUrl) {
+    w.push('실서버 모드지만 EXPO_PUBLIC_API_BASE_URL 이 비어 있습니다.');
+  }
+  if (apiBaseUrl && !/^https?:\/\//i.test(apiBaseUrl)) {
+    w.push(`API 주소가 http(s):// 로 시작하지 않습니다: "${apiBaseUrl}"`);
+  }
+  if (apiBaseUrl.endsWith('/')) {
+    w.push('API 주소 끝에 "/" 가 있으면 경로가 "//api/..." 로 중복됩니다. 끝 슬래시를 제거하세요.');
+  }
+  if (env.apiTimeoutMs < 3_000) {
+    w.push(`요청 타임아웃(${env.apiTimeoutMs}ms)이 너무 짧습니다(권장 ≥ 3000ms).`);
+  }
+  return w;
+}
+
+if (__DEV__) {
+  const warnings = collectConfigWarnings();
+  if (warnings.length > 0) {
+    // 개발 중에만 노출 — 오설정을 빌드 전에 잡아낸다.
+    console.warn('[env] 환경설정 점검 필요:\n· ' + warnings.join('\n· '));
+  }
+}
