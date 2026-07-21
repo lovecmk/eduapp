@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { View, Text, ScrollView, Pressable, StyleSheet, ActivityIndicator, type NativeSyntheticEvent, type NativeScrollEvent } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -31,10 +31,12 @@ export default function CommunityScreen() {
   const router = useRouter();
   const questions = useQnaStore((s) => s.questions);
   const collectionEnabled = useSettingsStore((s) => s.collectionEnabled);
-  const { data: liveData, isLoading: liveLoading } = useCommunity();
+  const { data: liveData, isLoading: liveLoading, refetch } = useCommunity();
   const [composeOpen, setComposeOpen] = useState(false);
   // 회전 창(window)의 시작 오프셋 — 30초마다 앞으로 밀며 질문을 순환 노출.
   const [offset, setOffset] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+  const refreshLockRef = useRef(false);
 
   // 내가 올린 질문은 항상 상단 고정, 나머지(시드 풀)는 회전 대상.
   const mine = useMemo(() => questions.filter((q) => q.mine), [questions]);
@@ -58,9 +60,24 @@ export default function CommunityScreen() {
 
   const visibleQuestions = useMemo(() => [...mine, ...rotated].slice(0, QNA_WINDOW), [mine, rotated]);
 
+  // 하단까지 스크롤하면 새로고침 — 질문 묶음을 앞으로 밀고 라이브 데이터를 재요청.
+  const onRefresh = useCallback(async () => {
+    if (refreshLockRef.current) return;
+    refreshLockRef.current = true;
+    setRefreshing(true);
+    setOffset((o) => (pool.length ? (o + QNA_WINDOW) % pool.length : o));
+    try { await refetch(); } catch { /* 무시 */ }
+    setTimeout(() => { setRefreshing(false); refreshLockRef.current = false; }, 700);
+  }, [pool.length, refetch]);
+
+  const onScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
+    if (contentOffset.y + layoutMeasurement.height >= contentSize.height - 28) onRefresh();
+  }, [onRefresh]);
+
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 36 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 36 }} showsVerticalScrollIndicator={false} onScroll={onScroll} scrollEventThrottle={16}>
         {/* 함께 학습 — 실시간 데이터가 도착하기 전엔 스켈레톤으로 자리를 지킨다 */}
         {liveLoading && !liveData ? (
           <CommunitySkeleton />
@@ -103,6 +120,21 @@ export default function CommunityScreen() {
             30초마다 새로운 질문이 올라와요 · 전체 {questions.length}개
           </Text>
         )}
+
+        {/* 하단 새로고침 표시 */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 18 }}>
+          {refreshing ? (
+            <>
+              <ActivityIndicator size="small" color={c.primary} />
+              <Text style={{ color: c.textSecondary, fontSize: 12, fontFamily: fontBody }}>새로고침 중...</Text>
+            </>
+          ) : (
+            <>
+              <Ionicons name="chevron-up" size={13} color={c.textSecondary} />
+              <Text style={{ color: c.textSecondary, fontSize: 12, fontFamily: fontBody }}>맨 아래까지 내리면 새로고침돼요</Text>
+            </>
+          )}
+        </View>
       </ScrollView>
 
       <QuestionComposeModal visible={composeOpen} onClose={() => setComposeOpen(false)} onCreated={(id) => router.push(ROUTES.qna(id) as never)} />

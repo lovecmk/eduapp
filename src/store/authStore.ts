@@ -11,6 +11,7 @@ interface AuthState {
   bootstrapped: boolean;
   error: string | null;
   login: (id: string, password: string) => Promise<boolean>;
+  socialLogin: (name: string, email: string) => Promise<boolean>;
   logout: () => Promise<void>;
   restore: () => Promise<void>;
   register: (input: SignupInput) => Promise<boolean>;
@@ -35,6 +36,18 @@ export const useAuthStore = create<AuthState>((set) => ({
       return true;
     } catch (e) {
       set({ error: e instanceof Error ? e.message : '로그인에 실패했습니다', loading: false });
+      return false;
+    }
+  },
+
+  socialLogin: async (name, email) => {
+    set({ loading: true, error: null });
+    try {
+      const session = await authRepository.socialLogin(name, email);
+      set({ user: session.user, loading: false });
+      return true;
+    } catch (e) {
+      set({ error: e instanceof Error ? e.message : '간편 로그인에 실패했습니다', loading: false });
       return false;
     }
   },

@@ -29,6 +29,8 @@ export interface ProfileUpdateInput {
 
 export interface IAuthRepository {
   login(id: string, password: string): Promise<AuthSession>;
+  /** 소셜 간편 로그인(데모) — 지정한 이름/이메일 계정으로 로그인(없으면 생성). */
+  socialLogin(name: string, email: string): Promise<AuthSession>;
   logout(): Promise<void>;
   /** 저장된 토큰으로 세션 복구 (스플래시/생체인증 후) */
   restore(): Promise<User | null>;

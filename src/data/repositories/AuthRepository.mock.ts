@@ -37,6 +37,29 @@ export class MockAuthRepository implements IAuthRepository {
     return this.persistSession(account.user);
   }
 
+  async socialLogin(name: string, email: string): Promise<AuthSession> {
+    await delay(350);
+    // 이름으로 기존 계정을 찾고, 없으면 데모 계정을 즉석에서 만든다.
+    let account = await mockUserDb.find(name);
+    if (!account) {
+      const user: User = {
+        id: `u-${Date.now()}`,
+        loginId: name,
+        name,
+        nickname: name,
+        email,
+        org: '안전관리본부',
+        jobTitle: undefined,
+        membership: 'premium',
+        createdAt: new Date(),
+        isActive: true,
+      };
+      await mockUserDb.create({ username: name, password: `social-${Math.random().toString(36).slice(2)}`, user });
+      account = { username: name, password: '', user };
+    }
+    return this.persistSession(account.user);
+  }
+
   async register(input: SignupInput): Promise<AuthSession> {
     await delay(500);
     const user: User = {

@@ -105,9 +105,9 @@ function RootContent() {
       {!ready && (
         // 부팅 스플래시 — 화면 정중앙에 로고·앱 이름·로딩 표시를 세로로 배치한 브랜드 로딩 화면.
         // 로딩이 끝나면 통째로 페이드아웃되며 앱으로 넘어간다.
-        <Animated.View style={{ position: 'absolute', inset: 0, alignItems: 'center', justifyContent: 'center', zIndex: 999, opacity, backgroundColor: theme.colors.bg }}>
-          {/* 네이티브 스플래시(splash-icon.png = KFPA 로고)에서 그대로 이어지도록, 카드 박스 없이
-              동일한 KFPA 로고 이미지만 화면 중앙에 두어 '하나의 로고가 잠깐 떴다 사라지는' 인상을 준다. */}
+        <Animated.View style={{ position: 'absolute', inset: 0, alignItems: 'center', justifyContent: 'center', zIndex: 999, opacity, backgroundColor: '#FFFFFF' }}>
+          {/* 네이티브 스플래시(흰 배경 + splash-icon.png = KFPA 로고)에서 그대로 이어지도록,
+              라이트/다크 무관하게 동일한 흰 배경 + KFPA 로고로 고정해 '하나의 인트로'가 되게 한다. */}
           <Animated.View style={{ alignItems: 'center', transform: [{ scale: logoScale }] }}>
             <Image
               source={require('../assets/splash-icon.png')}
@@ -115,8 +115,8 @@ function RootContent() {
               contentFit="contain"
               transition={0}
             />
-            <Text style={{ color: theme.colors.textPrimary, fontSize: 22, marginTop: 4, letterSpacing: 1, fontFamily: fontDisplay }}>현장학습</Text>
-            <Text style={{ color: theme.colors.textSecondary, fontSize: 13, marginTop: 6, fontFamily: fontBody }}>현장 안전학습, 매일 3분</Text>
+            <Text style={{ color: '#1F2937', fontSize: 22, marginTop: 4, letterSpacing: 1, fontFamily: fontDisplay }}>현장학습</Text>
+            <Text style={{ color: '#6B7280', fontSize: 13, marginTop: 6, fontFamily: fontBody }}>현장 안전학습, 매일 3분</Text>
           </Animated.View>
         </Animated.View>
       )}

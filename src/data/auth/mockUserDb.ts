@@ -123,14 +123,18 @@ export const mockUserDb = {
     return updated;
   },
 
+  /** 아이디 또는 가입 이메일이 일치하는 계정의 비밀번호를 재설정.
+   *  (username/email 두 인자에 같은 식별자를 넘기면 아이디·이메일 중 하나만 맞아도 됨) */
   async updatePassword(username: string, email: string, newPassword: string): Promise<void> {
     const all = await readAll();
+    const uid = username.trim().toLowerCase();
+    const eid = email.trim().toLowerCase();
     const idx = all.findIndex(
       (a) =>
-        a.username.toLowerCase() === username.trim().toLowerCase() &&
-        a.user.email.toLowerCase() === email.trim().toLowerCase(),
+        (!!uid && a.username.toLowerCase() === uid) ||
+        (!!eid && a.user.email.toLowerCase() === eid),
     );
-    if (idx === -1) throw new Error('아이디와 이메일이 일치하는 계정을 찾을 수 없습니다');
+    if (idx === -1) throw new Error('일치하는 계정을 찾을 수 없습니다 (아이디 또는 가입 이메일 확인)');
     all[idx] = { ...all[idx], password: newPassword };
     await writeAll(all);
   },

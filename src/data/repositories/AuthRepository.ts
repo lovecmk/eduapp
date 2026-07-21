@@ -17,6 +17,17 @@ export class AuthRepository implements IAuthRepository {
     };
   }
 
+  async socialLogin(name: string, email: string): Promise<AuthSession> {
+    const dto = await apiClient.post<AuthResultDTO>('/api/auth/social', { name, email });
+    await secureStorage.setItem(StorageKeys.accessToken, dto.access_token);
+    await secureStorage.setItem(StorageKeys.refreshToken, dto.refresh_token);
+    return {
+      user: UserMapper.toDomain(dto.user),
+      accessToken: dto.access_token,
+      refreshToken: dto.refresh_token,
+    };
+  }
+
   async register(input: SignupInput): Promise<AuthSession> {
     const dto = await apiClient.post<AuthResultDTO>('/api/auth/register', input);
     await secureStorage.setItem(StorageKeys.accessToken, dto.access_token);

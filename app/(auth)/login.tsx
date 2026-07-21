@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, KeyboardAvoidingView, Platform, ScrollView, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../../src/components/ui/Button';
 import { TextField } from '../../src/components/ui/TextField';
 import { SocialButtonRow } from '../../src/components/ui/SocialButton';
@@ -21,7 +20,7 @@ export default function LoginScreen() {
   const [pw, setPw] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
   const [bioAvailable, setBioAvailable] = useState(false);
-  const { login, loading, error: authError, clearError } = useAuthStore();
+  const { login, socialLogin, loading, error: authError, clearError } = useAuthStore();
 
   useEffect(() => { isBiometricAvailable().then(setBioAvailable); }, []);
 
@@ -29,6 +28,19 @@ export default function LoginScreen() {
     if (!id.trim() || !pw.trim()) { setFormError('아이디와 비밀번호를 모두 입력해주세요'); return; }
     setFormError(null); clearError();
     const ok = await login(id.trim(), pw);
+    if (ok) router.replace(ROUTES.home);
+  };
+
+  // 간편 로그인 — 데모: 카카오 → 원진섭, 애플 → 이용재 계정으로 로그인.
+  const SOCIAL_ACCOUNT: Record<string, { name: string; email: string }> = {
+    kakao: { name: '원진섭', email: 'won@example.com' },
+    apple: { name: '이용재', email: 'lee@example.com' },
+  };
+  const onSocial = async (key: string) => {
+    const acc = SOCIAL_ACCOUNT[key];
+    if (!acc) { setFormError('준비 중인 로그인 방식이에요'); return; }
+    setFormError(null); clearError();
+    const ok = await socialLogin(acc.name, acc.email);
     if (ok) router.replace(ROUTES.home);
   };
 
@@ -84,12 +96,6 @@ export default function LoginScreen() {
             </Pressable>
           </View>
 
-          {/* 데모 계정 안내 — 실서버 연동 전 시연/회의용 */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 16, backgroundColor: c.surfaceAlt, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 12 }}>
-            <Ionicons name="information-circle-outline" size={14} color={c.textSecondary} />
-            <Text style={{ color: c.textSecondary, fontSize: 11.5 * fs, fontFamily: fontBody }}>데모 계정 · 원진섭 / demo1234</Text>
-          </View>
-
           {bioAvailable && (
             <View style={{ marginTop: 16 }}>
               <Button label="생체인증으로 로그인" variant="outline" onPress={onBiometric} />
@@ -102,7 +108,7 @@ export default function LoginScreen() {
             <Text style={{ marginHorizontal: 14, color: c.textSecondary, fontSize: 12, fontFamily: fontBody }}>간편 로그인</Text>
             <View style={{ flex: 1, height: 1, backgroundColor: c.border }} />
           </View>
-          <SocialButtonRow />
+          <SocialButtonRow onPress={onSocial} />
 
           {/* <Text style={{ textAlign: 'center', color: c.textSecondary, fontSize: 11, marginTop: 22, fontFamily: fontBody }}>
             Bridge와 동일한 계정을 사용합니다

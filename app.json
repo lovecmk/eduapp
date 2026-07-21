@@ -26,7 +26,7 @@
       "dark": {
         "image": "./assets/splash-icon.png",
         "resizeMode": "contain",
-        "backgroundColor": "#0B0D12"
+        "backgroundColor": "#FFFFFF"
       }
     },
     "ios": {
@@ -67,7 +67,7 @@
           "dark": {
             "image": "./assets/splash-icon.png",
             "resizeMode": "contain",
-            "backgroundColor": "#0B0D12"
+            "backgroundColor": "#FFFFFF"
           }
         }
       ],

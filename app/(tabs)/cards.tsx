@@ -156,8 +156,17 @@ export default function CardsScreen() {
   const sessionKey = isFocusMode ? `focus:${focusId}` : isCategoryMode ? `category:${category}` : 'today';
 
   useEffect(() => {
-    // 카테고리 전환·단일카드 진입 등으로 세션 대상이 바뀌면 덱을 다시 뽑는다.
+    // 세션 대상(오늘 학습 / 카테고리 복습 / 단일 카드)이 바뀌면 덱뿐 아니라 진행 상태를
+    // 전부 초기화한다. 그렇지 않으면 오늘 학습을 마친 뒤(복습 목록에서) 복습에 진입할 때
+    // 이전 세션의 '완료' 상태가 남아 학습완료 화면이 먼저 떴다가 넘어가는 버그가 있었다.
     setSessionDeck(null);
+    setFinished(false);
+    setIndex(0);
+    setDoneCount(0);
+    setFlipped(false);
+    setQuizPick(null);
+    setQuizRevealed(false);
+    setExiting(false);
   }, [sessionKey]);
 
   useEffect(() => {
@@ -172,7 +181,7 @@ export default function CardsScreen() {
   const hasReported = useReportStore((s) => (card ? s.reports.some((r) => r.cardId === card.id) : false));
 
   const keepScreenOn = useSettingsStore((s) => s.keepScreenOn);
-  const flexPromptEnabled = useSettingsStore((s) => s.flexPromptEnabled);
+  // const flexPromptEnabled = useSettingsStore((s) => s.flexPromptEnabled); // 학습완료 플렉스 CTA 비활성화로 미사용
   const toggleKeepScreenOn = useSettingsStore((s) => s.toggleKeepScreenOn);
 
   const resetCardAnims = useCallback(() => {
@@ -439,7 +448,7 @@ export default function CardsScreen() {
           <Animated.View style={{ width: barWidth, height: '100%', backgroundColor: c.primary, borderRadius: 2 }} />
         </View>
         <Text style={{ color: c.textSecondary, fontSize: 12 * fs, fontFamily: fontCute }}>{isFocusMode ? '컨텐츠로 돌아가는 중...' : isCategoryMode ? '복습 목록으로 이동 중...' : '통계 화면으로 이동 중...'}</Text>
-        {/* 목표 달성 순간의 '플렉스(자랑) 유도' — 설정에서 끌 수 있다. */}
+        {/* 목표 달성 순간의 '플렉스(자랑) 유도' — 요청에 따라 우선 비활성화(주석처리).
         {!isFocusMode && flexPromptEnabled && (
           <>
             <Text style={{ color: c.textSecondary, fontSize: 12.5 * fs, fontFamily: fontCute, marginTop: 22, marginBottom: -4 }}>오늘의 목표 달성! 성취를 자랑해볼까요?</Text>
@@ -452,6 +461,7 @@ export default function CardsScreen() {
             </Pressable>
           </>
         )}
+        */}
         <View style={{ marginTop: 12 }}>
           <Button label="다시 학습하기" variant="outline" onPress={restart} />
         </View>

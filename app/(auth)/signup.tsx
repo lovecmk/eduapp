@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, ScrollView, KeyboardAvoidingView, Platform, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -36,10 +36,36 @@ export default function SignupScreen() {
   const [usernameState, setUsernameState] = useState<CheckState>('idle');
   const [nicknameState, setNicknameState] = useState<CheckState>('idle');
   const [formHint, setFormHint] = useState<string | null>(null);
+  // 이메일 인증코드(데모) — 실서버 연동 시 발송/검증을 API로 대체.
+  const [sentCode, setSentCode] = useState<string | null>(null);
+  const [codeInput, setCodeInput] = useState('');
+  const [emailVerified, setEmailVerified] = useState(false);
+  const [codeError, setCodeError] = useState<string | null>(null);
 
   const clearField = (key: keyof Errors) => {
     if (errors[key]) setErrors((e) => ({ ...e, [key]: undefined }));
     if (authError) clearError();
+  };
+
+  const onEmailChange = (t: string) => {
+    setEmail(t);
+    clearField('email');
+    // 이메일을 바꾸면 이전 인증은 무효화.
+    if (sentCode || emailVerified) { setSentCode(null); setEmailVerified(false); setCodeInput(''); setCodeError(null); }
+  };
+
+  const sendCode = () => {
+    if (!EMAIL_RE.test(email.trim())) { setErrors((e) => ({ ...e, email: '올바른 이메일 형식이 아닙니다' })); return; }
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    setSentCode(code);
+    setCodeInput('');
+    setCodeError(null);
+    setEmailVerified(false);
+  };
+
+  const verifyCode = () => {
+    if (codeInput.trim() === sentCode) { setEmailVerified(true); setCodeError(null); }
+    else setCodeError('인증코드가 일치하지 않습니다');
   };
 
   const validateUsername = (v: string) =>
@@ -62,6 +88,10 @@ export default function SignupScreen() {
     }
     if (nicknameState !== 'available') {
       setFormHint('닉네임 중복확인을 완료해주세요');
+      return;
+    }
+    if (!emailVerified) {
+      setFormHint('이메일 인증을 완료해주세요');
       return;
     }
     if (Object.keys(next).length > 0) return;
@@ -113,8 +143,44 @@ export default function SignupScreen() {
           />
           <TextField label="이름" value={name} onChangeText={(t) => { setName(t); clearField('name'); }} placeholder="이름을 입력하세요"
             status={errors.name ? 'error' : 'default'} helperText={errors.name} />
-          <TextField label="이메일" value={email} onChangeText={(t) => { setEmail(t); clearField('email'); }} placeholder="이메일을 입력하세요" autoCapitalize="none" keyboardType="email-address"
+          <TextField label="이메일" value={email} onChangeText={onEmailChange} placeholder="이메일을 입력하세요" autoCapitalize="none" keyboardType="email-address"
+            editable={!emailVerified}
             status={errors.email ? 'error' : 'default'} helperText={errors.email} />
+
+          {/* 이메일 인증 */}
+          {emailVerified ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: -4, marginBottom: 12 }}>
+              <Ionicons name="checkmark-circle" size={16} color={c.success} />
+              <Text style={{ color: c.success, fontSize: 12.5 * fs, fontFamily: fontBody }}>이메일 인증이 완료되었어요</Text>
+            </View>
+          ) : (
+            <View style={{ marginTop: -4, marginBottom: 12 }}>
+              <Pressable onPress={sendCode}
+                style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: c.primary + '14', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 }}>
+                <Ionicons name="mail-outline" size={14} color={c.primary} />
+                <Text style={{ color: c.primary, fontSize: 12.5 * fs, fontFamily: fontDisplay }}>{sentCode ? '인증코드 재발송' : '인증코드 발송'}</Text>
+              </Pressable>
+              {sentCode && (
+                <>
+                  {/* 데모: 실제 메일 발송 대신 코드를 화면에 노출(실서버 연동 시 제거). */}
+                  <Text style={{ color: c.textSecondary, fontSize: 11.5 * fs, fontFamily: fontBody, marginTop: 6 }}>
+                    데모용 인증코드: <Text style={{ color: c.textPrimary, fontWeight: '700' }}>{sentCode}</Text> · 실서버에선 이메일로 발송돼요
+                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginTop: 6 }}>
+                    <View style={{ flex: 1 }}>
+                      <TextField label="인증코드" value={codeInput} onChangeText={(t) => { setCodeInput(t); setCodeError(null); }} placeholder="6자리 코드" keyboardType="number-pad"
+                        status={codeError ? 'error' : 'default'} helperText={codeError ?? undefined} />
+                    </View>
+                    <Pressable onPress={verifyCode}
+                      style={{ marginTop: 28, backgroundColor: c.primary, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 13 }}>
+                      <Text style={{ color: '#fff', fontSize: 13 * fs, fontFamily: fontDisplay }}>확인</Text>
+                    </Pressable>
+                  </View>
+                </>
+              )}
+            </View>
+          )}
+
           <TextField label="소속 (선택)" value={org} onChangeText={setOrg} placeholder="예) 안전관리본부" />
           <TextField label="비밀번호" value={pw} onChangeText={(t) => { setPw(t); clearField('pw'); }} secureTextEntry placeholder="4자 이상"
             status={errors.pw ? 'error' : 'default'} helperText={errors.pw} />

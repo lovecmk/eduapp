@@ -10,9 +10,7 @@ import { useTheme } from '../../src/theme/ThemeProvider';
 import { useAuthStore } from '../../src/store/authStore';
 import { fontBody, fontDisplay } from '../../src/theme/tokens';
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-type Errors = { username?: string; email?: string; pw?: string; pw2?: string };
+type Errors = { identifier?: string; pw?: string; pw2?: string };
 
 export default function FindPwScreen() {
   const { theme, fontScale: fs } = useTheme();
@@ -20,8 +18,7 @@ export default function FindPwScreen() {
   const router = useRouter();
   const { resetPassword, loading, error: authError, clearError } = useAuthStore();
 
-  const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [pw, setPw] = useState('');
   const [pw2, setPw2] = useState('');
   const [errors, setErrors] = useState<Errors>({});
@@ -34,14 +31,14 @@ export default function FindPwScreen() {
 
   const onSubmit = async () => {
     const next: Errors = {};
-    if (!username.trim()) next.username = '아이디를 입력해주세요';
-    if (!EMAIL_RE.test(email.trim())) next.email = '올바른 이메일 형식이 아닙니다';
+    if (!identifier.trim()) next.identifier = '아이디 또는 가입 이메일을 입력해주세요';
     if (pw.length < 4) next.pw = '비밀번호는 4자 이상이어야 합니다';
     if (pw !== pw2) next.pw2 = '비밀번호가 일치하지 않습니다';
     setErrors(next);
     if (Object.keys(next).length > 0) return;
 
-    const ok = await resetPassword(username.trim(), email.trim(), pw);
+    // 아이디 또는 이메일 중 하나만 맞아도 되도록 동일 식별자를 두 인자에 전달.
+    const ok = await resetPassword(identifier.trim(), identifier.trim(), pw);
     if (ok) setDone(true);
   };
 
@@ -52,7 +49,7 @@ export default function FindPwScreen() {
           <View style={{ alignItems: 'center', marginBottom: 24 }}>
             <BridgeLogo size={64} />
             <Text style={{ color: c.textPrimary, fontSize: 22 * fs, marginTop: 12, fontFamily: fontDisplay }}>비밀번호 재설정</Text>
-            <Text style={{ color: c.textSecondary, fontSize: 13 * fs, marginTop: 6, fontFamily: fontBody, textAlign: 'center' }}>가입 시 등록한 아이디와 이메일을 확인해 새 비밀번호를 설정해요</Text>
+            <Text style={{ color: c.textSecondary, fontSize: 13 * fs, marginTop: 6, fontFamily: fontBody, textAlign: 'center' }}>가입한 아이디 또는 이메일을 확인해 새 비밀번호를 설정해요</Text>
           </View>
 
           {done ? (
@@ -70,10 +67,8 @@ export default function FindPwScreen() {
             </View>
           ) : (
             <>
-              <TextField label="아이디" value={username} onChangeText={(t) => { setUsername(t); clearField('username'); }} placeholder="가입한 아이디" autoCapitalize="none"
-                status={errors.username ? 'error' : 'default'} helperText={errors.username} />
-              <TextField label="가입 이메일" value={email} onChangeText={(t) => { setEmail(t); clearField('email'); }} placeholder="가입한 이메일" autoCapitalize="none" keyboardType="email-address"
-                status={errors.email ? 'error' : 'default'} helperText={errors.email} />
+              <TextField label="아이디 또는 가입 이메일" value={identifier} onChangeText={(t) => { setIdentifier(t); clearField('identifier'); }} placeholder="아이디 또는 이메일을 입력하세요" autoCapitalize="none"
+                status={errors.identifier ? 'error' : 'default'} helperText={errors.identifier} />
               <TextField label="새 비밀번호" value={pw} onChangeText={(t) => { setPw(t); clearField('pw'); }} secureTextEntry placeholder="4자 이상"
                 status={errors.pw ? 'error' : 'default'} helperText={errors.pw} />
               <TextField label="새 비밀번호 확인" value={pw2} onChangeText={(t) => { setPw2(t); clearField('pw2'); }} secureTextEntry placeholder="새 비밀번호를 다시 입력하세요"

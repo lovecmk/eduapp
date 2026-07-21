@@ -10,7 +10,7 @@ const SOCIALS = [
   { key: 'apple', icon: 'logo-apple' as const, color: '#000' },
 ];
 
-export function SocialButtonRow() {
+export function SocialButtonRow({ onPress }: { onPress?: (key: string) => void }) {
   const { theme, isDark } = useTheme();
   const c = theme.colors;
 
@@ -19,6 +19,9 @@ export function SocialButtonRow() {
       {SOCIALS.map((s) => (
         <Pressable
           key={s.key}
+          onPress={() => onPress?.(s.key)}
+          accessibilityRole="button"
+          accessibilityLabel={`${s.key} 간편 로그인`}
           style={{
             width: 52, height: 52, borderRadius: 26,
             backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : '#F2F5FA',
