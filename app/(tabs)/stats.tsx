@@ -21,6 +21,10 @@ import { calcEmblems, emblemRankingMock, EMBLEM_DEFS, type EmblemProgress } from
 import { useAllCards } from '../../src/hooks/useCards';
 import { useStudyStats } from '../../src/hooks/useStats';
 import type { LearningInsights } from '../../src/domain/models/StudyStats';
+import { useDailyQuota } from '../../src/hooks/useDailyQuota';
+import { useCommunity } from '../../src/hooks/useCommunity';
+import { useFactionStore } from '../../src/store/factionStore';
+import { FACTIONS, getFaction, factionStandings, type FactionId } from '../../src/constants/factions';
 
 function StatTile({ icon, color, value, label }: { icon: keyof typeof Ionicons.glyphMap; color: string; value: string; label: string }) {
   const { theme, fontScale } = useTheme();
@@ -97,6 +101,117 @@ function InsightsCard({ insights: ins }: { insights: LearningInsights }) {
         {ins.weakCategory ? chip('barbell', getCategoryColor(ins.weakCategory) ?? c.warning, '보강 필요 · 정답률', `${ins.weakCategory} ${Math.round(ins.weakCategoryAccuracy)}%`) : null}
       </View>
     </Card>
+  );
+}
+
+/** 오늘의 학습(하루 신규 5장 상한) — 변경된 학습 시스템을 통계에 반영. */
+function DailyLearningCard({ streakDays }: { streakDays: number }) {
+  const { theme, fontScale } = useTheme();
+  const c = theme.colors;
+  const fs = fontScale;
+  const quota = useDailyQuota();
+  const pct = quota.limit > 0 ? Math.round((quota.used / quota.limit) * 100) : 0;
+  const done = !quota.canLearn;
+  const barColor = done ? c.success : c.primary;
+  return (
+    <Card style={{ marginBottom: 20 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Ionicons name={done ? 'checkmark-done' : 'school'} size={16} color={barColor} />
+          <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontWeight: '700', fontFamily: fontCute }}>오늘의 학습</Text>
+        </View>
+        <Text style={{ color: barColor, fontSize: 18 * fs, fontWeight: '900', fontFamily: fontMono }}>
+          {quota.used}<Text style={{ color: c.textSecondary, fontSize: 13 * fs }}> / {quota.limit}장</Text>
+        </Text>
+      </View>
+      <View style={{ height: 10, backgroundColor: c.surfaceAlt, borderRadius: 5, overflow: 'hidden' }}>
+        <View style={{ width: `${Math.max(3, pct)}%`, height: '100%', backgroundColor: barColor, borderRadius: 5 }} />
+      </View>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
+        <Text style={{ color: c.textSecondary, fontSize: 11.5, fontFamily: fontBody }}>
+          {done ? '오늘 신규 학습을 모두 마쳤어요 · 복습으로 이어가요' : `오늘 ${quota.remaining}장 더 학습할 수 있어요`}
+        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+          <Ionicons name="flame" size={12} color={c.warning} />
+          <Text style={{ color: c.textSecondary, fontSize: 11, fontFamily: fontMono }}>{streakDays}일 연속</Text>
+        </View>
+      </View>
+    </Card>
+  );
+}
+
+/** 내 진영 · 안전 빌딩 대항전 요약 — 진영을 눌러 커뮤니티의 상세 기여로 이동. */
+function MyFactionCard() {
+  const { theme, fontScale } = useTheme();
+  const c = theme.colors;
+  const fs = fontScale;
+  const router = useRouter();
+  const factionId = useFactionStore((s) => s.faction);
+  const myFaction = getFaction(factionId);
+  const { data: community } = useCommunity();
+
+  if (!myFaction) {
+    return (
+      <Pressable onPress={() => router.push(ROUTES.factionSelect as never)}
+        style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 16, padding: 16, marginBottom: 20 }}>
+        <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: c.primary + '18', alignItems: 'center', justifyContent: 'center' }}>
+          <Ionicons name="flag" size={20} color={c.primary} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={{ color: c.textPrimary, fontSize: 14 * fs, fontWeight: '800', fontFamily: fontCute }}>진영을 선택해요</Text>
+          <Text style={{ color: c.textSecondary, fontSize: 12 * fs, fontFamily: fontBody, marginTop: 2 }}>진영에 들어가 함께 안전 빌딩을 올려요</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={20} color={c.textSecondary} />
+      </Pressable>
+    );
+  }
+
+  // 이번 달 진영 대항전 순위에서 내 진영의 위치·기여를 계산.
+  let myFloors = 0, myProblems = 0, myRank = 0, totalFloors = 0;
+  if (community?.building) {
+    const { current, floorSize } = community.building;
+    const seed = current.month.split('').reduce((a, ch) => a + ch.charCodeAt(0), 0);
+    const standings = factionStandings(current.problems, floorSize, seed);
+    const idx = standings.findIndex((s) => s.id === factionId);
+    if (idx >= 0) { myFloors = standings[idx].floors; myProblems = standings[idx].problems; myRank = idx + 1; }
+    totalFloors = standings.reduce((a, s) => a + s.floors, 0);
+  }
+  const rankLabel = myRank === 1 ? '🏆 선두' : myRank > 0 ? `${myRank}위` : '집계 중';
+
+  return (
+    <Pressable onPress={() => router.push(ROUTES.community as never)}
+      style={{ backgroundColor: c.surface, borderWidth: 1, borderColor: myFaction.color + '55', borderRadius: 16, padding: 16, marginBottom: 20 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+        <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: myFaction.color + '1A', alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ fontSize: 20 }}>{myFaction.emoji}</Text>
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={{ color: c.textPrimary, fontSize: 14.5 * fs, fontWeight: '800', fontFamily: fontCute }}>{myFaction.name} · {myFaction.emblem}</Text>
+          <Text style={{ color: c.textSecondary, fontSize: 11.5 * fs, fontFamily: fontBody, marginTop: 1 }} numberOfLines={1}>{myFaction.tagline}</Text>
+        </View>
+        <View style={{ backgroundColor: myFaction.color + '18', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 }}>
+          <Text style={{ color: myFaction.color, fontSize: 12 * fs, fontWeight: '900', fontFamily: fontMono }}>{rankLabel}</Text>
+        </View>
+      </View>
+      <View style={{ flexDirection: 'row', gap: 8 }}>
+        <View style={{ flex: 1, backgroundColor: c.surfaceAlt, borderRadius: 12, paddingVertical: 10, alignItems: 'center' }}>
+          <Text style={{ color: myFaction.color, fontSize: 16 * fs, fontWeight: '900', fontFamily: fontMono }}>{myFloors}층</Text>
+          <Text style={{ color: c.textSecondary, fontSize: 10.5, fontFamily: fontBody, marginTop: 2 }}>우리 진영 층수</Text>
+        </View>
+        <View style={{ flex: 1, backgroundColor: c.surfaceAlt, borderRadius: 12, paddingVertical: 10, alignItems: 'center' }}>
+          <Text style={{ color: myFaction.color, fontSize: 16 * fs, fontWeight: '900', fontFamily: fontMono }}>{myProblems.toLocaleString()}</Text>
+          <Text style={{ color: c.textSecondary, fontSize: 10.5, fontFamily: fontBody, marginTop: 2 }}>기여 문제</Text>
+        </View>
+        <View style={{ flex: 1, backgroundColor: c.surfaceAlt, borderRadius: 12, paddingVertical: 10, alignItems: 'center' }}>
+          <Text style={{ color: myFaction.color, fontSize: 16 * fs, fontWeight: '900', fontFamily: fontMono }}>{totalFloors}층</Text>
+          <Text style={{ color: c.textSecondary, fontSize: 10.5, fontFamily: fontBody, marginTop: 2 }}>세 진영 합계</Text>
+        </View>
+      </View>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, marginTop: 12 }}>
+        <Text style={{ color: myFaction.color, fontSize: 12 * fs, fontFamily: fontCute }}>안전 빌딩 대항전 자세히 보기</Text>
+        <Ionicons name="chevron-forward" size={14} color={myFaction.color} />
+      </View>
+    </Pressable>
   );
 }
 
@@ -192,6 +307,12 @@ export default function StatsScreen() {
           <StatTile icon="flame" color={c.warning} value={`${stats?.streakDays ?? 0}일`} label="연속 학습" />
           <StatTile icon="trophy" color="#F2705B" value={`${stats?.bestStreak ?? 0}일`} label="최고 기록" />
         </View>
+
+        {/* 오늘의 학습(하루 신규 5장 상한) — 변경된 학습 시스템 반영 */}
+        <DailyLearningCard streakDays={stats?.streakDays ?? 0} />
+
+        {/* 내 진영 · 함께 짓는 안전 빌딩 대항전 요약 */}
+        <MyFactionCard />
 
         {/* 성취 카드 자랑하기 — 스포티파이 랩드 스타일 카드로 커뮤니티에 공유 */}
         <Pressable onPress={() => router.push(ROUTES.share as never)}

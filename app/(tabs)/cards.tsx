@@ -464,7 +464,35 @@ export default function CardsScreen() {
     );
   }
 
-  if (!card || finished) {
+  // 학습할 카드가 하나도 없는 경우 — '완료'가 아니라 '지금 학습할 것이 없음' 안내.
+  // (한 장도 넘기지 않았는데 아래의 '학습 완료!' 축하 화면이 뜨던 버그 방지:
+  //  finished 는 카드를 한 장이라도 마쳐야 true 가 되므로, 그 전의 빈 덱은 '완료'가 아니다.)
+  if (!card && !finished) {
+    const emptyTitle = isFocusMode ? '카드를 찾을 수 없어요' : isCategoryMode ? '복습할 카드가 없어요' : '지금 학습할 카드가 없어요';
+    const emptyBody = isFocusMode
+      ? '이 카드를 불러올 수 없어요. 이전 화면으로 돌아가 주세요.'
+      : isCategoryMode
+        ? '이 카테고리에는 아직 학습할 카드가 없어요.'
+        : '새로 학습할 카드를 모두 마쳤어요. 복습에서 배운 내용을 다져보세요.';
+    return (
+      <View style={{ flex: 1, backgroundColor: c.bg, alignItems: 'center', justifyContent: 'center', padding: 28 }}>
+        <View style={{ width: 84, height: 84, borderRadius: 42, backgroundColor: c.primary + '14', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+          <Ionicons name="book-outline" size={42} color={c.primary} />
+        </View>
+        <Text style={{ color: c.textPrimary, fontSize: 22 * fs, fontWeight: '800', fontFamily: fontCute }}>{emptyTitle}</Text>
+        <Text style={{ color: c.textSecondary, marginTop: 8, textAlign: 'center', lineHeight: 21 * fs, fontFamily: fontCute }}>{emptyBody}</Text>
+        <Pressable
+          onPress={() => router.replace((returnTo ?? (isFocusMode ? ROUTES.contents : ROUTES.review)) as never)}
+          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.primary, borderRadius: 14, paddingVertical: 15, paddingHorizontal: 28, marginTop: 24, boxShadow: '0 6px 16px rgba(37,99,235,0.28)' }}
+        >
+          <Ionicons name={isFocusMode ? 'arrow-back' : 'refresh'} size={18} color="#fff" />
+          <Text style={{ color: '#fff', fontSize: 15 * fs, fontWeight: '800', fontFamily: fontCute }}>{isFocusMode ? '돌아가기' : '복습하러 가기'}</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  if (finished) {
     const barWidth = progressAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] });
     return (
       <View style={{ flex: 1, backgroundColor: c.bg, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
