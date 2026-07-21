@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { CardCategory } from '../domain/models/LearningCard';
 import type { ProfileVisibility } from '../domain/models/PublicProfile';
 import { DEFAULT_VISIBILITY } from '../domain/models/PublicProfile';
+import type { AmbientThemeSetting } from '../constants/ambient';
 
 export type ThemeMode = 'light' | 'dark' | 'dim' | 'system';
 export type FontScale = 'xsmall' | 'small' | 'medium' | 'large' | 'xlarge';
@@ -48,6 +49,8 @@ interface SettingsState {
   rewardsGuideSeen: boolean;
   /** 내 프로필 공개 범위 — 다른 사용자에게 진행도를 어디까지 보여줄지. */
   profileVisibility: ProfileVisibility;
+  /** 배경 앰비언트 테마 — 흰 배경 위에 얹는 분위기 효과(자동/없음/비/눈/별 반짝/바람). */
+  ambientTheme: AmbientThemeSetting;
 
   setThemeMode: (mode: ThemeMode) => void;
   setFontScale: (scale: FontScale) => void;
@@ -73,6 +76,8 @@ interface SettingsState {
   markRewardsGuideSeen: () => void;
   /** 프로필 공개 범위의 특정 항목을 토글. */
   toggleVisibility: (key: keyof ProfileVisibility) => void;
+  /** 배경 앰비언트 테마 선택. */
+  setAmbientTheme: (theme: AmbientThemeSetting) => void;
   /** 로컬 저장 데이터를 초기화하고 기본 설정으로 되돌린다(방어적 초기화). */
   resetAll: () => void;
 }
@@ -112,6 +117,8 @@ const DEFAULT_SETTINGS = {
   rewardsGuideSeen: false,
   // 프로필 공개 범위 기본값 — 진행도·스트릭·엠블럼 공개, 컬렉션 비공개.
   profileVisibility: DEFAULT_VISIBILITY,
+  // 배경 테마 기본값 — 자동(날씨 연동). 맑으면 아무 효과 없이 깔끔한 흰 배경.
+  ambientTheme: 'auto' as AmbientThemeSetting,
 };
 
 export const useSettingsStore = create<SettingsState>()(
@@ -142,6 +149,7 @@ export const useSettingsStore = create<SettingsState>()(
       markRewardsGuideSeen: () => set({ rewardsGuideSeen: true }),
       toggleVisibility: (key) =>
         set((s) => ({ profileVisibility: { ...s.profileVisibility, [key]: !s.profileVisibility[key] } })),
+      setAmbientTheme: (ambientTheme) => set({ ambientTheme }),
       resetAll: () => set({ ...DEFAULT_SETTINGS }),
     }),
     {

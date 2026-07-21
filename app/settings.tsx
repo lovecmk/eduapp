@@ -13,6 +13,7 @@ import { Switch } from '../src/components/ui/Switch';
 import { Button } from '../src/components/ui/Button';
 import { ScreenHeader } from '../src/components/ui/ScreenHeader';
 import { SettingsGroup, SettingsItem } from '../src/components/ui/SettingsGroup';
+import { AMBIENT_THEME_OPTIONS } from '../src/constants/ambient';
 import { MembershipCard } from '../src/components/settings/MembershipCard';
 import { NotificationPreviewToggle } from '../src/components/settings/NotificationPreviewToggle';
 import { SupportModal } from '../src/components/settings/SupportModal';
@@ -69,6 +70,7 @@ export default function SettingsScreen() {
     updateNotificationSetting, setBiometricLogin, setDailyTarget,
     toggleShuffleCards, toggleKeepScreenOn, toggleOfflineMode, togglePrioritizeWeakSpots,
     toggleDontKnowHaptic, toggleFlexPrompt, toggleAchievementBadge, toggleCollectionEnabled, resetAll,
+    ambientTheme, setAmbientTheme,
   } = useSettingsStore();
 
   const user = useAuthStore((s) => s.user);
@@ -306,6 +308,24 @@ export default function SettingsScreen() {
           </SettingsBlock>
           <SettingsBlock label="글자 크기">
             <SegmentedControl options={FONT_LABELS} selectedIndex={FONT_OPTIONS.indexOf(fontScaleSetting)} onChange={(i) => setFontScale(FONT_OPTIONS[i])} />
+          </SettingsBlock>
+          <SettingsBlock label="배경 테마">
+            <Text style={{ color: c.textSecondary, fontSize: 12.5 * fs, marginTop: -4, marginBottom: 2 }}>흰 배경 위에 은은한 분위기 효과를 얹어요(학습카드 화면은 제외).</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              {AMBIENT_THEME_OPTIONS.map((opt) => {
+                const active = ambientTheme === opt.value;
+                return (
+                  <Pressable
+                    key={opt.value}
+                    onPress={() => setAmbientTheme(opt.value)}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: active ? c.primary : c.surfaceAlt, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8, borderWidth: 1, borderColor: active ? c.primary : c.border }}
+                  >
+                    <Ionicons name={opt.icon as never} size={14} color={active ? '#fff' : c.textSecondary} />
+                    <Text style={{ color: active ? '#fff' : c.textPrimary, fontSize: 13 * fs, fontWeight: active ? '800' : '600', fontFamily: fontCute }}>{opt.label}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
           </SettingsBlock>
           <SettingsItem
             icon="contrast-outline"
