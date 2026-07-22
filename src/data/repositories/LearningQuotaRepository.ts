@@ -3,6 +3,7 @@ import type { LearningQuota } from '../../domain/models/LearningQuota';
 import { DAILY_NEW_LIMIT } from '../../constants/learning';
 import { apiClient } from '../network/ApiClient';
 import { useDailyLearningStore } from '../../store/dailyLearningStore';
+import { isEndpointUnavailable } from './_fallback';
 
 interface QuotaDTO {
   limit?: number;
@@ -34,6 +35,13 @@ export class LearningQuotaRepository implements ILearningQuotaRepository {
   async recordCompletion(count: number): Promise<void> {
     // 로컬을 먼저 반영(즉시 UI), 서버 보고는 뒤따른다.
     useDailyLearningStore.getState().recordNewLearned(count);
-    await apiClient.post('/api/learning/complete', { count });
+    try {
+      await apiClient.post('/api/learning/complete', { count });
+    } catch (e) {
+      // 완료 보고 엔드포인트가 아직 서버에 없으면(부분 배포) 조용히 넘어간다 —
+      // 로컬은 이미 반영됐고 목업 폴백과 결과가 같으므로 여기서 다시 목업을 태우면
+      // 오히려 이중 집계가 된다. 그 외(진짜) 오류는 그대로 던진다.
+      if (!isEndpointUnavailable(e)) throw e;
+    }
   }
 }
