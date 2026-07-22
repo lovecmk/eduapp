@@ -20,7 +20,7 @@ import { CardReportModal } from '../../src/components/cards/CardReportModal';
 import { fontCute } from '../../src/theme/tokens';
 import { getCategoryIcon } from '../../src/constants/categories';
 import { ROUTES } from '../../src/constants/routes';
-import { useTodayCards, useAllCards, useMarkCard } from '../../src/hooks/useCards';
+import { useAllCards, useMarkCard } from '../../src/hooks/useCards';
 import { useDailyQuota, recordNewLearned } from '../../src/hooks/useDailyQuota';
 import type { LearningCard } from '../../src/domain/models/LearningCard';
 import { resolveCardImage } from '../../src/data/cardImages';
@@ -37,6 +37,8 @@ import { useSrsStore } from '../../src/store/srsStore';
 const { height: SCREEN_H, width: SCREEN_W } = Dimensions.get('window');
 // 스와이프 트랙(원진섭)에서 좌우로 넘겨 분류하는 최소 이동 거리.
 const SWIPE_THRESHOLD = 90;
+// 신규 카드는 쉬운 난이도부터 보여줘 학습 부담을 낮춘다.
+const DIFFICULTY_RANK: Record<string, number> = { easy: 0, medium: 1, hard: 2 };
 
 function haptic() {
   hapticTap();
@@ -99,9 +101,11 @@ export default function CardsScreen() {
   const isCategoryMode = !!category;
   const isFocusMode = !!focusId;
 
-  const todayQuery = useTodayCards();
+  // 모든 모드가 전체 카드 풀(allQuery)에서 덱을 구성한다.
+  //  · 카테고리/단일카드: 해당 조건으로 필터
+  //  · 오늘의 학습(신규): 아직 학습하지 않은 '신규' 카드를 직접 고른다(복습 세션과 독립).
   const allQuery = useAllCards();
-  const { isLoading, error, refetch } = (isCategoryMode || isFocusMode) ? allQuery : todayQuery;
+  const { isLoading, error, refetch } = allQuery;
   const markCardMutation = useMarkCard();
 
   // 학습 옵션(설정) — 카드 순서 섞기 / 약점 우선 복습 / '모를 때' 햅틱.
@@ -128,9 +132,17 @@ export default function CardsScreen() {
     if (isCategoryMode) {
       base = (allQuery.data ?? []).filter((x) => x.category === category);
     } else {
-      const today = todayQuery.data ?? [];
-      // 오늘 남은 상한만큼만 신규 카드를 담는다(상한 소진 시 빈 덱 → '오늘 학습 완료' 안내).
-      base = today.filter((x) => x.status === 'new').slice(0, quota.remaining);
+      // 오늘의 학습 = 아직 학습하지 않은 '신규' 카드만, 하루 남은 상한(quota.remaining)까지.
+      // ⚠️ 예전엔 getTodayCards(3분 세션 패킹) 결과에서 status==='new' 만 걸러냈는데,
+      //    그 패킹은 복습(예정 도래) 카드를 먼저 채우므로 복습거리가 많은 날에는 신규 카드가
+      //    세션 예산에서 밀려 한 장도 안 담겼다. 그러면 학습을 시작도 안 했는데 '학습할 카드가
+      //    없어요'가 떠, 홈의 "N장 남았어요" 안내와 어긋났다.
+      //    오늘의 학습(신규)은 복습 세션과 독립적으로 전체 풀에서 신규 카드를 직접 고른다
+      //    (쉬운 난이도부터 → 부담을 낮춘다).
+      base = (allQuery.data ?? [])
+        .filter((x) => x.status === 'new')
+        .sort((a, b) => DIFFICULTY_RANK[a.difficulty] - DIFFICULTY_RANK[b.difficulty])
+        .slice(0, quota.remaining);
     }
 
     // 약점 우선이 켜져 있으면 자주 잊는(lapses↑)·기억 약한(box↓) 카드를 앞으로.
@@ -144,7 +156,7 @@ export default function CardsScreen() {
     }
     if (shuffleCards) return shuffle(base);
     return base;
-  }, [isFocusMode, focusId, isCategoryMode, category, allQuery.data, todayQuery.data, prioritizeWeakSpots, shuffleCards, srsCards, quota.remaining]);
+  }, [isFocusMode, focusId, isCategoryMode, category, allQuery.data, prioritizeWeakSpots, shuffleCards, srsCards, quota.remaining]);
 
   // 덱은 세션 시작 시 한 번만 확정한다.
   // 카드를 마킹하면 cards 쿼리가 무효화되어 목록이 새로 내려오는데, 그때마다 덱을 다시 계산하면
