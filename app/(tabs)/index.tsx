@@ -16,7 +16,7 @@ import { LearningCalendar } from '../../src/components/community/LearningCalenda
 import { fontMono, fontDisplay, fontBody, fontCute } from '../../src/theme/tokens';
 import { calcEmblems, getAcquiredEmblems } from '../../src/utils/emblems';
 import { useFactionStore } from '../../src/store/factionStore';
-import { computeMoment, encourageLine, type Moment } from '../../src/utils/moments';
+import { computeMoment, heroPlayfulCheer, type Moment } from '../../src/utils/moments';
 import { ROUTES } from '../../src/constants/routes';
 import { useAllCards, useTodayCards } from '../../src/hooks/useCards';
 import { useStudyStats } from '../../src/hooks/useStats';
@@ -106,8 +106,8 @@ export default function HomeScreen() {
   }, [factionHydrated, user, faction, router]);
   const totalLearned = stats?.totalLearned ?? masteredCount;
   const streakDays = stats?.streakDays ?? 0;
-  const encourage = useMemo(
-    () => encourageLine({ totalLearned, streakDays, todayDone: 0, dueToday: dueTodayCount }),
+  const cheer = useMemo(
+    () => heroPlayfulCheer({ totalLearned, streakDays, todayDone: 0, dueToday: dueTodayCount }),
     [totalLearned, streakDays, dueTodayCount],
   );
 
@@ -223,9 +223,13 @@ export default function HomeScreen() {
                 </View>
               </View>
               <Text style={{ color: 'rgba(255,255,255,0.92)', fontSize: rs(13) * fs, marginTop: 14, lineHeight: rs(19) * fs, fontFamily: fontBody }}>{greeting}</Text>
-              {/* 몰입·격려 한 줄 (알림을 꺼둬도 앱에서 챙겨주는 응원) */}
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 9, backgroundColor: 'rgba(255,255,255,0.15)', alignSelf: 'flex-start', maxWidth: '100%', borderRadius: 10, paddingHorizontal: 9, paddingVertical: 5 }}>
-                <Text style={{ color: '#fff', fontSize: rs(11.5) * fs, lineHeight: rs(16) * fs, fontFamily: fontBody, flexShrink: 1 }} numberOfLines={2}>{encourage}</Text>
+              {/* 플레이풀 응원 스티커 — 격언(명언) 톤 대신, 이모지 '스티커 배지 + 짤막한 한 줄'로
+                  가볍고 재밌게. 태그라인과 컨셉이 겹치지 않도록 게임형 진행 응원을 돌린다. */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 10, backgroundColor: 'rgba(255,255,255,0.15)', alignSelf: 'flex-start', maxWidth: '100%', borderRadius: 12, paddingLeft: 5, paddingRight: 11, paddingVertical: 5 }}>
+                <View style={{ width: rs(24), height: rs(24), borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.28)', alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ fontSize: rs(13) }}>{cheer.emoji}</Text>
+                </View>
+                <Text style={{ color: '#fff', fontSize: rs(11.5) * fs, lineHeight: rs(16) * fs, fontFamily: fontBody, flexShrink: 1 }} numberOfLines={2}>{cheer.text}</Text>
               </View>
               {acquired.length > 0 && (
                 <View style={{ flexDirection: 'row', gap: 3, marginTop: 10 }}>

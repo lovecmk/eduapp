@@ -27,6 +27,10 @@ export function TodayStudiedSection({ allCards }: { allCards: LearningCard[] }) 
   const router = useRouter();
   const history = useSrsStore((s) => s.history);
 
+  // 가로 스크롤(페이징)에서 그림자가 진하면 카드가 지나갈 때 잔상이 남는다.
+  // 기존 전역 카드 그림자(shadowBox)보다 훨씬 옅고 짧게 떨어지는 그림자로 낮춰 잔상을 줄인다.
+  const softShadow = shadowBox({ ...theme.shadow, opacity: theme.shadow.opacity * 0.5, radius: 8, offsetY: 2 });
+
   const todayCards = useMemo(() => {
     const ids = history[dateKey(new Date())] ?? [];
     if (ids.length === 0) return [] as LearningCard[];
@@ -58,7 +62,7 @@ export function TodayStudiedSection({ allCards }: { allCards: LearningCard[] }) 
       </Text>
 
       {todayCards.length === 0 ? (
-        <View style={{ backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: radius.card, padding: 18, flexDirection: 'row', alignItems: 'center', gap: 12, boxShadow: shadowBox(theme.shadow), elevation: 2 }}>
+        <View style={{ backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: radius.card, padding: 18, flexDirection: 'row', alignItems: 'center', gap: 12, boxShadow: softShadow, elevation: 1 }}>
           <View style={{ width: 42, height: 42, borderRadius: 12, backgroundColor: c.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}>
             <Ionicons name="sunny-outline" size={22} color={c.textSecondary} />
           </View>
@@ -78,7 +82,7 @@ export function TodayStudiedSection({ allCards }: { allCards: LearningCard[] }) 
               <Pressable
                 key={card.id}
                 onPress={() => studyOne(card.id)}
-                style={{ width: 168, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: radius.card, padding: 14, boxShadow: shadowBox(theme.shadow), elevation: 2 }}
+                style={{ width: 168, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: radius.card, padding: 14, boxShadow: softShadow, elevation: 1 }}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                   <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: color + '18', alignItems: 'center', justifyContent: 'center' }}>

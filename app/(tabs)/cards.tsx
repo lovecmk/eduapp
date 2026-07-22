@@ -17,7 +17,7 @@ import { CardTimer } from '../../src/components/cards/CardTimer';
 import { CardBackBody } from '../../src/components/cards/CardBackBody';
 import { CardQuiz } from '../../src/components/cards/CardQuiz';
 import { CardReportModal } from '../../src/components/cards/CardReportModal';
-import { fontCute, shadowBox } from '../../src/theme/tokens';
+import { fontCute } from '../../src/theme/tokens';
 import { getCategoryIcon } from '../../src/constants/categories';
 import { ROUTES } from '../../src/constants/routes';
 import { useAllCards, useMarkCard } from '../../src/hooks/useCards';
@@ -564,15 +564,15 @@ export default function CardsScreen() {
 
   const isQuiz = card.type === 'ox' || card.type === 'choice';
 
-  // 카드 톤 — 앞/뒷면 모두 같은 표면색(surface)을 쓰고, '테두리 색'만 은은히 달리해 면을 구분한다.
+  // 카드 톤 — 앞/뒷면 모두 같은 표면색(surface)을 쓰고, '테두리 색'만 달리해 면을 구분한다.
   // (배경색을 서로 다르게 칠하면 디자인적으로 튀어, 자연스러운 종이 느낌이 깨진다.)
-  // 그림자는 앱 전역 카드와 동일한 shadowBox 토큰으로 통일해 전체적으로 하나의 결을 갖게 한다.
+  // 학습카드는 그림자를 아예 두지 않는다 — rotateY(3D 회전) 중 평면 그림자가 뒤에 남아
+  // 잔상(ghosting)을 만들었다. 대신 '또렷한 테두리'로 카드 면을 분명히 세워 눈에 잘 띄게 한다.
   const isLight = theme.mode === 'light';
   const frontTint = c.surface; // 앞면: 표면색(중립)
   const backTint = c.surface; // 뒷면: 동일 표면색 — 배경으로는 구분하지 않는다
-  const frontBorder = c.primary + (isLight ? '2E' : '40'); // 앞면: 은은한 파랑 테두리
-  const backBorder = c.success + (isLight ? '2E' : '40'); // 뒷면: 은은한 초록 테두리(면 구분은 테두리로만)
-  const paperShadow = shadowBox(theme.shadow); // 전역 카드와 통일된 그림자
+  const frontBorder = c.primary + (isLight ? '80' : 'A6'); // 앞면: 또렷한 파랑 테두리
+  const backBorder = c.success + (isLight ? '80' : 'A6'); // 뒷면: 또렷한 초록 테두리(면 구분은 테두리로만)
   // 태블릿·와이드 화면에서 글자가 좌우로 과하게 퍼지지 않도록 학습 컬럼 폭을 제한(가운데 정렬).
   const COLUMN_MAX = 560;
 
@@ -631,13 +631,11 @@ export default function CardsScreen() {
             pointerEvents={flipped ? 'none' : 'auto'}
             style={{
               position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-              backgroundColor: frontTint, borderWidth: 1, borderColor: frontBorder,
+              backgroundColor: frontTint, borderWidth: 2, borderColor: frontBorder,
               borderRadius: 20, padding: 24,
               transform: [{ perspective: 1600 }, { rotateY: frontRotate }],
               backfaceVisibility: 'hidden',
               opacity: frontOpacity,
-              boxShadow: paperShadow,
-              elevation: 3,
             }}
           >
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
@@ -714,13 +712,11 @@ export default function CardsScreen() {
             pointerEvents={flipped ? 'auto' : 'none'}
             style={{
               position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-              backgroundColor: backTint, borderWidth: 1, borderColor: backBorder,
+              backgroundColor: backTint, borderWidth: 2, borderColor: backBorder,
               borderRadius: 20, padding: 22,
               transform: [{ perspective: 1600 }, { rotateY: backRotate }],
               backfaceVisibility: 'hidden',
               opacity: backOpacity,
-              boxShadow: paperShadow,
-              elevation: 3,
             }}
           >
             <View style={{ marginBottom: 12 }}>
