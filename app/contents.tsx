@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { View, Text, ScrollView, Pressable, RefreshControl, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, Pressable, RefreshControl, StyleSheet, FlatList } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
@@ -54,6 +54,20 @@ export default function ContentsScreen() {
       x.topic.toLowerCase().includes(q) || x.subCategory.toLowerCase().includes(q) || x.category.includes(q));
   }, [allCards, search]);
 
+  const goCard = useCallback((id: string) => router.push(ROUTES.content(id) as never), [router]);
+
+  // 큰 목록(전체 둘러보기·검색 결과)은 FlatList 로 가상화(virtualization)해, 화면에 보이는
+  // 몇 개만 렌더한다. 예전엔 모든 카드를 한 번에 그려(수십~수백 개 + 행마다 진입 애니메이션)
+  // 진입이 느렸다. FlatList 는 스크롤에 따라 필요한 만큼만 마운트해 초기 렌더가 가볍다.
+  // ⚠️ 훅(useCallback)은 아래 로딩/에러 조기 반환보다 반드시 위에서 호출해야 한다(훅 순서 고정).
+  const renderRow = useCallback(
+    ({ item }: { item: LearningCard }) => (
+      <View style={{ paddingHorizontal: 20 }}><ContentRow card={item} onPress={() => goCard(item.id)} /></View>
+    ),
+    [goCard],
+  );
+  const keyExtractor = useCallback((item: LearningCard) => item.id, []);
+
   if (isLoading && allCards.length === 0 && !error) {
     return <View style={{ flex: 1, backgroundColor: c.bg }}><ScreenHeader title="학습 목표" /><ContentsSkeleton /></View>;
   }
@@ -61,73 +75,85 @@ export default function ContentsScreen() {
     return <View style={{ flex: 1, backgroundColor: c.bg }}><ScreenHeader title="학습 목표" /><ErrorState message="컨텐츠를 불러올 수 없어요" onRetry={refetch} /></View>;
   }
 
-  const goCard = (id: string) => router.push(ROUTES.content(id) as never);
+  const perfProps = {
+    keyExtractor,
+    renderItem: renderRow,
+    showsVerticalScrollIndicator: false,
+    initialNumToRender: 10,
+    maxToRenderPerBatch: 10,
+    windowSize: 7,
+    removeClippedSubviews: true,
+    refreshControl: <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.primary} />,
+    contentContainerStyle: { paddingBottom: 40 },
+  } as const;
+
+  // 검색 입력은 목록 밖(상단 고정)에 두어, 모드가 바뀌어도 리마운트되지 않게 한다(포커스 유지).
+  const searchBar = (
+    <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 4 }}>
+      <SearchBar value={search} onChange={setSearch} placeholder="주제·질문 검색..." />
+    </View>
+  );
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <ScreenHeader title="학습 목표" />
-      <ScrollView
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.primary} />}
-        contentContainerStyle={{ paddingBottom: 40 }}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={{ paddingHorizontal: 20, paddingTop: 12 }}>
-          <SearchBar value={search} onChange={setSearch} placeholder="주제·질문 검색..." />
-        </View>
+      {searchBar}
 
-        {searchResults ? (
-          /* --- 검색 결과 --- */
-          <View style={{ paddingHorizontal: 20, paddingTop: 16 }}>
-            <Text style={[styles.sectionLabel, { color: c.textSecondary, marginLeft: 0 }]}>검색 결과 {searchResults.length}건</Text>
-            {searchResults.length === 0 ? (
-              <Animated.View entering={FadeIn} style={{ alignItems: 'center', paddingVertical: 60 }}>
-                <Ionicons name="search-outline" size={40} color={c.textSecondary} />
-                <Text style={{ color: c.textSecondary, fontSize: 14 * fs, marginTop: 10, fontFamily: fontBody }}>"{search}" 검색 결과가 없어요</Text>
-              </Animated.View>
-            ) : searchResults.map((card, i) => (
-              <Animated.View key={card.id} entering={FadeInDown.delay(Math.min(i, 8) * 35).duration(300)}>
-                <ContentRow card={card} onPress={() => goCard(card.id)} />
-              </Animated.View>
-            ))}
-          </View>
-        ) : active ? (
-          /* --- 선택된 과정: 난이도별 문제 --- */
+      {searchResults ? (
+        /* --- 검색 결과(가상화) --- */
+        <FlatList
+          {...perfProps}
+          data={searchResults}
+          ListHeaderComponent={<Text style={[styles.sectionLabel, { color: c.textSecondary, marginLeft: 20, marginTop: 12 }]}>검색 결과 {searchResults.length}건</Text>}
+          ListEmptyComponent={
+            <Animated.View entering={FadeIn} style={{ alignItems: 'center', paddingVertical: 60 }}>
+              <Ionicons name="search-outline" size={40} color={c.textSecondary} />
+              <Text style={{ color: c.textSecondary, fontSize: 14 * fs, marginTop: 10, fontFamily: fontBody }}>"{search}" 검색 결과가 없어요</Text>
+            </Animated.View>
+          }
+        />
+      ) : active ? (
+        /* --- 선택된 과정: 난이도별 문제 --- */
+        <ScrollView
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.primary} />}
+          contentContainerStyle={{ paddingBottom: 40 }}
+          showsVerticalScrollIndicator={false}
+        >
           <TrackDetail progress={active} onBack={() => setActiveId(null)} onCard={goCard} />
-        ) : (
-          /* --- 과정 선택(목표) + 전체 둘러보기 --- */
-          <>
-            <Text style={[styles.sectionLabel, { color: c.textSecondary }]}>학습 목표 (과정)</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 12, paddingBottom: 4 }}>
-              {tracks.map((tp) => (
-                <TrackCard key={tp.track.id} progress={tp}
-                  onPress={() => tp.track.locked ? setLockedHint(tp.track.title) : setActiveId(tp.track.id)} />
-              ))}
-            </ScrollView>
+        </ScrollView>
+      ) : (
+        /* --- 과정 선택(목표) + 전체 둘러보기(가상화) --- */
+        <FlatList
+          {...perfProps}
+          data={allCards}
+          ListHeaderComponent={
+            <>
+              <Text style={[styles.sectionLabel, { color: c.textSecondary }]}>학습 목표 (과정)</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 12, paddingBottom: 4 }}>
+                {tracks.map((tp) => (
+                  <TrackCard key={tp.track.id} progress={tp}
+                    onPress={() => tp.track.locked ? setLockedHint(tp.track.title) : setActiveId(tp.track.id)} />
+                ))}
+              </ScrollView>
 
-            {lockedHint && (
-              <Animated.View entering={FadeIn} style={{ marginHorizontal: 20, marginTop: 12, backgroundColor: c.surfaceAlt, borderColor: c.border, borderWidth: 1, borderRadius: 12, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Ionicons name="time-outline" size={16} color={c.textSecondary} />
-                <Text style={{ color: c.textSecondary, fontSize: 12.5 * fs, flex: 1, fontFamily: fontBody }}>
-                  <Text style={{ fontFamily: fontDisplay, color: c.textPrimary }}>{lockedHint}</Text> 과정은 준비 중이에요. 곧 만나요!
-                </Text>
-                <Pressable onPress={() => setLockedHint(null)} hitSlop={6}><Ionicons name="close" size={16} color={c.textSecondary} /></Pressable>
-              </Animated.View>
-            )}
-
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, marginTop: 22, marginBottom: 10 }}>
-              <Text style={[styles.sectionLabel, { color: c.textSecondary, marginTop: 0, marginBottom: 0, marginLeft: 0 }]}>전체 둘러보기</Text>
-              <Text style={{ color: c.textSecondary, fontSize: 12, fontFamily: fontMono }}>{allCards.length}건</Text>
-            </View>
-            <View style={{ paddingHorizontal: 20 }}>
-              {allCards.map((card, i) => (
-                <Animated.View key={card.id} entering={FadeInDown.delay(Math.min(i, 8) * 35).duration(300)}>
-                  <ContentRow card={card} onPress={() => goCard(card.id)} />
+              {lockedHint && (
+                <Animated.View entering={FadeIn} style={{ marginHorizontal: 20, marginTop: 12, backgroundColor: c.surfaceAlt, borderColor: c.border, borderWidth: 1, borderRadius: 12, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Ionicons name="time-outline" size={16} color={c.textSecondary} />
+                  <Text style={{ color: c.textSecondary, fontSize: 12.5 * fs, flex: 1, fontFamily: fontBody }}>
+                    <Text style={{ fontFamily: fontDisplay, color: c.textPrimary }}>{lockedHint}</Text> 과정은 준비 중이에요. 곧 만나요!
+                  </Text>
+                  <Pressable onPress={() => setLockedHint(null)} hitSlop={6}><Ionicons name="close" size={16} color={c.textSecondary} /></Pressable>
                 </Animated.View>
-              ))}
-            </View>
-          </>
-        )}
-      </ScrollView>
+              )}
+
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, marginTop: 22, marginBottom: 10 }}>
+                <Text style={[styles.sectionLabel, { color: c.textSecondary, marginTop: 0, marginBottom: 0, marginLeft: 0 }]}>전체 둘러보기</Text>
+                <Text style={{ color: c.textSecondary, fontSize: 12, fontFamily: fontMono }}>{allCards.length}건</Text>
+              </View>
+            </>
+          }
+        />
+      )}
     </View>
   );
 }
