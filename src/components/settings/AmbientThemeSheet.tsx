@@ -64,5 +64,5 @@ export function AmbientThemeSheet({ visible, onClose }: { visible: boolean; onCl
 /** 현재 배경 테마의 한국어 라벨(행에 현재값 표시용). */
 export function useAmbientThemeLabel(): string {
   const current = useSettingsStore((s) => s.ambientTheme);
-  return AMBIENT_THEME_OPTIONS.find((o) => o.value === current)?.label ?? '자동(날씨)';
+  return AMBIENT_THEME_OPTIONS.find((o) => o.value === current)?.label ?? '자동(날씨·시간)';
 }

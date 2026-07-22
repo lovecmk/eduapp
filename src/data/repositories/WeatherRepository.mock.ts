@@ -20,6 +20,9 @@ export class MockWeatherRepository implements IWeatherRepository {
     return {
       condition: MOCK_CONDITION,
       temperatureC: 22,
+      // 실제 날씨 API 연동 전에는 바람 정보가 없다(null) — 바람 효과는 켜지지 않는다.
+      // (밤 9시 이후의 '별 반짝'만 기기 시계로 자동 표시된다.)
+      windSpeedMs: null,
       description: weatherLabel(MOCK_CONDITION),
       observedAt: new Date().toISOString(),
     };
