@@ -10,6 +10,9 @@ import { useMomentStore } from '../../src/store/momentStore';
 import { Card } from '../../src/components/ui/Card';
 import { ErrorState } from '../../src/components/ui/ErrorState';
 import { MomentModal } from '../../src/components/home/MomentModal';
+import { CenterModal } from '../../src/components/ui/CenterModal';
+import { useSrsStore } from '../../src/store/srsStore';
+import { dateKey } from '../../src/utils/dateKey';
 import { HomeSkeleton } from '../../src/components/skeletons';
 import { LivePresenceStrip } from '../../src/components/community/LivePresenceStrip';
 import { LearningCalendar } from '../../src/components/community/LearningCalendar';
@@ -125,19 +128,15 @@ export default function HomeScreen() {
     }
   }, []);
 
-  // 통계가 준비되면 이번 실행에서 보여줄 축하/격려 순간을 1회 계산한다.
+  // 홈 첫 팝업 — '오늘(00:00~23:59) 학습 이력이 있을 때만' 이어서 학습할지 물어본다.
+  // (학습을 시작하지 않은 날에는 아무 팝업도 띄우지 않는다. 축하 순간 팝업도 이때만 노출.)
+  const [resumeOpen, setResumeOpen] = useState(false);
   useEffect(() => {
     if (sessionMomentHandled || !stats || !sessionBaseline) return;
     sessionMomentHandled = true;
-    const m = computeMoment({
-      totalLearned: stats.totalLearned,
-      streakDays: stats.streakDays,
-      firstOpenAt: sessionBaseline.firstOpenAt,
-      totalOpens: sessionBaseline.totalOpens,
-      lastOpenAt: sessionBaseline.lastOpenAt,
-      celebrated: sessionBaseline.celebrated,
-    });
-    if (m) setMoment(m);
+    const learnedToday = (useSrsStore.getState().history[dateKey(new Date())] ?? []).length;
+    if (learnedToday === 0) return; // 오늘 학습 이력이 없으면 팝업 없음.
+    setResumeOpen(true);
   }, [stats]);
 
   const dismissMoment = useCallback(() => {
@@ -293,7 +292,7 @@ export default function HomeScreen() {
                 : { to: ROUTES.contents, bg: c.surfaceAlt, fg: c.textPrimary, sub: c.textSecondary, iconBg: c.surface, iconColor: c.primary, icon: 'sparkles' as const, bw: 1, border: c.border, chevron: true,
                     title: '새 카드를 다 배웠어요', desc: '지금은 학습할 카드가 없어요 · 곧 새 카드가 열려요' };
             return (
-              <Pressable onPress={() => router.push(cta.to as never)} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: cta.bg, borderRadius: 14, padding: 14, borderWidth: cta.bw, borderColor: cta.border }}>
+              <Pressable onPress={() => router.push(cta.to as never)} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: cta.bg, borderRadius: 14, paddingVertical: 22, paddingHorizontal: 16, borderWidth: cta.bw, borderColor: cta.border }}>
                 <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: cta.iconBg, alignItems: 'center', justifyContent: 'center' }}>
                   <Ionicons name={cta.icon} size={20} color={cta.iconColor} />
                 </View>
@@ -333,6 +332,25 @@ export default function HomeScreen() {
 
       {/* 앱을 켠 순간의 축하·격려 (알림 off 사용자도 인앱으로 챙김) */}
       <MomentModal moment={moment} onClose={dismissMoment} onAction={momentAction} />
+
+      {/* 오늘 학습 이력이 있을 때만 뜨는 '이어서 학습/홈에 머물기' 팝업 */}
+      <CenterModal visible={resumeOpen} onClose={() => setResumeOpen(false)} title="오늘 학습을 이어갈까요?" icon="play-circle-outline">
+        <View style={{ alignItems: 'center' }}>
+          <Text style={{ color: c.textSecondary, fontSize: 13.5 * fs, textAlign: 'center', lineHeight: 20, marginBottom: 20, fontFamily: fontBody }}>
+            오늘 학습을 시작했어요.{'\n'}이어서 마저 학습할까요?
+          </Text>
+          <Pressable
+            onPress={() => { setResumeOpen(false); router.push(ROUTES.cards); }}
+            style={{ width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.primary, borderRadius: 14, paddingVertical: 14 }}
+          >
+            <Ionicons name="play" size={18} color="#fff" />
+            <Text style={{ color: '#fff', fontSize: 15 * fs, fontWeight: '800', fontFamily: fontCute }}>이어서 학습하기</Text>
+          </Pressable>
+          <Pressable onPress={() => setResumeOpen(false)} style={{ paddingVertical: 14 }}>
+            <Text style={{ color: c.textSecondary, fontSize: 14 * fs, fontFamily: fontDisplay }}>홈에 머물기</Text>
+          </Pressable>
+        </View>
+      </CenterModal>
     </View>
   );
 }

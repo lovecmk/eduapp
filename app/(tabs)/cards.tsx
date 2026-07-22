@@ -406,13 +406,14 @@ export default function CardsScreen() {
     if (!finished) return;
     // 학습 세션을 마치면 안전 카드팩 적립(3회마다 1팩) — 수집 재미 요소.
     useCollectionStore.getState().addStudyProgress();
-    // 단일 카드(focus) 학습이 끝나면 원래 보던 컨텐츠로 곧장 복귀.
-    // 카테고리 복습이 끝나면 복습 목록으로, 오늘의 학습이 끝나면 통계로 이동.
-    const target = returnTo ?? (isCategoryMode ? ROUTES.review : ROUTES.stats);
-    const dur = returnTo ? 900 : 2000;
-    Animated.timing(progressAnim, { toValue: 1, duration: dur, useNativeDriver: false }).start(({ finished: ok }) => {
-      if (ok) router.replace(target as any);
-    });
+    // 단일 카드(focus) 학습만, 원래 보던 컨텐츠로 곧장 복귀(짧게).
+    // 오늘의 학습·카테고리 복습은 자동으로 넘기지 않고 완료 화면에서 '대기'한다
+    // (사용자가 직접 복습하러 가거나 홈으로 이동). 로딩바/이동 안내 문구도 두지 않는다.
+    if (returnTo) {
+      Animated.timing(progressAnim, { toValue: 1, duration: 900, useNativeDriver: false }).start(({ finished: ok }) => {
+        if (ok) router.replace(returnTo as any);
+      });
+    }
   }, [finished]);
 
   const restart = () => {
@@ -537,27 +538,34 @@ export default function CardsScreen() {
         <Text style={{ color: c.textSecondary, marginTop: 6, marginBottom: 28, fontFamily: fontCute }}>
           {isFocusMode ? '이 카드 학습을 마쳤어요' : isCategoryMode ? `${category} · ${doneCount}장 복습 완료 · 잘하셨어요!` : `오늘 ${doneCount}장 학습 완료 · 3분이면 충분해요`}
         </Text>
-        <View style={{ width: '60%', height: 4, backgroundColor: c.surfaceAlt, borderRadius: 2, overflow: 'hidden', marginBottom: 24 }}>
-          <Animated.View style={{ width: barWidth, height: '100%', backgroundColor: c.primary, borderRadius: 2 }} />
-        </View>
-        <Text style={{ color: c.textSecondary, fontSize: 12 * fs, fontFamily: fontCute }}>{isFocusMode ? '컨텐츠로 돌아가는 중...' : isCategoryMode ? '복습 목록으로 이동 중...' : '통계 화면으로 이동 중...'}</Text>
-        {/* 목표 달성 순간의 '플렉스(자랑) 유도' — 요청에 따라 우선 비활성화(주석처리).
-        {!isFocusMode && flexPromptEnabled && (
+
+        {/* 단일 카드(focus) 학습만 원래 화면으로 자동 복귀(짧은 진행바). 그 외에는 자동 이동/로딩바 없이 대기. */}
+        {isFocusMode ? (
           <>
-            <Text style={{ color: c.textSecondary, fontSize: 12.5 * fs, fontFamily: fontCute, marginTop: 22, marginBottom: -4 }}>오늘의 목표 달성! 성취를 자랑해볼까요?</Text>
-            <Pressable
-              onPress={() => { progressAnim.stopAnimation(); router.push(ROUTES.share as never); }}
-              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.primary, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 22, marginTop: 12, boxShadow: '0 6px 16px rgba(37,99,235,0.28)' }}
-            >
-              <Ionicons name="sparkles" size={18} color="#fff" />
-              <Text style={{ color: '#fff', fontSize: 15 * fs, fontWeight: '800', fontFamily: fontCute }}>성취 카드 플렉스</Text>
-            </Pressable>
+            <View style={{ width: '60%', height: 4, backgroundColor: c.surfaceAlt, borderRadius: 2, overflow: 'hidden', marginBottom: 24 }}>
+              <Animated.View style={{ width: barWidth, height: '100%', backgroundColor: c.primary, borderRadius: 2 }} />
+            </View>
+            <Text style={{ color: c.textSecondary, fontSize: 12 * fs, fontFamily: fontCute }}>컨텐츠로 돌아가는 중...</Text>
           </>
+        ) : (
+          <View style={{ width: '100%', gap: 10, marginTop: 4 }}>
+            {/* '복습하러 가기' — 방금 학습한 카드를 복습 > 모아보기 > 오늘 학습한 카드에서 바로 다시 본다. */}
+            <Pressable
+              onPress={() => router.replace(ROUTES.collection('today') as never)}
+              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.primary, borderRadius: 14, paddingVertical: 15, paddingHorizontal: 28, boxShadow: '0 6px 16px rgba(37,99,235,0.28)' }}
+            >
+              <Ionicons name="refresh" size={18} color="#fff" />
+              <Text style={{ color: '#fff', fontSize: 15 * fs, fontWeight: '800', fontFamily: fontCute }}>복습하러 가기</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => router.replace(ROUTES.home as never)}
+              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.surfaceAlt, borderRadius: 14, paddingVertical: 15, paddingHorizontal: 28, borderWidth: 1, borderColor: c.border }}
+            >
+              <Ionicons name="home-outline" size={18} color={c.textPrimary} />
+              <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontWeight: '800', fontFamily: fontCute }}>홈으로</Text>
+            </Pressable>
+          </View>
         )}
-        */}
-        <View style={{ marginTop: 12 }}>
-          <Button label="다시 학습하기" variant="outline" onPress={restart} />
-        </View>
       </View>
     );
   }

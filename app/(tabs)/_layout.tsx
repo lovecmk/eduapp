@@ -171,10 +171,12 @@ export default function TabsLayout() {
         header: ({ route }) => <MinimalHeader title={TITLES[route.name] ?? ''} />,
         // 각 탭 씬 배경을 투명으로 — 뒤의 전역 날씨 배경이 비쳐 보이게 한다.
         sceneStyle: { backgroundColor: 'transparent' },
-        // 탭 전환 — 옆으로 미는 과한 이동 대신 잔잔한 교차 페이드로 자연스럽게 넘긴다.
-        // 짧은 지속시간으로 반응성은 유지하면서 시선의 피로를 줄인다.
+        // 비활성 탭은 얼려(freeze) 렌더를 멈춘다 — 전환 중 이전 화면이 계속 그려지며
+        // 이미지가 겹쳐 보이거나 그림자 잔상이 남는 현상을 줄인다.
+        freezeOnBlur: true,
+        // 탭 전환 — 잔잔한 교차 페이드. 지속시간을 더 짧게 잡아 두 화면이 겹치는 구간을 줄인다.
         animation: 'fade',
-        transitionSpec: { animation: 'timing', config: { duration: 180 } },
+        transitionSpec: { animation: 'timing', config: { duration: 130 } },
         tabBarButton: (props) => <TabBarButton {...props} />,
         tabBarActiveTintColor: c.primary,
         tabBarInactiveTintColor: c.textSecondary,
