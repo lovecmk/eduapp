@@ -21,7 +21,9 @@ import { fontCute } from '../../src/theme/tokens';
 import { getCategoryIcon } from '../../src/constants/categories';
 import { ROUTES } from '../../src/constants/routes';
 import { useAllCards, useMarkCard } from '../../src/hooks/useCards';
+import { useReview } from '../../src/hooks/useReview';
 import { useDailyQuota, recordNewLearned } from '../../src/hooks/useDailyQuota';
+import { DAILY_TOTAL_LIMIT } from '../../src/constants/learning';
 import type { LearningCard } from '../../src/domain/models/LearningCard';
 import { resolveCardImage } from '../../src/data/cardImages';
 import { useBookmarkStore } from '../../src/store/bookmarkStore';
@@ -119,44 +121,44 @@ export default function CardsScreen() {
     hapticTap();
   }, [dontKnowHaptic]);
   const srsCards = useSrsStore((s) => s.cards);
+  const srsGrade = useSrsStore((s) => s.grade);
   // 오늘 남은 신규 학습 수(하루 상한). 복습·단일카드 모드는 상한과 무관.
   const quota = useDailyQuota();
+  // 오늘 복습 예정(간격반복 도래) 카드 — '오늘의 학습'에서 신규 뒤에 자동으로 이어 붙인다.
+  const { dueCards } = useReview();
 
-  // 오늘의 학습 = 신규 카드만, 하루 남은 상한(quota.remaining)까지. 카테고리 복습은 해당 카테고리 전체.
-  // 이전에 학습한 자료의 반복은 '복습' 탭에서 자유롭게 진행한다(여기선 신규만 다룬다).
+  // 오늘의 학습 = 신규(≤ 하루 상한) + 복습 도래 카드를 이어 붙여 최대 DAILY_TOTAL_LIMIT장.
+  // 카테고리 복습은 해당 카테고리 전체. 신규/복습 순서 옵션(섞기·약점우선)은 카테고리 복습에만 적용.
   const computedDeck = useMemo(() => {
     // 단일 카드(focus) 모드는 순서 옵션과 무관(1장).
     if (isFocusMode) return (allQuery.data ?? []).filter((x) => x.id === focusId);
 
-    let base: LearningCard[];
     if (isCategoryMode) {
-      base = (allQuery.data ?? []).filter((x) => x.category === category);
-    } else {
-      // 오늘의 학습 = 아직 학습하지 않은 '신규' 카드만, 하루 남은 상한(quota.remaining)까지.
-      // ⚠️ 예전엔 getTodayCards(3분 세션 패킹) 결과에서 status==='new' 만 걸러냈는데,
-      //    그 패킹은 복습(예정 도래) 카드를 먼저 채우므로 복습거리가 많은 날에는 신규 카드가
-      //    세션 예산에서 밀려 한 장도 안 담겼다. 그러면 학습을 시작도 안 했는데 '학습할 카드가
-      //    없어요'가 떠, 홈의 "N장 남았어요" 안내와 어긋났다.
-      //    오늘의 학습(신규)은 복습 세션과 독립적으로 전체 풀에서 신규 카드를 직접 고른다
-      //    (쉬운 난이도부터 → 부담을 낮춘다).
-      base = (allQuery.data ?? [])
-        .filter((x) => x.status === 'new')
-        .sort((a, b) => DIFFICULTY_RANK[a.difficulty] - DIFFICULTY_RANK[b.difficulty])
-        .slice(0, quota.remaining);
+      const base = (allQuery.data ?? []).filter((x) => x.category === category);
+      // 카테고리 복습에서만 약점 우선/섞기 옵션을 적용한다.
+      if (prioritizeWeakSpots) {
+        const weakScore = (id: string) => {
+          const st = srsCards[id];
+          return st ? st.lapses * 3 - st.box : 0;
+        };
+        return [...base].sort((a, b) => weakScore(b.id) - weakScore(a.id));
+      }
+      if (shuffleCards) return shuffle(base);
+      return base;
     }
 
-    // 약점 우선이 켜져 있으면 자주 잊는(lapses↑)·기억 약한(box↓) 카드를 앞으로.
-    // 그렇지 않고 섞기가 켜져 있으면 무작위로 배열한다(두 옵션은 배타적으로 적용).
-    if (prioritizeWeakSpots) {
-      const weakScore = (id: string) => {
-        const st = srsCards[id];
-        return st ? st.lapses * 3 - st.box : 0;
-      };
-      return [...base].sort((a, b) => weakScore(b.id) - weakScore(a.id));
-    }
-    if (shuffleCards) return shuffle(base);
-    return base;
-  }, [isFocusMode, focusId, isCategoryMode, category, allQuery.data, prioritizeWeakSpots, shuffleCards, srsCards, quota.remaining]);
+    // 오늘의 학습(신규): 전체 풀에서 '신규' 카드를 쉬운 난이도부터, 하루 남은 상한까지.
+    const newBase = (allQuery.data ?? [])
+      .filter((x) => x.status === 'new')
+      .sort((a, b) => DIFFICULTY_RANK[a.difficulty] - DIFFICULTY_RANK[b.difficulty])
+      .slice(0, quota.remaining);
+    // 남는 자리를 복습(간격반복 도래) 카드로 채워 총 DAILY_TOTAL_LIMIT장까지. 신규→복습 순서 유지.
+    const newIds = new Set(newBase.map((x) => x.id));
+    const reviewFill = dueCards
+      .filter((x) => !newIds.has(x.id))
+      .slice(0, Math.max(0, DAILY_TOTAL_LIMIT - newBase.length));
+    return [...newBase, ...reviewFill];
+  }, [isFocusMode, focusId, isCategoryMode, category, allQuery.data, prioritizeWeakSpots, shuffleCards, srsCards, quota.remaining, dueCards]);
 
   // 덱은 세션 시작 시 한 번만 확정한다.
   // 카드를 마킹하면 cards 쿼리가 무효화되어 목록이 새로 내려오는데, 그때마다 덱을 다시 계산하면
@@ -234,9 +236,16 @@ export default function CardsScreen() {
     if (!card) return;
     if (autoFlipTimer.current) clearTimeout(autoFlipTimer.current);
     markCardMutation.mutate({ id: card.id, status });
-    // '오늘의 학습'(신규) 모드에서 카드 하나를 마치면 하루 상한 사용량에 반영한다.
-    // (카테고리 복습·단일 카드 학습은 상한과 무관하므로 집계하지 않는다.)
-    if (!isCategoryMode && !isFocusMode && card.status === 'new') recordNewLearned(1);
+    if (!isCategoryMode && !isFocusMode) {
+      if (card.status === 'new') {
+        // '오늘의 학습'(신규) 한 장을 마치면 하루 상한 사용량에 반영.
+        recordNewLearned(1);
+      } else {
+        // 신규 뒤에 이어 붙은 '복습' 카드 — SRS 일정을 갱신해 도래 큐에서 빠지게 한다.
+        // (알았음=good / 몰랐음=again). 상한(신규)에는 집계하지 않는다.
+        srsGrade(card.id, status === 'mastered' ? 'good' : 'again');
+      }
+    }
     setDoneCount((n) => n + 1);
     setFlipped(false);
     setQuizPick(null);
@@ -247,7 +256,7 @@ export default function CardsScreen() {
     const nextIdx = index + 1;
     if (nextIdx >= deck.length) setFinished(true);
     else setIndex(nextIdx);
-  }, [card, index, deck.length, markCardMutation, resetCardAnims, enterAnim, isCategoryMode, isFocusMode]);
+  }, [card, index, deck.length, markCardMutation, srsGrade, resetCardAnims, enterAnim, isCategoryMode, isFocusMode]);
 
   // 새 카드가 화면에 올라올 때 — 과한 바운스 없이 잔잔하게 떠오르며 등장한다(편안한 전환).
   useEffect(() => {
@@ -449,9 +458,9 @@ export default function CardsScreen() {
     );
   }
 
-  // 오늘의 신규 학습 상한을 모두 채운 상태로 진입 — '오늘 학습 완료' 안내 + 복습 유도.
-  // (복습·단일카드 모드는 상한과 무관하므로 제외.)
-  if (!isCategoryMode && !isFocusMode && !finished && quota.remaining === 0) {
+  // 오늘의 신규 상한을 다 채우고 복습 도래 카드도 없는 상태로 진입 — '오늘 학습 완료' 안내.
+  // (복습이 남아 있으면 아래 세션에서 자동으로 이어 제시하므로 이 화면을 띄우지 않는다.)
+  if (!isCategoryMode && !isFocusMode && !finished && quota.remaining === 0 && deck.length === 0) {
     return (
       <View style={{ flex: 1, backgroundColor: c.bg, alignItems: 'center', justifyContent: 'center', padding: 28 }}>
         <View style={{ width: 84, height: 84, borderRadius: 42, backgroundColor: c.success + '1A', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>

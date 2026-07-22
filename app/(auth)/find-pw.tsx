@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../../src/components/ui/Button';
 import { TextField } from '../../src/components/ui/TextField';
-import { BridgeLogo } from '../../src/components/ui/BridgeLogo';
+import { AppLogo } from '../../src/components/ui/AppLogo';
 import { useTheme } from '../../src/theme/ThemeProvider';
 import { useAuthStore } from '../../src/store/authStore';
 import { fontBody, fontDisplay } from '../../src/theme/tokens';
@@ -47,7 +47,7 @@ export default function FindPwScreen() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           <View style={{ alignItems: 'center', marginBottom: 24 }}>
-            <BridgeLogo size={64} />
+            <AppLogo size={64} />
             <Text style={{ color: c.textPrimary, fontSize: 22 * fs, marginTop: 12, fontFamily: fontDisplay }}>비밀번호 재설정</Text>
             <Text style={{ color: c.textSecondary, fontSize: 13 * fs, marginTop: 6, fontFamily: fontBody, textAlign: 'center' }}>가입한 아이디 또는 이메일을 확인해 새 비밀번호를 설정해요</Text>
           </View>

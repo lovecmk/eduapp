@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { Button } from '../../src/components/ui/Button';
 import { TextField } from '../../src/components/ui/TextField';
 import { SocialButtonRow } from '../../src/components/ui/SocialButton';
-import { BridgeLogo } from '../../src/components/ui/BridgeLogo';
+import { AppLogo } from '../../src/components/ui/AppLogo';
 import { useTheme } from '../../src/theme/ThemeProvider';
 import { fontDisplay, fontBody } from '../../src/theme/tokens';
 import { isBiometricAvailable, tryBiometricLogin } from '../../src/data/auth/BiometricAuth';
@@ -59,7 +59,7 @@ export default function LoginScreen() {
               width: 82, height: 82, borderRadius: 24, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border,
               alignItems: 'center', justifyContent: 'center', boxShadow: `0 10px 30px ${c.primary}22`,
             }}>
-              <BridgeLogo size={52} />
+              <AppLogo size={52} />
             </View>
             <Text style={{ color: c.textPrimary, fontSize: 24 * fs, fontFamily: fontDisplay, marginTop: 18, letterSpacing: 1 }}>현장학습</Text>
             <Text style={{ color: c.textSecondary, fontSize: 13 * fs, marginTop: 6, fontFamily: fontBody }}>현장 안전학습, 매일 3분이면 충분합니다</Text>

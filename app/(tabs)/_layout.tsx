@@ -14,7 +14,7 @@ import Animated, {
 import { useTheme } from '../../src/theme/ThemeProvider';
 import { OfflineBanner } from '../../src/components/ui/OfflineBanner';
 import { WeatherBackground } from '../../src/components/ui/WeatherBackground';
-import { BridgeLogo } from '../../src/components/ui/BridgeLogo';
+import { AppLogo } from '../../src/components/ui/AppLogo';
 import { HeaderMenuSheet } from '../../src/components/ui/HeaderMenuSheet';
 import { PressableScale } from '../../src/components/ui/PressableScale';
 import { Avatar } from '../../src/components/ui/Avatar';
@@ -118,7 +118,7 @@ function MinimalHeader({ title, showBack }: { title: string; showBack?: boolean 
           </PressableScale>
         ) : (
           <Pressable onPress={() => router.push(ROUTES.home as never)} hitSlop={6}>
-            <BridgeLogo size={28} />
+            <AppLogo size={30} />
           </Pressable>
         )}
         <Text style={{ color: c.textPrimary, fontSize: 16, marginLeft: 8, flex: 1, fontFamily: fontDisplay }}>{title}</Text>
@@ -141,7 +141,7 @@ function MinimalHeader({ title, showBack }: { title: string; showBack?: boolean 
 }
 
 const TITLES: Record<string, string> = {
-  index: '홈', cards: '학습', review: '복습', community: '커뮤니티', stats: '통계', mypage: 'MY',
+  index: '하루3분ON', cards: '학습', review: '복습', community: '커뮤니티', stats: '통계', mypage: 'MY',
 };
 
 const TAB_ICON: Record<string, { active: IconName; inactive: IconName }> = {

@@ -9,8 +9,6 @@ import { useSettingsStore } from '../../src/store/settingsStore';
 import { useMomentStore } from '../../src/store/momentStore';
 import { Card } from '../../src/components/ui/Card';
 import { ErrorState } from '../../src/components/ui/ErrorState';
-import { DailyQuestsCard } from '../../src/components/home/DailyQuestsCard';
-import { DailyTipCard } from '../../src/components/home/DailyTipCard';
 import { MomentModal } from '../../src/components/home/MomentModal';
 import { HomeSkeleton } from '../../src/components/skeletons';
 import { LivePresenceStrip } from '../../src/components/community/LivePresenceStrip';
@@ -24,15 +22,10 @@ import { useAllCards, useTodayCards } from '../../src/hooks/useCards';
 import { useStudyStats } from '../../src/hooks/useStats';
 import { useReview } from '../../src/hooks/useReview';
 import { useDailyQuota } from '../../src/hooks/useDailyQuota';
+import { DAILY_TOTAL_LIMIT } from '../../src/constants/learning';
 
-// 시간 중립 인사 문구 — '아침/저녁'을 직접 말하지 않고, 시간대는 해/달 아이콘으로만 전한다.
-const NEUTRAL_GREETINGS = [
-  '가볍게 한 장, 오늘도 안전 첫걸음이에요',
-  '3분이면 충분해요 — 지금 한 장 어때요?',
-  '오늘의 안전, 한 장으로 채워가요',
-  '짧게 한 장으로 현장을 더 안전하게',
-  '오늘도 무사고 — 한 장으로 시작해요',
-];
+// 홈 히어로 고정 문구 — 앱의 미션을 한 줄로.
+const HERO_TAGLINE = '하루 3분이 모여 국민의 안전한 내일을 지켜요!';
 
 // 앱 실행(런치)당 1회만 실행 기록/축하 계산이 일어나도록 하는 모듈 가드.
 // (홈 탭을 오갈 때 컴포넌트가 재마운트돼도 중복 카운트/중복 팝업을 막는다.)
@@ -76,7 +69,7 @@ export default function HomeScreen() {
   // 앱을 켠 시각에 맞춰 인사·이모지·톤이 바뀐다(히어로 적극 활용).
   // 시간대(아침/저녁)를 '의도적으로 문구로 띄우지 않는다'. 인사·문구는 시간 중립으로 두고,
   // 지금이 언제쯤인지는 아래 해/달 아이콘으로만 은은하게 전한다.
-  const greeting = useMemo(() => NEUTRAL_GREETINGS[Math.floor(Math.random() * NEUTRAL_GREETINGS.length)], []);
+  const greeting = HERO_TAGLINE;
   // 시간대·날씨는 이제 앱 '전역 배경(WeatherBackground)'이 대신 표현한다.
   // 히어로에는 시간과 무관한 고정 안전 아이콘(방패)을 둔다.
   // 아주 미세한 효과 — 히어로 안전 아이콘이 천천히 숨쉬듯 은은하게 빛난다(느린 루프).
@@ -241,7 +234,7 @@ export default function HomeScreen() {
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.surfaceAlt, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 4 }}>
               <Ionicons name="hourglass-outline" size={11} color={c.textSecondary} />
-              <Text style={{ color: c.textSecondary, fontSize: 11 * fs, fontFamily: fontCute, fontWeight: '700' }}>하루 {quota.limit}장 · 3분이면 충분</Text>
+              <Text style={{ color: c.textSecondary, fontSize: 11 * fs, fontFamily: fontCute, fontWeight: '700' }}>신규 {quota.limit} · 복습 포함 최대 {DAILY_TOTAL_LIMIT}장</Text>
             </View>
           </View>
 
@@ -256,22 +249,21 @@ export default function HomeScreen() {
             <Text style={{ color: quota.canLearn ? c.primary : c.success, fontSize: 12.5 * fs, fontFamily: fontMono, fontWeight: '900', marginLeft: 4, minWidth: 34, textAlign: 'right' }}>{quota.used}/{quota.limit}</Text>
           </View>
 
-          {/* 오늘의 학습 CTA — 3상태를 정직하게 구분:
-              (1) 배울 새 카드가 있고 상한도 남음 → 학습 시작/이어서 (파랑, 학습으로)
-              (2) 상한은 남았지만 배울 새 카드가 없음 → '새 카드를 다 배웠어요' (복습으로)
-              (3) 오늘 상한을 다 채움 → '오늘 학습 완료!' (복습으로)
-             ⇒ '학습 시작'을 눌렀는데 빈 화면이 뜨는 어긋남을 홈에서부터 없앤다. */}
+          {/* 오늘의 학습 CTA — 신규(≤남은 상한) + 복습(도래)을 한 번에 이어서 진행.
+              버튼 한 개로 단순화(복습은 오늘의 학습에 자동 편입). 오늘 담길 신규/복습 개수를 정직하게 표기. */}
           {(() => {
-            const canLearnNow = quota.canLearn && newAvailable > 0;
-            const noNewLeft = quota.canLearn && newAvailable === 0;
-            const cta = canLearnNow
+            const newToStudy = Math.min(quota.remaining, newAvailable);
+            const reviewToStudy = Math.min(dueTodayCount, Math.max(0, DAILY_TOTAL_LIMIT - newToStudy));
+            const sessionCount = newToStudy + reviewToStudy;
+            const countLine = `신규 ${newToStudy} · 복습 ${reviewToStudy} · 3분이면 충분`;
+            const cta = sessionCount > 0
               ? { to: ROUTES.cards, bg: c.primary, fg: '#fff', sub: 'rgba(255,255,255,0.85)', iconBg: 'rgba(255,255,255,0.2)', iconColor: '#fff', icon: 'play' as const, bw: 0, border: 'transparent', chevron: true,
-                  title: quota.used > 0 ? '이어서 학습하기' : '오늘 학습 시작', desc: `${quota.remaining}장 남았어요 · 무리 말고 딱 오늘 치만` }
-              : noNewLeft
-                ? { to: ROUTES.review, bg: c.surfaceAlt, fg: c.textPrimary, sub: c.textSecondary, iconBg: c.surface, iconColor: c.primary, icon: 'sparkles' as const, bw: 1, border: c.border, chevron: true,
-                    title: '새 카드를 다 배웠어요', desc: '복습으로 배운 내용을 탄탄히 다져요' }
-                : { to: ROUTES.review, bg: c.success + '18', fg: c.success, sub: c.textSecondary, iconBg: c.success + '22', iconColor: c.success, icon: 'checkmark-done' as const, bw: 1, border: c.success + '55', chevron: false,
-                    title: '오늘 학습 완료! 🎉', desc: '내일 자정에 새 5장이 열려요' };
+                  title: quota.used > 0 ? '이어서 학습하기' : '오늘 학습 시작', desc: countLine }
+              : quota.remaining === 0
+                ? { to: ROUTES.stats, bg: c.success + '18', fg: c.success, sub: c.textSecondary, iconBg: c.success + '22', iconColor: c.success, icon: 'checkmark-done' as const, bw: 1, border: c.success + '55', chevron: false,
+                    title: '오늘 학습 완료! 🎉', desc: '내일 자정에 새 학습이 열려요' }
+                : { to: ROUTES.contents, bg: c.surfaceAlt, fg: c.textPrimary, sub: c.textSecondary, iconBg: c.surface, iconColor: c.primary, icon: 'sparkles' as const, bw: 1, border: c.border, chevron: true,
+                    title: '새 카드를 다 배웠어요', desc: '지금은 학습할 카드가 없어요 · 곧 새 카드가 열려요' };
             return (
               <Pressable onPress={() => router.push(cta.to as never)} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: cta.bg, borderRadius: 14, padding: 14, borderWidth: cta.bw, borderColor: cta.border }}>
                 <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: cta.iconBg, alignItems: 'center', justifyContent: 'center' }}>
@@ -285,23 +277,6 @@ export default function HomeScreen() {
               </Pressable>
             );
           })()}
-
-          {/* 복습 — '언제든 자유'임을 명확히(상한 없음). 대기 개수는 부담이 아니라 '기다리는 카드'로. */}
-          <Pressable onPress={() => router.push(ROUTES.review)} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.surface, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: c.border, marginTop: 10 }}>
-            <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: c.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name="refresh" size={20} color={c.primary} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontFamily: fontDisplay }}>복습</Text>
-                <View style={{ backgroundColor: c.success + '1A', borderRadius: 999, paddingHorizontal: 7, paddingVertical: 1.5 }}>
-                  <Text style={{ color: c.success, fontSize: 10.5, fontFamily: fontCute, fontWeight: '800' }}>언제든 자유</Text>
-                </View>
-              </View>
-              <Text style={{ color: c.textSecondary, fontSize: 11.5 * fs, marginTop: 2, fontFamily: fontCute }}>{dueTodayCount > 0 ? `복습할 카드 ${dueTodayCount}장이 기다려요` : '지금은 복습할 카드가 없어요'}</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={c.primary} />
-          </Pressable>
         </Card>
 
         {/* 학습 현황 + 통계 보기 */}
@@ -326,9 +301,6 @@ export default function HomeScreen() {
 
         {/* 학습 히트맵 캘린더 — 출석 도장 체크인을 캘린더에 통합 */}
         <LearningCalendar />
-
-        <DailyQuestsCard />
-        <DailyTipCard />
       </ScrollView>
 
       {/* 앱을 켠 순간의 축하·격려 (알림 off 사용자도 인앱으로 챙김) */}

@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../../src/components/ui/Button';
 import { TextField } from '../../src/components/ui/TextField';
 import { AvailabilityField, type CheckState } from '../../src/components/auth/AvailabilityField';
-import { BridgeLogo } from '../../src/components/ui/BridgeLogo';
+import { AppLogo } from '../../src/components/ui/AppLogo';
 import { useTheme } from '../../src/theme/ThemeProvider';
 import { useAuthStore } from '../../src/store/authStore';
 import { authRepository } from '../../src/data/repositories';
@@ -113,7 +113,7 @@ export default function SignupScreen() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24, maxWidth: 480, width: '100%', alignSelf: 'center' }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           <View style={{ alignItems: 'center', marginBottom: 24 }}>
-            <BridgeLogo size={64} />
+            <AppLogo size={64} />
             <Text style={{ color: c.textPrimary, fontSize: 22 * fs, marginTop: 12, fontFamily: fontDisplay }}>회원가입</Text>
             <Text style={{ color: c.textSecondary, fontSize: 13 * fs, marginTop: 6, fontFamily: fontBody }}>현장학습 계정을 만들어 안전학습을 시작하세요</Text>
           </View>
