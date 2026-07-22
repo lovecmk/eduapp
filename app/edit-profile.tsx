@@ -8,6 +8,8 @@ import { Button } from '../src/components/ui/Button';
 import { AvailabilityField, type CheckState } from '../src/components/auth/AvailabilityField';
 import { useTheme } from '../src/theme/ThemeProvider';
 import { useAuthStore } from '../src/store/authStore';
+import { useFactionStore } from '../src/store/factionStore';
+import { getFaction } from '../src/constants/factions';
 import { authRepository } from '../src/data/repositories';
 import { fontBody, fontCute } from '../src/theme/tokens';
 
@@ -20,6 +22,8 @@ export default function EditProfileScreen() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const { updateProfile, loading, error: authError, clearError } = useAuthStore();
+  const factionId = useFactionStore((s) => s.faction);
+  const myFaction = getFaction(factionId);
 
   const [name, setName] = useState(user?.name ?? '');
   const [nickname, setNickname] = useState(user?.nickname ?? '');
@@ -88,11 +92,37 @@ export default function EditProfileScreen() {
           showsVerticalScrollIndicator={false}
         >
           {/* 아이디는 변경 불가 — 안내 표시 */}
-          <View style={{ backgroundColor: c.surfaceAlt, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: c.border, marginBottom: 16, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <View style={{ backgroundColor: c.surfaceAlt, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: c.border, marginBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
             <Ionicons name="lock-closed" size={18} color={c.textSecondary} />
             <View style={{ flex: 1 }}>
               <Text style={{ color: c.textSecondary, fontSize: 11 * fs, fontFamily: fontCute }}>아이디 (변경 불가)</Text>
               <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontWeight: '700', fontFamily: fontBody }}>{user.loginId ?? '—'}</Text>
+            </View>
+          </View>
+
+          {/* 진영도 변경 불가 — 선택한 진영을 잠금 표시(가입 시 한 번만 선택) */}
+          <View style={{ backgroundColor: myFaction ? myFaction.color + '12' : c.surfaceAlt, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: myFaction ? myFaction.color + '55' : c.border, marginBottom: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            {myFaction ? (
+              <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: myFaction.color + '22', alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ fontSize: 22 }}>{myFaction.emoji}</Text>
+              </View>
+            ) : (
+              <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: c.surface, alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="flag-outline" size={20} color={c.textSecondary} />
+              </View>
+            )}
+            <View style={{ flex: 1 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Ionicons name="lock-closed" size={11} color={c.textSecondary} />
+                <Text style={{ color: c.textSecondary, fontSize: 11 * fs, fontFamily: fontCute }}>내 진영 (변경 불가)</Text>
+              </View>
+              {myFaction ? (
+                <Text style={{ color: myFaction.color, fontSize: 15 * fs, fontWeight: '800', fontFamily: fontCute, marginTop: 1 }}>
+                  {myFaction.name} · {myFaction.emblem}
+                </Text>
+              ) : (
+                <Text style={{ color: c.textPrimary, fontSize: 14 * fs, fontWeight: '700', fontFamily: fontBody, marginTop: 1 }}>아직 진영을 선택하지 않았어요</Text>
+              )}
             </View>
           </View>
 

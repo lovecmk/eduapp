@@ -14,6 +14,8 @@ import { ROUTES } from '../../src/constants/routes';
 import { useAllCards } from '../../src/hooks/useCards';
 import { useBookmarkStore } from '../../src/store/bookmarkStore';
 import { useCollectionStore } from '../../src/store/collectionStore';
+import { useFactionStore } from '../../src/store/factionStore';
+import { getFaction } from '../../src/constants/factions';
 import { COLLECTIBLES } from '../../src/data/collectibles';
 import { MEMBERSHIP_META, displayName } from '../../src/domain/models/User';
 
@@ -27,6 +29,7 @@ export default function MyPageScreen() {
   const bookmarkCount = useBookmarkStore((s) => s.ids.length);
   const ownedCollectibles = useCollectionStore((s) => s.owned);
   const packs = useCollectionStore((s) => s.packs);
+  const myFaction = getFaction(useFactionStore((s) => s.faction));
   const [themeSheetOpen, setThemeSheetOpen] = useState(false);
   const ambientLabel = useAmbientThemeLabel();
 
@@ -59,7 +62,13 @@ export default function MyPageScreen() {
               );
             })() : null}
           </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            {myFaction ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: myFaction.color + '18', borderColor: myFaction.color + '55', borderWidth: 1, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2.5 }}>
+                <Text style={{ fontSize: 11 }}>{myFaction.emoji}</Text>
+                <Text style={{ color: myFaction.color, fontSize: 11, fontWeight: '800', fontFamily: fontCute }}>{myFaction.name}</Text>
+              </View>
+            ) : null}
             {user?.loginId ? (
               <Text style={{ color: c.textSecondary, fontSize: 12, fontFamily: fontMono }}>@{user.loginId}</Text>
             ) : null}
