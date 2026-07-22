@@ -14,15 +14,17 @@ import { getDifficultyMeta } from '../../src/constants/difficulty';
 import { ROUTES } from '../../src/constants/routes';
 import { useAllCards } from '../../src/hooks/useCards';
 import { useBookmarkStore } from '../../src/store/bookmarkStore';
+import { useLikeStore } from '../../src/store/likeStore';
 import { useReportStore, REPORT_REASON_LABEL, type CardReport } from '../../src/store/reportStore';
 import type { LearningCard } from '../../src/domain/models/LearningCard';
 
-type CollectionType = 'mastered' | 'learning' | 'saved' | 'reported';
+type CollectionType = 'mastered' | 'learning' | 'saved' | 'liked' | 'reported';
 
 const META: Record<CollectionType, { title: string; icon: keyof typeof Ionicons.glyphMap; empty: string }> = {
   mastered: { title: '학습 완료 카드', icon: 'checkmark-done', empty: '아직 학습 완료한 카드가 없어요' },
   learning: { title: '한번 더 학습 카드', icon: 'refresh', empty: '다시 볼 카드가 없어요' },
   saved: { title: '저장한 카드', icon: 'bookmark', empty: '저장한 카드가 없어요' },
+  liked: { title: '좋아요한 카드', icon: 'heart', empty: '아직 좋아요한 카드가 없어요' },
   reported: { title: '신고한 카드', icon: 'flag', empty: '신고한 카드가 없어요' },
 };
 
@@ -31,22 +33,24 @@ export default function CollectionScreen() {
   const c = theme.colors;
   const router = useRouter();
   const params = useLocalSearchParams<{ type: string }>();
-  const type = (['mastered', 'learning', 'saved', 'reported'].includes(params.type ?? '') ? params.type : 'mastered') as CollectionType;
+  const type = (['mastered', 'learning', 'saved', 'liked', 'reported'].includes(params.type ?? '') ? params.type : 'mastered') as CollectionType;
   const meta = META[type];
 
   const { data: allCards = [] } = useAllCards();
   const savedIds = useBookmarkStore((s) => s.ids);
+  const likedIds = useLikeStore((s) => s.ids);
   const reports = useReportStore((s) => s.reports);
 
   const cards = useMemo<LearningCard[]>(() => {
     const byId = new Map(allCards.map((x) => [x.id, x]));
     if (type === 'saved') return savedIds.map((id) => byId.get(id)).filter(Boolean) as LearningCard[];
+    if (type === 'liked') return likedIds.map((id) => byId.get(id)).filter(Boolean) as LearningCard[];
     if (type === 'reported') {
       const ids = Array.from(new Set(reports.map((r) => r.cardId)));
       return ids.map((id) => byId.get(id)).filter(Boolean) as LearningCard[];
     }
     return allCards.filter((x) => x.status === type);
-  }, [type, allCards, savedIds, reports]);
+  }, [type, allCards, savedIds, likedIds, reports]);
 
   // 카드별 '가장 최근' 신고 내역 — 신고한 카드 목록에서 어떤 사유로 신고했는지 함께 보여준다.
   const latestReportByCard = useMemo(() => {

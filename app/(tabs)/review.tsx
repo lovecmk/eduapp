@@ -11,6 +11,7 @@ import { getCategoryIcon, getCategoryColor } from '../../src/constants/categorie
 import { ROUTES } from '../../src/constants/routes';
 import { useAllCards } from '../../src/hooks/useCards';
 import { useBookmarkStore } from '../../src/store/bookmarkStore';
+import { useLikeStore } from '../../src/store/likeStore';
 import { useReportStore } from '../../src/store/reportStore';
 
 interface CategoryStat {
@@ -28,6 +29,7 @@ export default function ReviewScreen() {
 
   const { data: allCards = [], isLoading, error, refetch } = useAllCards();
   const savedCount = useBookmarkStore((s) => s.ids.length);
+  const likedCount = useLikeStore((s) => s.ids.length);
   const reportedCount = useReportStore((s) => new Set(s.reports.map((r) => r.cardId)).size);
 
   // 내가 "학습했던" 카테고리 = 새 카드가 아닌(학습/마스터) 카드가 하나라도 있는 카테고리.
@@ -50,6 +52,7 @@ export default function ReviewScreen() {
     { type: 'mastered', label: '학습 완료 카드', icon: 'checkmark-done' as const, color: c.primary, count: masteredCount },
     { type: 'learning', label: '한번 더 학습', icon: 'refresh' as const, color: c.warning, count: learningCount },
     { type: 'saved', label: '저장 카드', icon: 'bookmark' as const, color: '#8B5CF6', count: savedCount },
+    { type: 'liked', label: '좋아요한 카드', icon: 'heart' as const, color: c.error, count: likedCount },
     { type: 'reported', label: '신고한 카드', icon: 'flag' as const, color: '#EF4444', count: reportedCount },
   ];
 
