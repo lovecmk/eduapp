@@ -142,20 +142,24 @@ function totalLearnedLabel(n: number): string {
   return `${n}장`;
 }
 
-/**
- * 히어로에 상시 노출할 짧은 격려 한 줄 — 진행 상태에 맞춰 "몰입/고생/전진"을 전한다.
- * 모달과 달리 매번 가볍게 보이므로, 스트릭/누적/오늘 진행을 반영한 다양한 문구를 돌린다.
- */
-export function encourageLine(opts: { totalLearned: number; streakDays: number; todayDone: number; dueToday: number; seed?: number }): string {
-  const { totalLearned, streakDays, todayDone, dueToday } = opts;
-  const pool: string[] = [];
+export type HeroCheer = { emoji: string; text: string };
 
-  if (todayDone > 0) pool.push(`오늘 벌써 ${todayDone}장! 몰입하는 모습이 멋져요 👏`);
-  if (streakDays >= 3) pool.push(`${streakDays}일 연속 학습 중 — 이 흐름 그대로 가요 🔥`);
-  if (dueToday > 0) pool.push(`복습 ${dueToday}장이 기다려요. 기억이 오래 남도록 잠깐만요 🔁`);
-  if (totalLearned > 0) pool.push(`지금까지 총 ${immersionLabel(totalLearned)} 몰입했어요. 정말 잘하고 있어요 🌱`);
-  pool.push('한 걸음씩, 오늘의 나도 어제보다 안전해지고 있어요 💪');
-  pool.push('작은 3분이 모여 큰 안전이 돼요. 앞으로 나아가요 🚀');
+/**
+ * 히어로에 상시 노출할 짧은 응원 — '명언(격언) 톤'을 걷어내고, 이모지 스티커 + 짤막한
+ * 게임형 한 줄로 가볍고 재밌게 푼다(히어로 태그라인과 컨셉이 겹치지 않도록).
+ * 스트릭/누적/오늘 진행/복습 도래를 반영해 매번 조금씩 다른 응원을 돌린다.
+ */
+export function heroPlayfulCheer(opts: { totalLearned: number; streakDays: number; todayDone: number; dueToday: number; seed?: number }): HeroCheer {
+  const { totalLearned, streakDays, todayDone, dueToday } = opts;
+  const pool: HeroCheer[] = [];
+
+  if (todayDone > 0) pool.push({ emoji: '⚡', text: `오늘 벌써 ${todayDone}장 클리어! 손이 빠르네요` });
+  if (streakDays >= 3) pool.push({ emoji: '🔥', text: `${streakDays}일째 연속 불꽃 — 오늘도 불씨 지켜요!` });
+  if (dueToday > 0) pool.push({ emoji: '🎯', text: `복습 ${dueToday}장이 콕! 노려볼까요?` });
+  if (totalLearned > 0) pool.push({ emoji: '🌱', text: `카드 ${totalLearnedLabel(totalLearned)} 수집 — 도감이 쑥쑥 자라요` });
+  // 데이터가 없어도 항상 하나는 나오도록 하는 기본 응원(게임형·플레이풀).
+  pool.push({ emoji: '🍀', text: '카드 몇 장이면 오늘 미션 클리어!' });
+  pool.push({ emoji: '🧩', text: '안전 한 조각씩, 퍼즐 맞추듯 오늘도 톡톡' });
 
   const seed = opts.seed ?? Math.floor(Date.now() / 60000);
   return pool[Math.abs(Math.trunc(seed)) % pool.length];

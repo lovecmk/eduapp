@@ -6,7 +6,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTheme } from '../../src/theme/ThemeProvider';
 import { ReviewSkeleton } from '../../src/components/skeletons';
 import { ErrorState } from '../../src/components/ui/ErrorState';
-import { fontDisplay, fontBody, fontMono, fontCute } from '../../src/theme/tokens';
+import { fontDisplay, fontBody, fontMono } from '../../src/theme/tokens';
 import { getCategoryIcon, getCategoryColor } from '../../src/constants/categories';
 import { ROUTES } from '../../src/constants/routes';
 import { useAllCards } from '../../src/hooks/useCards';
@@ -70,17 +70,7 @@ export default function ReviewScreen() {
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: 'transparent' }} contentContainerStyle={{ padding: 20 }} showsVerticalScrollIndicator={false}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-        <Text style={{ color: c.textPrimary, fontSize: 20 * fs, fontFamily: fontDisplay }}>복습</Text>
-        <View style={{ backgroundColor: c.success + '1A', borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3 }}>
-          <Text style={{ color: c.success, fontSize: 11 * fs, fontWeight: '800', fontFamily: fontCute }}>상한 없이 자유</Text>
-        </View>
-      </View>
-      <Text style={{ color: c.textSecondary, fontSize: 13 * fs, marginBottom: 18, fontFamily: fontBody }}>
-        오늘 학습을 다 했어도, 배웠던 내용은 언제든 다시 볼 수 있어요
-      </Text>
-
-      {/* 복습 구조(효율 우선순위, 위 → 아래):
+      {/* 복습 구조(효율 우선순위, 위 → 아래) — 별도 인트로 문구 없이 바로 오늘 학습한 카드부터 노출:
           1) 오늘 학습한 카드 — 당일 복습(same-day retrieval)으로 초기 망각 구간 방어(최상단).
           2) 모아 보기 — 학습 완료/한번 더/저장/좋아요 등 자기주도 묶음.
           3) 분야별 보기 — 간격 반복(SRS) 상태가 반영된 분야별 진도로 취약 분야 심화 복습. */}
