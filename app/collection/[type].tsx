@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet, TextInput } from 'react-native';
+import { View, Text, ScrollView, Pressable, StyleSheet, TextInput, FlatList } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 import { resolveCardImage } from '../../src/data/cardImages';
@@ -136,61 +136,70 @@ export default function CollectionScreen() {
         </View>
       )}
 
-      <ScrollView contentContainerStyle={{ padding: 20, paddingTop: 12, flexGrow: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        {isEmptyBase ? (
-          <Animated.View entering={FadeIn} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 90 }}>
-            <View style={{ width: 78, height: 78, borderRadius: 39, backgroundColor: c.surfaceAlt, alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
-              <Ionicons name={meta.icon} size={34} color={c.textSecondary} />
-            </View>
-            <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontFamily: fontDisplay }}>{meta.empty}</Text>
-            <Pressable onPress={() => router.push(ROUTES.cards)} style={{ marginTop: 18, backgroundColor: c.primary, borderRadius: 999, paddingHorizontal: 20, paddingVertical: 10 }}>
-              <Text style={{ color: c.textOnPrimary, fontSize: 13, fontFamily: fontDisplay }}>학습하러 가기</Text>
-            </Pressable>
-          </Animated.View>
-        ) : cards.length === 0 ? (
-          <Animated.View entering={FadeIn} style={{ alignItems: 'center', paddingVertical: 60 }}>
-            <Ionicons name="search-outline" size={34} color={c.textSecondary} style={{ marginBottom: 10 }} />
-            <Text style={{ color: c.textSecondary, fontSize: 14 * fs, fontFamily: fontBody }}>검색 결과가 없어요</Text>
-          </Animated.View>
-        ) : (
-          cards.map((card, i) => {
+      {isEmptyBase ? (
+        <Animated.View entering={FadeIn} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 90 }}>
+          <View style={{ width: 78, height: 78, borderRadius: 39, backgroundColor: c.surfaceAlt, alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
+            <Ionicons name={meta.icon} size={34} color={c.textSecondary} />
+          </View>
+          <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontFamily: fontDisplay }}>{meta.empty}</Text>
+          <Pressable onPress={() => router.push(ROUTES.cards)} style={{ marginTop: 18, backgroundColor: c.primary, borderRadius: 999, paddingHorizontal: 20, paddingVertical: 10 }}>
+            <Text style={{ color: c.textOnPrimary, fontSize: 13, fontFamily: fontDisplay }}>학습하러 가기</Text>
+          </Pressable>
+        </Animated.View>
+      ) : (
+        /* 큰 묶음도 가볍게 — FlatList 로 가상화해 보이는 만큼만 렌더한다. */
+        <FlatList
+          data={cards}
+          keyExtractor={(item) => item.id}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          initialNumToRender={10}
+          maxToRenderPerBatch={10}
+          windowSize={7}
+          removeClippedSubviews
+          contentContainerStyle={{ padding: 20, paddingTop: 12, flexGrow: 1 }}
+          ListEmptyComponent={
+            <Animated.View entering={FadeIn} style={{ alignItems: 'center', paddingVertical: 60 }}>
+              <Ionicons name="search-outline" size={34} color={c.textSecondary} style={{ marginBottom: 10 }} />
+              <Text style={{ color: c.textSecondary, fontSize: 14 * fs, fontFamily: fontBody }}>검색 결과가 없어요</Text>
+            </Animated.View>
+          }
+          renderItem={({ item: card }) => {
             const accent = getCategoryColor(card.category) ?? c.primary;
             const diff = getDifficultyMeta(theme, card.difficulty);
             const report = latestReportByCard.get(card.id);
             return (
-              <Animated.View key={card.id} entering={FadeInDown.delay(Math.min(i, 8) * 35).duration(300)}>
-                <Pressable onPress={() => router.push(ROUTES.content(card.id) as never)} style={[styles.row, { backgroundColor: c.surface, borderColor: c.border }]}>
-                  {resolveCardImage(card.imageUrl) ? (
-                    <Image source={resolveCardImage(card.imageUrl)!} style={styles.thumb} contentFit="cover" transition={200} />
-                  ) : (
-                    <View style={[styles.thumb, { backgroundColor: accent + '18', alignItems: 'center', justifyContent: 'center' }]}>
-                      <Ionicons name={getCategoryIcon(card.category)} size={24} color={accent} />
-                    </View>
-                  )}
-                  <View style={{ flex: 1 }}>
-                    <CategoryTrail category={card.category} subCategory={card.subCategory} topic={card.topic} size="sm" />
-                    <Text numberOfLines={2} style={{ color: c.textPrimary, fontSize: 13.5 * fs, lineHeight: 19, marginTop: 5, fontFamily: fontDisplay }}>{card.question}</Text>
-                    {type === 'reported' && report ? (
-                      <View style={{ marginTop: 8, backgroundColor: c.warning + '14', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 7 }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                          <Ionicons name="flag" size={11} color={c.warning} />
-                          <Text style={{ color: c.warning, fontSize: 11 * fs, fontFamily: fontDisplay }}>신고 사항 · {REPORT_REASON_LABEL[report.reason]}</Text>
-                        </View>
-                        {!!report.detail && (
-                          <Text numberOfLines={2} style={{ color: c.textSecondary, fontSize: 11.5 * fs, lineHeight: 16, marginTop: 3, fontFamily: fontBody }}>{report.detail}</Text>
-                        )}
-                      </View>
-                    ) : (
-                      <Text style={{ color: diff.color, fontSize: 11, marginTop: 6, fontFamily: fontDisplay }}>{diff.label}</Text>
-                    )}
+              <Pressable onPress={() => router.push(ROUTES.content(card.id) as never)} style={[styles.row, { backgroundColor: c.surface, borderColor: c.border }]}>
+                {resolveCardImage(card.imageUrl) ? (
+                  <Image source={resolveCardImage(card.imageUrl)!} style={styles.thumb} contentFit="cover" transition={200} />
+                ) : (
+                  <View style={[styles.thumb, { backgroundColor: accent + '18', alignItems: 'center', justifyContent: 'center' }]}>
+                    <Ionicons name={getCategoryIcon(card.category)} size={24} color={accent} />
                   </View>
-                  <Ionicons name="chevron-forward" size={16} color={c.textSecondary} />
-                </Pressable>
-              </Animated.View>
+                )}
+                <View style={{ flex: 1 }}>
+                  <CategoryTrail category={card.category} subCategory={card.subCategory} topic={card.topic} size="sm" />
+                  <Text numberOfLines={2} style={{ color: c.textPrimary, fontSize: 13.5 * fs, lineHeight: 19, marginTop: 5, fontFamily: fontDisplay }}>{card.question}</Text>
+                  {type === 'reported' && report ? (
+                    <View style={{ marginTop: 8, backgroundColor: c.warning + '14', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 7 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                        <Ionicons name="flag" size={11} color={c.warning} />
+                        <Text style={{ color: c.warning, fontSize: 11 * fs, fontFamily: fontDisplay }}>신고 사항 · {REPORT_REASON_LABEL[report.reason]}</Text>
+                      </View>
+                      {!!report.detail && (
+                        <Text numberOfLines={2} style={{ color: c.textSecondary, fontSize: 11.5 * fs, lineHeight: 16, marginTop: 3, fontFamily: fontBody }}>{report.detail}</Text>
+                      )}
+                    </View>
+                  ) : (
+                    <Text style={{ color: diff.color, fontSize: 11, marginTop: 6, fontFamily: fontDisplay }}>{diff.label}</Text>
+                  )}
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={c.textSecondary} />
+              </Pressable>
             );
-          })
-        )}
-      </ScrollView>
+          }}
+        />
+      )}
     </View>
   );
 }

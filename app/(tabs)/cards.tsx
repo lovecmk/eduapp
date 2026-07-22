@@ -484,7 +484,7 @@ export default function CardsScreen() {
         </View>
         <Text style={{ color: c.textPrimary, fontSize: 22 * fs, fontWeight: '800', fontFamily: fontCute }}>오늘 학습 완료!</Text>
         <Text style={{ color: c.textSecondary, marginTop: 8, textAlign: 'center', lineHeight: 21 * fs, fontFamily: fontCute }}>
-          오늘 신규 학습 {quota.limit}장을 모두 마쳤어요. 무리하지 않는 게 오래 가는 비결이에요.{'\n'}이전에 배운 내용은 <Text style={{ color: c.primary, fontWeight: '800' }}>복습</Text>에서 자유롭게 이어갈 수 있어요.
+          오늘 신규 학습 {quota.limit}장을 모두 마쳤어요.{'\n'}배운 내용은 <Text style={{ color: c.primary, fontWeight: '800' }}>복습</Text>에서 이어갈 수 있어요.
         </Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 18, backgroundColor: c.surfaceAlt, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 7 }}>
           <Ionicons name="time-outline" size={15} color={c.textSecondary} />
