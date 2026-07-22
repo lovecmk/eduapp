@@ -10,10 +10,11 @@ import { fontDisplay, fontBody, fontMono } from '../../src/theme/tokens';
 import { getCategoryIcon, getCategoryColor } from '../../src/constants/categories';
 import { ROUTES } from '../../src/constants/routes';
 import { useAllCards } from '../../src/hooks/useCards';
-import { TodayStudiedSection } from '../../src/components/review/TodayStudiedSection';
 import { useBookmarkStore } from '../../src/store/bookmarkStore';
 import { useLikeStore } from '../../src/store/likeStore';
 import { useReportStore } from '../../src/store/reportStore';
+import { useSrsStore } from '../../src/store/srsStore';
+import { dateKey } from '../../src/utils/dateKey';
 
 interface CategoryStat {
   category: string;
@@ -32,6 +33,8 @@ export default function ReviewScreen() {
   const savedCount = useBookmarkStore((s) => s.ids.length);
   const likedCount = useLikeStore((s) => s.ids.length);
   const reportedCount = useReportStore((s) => new Set(s.reports.map((r) => r.cardId)).size);
+  const history = useSrsStore((s) => s.history);
+  const todayCount = (history[dateKey(new Date())] ?? []).length;
 
   // 내가 "학습했던" 카테고리 = 새 카드가 아닌(학습/마스터) 카드가 하나라도 있는 카테고리.
   const studiedCategories = useMemo<CategoryStat[]>(() => {
@@ -50,6 +53,7 @@ export default function ReviewScreen() {
   const learningCount = useMemo(() => allCards.filter((x) => x.status === 'learning').length, [allCards]);
 
   const collections = [
+    { type: 'today', label: '오늘 학습한 카드', icon: 'today' as const, color: c.success, count: todayCount },
     { type: 'mastered', label: '학습 완료 카드', icon: 'checkmark-done' as const, color: c.primary, count: masteredCount },
     { type: 'learning', label: '한번 더 학습', icon: 'refresh' as const, color: c.warning, count: learningCount },
     { type: 'saved', label: '저장 카드', icon: 'bookmark' as const, color: '#8B5CF6', count: savedCount },
@@ -70,13 +74,9 @@ export default function ReviewScreen() {
 
   return (
     <ScrollView style={{ flex: 1, backgroundColor: 'transparent' }} contentContainerStyle={{ padding: 20 }} showsVerticalScrollIndicator={false}>
-      {/* 복습 구조(효율 우선순위, 위 → 아래) — 별도 인트로 문구 없이 바로 오늘 학습한 카드부터 노출:
-          1) 오늘 학습한 카드 — 당일 복습(same-day retrieval)으로 초기 망각 구간 방어(최상단).
-          2) 모아 보기 — 학습 완료/한번 더/저장/좋아요 등 자기주도 묶음.
-          3) 분야별 보기 — 간격 반복(SRS) 상태가 반영된 분야별 진도로 취약 분야 심화 복습. */}
-      <TodayStudiedSection allCards={allCards} />
-
-      {/* 모아 보기 — 자주 찾는 묶음을 상단에 먼저 노출 */}
+      {/* 복습 구조(효율 우선순위, 위 → 아래):
+          1) 모아 보기 — '오늘 학습한 카드'(당일 복습)를 맨 앞에, 이어서 학습완료/한번 더/저장 등 묶음.
+          2) 분야별 보기 — 간격 반복(SRS) 상태가 반영된 분야별 진도로 취약 분야 심화 복습. */}
       <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontFamily: fontDisplay, marginBottom: 12 }}>모아 보기</Text>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
         {collections.map((col) => (
