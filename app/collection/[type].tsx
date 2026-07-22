@@ -8,13 +8,13 @@ import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { useTheme } from '../../src/theme/ThemeProvider';
 import { ScreenHeader } from '../../src/components/ui/ScreenHeader';
 import { CategoryTrail } from '../../src/components/ui/CategoryTrail';
-import { fontDisplay } from '../../src/theme/tokens';
+import { fontDisplay, fontBody } from '../../src/theme/tokens';
 import { getCategoryIcon, getCategoryColor } from '../../src/constants/categories';
 import { getDifficultyMeta } from '../../src/constants/difficulty';
 import { ROUTES } from '../../src/constants/routes';
 import { useAllCards } from '../../src/hooks/useCards';
 import { useBookmarkStore } from '../../src/store/bookmarkStore';
-import { useReportStore } from '../../src/store/reportStore';
+import { useReportStore, REPORT_REASON_LABEL, type CardReport } from '../../src/store/reportStore';
 import type { LearningCard } from '../../src/domain/models/LearningCard';
 
 type CollectionType = 'mastered' | 'learning' | 'saved' | 'reported';
@@ -48,6 +48,14 @@ export default function CollectionScreen() {
     return allCards.filter((x) => x.status === type);
   }, [type, allCards, savedIds, reports]);
 
+  // 카드별 '가장 최근' 신고 내역 — 신고한 카드 목록에서 어떤 사유로 신고했는지 함께 보여준다.
+  const latestReportByCard = useMemo(() => {
+    const map = new Map<string, CardReport>();
+    // reports 는 최신순으로 prepend 되므로, 아직 없을 때만 담으면 카드별 최신 1건이 남는다.
+    for (const r of reports) if (!map.has(r.cardId)) map.set(r.cardId, r);
+    return map;
+  }, [reports]);
+
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <ScreenHeader title={`${meta.title}${cards.length ? ` (${cards.length})` : ''}`} />
@@ -66,6 +74,7 @@ export default function CollectionScreen() {
           cards.map((card, i) => {
             const accent = getCategoryColor(card.category) ?? c.primary;
             const diff = getDifficultyMeta(theme, card.difficulty);
+            const report = latestReportByCard.get(card.id);
             return (
               <Animated.View key={card.id} entering={FadeInDown.delay(Math.min(i, 8) * 35).duration(300)}>
                 <Pressable onPress={() => router.push(ROUTES.content(card.id) as never)} style={[styles.row, { backgroundColor: c.surface, borderColor: c.border }]}>
@@ -79,7 +88,19 @@ export default function CollectionScreen() {
                   <View style={{ flex: 1 }}>
                     <CategoryTrail category={card.category} subCategory={card.subCategory} topic={card.topic} size="sm" />
                     <Text numberOfLines={2} style={{ color: c.textPrimary, fontSize: 13.5 * fs, lineHeight: 19, marginTop: 5, fontFamily: fontDisplay }}>{card.question}</Text>
-                    <Text style={{ color: diff.color, fontSize: 11, marginTop: 6, fontFamily: fontDisplay }}>{diff.label}</Text>
+                    {type === 'reported' && report ? (
+                      <View style={{ marginTop: 8, backgroundColor: c.warning + '14', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 7 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                          <Ionicons name="flag" size={11} color={c.warning} />
+                          <Text style={{ color: c.warning, fontSize: 11 * fs, fontFamily: fontDisplay }}>신고 사항 · {REPORT_REASON_LABEL[report.reason]}</Text>
+                        </View>
+                        {!!report.detail && (
+                          <Text numberOfLines={2} style={{ color: c.textSecondary, fontSize: 11.5 * fs, lineHeight: 16, marginTop: 3, fontFamily: fontBody }}>{report.detail}</Text>
+                        )}
+                      </View>
+                    ) : (
+                      <Text style={{ color: diff.color, fontSize: 11, marginTop: 6, fontFamily: fontDisplay }}>{diff.label}</Text>
+                    )}
                   </View>
                   <Ionicons name="chevron-forward" size={16} color={c.textSecondary} />
                 </Pressable>

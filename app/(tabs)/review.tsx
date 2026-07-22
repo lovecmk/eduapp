@@ -76,7 +76,25 @@ export default function ReviewScreen() {
         오늘 학습을 다 했어도, 배웠던 내용은 언제든 다시 볼 수 있어요
       </Text>
 
-      {/* 학습한 카테고리 */}
+      {/* 모아 보기 — 자주 찾는 묶음을 상단에 먼저 노출 */}
+      <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontFamily: fontDisplay, marginBottom: 12 }}>모아 보기</Text>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+        {collections.map((col) => (
+          <Pressable key={col.type} onPress={() => router.push(ROUTES.collection(col.type) as never)}
+            style={{ width: '47%', flexGrow: 1, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 16, padding: 16 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <View style={{ width: 38, height: 38, borderRadius: 11, backgroundColor: col.color + '18', alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name={col.icon} size={19} color={col.color} />
+              </View>
+              <Text style={{ color: col.color, fontSize: 20 * fs, fontFamily: fontMono, fontWeight: '900' }}>{col.count}</Text>
+            </View>
+            <Text style={{ color: c.textPrimary, fontSize: 13.5 * fs, fontFamily: fontDisplay }}>{col.label}</Text>
+          </Pressable>
+        ))}
+      </View>
+
+      {/* 분야별 보기 */}
+      <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontFamily: fontDisplay, marginTop: 26, marginBottom: 12 }}>분야별 보기</Text>
       {studiedCategories.length === 0 ? (
         <View style={{ alignItems: 'center', paddingVertical: 40 }}>
           <View style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: c.surfaceAlt, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
@@ -120,23 +138,6 @@ export default function ReviewScreen() {
           })}
         </View>
       )}
-
-      {/* 모아 보기 */}
-      <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontFamily: fontDisplay, marginTop: 26, marginBottom: 12 }}>모아 보기</Text>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
-        {collections.map((col) => (
-          <Pressable key={col.type} onPress={() => router.push(ROUTES.collection(col.type) as never)}
-            style={{ width: '47%', flexGrow: 1, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 16, padding: 16 }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-              <View style={{ width: 38, height: 38, borderRadius: 11, backgroundColor: col.color + '18', alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name={col.icon} size={19} color={col.color} />
-              </View>
-              <Text style={{ color: col.color, fontSize: 20 * fs, fontFamily: fontMono, fontWeight: '900' }}>{col.count}</Text>
-            </View>
-            <Text style={{ color: c.textPrimary, fontSize: 13.5 * fs, fontFamily: fontDisplay }}>{col.label}</Text>
-          </Pressable>
-        ))}
-      </View>
     </ScrollView>
   );
 }

@@ -35,7 +35,7 @@ export function CardReportModal({ visible, card, onClose }: { visible: boolean; 
   };
 
   return (
-    <CenterModal visible={visible} onClose={handleClose} title="내용 수정 요청" icon="flag-outline">
+    <CenterModal visible={visible} onClose={handleClose} title="내용 수정 요청" icon="flag-outline" position="bottom">
       {phase === 'done' ? (
         <View style={{ alignItems: 'center', paddingVertical: 10 }}>
           <View style={{ width: 68, height: 68, borderRadius: 34, backgroundColor: c.success + '1A', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>

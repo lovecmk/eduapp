@@ -33,20 +33,20 @@ export function CardBackBody({ card }: { card: LearningCard }) {
         <QuestionImage source={resolveCardImage(card.answerImageUrl)} height={170} />
       )}
 
-      {/* 핵심 결론 */}
-      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
-        <Ionicons name="bulb" size={20} color={c.warning} style={{ marginTop: 1 }} />
-        <Text style={{ color: c.textPrimary, fontSize: 16 * fs, lineHeight: 24, fontFamily: fontDisplay, flex: 1 }}>
-          {card.conclusion}
-        </Text>
-      </View>
-
-      {/* 원리 */}
+      {/* 원리(먼저 근거를 제시하고) */}
       {!!card.principle && (
-        <Text style={{ color: c.textSecondary, fontSize: 13.5 * fs, lineHeight: 21, fontFamily: fontBody }}>
+        <Text style={{ color: c.textPrimary, fontSize: 14.5 * fs, lineHeight: 22, fontFamily: fontBody }}>
           {card.principle}
         </Text>
       )}
+
+      {/* 핵심 결론(그 다음 '따라서 ~' 결론으로 마무리) */}
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: c.warning + '12', borderRadius: 12, padding: 12 }}>
+        <Ionicons name="bulb" size={20} color={c.warning} style={{ marginTop: 1 }} />
+        <Text style={{ color: c.textPrimary, fontSize: 15.5 * fs, lineHeight: 24, fontFamily: fontDisplay, flex: 1 }}>
+          {card.conclusion}
+        </Text>
+      </View>
 
       {/* 진행 프로세스 */}
       {steps.length > 0 && (

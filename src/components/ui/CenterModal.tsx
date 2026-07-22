@@ -21,45 +21,55 @@ export function CenterModal({
   title,
   icon,
   children,
+  position = 'center',
 }: {
   visible: boolean;
   onClose: () => void;
   title: string;
   icon?: keyof typeof Ionicons.glyphMap;
   children: React.ReactNode;
+  /** 'center'(기본) 또는 'bottom' — 하단 시트 형태로 띄워 뒤 화면을 가리지 않게 한다. */
+  position?: 'center' | 'bottom';
 }) {
   const { theme, fontScale } = useTheme();
   const c = theme.colors;
+  const isBottom = position === 'bottom';
   const opacity = useSharedValue(0);
   const scale = useSharedValue(0.92);
+  const slide = useSharedValue(40);
 
   useEffect(() => {
     if (visible) {
       opacity.value = withTiming(1, { duration: 200, easing: Easing.out(Easing.cubic) });
       scale.value = withSpring(1, { damping: 16, stiffness: 200 });
+      slide.value = withSpring(0, { damping: 18, stiffness: 200 });
     } else {
       opacity.value = withTiming(0, { duration: 150 });
       scale.value = withTiming(0.92, { duration: 150 });
+      slide.value = withTiming(40, { duration: 150 });
     }
   }, [visible]);
 
   const overlayStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
-  const cardStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-    transform: [{ scale: scale.value }],
-  }));
+  const cardStyle = useAnimatedStyle(() =>
+    isBottom
+      ? { opacity: opacity.value, transform: [{ translateY: slide.value }] }
+      : { opacity: opacity.value, transform: [{ scale: scale.value }] },
+  );
 
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
-      <Animated.View style={[styles.overlay, overlayStyle]}>
+      <Animated.View style={[styles.overlay, isBottom && styles.overlayBottom, overlayStyle]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="닫기" />
         <Animated.View
           style={[
             styles.card,
+            isBottom && styles.cardBottom,
             cardStyle,
             { backgroundColor: c.surface, borderColor: c.border },
           ]}
         >
+          {isBottom && <View style={[styles.grabber, { backgroundColor: c.border }]} />}
           <View style={[styles.header, { borderBottomColor: c.border }]}>
             <View style={styles.headerLeft}>
               {icon ? <Ionicons name={icon} size={20} color={c.primary} /> : null}
@@ -72,7 +82,7 @@ export function CenterModal({
             </Pressable>
           </View>
           <ScrollView
-            style={{ maxHeight: 460 }}
+            style={{ maxHeight: isBottom ? 420 : 460 }}
             contentContainerStyle={{ padding: 20 }}
             showsVerticalScrollIndicator={false}
           >
@@ -92,6 +102,12 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
     padding: 24,
   },
+  // 하단 시트: 뒤 화면(학습 카드)을 최대한 덜 가리도록 아래쪽 정렬 + 옅은 딤.
+  overlayBottom: {
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.32)',
+    padding: 0,
+  },
   card: {
     width: '100%',
     maxWidth: 400,
@@ -100,6 +116,22 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     boxShadow: '0 12px 40px rgba(0,0,0,0.35)',
     elevation: 16,
+  },
+  cardBottom: {
+    maxWidth: 520,
+    borderRadius: 24,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+    borderBottomWidth: 0,
+    paddingBottom: 8,
+  },
+  grabber: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginTop: 8,
+    marginBottom: -2,
   },
   header: {
     flexDirection: 'row',

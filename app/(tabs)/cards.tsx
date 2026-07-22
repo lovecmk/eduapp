@@ -27,6 +27,7 @@ import { DAILY_TOTAL_LIMIT } from '../../src/constants/learning';
 import type { LearningCard } from '../../src/domain/models/LearningCard';
 import { resolveCardImage } from '../../src/data/cardImages';
 import { useBookmarkStore } from '../../src/store/bookmarkStore';
+import { useLikeStore } from '../../src/store/likeStore';
 import { useReportStore } from '../../src/store/reportStore';
 import { useCollectionStore } from '../../src/store/collectionStore';
 import { useSrsStore } from '../../src/store/srsStore';
@@ -73,6 +74,10 @@ export default function CardsScreen() {
 
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(false);
+  // 하단 버튼 전환을 카드 회전 '중간쯤'에 맞추기 위한 지연 상태.
+  // flipped 는 즉시 바뀌지만(애니메이션 시작), 버튼은 카드가 반쯤 돌아갔을 때 나타나거나 사라진다.
+  const [backControls, setBackControls] = useState(false);
+  const controlTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [doneCount, setDoneCount] = useState(0);
   const [finished, setFinished] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
@@ -177,6 +182,7 @@ export default function CardsScreen() {
     setIndex(0);
     setDoneCount(0);
     setFlipped(false);
+    setBackControls(false);
     setQuizPick(null);
     setQuizRevealed(false);
     setExiting(false);
@@ -191,6 +197,8 @@ export default function CardsScreen() {
 
   const toggleBookmark = useBookmarkStore((s) => s.toggle);
   const isBookmarked = useBookmarkStore((s) => (card ? s.ids.includes(card.id) : false));
+  const toggleLike = useLikeStore((s) => s.toggle);
+  const isLiked = useLikeStore((s) => (card ? s.ids.includes(card.id) : false));
   const hasReported = useReportStore((s) => (card ? s.reports.some((r) => r.cardId === card.id) : false));
 
   const keepScreenOn = useSettingsStore((s) => s.keepScreenOn);
@@ -205,32 +213,38 @@ export default function CardsScreen() {
     scaleAnim.setValue(1);
   }, [flipAnim, translateX, translateY, cardOpacity, scaleAnim]);
 
+  const FLIP_DURATION = 360;
   const doFlip = useCallback((next: boolean) => {
     haptic();
     setFlipped(next);
+    // 하단 버튼은 카드가 반쯤 돌아간 시점(≈절반)에 맞춰 나타나거나 사라지게 한다.
+    if (controlTimer.current) clearTimeout(controlTimer.current);
+    controlTimer.current = setTimeout(() => setBackControls(next), FLIP_DURATION * 0.48);
     // 뒤집힘 — 튀는 스프링·스케일 팝 없이, 부드러운 이징으로 한 번에 매끄럽게 넘긴다.
     // (통통 튀던 과한 느낌을 걷어내고 종이를 넘기듯 잔잔하게.)
     Animated.timing(flipAnim, {
       toValue: next ? 1 : 0,
-      duration: 360,
+      duration: FLIP_DURATION,
       easing: Easing.inOut(Easing.ease),
       useNativeDriver: true,
     }).start();
   }, [flipAnim]);
 
-  // 퀴즈(OX/객관식) 보기 선택 → 정답/오답 이펙트(햅틱) 후 자동으로 카드가 뒤집혀 해설을 보여준다.
+  // 퀴즈(OX/객관식) 보기 선택 → 정답/오답 이펙트(햅틱)만 주고, 뒤집기는 하지 않는다.
+  // 자동으로 넘어가면 정답을 곱씹을 새가 없어, 사용자가 카드를 직접 탭해 해설로 넘어가도록 둔다.
   const handleQuizPick = useCallback((i: number) => {
     if (quizRevealed || !card) return;
     const correct = i === (card.answerIndex ?? 0);
     setQuizPick(i);
     setQuizRevealed(true);
     notify(correct);
-    if (autoFlipTimer.current) clearTimeout(autoFlipTimer.current);
-    autoFlipTimer.current = setTimeout(() => doFlip(true), 1150);
-  }, [quizRevealed, card, doFlip]);
+  }, [quizRevealed, card]);
 
-  // 화면 이탈/카드 전환 시 예약된 자동 뒤집기 타이머 정리.
-  useEffect(() => () => { if (autoFlipTimer.current) clearTimeout(autoFlipTimer.current); }, []);
+  // 화면 이탈/카드 전환 시 예약된 타이머 정리.
+  useEffect(() => () => {
+    if (autoFlipTimer.current) clearTimeout(autoFlipTimer.current);
+    if (controlTimer.current) clearTimeout(controlTimer.current);
+  }, []);
 
   const advance = useCallback((status: 'mastered' | 'learning') => {
     if (!card) return;
@@ -246,6 +260,8 @@ export default function CardsScreen() {
     }
     setDoneCount((n) => n + 1);
     setFlipped(false);
+    if (controlTimer.current) clearTimeout(controlTimer.current);
+    setBackControls(false);
     setQuizPick(null);
     setQuizRevealed(false);
     resetCardAnims();
@@ -406,6 +422,7 @@ export default function CardsScreen() {
     setIndex(0);
     setDoneCount(0);
     setFlipped(false);
+    setBackControls(false);
     setFinished(false);
     setExiting(false);
     setQuizPick(null);
@@ -547,6 +564,16 @@ export default function CardsScreen() {
 
   const isQuiz = card.type === 'ox' || card.type === 'choice';
 
+  // 종이 카드 톤 — 앞면/뒷면 배경을 서로 다른 연한 색으로, 은은한 그림자로 입체감.
+  const isLight = theme.mode === 'light';
+  const frontTint = c.primary + (isLight ? '12' : '1A'); // 앞면: 시원한 파랑 톤
+  const backTint = c.success + (isLight ? '14' : '1E'); // 뒷면: 차분한 초록 톤(앞면과 대비)
+  const frontBorder = c.primary + (isLight ? '33' : '3A');
+  const backBorder = c.success + (isLight ? '33' : '3A');
+  const paperShadow = isLight ? '0 10px 24px rgba(15,23,42,0.12)' : '0 10px 24px rgba(0,0,0,0.5)';
+  // 태블릿·와이드 화면에서 글자가 좌우로 과하게 퍼지지 않도록 학습 컬럼 폭을 제한(가운데 정렬).
+  const COLUMN_MAX = 560;
+
   // 앞/뒤 rotateY 보간.
   const frontRotate = flipAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] });
   const backRotate = flipAnim.interpolate({ inputRange: [0, 1], outputRange: ['180deg', '360deg'] });
@@ -575,7 +602,7 @@ export default function CardsScreen() {
         </Pressable>
       )}
 
-      <View style={{ paddingHorizontal: 20, paddingTop: 12 }}>
+      <View style={{ paddingHorizontal: 20, paddingTop: 12, width: '100%', maxWidth: COLUMN_MAX, alignSelf: 'center' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <Ionicons name={isCategoryMode ? 'refresh-outline' : 'school-outline'} size={16} color={c.primary} />
@@ -589,7 +616,7 @@ export default function CardsScreen() {
       </View>
 
       {/* 카드(뒤집기 애니메이션) */}
-      <View style={{ flex: 1, padding: 20, paddingBottom: 8 }}>
+      <View style={{ flex: 1, padding: 20, paddingBottom: 8, width: '100%', maxWidth: COLUMN_MAX, alignSelf: 'center' }}>
         <Animated.View
           {...(isSwipeTrack ? panResponder.panHandlers : {})}
           style={{ flex: 1, transform: [{ translateX }, { translateY: cardTranslateY }, { scale: cardScale }], opacity: cardCombinedOpacity }}
@@ -602,11 +629,12 @@ export default function CardsScreen() {
             pointerEvents={flipped ? 'none' : 'auto'}
             style={{
               position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-              backgroundColor: c.surface, borderWidth: 1, borderColor: c.border,
+              backgroundColor: frontTint, borderWidth: 1, borderColor: frontBorder,
               borderRadius: 20, padding: 24,
               transform: [{ perspective: 1600 }, { rotateY: frontRotate }],
               backfaceVisibility: 'hidden',
               opacity: frontOpacity,
+              boxShadow: paperShadow,
             }}
           >
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
@@ -635,12 +663,12 @@ export default function CardsScreen() {
                   </View>
                 )}
                 {!!card.situation && (
-                  <Text style={{ color: c.textSecondary, fontSize: 13.5 * fs, lineHeight: 20, textAlign: 'center', fontFamily: fontCute, marginBottom: 8 }}>
+                  <Text style={{ color: c.textPrimary, fontSize: 13.5 * fs, lineHeight: 20, textAlign: 'center', fontFamily: fontCute, marginBottom: 8 }}>
                     {card.situation}
                   </Text>
                 )}
-                <Text style={{ color: c.textPrimary, fontSize: 18 * fs, fontWeight: '700', lineHeight: 26, textAlign: 'center', fontFamily: fontCute, marginBottom: 18 }}>
-                  {card.question}
+                <Text style={{ color: c.primary, fontSize: 18 * fs, fontWeight: '800', lineHeight: 26, textAlign: 'center', fontFamily: fontCute, marginBottom: 18 }}>
+                  <Text style={{ fontWeight: '900' }}>Q. </Text>{card.question}
                 </Text>
                 <CardQuiz
                   card={card}
@@ -664,12 +692,12 @@ export default function CardsScreen() {
                   <Ionicons name={getCategoryIcon(card.category)} size={40 * fs} color={c.primary} style={{ marginBottom: 12, opacity: 0.6 }} />
                 )}
                 {!!card.situation && (
-                  <Text style={{ color: c.textSecondary, fontSize: 16.5 * fs, lineHeight: 25, textAlign: 'center', fontFamily: fontCute, marginBottom: 14 }}>
+                  <Text style={{ color: c.textPrimary, fontSize: 16.5 * fs, lineHeight: 25, textAlign: 'center', fontFamily: fontCute, marginBottom: 14 }}>
                     {card.situation}
                   </Text>
                 )}
-                <Text style={{ color: c.textPrimary, fontSize: 20 * fs, fontWeight: '700', lineHeight: 29, textAlign: 'center', fontFamily: fontCute }}>
-                  {card.question}
+                <Text style={{ color: c.primary, fontSize: 20 * fs, fontWeight: '800', lineHeight: 29, textAlign: 'center', fontFamily: fontCute }}>
+                  <Text style={{ fontWeight: '900' }}>Q. </Text>{card.question}
                 </Text>
                 <View style={{ marginTop: 20 }}>
                   <CardTimer seconds={card.studySeconds} resetKey={card.id} onExpire={haptic} />
@@ -683,31 +711,37 @@ export default function CardsScreen() {
             pointerEvents={flipped ? 'auto' : 'none'}
             style={{
               position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-              backgroundColor: c.surface, borderWidth: 1, borderColor: c.border,
+              backgroundColor: backTint, borderWidth: 1, borderColor: backBorder,
               borderRadius: 20, padding: 22,
               transform: [{ perspective: 1600 }, { rotateY: backRotate }],
               backfaceVisibility: 'hidden',
               opacity: backOpacity,
+              boxShadow: paperShadow,
             }}
           >
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <View style={{ marginBottom: 12 }}>
               <CategoryTrail category={card.category} subCategory={card.subCategory} topic={card.topic} size="sm" />
-              {/* 저장 / 신고하기 */}
-              <View style={{ flexDirection: 'row', gap: 6 }}>
-                <Pressable onPress={() => { haptic(); toggleBookmark(card.id); }} hitSlop={6}
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: isBookmarked ? c.primary + '18' : c.surfaceAlt, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 }}>
-                  <Ionicons name={isBookmarked ? 'bookmark' : 'bookmark-outline'} size={13} color={isBookmarked ? c.primary : c.textSecondary} />
-                  <Text style={{ color: isBookmarked ? c.primary : c.textSecondary, fontSize: 11, fontFamily: fontCute }}>{isBookmarked ? '저장됨' : '저장'}</Text>
-                </Pressable>
-                <Pressable onPress={() => setReportOpen(true)} hitSlop={6}
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: hasReported ? c.warning + '18' : c.surfaceAlt, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 }}>
-                  <Ionicons name={hasReported ? 'flag' : 'flag-outline'} size={13} color={hasReported ? c.warning : c.textSecondary} />
-                  <Text style={{ color: hasReported ? c.warning : c.textSecondary, fontSize: 11, fontFamily: fontCute }}>{hasReported ? '신고됨' : '신고하기'}</Text>
-                </Pressable>
-              </View>
             </View>
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 4 }}>
               <CardBackBody card={card} />
+              {/* 카드 내부 오른쪽 하단 — 추천 / 저장 / 신고. 학습자가 조작하는 하단 버튼과 구분되는 '카드에 대한 반응'. */}
+              <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 8, marginTop: 18, paddingTop: 14, borderTopWidth: 1, borderTopColor: c.border }}>
+                <Pressable onPress={() => { haptic(); toggleLike(card.id); }} hitSlop={6}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: isLiked ? c.error + '18' : c.surfaceAlt, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8 }}>
+                  <Ionicons name={isLiked ? 'heart' : 'heart-outline'} size={17} color={isLiked ? c.error : c.textSecondary} />
+                  <Text style={{ color: isLiked ? c.error : c.textSecondary, fontSize: 13 * fs, fontFamily: fontCute }}>추천</Text>
+                </Pressable>
+                <Pressable onPress={() => { haptic(); toggleBookmark(card.id); }} hitSlop={6}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: isBookmarked ? c.primary + '18' : c.surfaceAlt, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8 }}>
+                  <Ionicons name={isBookmarked ? 'bookmark' : 'bookmark-outline'} size={16} color={isBookmarked ? c.primary : c.textSecondary} />
+                  <Text style={{ color: isBookmarked ? c.primary : c.textSecondary, fontSize: 13 * fs, fontFamily: fontCute }}>{isBookmarked ? '저장됨' : '저장'}</Text>
+                </Pressable>
+                <Pressable onPress={() => setReportOpen(true)} hitSlop={6}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: hasReported ? c.warning + '18' : c.surfaceAlt, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8 }}>
+                  <Ionicons name={hasReported ? 'flag' : 'flag-outline'} size={16} color={hasReported ? c.warning : c.textSecondary} />
+                  <Text style={{ color: hasReported ? c.warning : c.textSecondary, fontSize: 13 * fs, fontFamily: fontCute }}>{hasReported ? '신고됨' : '신고'}</Text>
+                </Pressable>
+              </View>
             </ScrollView>
           </Animated.View>
 
@@ -726,11 +760,11 @@ export default function CardsScreen() {
         </Animated.View>
       </View>
 
-      {/* 하단 컨트롤 */}
-      <View style={{ paddingHorizontal: 20, paddingBottom: 24, paddingTop: 12, borderTopWidth: 1, borderTopColor: c.border }}>
+      {/* 하단 컨트롤 — 학습자가 조작하는 버튼(화면 중간 아래). 버튼 전환은 카드 회전 중간(backControls)에 맞춘다. */}
+      <View style={{ paddingHorizontal: 20, paddingBottom: 24, paddingTop: 12, borderTopWidth: 1, borderTopColor: c.border, width: '100%', maxWidth: COLUMN_MAX, alignSelf: 'center' }}>
         {isSwipeTrack ? (
           // 스와이프 트랙(원진섭) — 뒤집기 버튼 없이 탭/스와이프로 조작.
-          !flipped ? (
+          !backControls ? (
             <View style={{ height: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingHorizontal: 12 }}>
               <Ionicons name={solveHint ? 'alert-circle' : 'swap-horizontal-outline'} size={16} color={solveHint ? c.warning : c.textSecondary} />
               <Text style={{ color: solveHint ? c.warning : c.textSecondary, fontSize: 13 * fs, fontFamily: fontCute, textAlign: 'center' }}>
@@ -738,17 +772,17 @@ export default function CardsScreen() {
               </Text>
             </View>
           ) : (
-            // 버튼 위치 교체 — 왼쪽: 다음에 한번 더 / 오른쪽: 학습 완료
+            // 버튼 위치 교체 — 왼쪽: 다음에 한번 더 볼게요 / 오른쪽: 이해했어요
             <View style={{ flexDirection: 'row', gap: 10, height: 52 }}>
               <Pressable onPress={againUp} disabled={exiting}
                 style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.warning, borderRadius: 14, height: 52, boxShadow: `0 3px 8px ${c.warning}3D` }}>
                 <Ionicons name="refresh-circle" size={19} color="#fff" />
-                <Text style={{ color: '#fff', fontSize: 15 * fs, fontWeight: '700', fontFamily: fontCute }}>다음에 한번 더</Text>
+                <Text style={{ color: '#fff', fontSize: 14.5 * fs, fontWeight: '700', fontFamily: fontCute }}>다음에 한번 더 볼게요</Text>
               </Pressable>
               <Pressable onPress={completeLeft} disabled={exiting}
                 style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.success, borderRadius: 14, height: 52, boxShadow: `0 3px 8px ${c.success}3D` }}>
                 <Ionicons name="checkmark-circle" size={19} color="#fff" />
-                <Text style={{ color: '#fff', fontSize: 15 * fs, fontWeight: '700', fontFamily: fontCute }}>학습 완료</Text>
+                <Text style={{ color: '#fff', fontSize: 14.5 * fs, fontWeight: '700', fontFamily: fontCute }}>이해했어요</Text>
               </Pressable>
             </View>
           )
@@ -760,17 +794,17 @@ export default function CardsScreen() {
               <Ionicons name="sync-outline" size={18} color={c.primary} />
               <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontFamily: fontCute }}>카드 뒤집기</Text>
             </Pressable>
-            {flipped ? (
+            {backControls ? (
               <View style={{ flexDirection: 'row', gap: 10, height: 52 }}>
                 <Pressable onPress={completeLeft} disabled={exiting}
                   style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.success, borderRadius: 14, height: 52, boxShadow: `0 3px 8px ${c.success}3D` }}>
                   <Ionicons name="checkmark-circle" size={19} color="#fff" />
-                  <Text style={{ color: '#fff', fontSize: 15 * fs, fontWeight: '700', fontFamily: fontCute }}>학습 완료</Text>
+                  <Text style={{ color: '#fff', fontSize: 14.5 * fs, fontWeight: '700', fontFamily: fontCute }}>이해했어요</Text>
                 </Pressable>
                 <Pressable onPress={againUp} disabled={exiting}
                   style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.warning, borderRadius: 14, height: 52, boxShadow: `0 3px 8px ${c.warning}3D` }}>
                   <Ionicons name="arrow-up-circle" size={19} color="#fff" />
-                  <Text style={{ color: '#fff', fontSize: 15 * fs, fontWeight: '700', fontFamily: fontCute }}>다음에 한번 더</Text>
+                  <Text style={{ color: '#fff', fontSize: 14.5 * fs, fontWeight: '700', fontFamily: fontCute }}>다음에 한번 더 볼게요</Text>
                 </Pressable>
               </View>
             ) : (

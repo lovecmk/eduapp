@@ -143,9 +143,12 @@ export function CardQuiz({
         </Animated.View>
       )}
       {revealed && (
-        <Text style={{ color: c.textSecondary, fontSize: 12 * fs, textAlign: 'center', marginTop: 6, fontFamily: fontBody }}>
-          잠시 후 해설로 넘어가요…
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, marginTop: 8 }}>
+          <Ionicons name="hand-left-outline" size={13} color={c.textSecondary} />
+          <Text style={{ color: c.textSecondary, fontSize: 12 * fs, textAlign: 'center', fontFamily: fontBody }}>
+            카드를 탭하면 해설을 볼 수 있어요
+          </Text>
+        </View>
       )}
     </Animated.View>
   );
