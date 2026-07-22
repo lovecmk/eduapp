@@ -29,17 +29,16 @@ export const NOTIFICATION_TYPE_META: Record<
   system: { label: '공지·시스템', icon: 'megaphone', color: '#26A69A', desc: '업데이트·점검 등 서비스 공지' },
 };
 
+// 알림은 '꼭 필요한 것'만 — 성취(축하)와 공지(시스템)만 보낸다.
+// 복습 주기 알림(remind)·새 콘텐츠 알림(new)은 제외한다:
+//  · 복습은 '오늘의 학습'에서 자동으로 이어 제시하므로 별도 알림이 불필요.
+//  · 새 콘텐츠 안내는 소음이 되기 쉬워 제외.
+// 성취 기준: 연속 학습 5일(주말 제외), 누적 카드 50개 단위(50·100·150…).
 function seedNotifications(): AppNotification[] {
   return [
-    { id: 'n1', type: 'remind', title: '지금 복습할 카드 5장이 있어요', desc: '망각곡선 기준 복습 시점이 도래했습니다. 3분이면 충분해요.', minutesAgo: 8, read: false, category: '복습' },
-    { id: 'n2', type: 'new', title: '새 학습 컨텐츠가 추가되었어요', desc: '공정 위험 > 도장 공정 시리즈를 확인해보세요.', minutesAgo: 45, read: false, category: '공정 위험' },
-    { id: 'n3', type: 'achievement', title: '연속 학습 7일 달성! 🔥', desc: '일주일 동안 꾸준히 학습하셨어요. 축하합니다!', minutesAgo: 180, read: false, category: '성취' },
-    { id: 'n4', type: 'remind', title: '전기 위험 복습 리마인드', desc: '절연파괴·누전 카드의 복습 주기가 도래했습니다.', minutesAgo: 320, read: false, category: '전기 위험' },
-    { id: 'n5', type: 'new', title: '위험물 학습 카드 확장', desc: '마그네슘 분진·소화 등 카드가 새로 추가되었습니다.', minutesAgo: 26 * 60, read: false, category: '위험물' },
-    { id: 'n6', type: 'system', title: '현장학습 v1.2 업데이트', desc: '간격 반복 복습과 학습 캘린더가 추가되었어요.', minutesAgo: 30 * 60, read: true, category: '공지' },
-    { id: 'n7', type: 'achievement', title: '누적 100개 카드 완료 🏅', desc: '점검 실무 지식 100개를 학습하셨습니다.', minutesAgo: 52 * 60, read: true, category: '성취' },
-    { id: 'n8', type: 'remind', title: '취약 주제 복습 권장', desc: '공정 위험 > 위험장소 카드의 정답률이 낮습니다. 복습을 권장해요.', minutesAgo: 74 * 60, read: true, category: '공정 위험' },
-    { id: 'n9', type: 'new', title: '전기 화재 기초 컨텐츠', desc: '절연파괴·접촉불량 카드가 추가되었습니다.', minutesAgo: 5 * 1440, read: true, category: '전기 위험' },
+    { id: 'n3', type: 'achievement', title: '연속 학습 5일 달성! 🔥', desc: '평일 5일 동안 꾸준히 학습하셨어요. 축하합니다!', minutesAgo: 180, read: false, category: '성취' },
+    { id: 'n7', type: 'achievement', title: '누적 50개 카드 완료 🏅', desc: '점검 실무 지식 50개를 학습하셨습니다.', minutesAgo: 52 * 60, read: true, category: '성취' },
+    { id: 'n6', type: 'system', title: '하루3분ON 업데이트', desc: '간격 반복 복습과 학습 캘린더가 추가되었어요.', minutesAgo: 30 * 60, read: true, category: '공지' },
     { id: 'n10', type: 'system', title: '데이터 백업 완료', desc: '학습 진행 상황이 안전하게 백업되었습니다.', minutesAgo: 8 * 1440, read: true, category: '공지' },
   ];
 }
@@ -63,7 +62,8 @@ export const useNotificationStore = create<NotificationState>()(
   persist(
     (set, get) => ({
       items: seedNotifications(),
-      mutedTypes: { new: false, remind: false, achievement: false, system: false },
+      // 복습 주기(remind)·새 콘텐츠(new)는 기본적으로 보내지 않는다(사용자 설정에서도 노출 안 함).
+      mutedTypes: { new: true, remind: true, achievement: false, system: false },
 
       unreadCount: () => get().items.filter((n) => !n.read && !get().mutedTypes[n.type]).length,
       markAllRead: () => set((s) => ({ items: s.items.map((n) => ({ ...n, read: true })) })),
@@ -76,7 +76,7 @@ export const useNotificationStore = create<NotificationState>()(
     }),
     {
       name: 'notifications',
-      version: 2,
+      version: 3,
       storage: createJSONStorage(() => AsyncStorage),
       // 알림 항목은 목업이므로 사용자 선호(mutedTypes)만 영속화.
       partialize: (s) => ({ mutedTypes: s.mutedTypes }),

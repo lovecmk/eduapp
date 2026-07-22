@@ -218,6 +218,9 @@ export default function NotificationsScreen() {
 
       {/* 헤더 메뉴 */}
       <ActionSheet visible={headerMenu} onClose={() => setHeaderMenu(false)} title="알림 관리">
+        {/* 알림 수신 설정을 홈 알림 화면 한곳에서 관리(꼭 필요한 성취·공지만). */}
+        <SheetRow icon="trophy-outline" label={`성취 알림 ${mutedTypes.achievement ? '켜기' : '끄기'}`} onPress={() => setMute('achievement', !mutedTypes.achievement)} />
+        <SheetRow icon="megaphone-outline" label={`공지 알림 ${mutedTypes.system ? '켜기' : '끄기'}`} onPress={() => setMute('system', !mutedTypes.system)} />
         <SheetRow icon="checkmark-done" label="모두 읽음 처리" onPress={() => { markAllRead(); setHeaderMenu(false); }} />
         <SheetRow icon="trash-outline" label="전체 삭제" destructive onPress={() => { clearAll(); setHeaderMenu(false); }} />
       </ActionSheet>

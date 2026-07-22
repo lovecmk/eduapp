@@ -93,29 +93,8 @@ export default function MyPageScreen() {
         ))}
       </Pressable>
 
-      <SectionLabel>학습</SectionLabel>
-      <MyRow icon="stats-chart-outline" title="학습 통계" desc="학습 성향·복습 현황·순위 자세히 보기" onPress={() => router.push(ROUTES.stats)} />
-
-      <Pressable onPress={() => router.push(ROUTES.saved)}
-        style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: c.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: c.border, marginVertical: 8 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-          <Ionicons name="bookmark-outline" size={20} color={c.textPrimary} />
-          <View>
-            <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontWeight: '700', fontFamily: fontCute }}>저장한 카드</Text>
-            <Text style={{ color: c.textSecondary, fontSize: 12, fontFamily: fontCute }}>북마크한 학습 카드 모아보기</Text>
-          </View>
-        </View>
-        {bookmarkCount > 0 ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <View style={{ backgroundColor: c.primary + '1A', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 }}>
-              <Text style={{ color: c.primary, fontSize: 12, fontWeight: '800', fontFamily: fontMono }}>{bookmarkCount}</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={c.primary} />
-          </View>
-        ) : (
-          <Ionicons name="chevron-forward" size={18} color={c.primary} />
-        )}
-      </Pressable>
+      {/* '학습 통계'·'저장한 카드'는 각각 통계 탭(홈 학습현황 더보기)·컬렉션에서 접근되므로
+          MY 에서는 중복을 덜어 단순화한다. */}
 
       {/* ── 내 컬렉션 · 성취 ─────────────────────────────────────────────
           엠블럼(실력)·도감(수집)·트로피(달성)를 한 곳에 모아 성격 태그로 구분한다.

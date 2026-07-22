@@ -303,39 +303,18 @@ export default function StatsScreen() {
         contentContainerStyle={{ padding: 20 }}>
         <View style={{ flexDirection: 'row', gap: 8, marginBottom: 20 }}>
           <StatTile icon="book" color={c.primary} value={`${stats?.totalLearned ?? 0}`} label="누적 학습" />
-          <StatTile icon="checkmark-circle" color={c.success} value={`${Math.round((stats?.accuracy ?? 0) * 100)}%`} label="정답률" />
           <StatTile icon="flame" color={c.warning} value={`${stats?.streakDays ?? 0}일`} label="연속 학습" />
           <StatTile icon="trophy" color="#F2705B" value={`${stats?.bestStreak ?? 0}일`} label="최고 기록" />
         </View>
 
-        {/* 오늘의 학습(하루 신규 5장 상한) — 변경된 학습 시스템 반영 */}
+        {/* 오늘의 학습(신규 3장 + 복습 포함 5장) — 개인 학습 현황. */}
         <DailyLearningCard streakDays={stats?.streakDays ?? 0} />
 
-        {/* 내 진영 · 함께 짓는 안전 빌딩 대항전 요약 */}
-        <MyFactionCard />
-
-        {/* 성취 카드 자랑하기 — 스포티파이 랩드 스타일 카드로 커뮤니티에 공유 */}
-        <Pressable onPress={() => router.push(ROUTES.share as never)}
-          style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.primary, borderRadius: 16, padding: 16, marginBottom: 20, boxShadow: '0 6px 16px rgba(37,99,235,0.28)' }}>
-          <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center' }}>
-            <Ionicons name="sparkles" size={20} color="#fff" />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={{ color: '#fff', fontSize: 15 * fs, fontWeight: '800', fontFamily: fontCute }}>성취 카드 만들기</Text>
-            <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 12 * fs, fontFamily: fontBody, marginTop: 2 }}>나의 칭호·기록을 '오늘의 플렉스'에 올려요</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color="#fff" />
-        </Pressable>
-
-        <LearningPersonaCard cards={allCards} interests={interests} />
-
-        <LearningRhythmCard />
-
-        <ReviewStatusCard />
-
+        {/* 주간 학습량(개인 통계). */}
         <WeeklyChart weekly={stats?.weekly ?? []} />
 
-        {stats?.insights && <InsightsCard insights={stats.insights} />}
+        {/* 성취 카드 만들기·학습 인사이트·학습 성향(수호대)·순위/엠블럼 등 '자랑·비교' 성격의
+            항목은 커뮤니티로 옮겨, 통계 화면은 학습자 개인의 단순 통계만 담는다. */}
 
         <Card style={{ marginBottom: 20 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 }}>
@@ -380,119 +359,7 @@ export default function StatsScreen() {
           </Text>
         </Card>
 
-        <Card style={{ marginBottom: 20 }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Ionicons name="trophy" size={16} color="#F2B705" />
-              <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontFamily: fontDisplay }}>전체 순위</Text>
-              <View style={{ backgroundColor: c.primary + '14', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 }}>
-                <Text style={{ color: c.primary, fontSize: 11, fontFamily: fontMono, fontWeight: '800' }}>4위 / 86명</Text>
-              </View>
-            </View>
-            <Pressable onPress={() => setRankingModal(true)} hitSlop={6}>
-              <Text style={{ color: c.primary, fontSize: 12, fontFamily: fontDisplay }}>더보기 →</Text>
-            </Pressable>
-          </View>
-
-          {/* 시상대(TOP 3) */}
-          <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'center', gap: 10, marginBottom: 16 }}>
-            {[
-              { rank: 2, nickname: '박현장', score: 85, h: 54, color: '#C0C0C0' },
-              { rank: 1, nickname: '김안전', score: 98, h: 72, color: '#FFD700' },
-              { rank: 3, nickname: '최예방', score: 79, h: 40, color: '#CD7F32' },
-            ].map((p) => (
-              <View key={p.rank} style={{ flex: 1, alignItems: 'center' }}>
-                <Text style={{ fontSize: 18 }}>{['', '🥇', '🥈', '🥉'][p.rank]}</Text>
-                <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: p.color, alignItems: 'center', justifyContent: 'center', marginVertical: 4, borderWidth: 2, borderColor: c.surface }}>
-                  <Text style={{ color: '#fff', fontSize: 13, fontFamily: fontDisplay }}>{p.nickname.charAt(0)}</Text>
-                </View>
-                <Text numberOfLines={1} style={{ color: c.textPrimary, fontSize: 11.5, fontFamily: fontDisplay }}>{p.nickname}</Text>
-                <Text style={{ color: c.textSecondary, fontSize: 11, fontFamily: fontMono }}>{p.score}점</Text>
-                <View style={{ width: '86%', height: p.h, backgroundColor: p.color + '33', borderTopLeftRadius: 8, borderTopRightRadius: 8, marginTop: 6, alignItems: 'center', paddingTop: 4 }}>
-                  <Text style={{ color: c.textSecondary, fontSize: 12, fontFamily: fontMono, fontWeight: '800' }}>{p.rank}</Text>
-                </View>
-              </View>
-            ))}
-          </View>
-
-          {/* 내 순위 */}
-          <RankingRow rank={4} nickname={user?.name ?? '나'} score={72} isMe />
-          <RankingRow rank={5} nickname="이방호" score={68} />
-        </Card>
-
-        <Card style={{ marginBottom: 20 }}>
-          <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontWeight: '700', marginBottom: 12, fontFamily: fontCute }}>🏅 엠블럼 순위</Text>
-          {emblems.map((em) => {
-            const rank = emblemRankingMock(em.category);
-            return (
-              <Pressable key={em.category} onPress={() => { setSelectedEmblem(em); setSheetOpen(true); }}
-                style={{ backgroundColor: c.surfaceAlt, borderRadius: 14, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: c.border }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                  <Text style={{ fontSize: 18, marginRight: 4 }}>{em.emoji}</Text>
-                  <Text style={{ fontSize: 11 }}>{['', '🥉', '🥈', '🥇'][em.level]}</Text>
-                  <View style={{ flex: 1, marginLeft: 8 }}>
-                    <Text style={{ color: c.textPrimary, fontSize: 13 * fs, fontWeight: '700', fontFamily: fontCute }}>{em.label}</Text>
-                    <Text style={{ color: c.textSecondary, fontSize: 11, fontFamily: fontMono }}>이수 {em.pct}% · 상위 {em.topPct}%</Text>
-                  </View>
-                  <View style={{ backgroundColor: c.bg, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4 }}>
-                    <Text style={{ color: c.primary, fontSize: 12, fontWeight: '800', fontFamily: fontMono }}>1위 {rank[0].score}점</Text>
-                  </View>
-                </View>
-                <View style={{ height: 4, backgroundColor: c.bg, borderRadius: 2, overflow: 'hidden' }}>
-                  <View style={{ width: `${em.pct}%`, height: '100%', backgroundColor: c.primary, borderRadius: 2 }} />
-                </View>
-              </Pressable>
-            );
-          })}
-        </Card>
       </ScrollView>
-
-      <BottomSheet visible={sheetOpen} onClose={() => { setSheetOpen(false); setSelectedEmblem(null); }}>
-        {selectedEmblem ? (
-          <>
-            <View style={{ alignItems: 'center', marginBottom: 12 }}>
-              <View style={{ position: 'relative' }}>
-                <Text style={{ fontSize: 40 }}>{selectedEmblem.emoji}</Text>
-                <Text style={{ position: 'absolute', bottom: -4, right: -8, fontSize: 14 }}>{['', '🥉', '🥈', '🥇'][selectedEmblem.level]}</Text>
-              </View>
-              <Text style={{ color: c.textPrimary, fontSize: 17 * fs, fontWeight: '800', marginTop: 8, fontFamily: fontCute }}>{selectedEmblem.label}</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 }}>
-                <Text style={{ color: c.textSecondary, fontSize: 12, fontFamily: fontCute }}>이수</Text>
-                <Text style={{ color: c.primary, fontSize: 16 * fs, fontWeight: '800', fontFamily: fontMono }}>{selectedEmblem.pct}%</Text>
-                <Text style={{ color: c.textSecondary, fontSize: 12, marginLeft: 8, fontFamily: fontCute }}>· 상위</Text>
-                <Text style={{ color: c.primary, fontSize: 16 * fs, fontWeight: '800', fontFamily: fontMono }}>{selectedEmblem.topPct}%</Text>
-              </View>
-            </View>
-            <View style={{ height: 6, backgroundColor: c.surfaceAlt, borderRadius: 3, overflow: 'hidden', marginBottom: 16 }}>
-              <View style={{ width: `${selectedEmblem.pct}%`, height: '100%', backgroundColor: c.primary, borderRadius: 3 }} />
-            </View>
-            <Text style={{ color: c.textPrimary, fontSize: 13 * fs, fontWeight: '700', marginBottom: 8, fontFamily: fontCute }}>🏅 TOP 5</Text>
-            {emblemRankings.map((r) => {
-              const isMe = r.nickname === (user?.name ?? '');
-              return (
-                <RankingRow key={r.rank} rank={r.rank} nickname={r.nickname} score={r.score} isMe={isMe} />
-              );
-            })}
-            <View style={{ marginTop: 16 }}>
-              <Button label="닫기" variant="outline" onPress={() => { setSheetOpen(false); setSelectedEmblem(null); }} />
-            </View>
-          </>
-        ) : null}
-      </BottomSheet>
-
-      <BottomSheet visible={rankingModal} onClose={() => setRankingModal(false)}>
-        <View style={{ maxHeight: 400 }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <Text style={{ color: c.textPrimary, fontSize: 17 * fs, fontWeight: '700', fontFamily: fontCute }}>🏆 전체 순위</Text>
-            <Text style={{ color: c.textSecondary, fontSize: 11, fontFamily: fontMono }}>최대 50까지만 표기</Text>
-          </View>
-          <FlatList
-            data={RANKING_DATA}
-            renderItem={({ item }) => <RankingRow rank={item.rank} nickname={item.nickname} score={item.score} isMe={item.isMe} />}
-            keyExtractor={(item) => String(item.rank)}
-          />
-        </View>
-      </BottomSheet>
     </View>
   );
 }

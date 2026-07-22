@@ -237,14 +237,12 @@ export default function CardsScreen() {
     if (autoFlipTimer.current) clearTimeout(autoFlipTimer.current);
     markCardMutation.mutate({ id: card.id, status });
     if (!isCategoryMode && !isFocusMode) {
-      if (card.status === 'new') {
-        // '오늘의 학습'(신규) 한 장을 마치면 하루 상한 사용량에 반영.
-        recordNewLearned(1);
-      } else {
-        // 신규 뒤에 이어 붙은 '복습' 카드 — SRS 일정을 갱신해 도래 큐에서 빠지게 한다.
-        // (알았음=good / 몰랐음=again). 상한(신규)에는 집계하지 않는다.
-        srsGrade(card.id, status === 'mastered' ? 'good' : 'again');
-      }
+      // 오늘의 학습(신규+복습)은 모두 SRS 일정에 반영하고 그날 학습 기록(history)에 남긴다.
+      // (알았음=good → 다음 복습 간격이 늘고, 몰랐음=again → 곧 다시 복습). 이렇게 하면
+      // 신규 카드도 첫 복습 일정이 잡히고, 달력의 '완료/일부완료·카드수'가 정확해진다.
+      srsGrade(card.id, status === 'mastered' ? 'good' : 'again');
+      // 신규 카드 한 장을 마치면 하루 상한 사용량에도 집계(복습은 상한과 무관).
+      if (card.status === 'new') recordNewLearned(1);
     }
     setDoneCount((n) => n + 1);
     setFlipped(false);

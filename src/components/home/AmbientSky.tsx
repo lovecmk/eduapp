@@ -65,7 +65,7 @@ function Precipitation({ kind, wind }: { kind: 'rain' | 'snow'; wind: Animated.V
   const isRain = kind === 'rain';
   const drops = useMemo(
     () =>
-      Array.from({ length: isRain ? 22 : 18 }).map((_, i) => ({
+      Array.from({ length: isRain ? 30 : 24 }).map((_, i) => ({
         left: `${(i * 27 + 3) % 97}%`,
         // 비는 자잘하고 귀엽게, 눈결정은 크기를 조금 키운다.
         size: isRain ? 7 + ((i * 3) % 4) : 11 + ((i * 5) % 9),
@@ -121,7 +121,7 @@ function Drop({ left, size, dur, delay, isRain, flake, wind }: { left: string; s
           width: size * 0.8, height: size * 1.15,
           borderTopLeftRadius: size, borderTopRightRadius: size,
           borderBottomLeftRadius: size * 0.9, borderBottomRightRadius: size * 0.9,
-          backgroundColor: 'rgba(120,180,245,0.42)', opacity: 0.75,
+          backgroundColor: 'rgba(110,170,240,0.5)', opacity: 0.82,
           transform: [{ translateY }, { translateX }],
         }}
       />
@@ -132,7 +132,7 @@ function Drop({ left, size, dur, delay, isRain, flake, wind }: { left: string; s
     <Animated.Text
       style={{
         position: 'absolute', top: -40, left: left as never,
-        fontSize: size, color: 'rgba(150,195,235,0.85)', opacity: 0.85,
+        fontSize: size, color: 'rgba(140,190,232,0.92)', opacity: 0.92,
         transform: [{ translateY }, { translateX }, { rotate }],
       }}
     >
@@ -147,7 +147,7 @@ const STAR_GLYPHS = ['★', '✦', '✨', '⭐'];
 function Stars() {
   const seeds = useMemo(
     () =>
-      Array.from({ length: 26 }).map((_, i) => ({
+      Array.from({ length: 34 }).map((_, i) => ({
         top: `${(i * 37 + 3) % 92}%`,
         left: `${(i * 61 + 7) % 95}%`,
         size: 9 + ((i * 7) % 9),
@@ -202,7 +202,7 @@ function Wind({ wind }: { wind: Animated.Value }) {
   const leaves = useMemo(
     () =>
       // 태풍답게 잎을 더 많이, 더 빠르게.
-      Array.from({ length: 14 }).map((_, i) => ({
+      Array.from({ length: 18 }).map((_, i) => ({
         top: `${4 + ((i * 11) % 88)}%`,
         size: 16 + ((i * 5) % 12),
         dur: 2000 + ((i * 360) % 2600),

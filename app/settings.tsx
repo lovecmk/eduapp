@@ -7,7 +7,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../src/theme/ThemeProvider';
 import { useSettingsStore, type ThemeMode, type FontScale } from '../src/store/settingsStore';
 import { useAuthStore } from '../src/store/authStore';
-import { NOTIFICATION_TYPE_META, type NotificationType } from '../src/store/notificationStore';
 import { SegmentedControl } from '../src/components/ui/SegmentedControl';
 import { Switch } from '../src/components/ui/Switch';
 import { Button } from '../src/components/ui/Button';
@@ -15,7 +14,6 @@ import { ScreenHeader } from '../src/components/ui/ScreenHeader';
 import { SettingsGroup, SettingsItem } from '../src/components/ui/SettingsGroup';
 import { AMBIENT_THEME_OPTIONS } from '../src/constants/ambient';
 import { MembershipCard } from '../src/components/settings/MembershipCard';
-import { NotificationPreviewToggle } from '../src/components/settings/NotificationPreviewToggle';
 import { SupportModal } from '../src/components/settings/SupportModal';
 import { ChangelogModal } from '../src/components/settings/ChangelogModal';
 import { CenterModal } from '../src/components/ui/CenterModal';
@@ -159,78 +157,18 @@ export default function SettingsScreen() {
         </SettingsGroup>
 
         <SettingsGroup title="알림">
+          {/* 알림 설정은 홈 상단 '알림(종 아이콘)' 화면에서 한곳으로 관리한다.
+              (복습 주기·새 콘텐츠 알림은 제외 — 꼭 필요한 성취·공지 알림만 보낸다.) */}
           <SettingsItem
             icon="notifications-outline"
-            label="학습 리마인더"
-            description="매일 정해진 시간에 알림"
-            right={<Switch value={notifications.enabled} onValueChange={onToggleNotification} />}
-          />
-          <SettingsItem
-            icon="time-outline"
-            label="알림 시간"
-            onPress={openTimePicker}
-            right={
-              <Text style={{ color: c.primary, fontWeight: '700', fontFamily: fontMono, fontSize: 15 * fs }}>
-                {notifications.dailyReminderTime}
-              </Text>
-            }
-          />
-          <SettingsItem
-            icon="refresh-outline"
-            label="복습 예정 알림"
-            description="망각곡선 기준 복습 시점"
-            right={<Switch value={notifications.reviewAlerts} onValueChange={(v) => updateNotificationSetting('reviewAlerts', v)} />}
-          />
-          <SettingsItem
-            icon="bar-chart-outline"
-            label="주간 리포트"
-            right={<Switch value={notifications.weeklyReport} onValueChange={(v) => updateNotificationSetting('weeklyReport', v)} />}
-          />
-          <SettingsItem
-            icon="phone-portrait-outline"
-            label="인앱 푸시 알림"
-            right={<Switch value={notifications.inApp} onValueChange={(v) => updateNotificationSetting('inApp', v)} />}
-          />
-          <SettingsItem
-            icon="mail-outline"
-            label="이메일 알림"
-            right={<Switch value={notifications.email} onValueChange={(v) => updateNotificationSetting('email', v)} />}
-          />
-          <SettingsItem
-            icon="megaphone-outline"
-            label="마케팅 정보 수신"
-            description="이벤트·혜택 소식 (선택)"
-            right={<Switch value={notifications.marketing} onValueChange={(v) => updateNotificationSetting('marketing', v)} />}
+            label="알림 설정"
+            description="성취·공지 알림 받기 (홈 알림에서 관리)"
+            onPress={() => router.push(ROUTES.notifications as never)}
           />
         </SettingsGroup>
 
-        <Text style={{ color: c.textSecondary, fontSize: 12, fontFamily: fontDisplay, textTransform: 'uppercase', letterSpacing: 0.6, marginTop: 22, marginBottom: 6, marginLeft: 4 }}>알림 종류별 수신</Text>
-        <Text style={{ color: c.textSecondary, fontSize: 11.5, fontFamily: fontBody, marginBottom: 10, marginLeft: 4 }}>이런 알림을 받을지 예시를 보고 선택하세요</Text>
-        {(Object.keys(NOTIFICATION_TYPE_META) as NotificationType[]).map((t) => (
-          <NotificationPreviewToggle key={t} type={t} />
-        ))}
-
         <SettingsGroup title="학습">
-          <SettingsItem
-            icon="flag-outline"
-            label="목표 학습량"
-            description="하루 목표 카드 수"
-            right={
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <Pressable onPress={() => setDailyTarget(Math.max(3, dailyTarget - 1))}
-                  hitSlop={6}
-                  style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: c.surfaceAlt, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: c.border }}>
-                  <Ionicons name="remove" size={16} color={c.textPrimary} />
-                </Pressable>
-                <Text style={{ color: c.textPrimary, fontSize: 16, fontWeight: '800', fontFamily: fontMono, minWidth: 24, textAlign: 'center' }}>{dailyTarget}</Text>
-                <Pressable onPress={() => setDailyTarget(Math.min(50, dailyTarget + 1))}
-                  hitSlop={6}
-                  style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: c.surfaceAlt, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: c.border }}>
-                  <Ionicons name="add" size={16} color={c.textPrimary} />
-                </Pressable>
-              </View>
-            }
-          />
+          {/* 목표 학습량(신규 3장·복습 포함 5장)은 고정 정책이라 조절 UI를 노출하지 않는다. */}
           <SettingsItem
             icon="shuffle-outline"
             label="카드 순서 섞기"

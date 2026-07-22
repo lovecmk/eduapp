@@ -10,7 +10,7 @@ import { useNotificationStore, NOTIFICATION_TYPE_META, type NotificationType } f
 const SAMPLE: Record<NotificationType, string> = {
   remind: '지금 복습할 카드 5장이 있어요',
   new: '새 소방 학습 카드가 추가되었어요',
-  achievement: '연속 학습 7일 달성! 🔥',
+  achievement: '연속 학습 5일 달성! 🔥',
   system: '현장학습 업데이트 소식이 도착했어요',
 };
 

@@ -10,6 +10,7 @@ import { Button } from '../ui/Button';
 import { AnimatedSheet } from '../ui/AnimatedSheet';
 import { getCategoryIcon, getCategoryColor } from '../../constants/categories';
 import { dateKey, dayDiff } from '../../utils/dateKey';
+import { DAILY_NEW_LIMIT } from '../../constants/learning';
 import { useAllCards } from '../../hooks/useCards';
 import { useSrsStore } from '../../store/srsStore';
 import { useAttendanceStore } from '../../store/attendanceStore';
@@ -35,12 +36,17 @@ function chunkWeeks(cells: (number | null)[]): (number | null)[][] {
   return weeks;
 }
 
-/** 학습 강도(복습 카드 수)를 4단계 히트맵 색으로 변환. */
-function heatColor(count: number, primary: string, base: string): string {
-  if (count <= 0) return base;
-  if (count <= 2) return primary + '4D';
-  if (count <= 4) return primary + '99';
-  return primary;
+// 대한민국 공휴일 — 양력 고정일 + 2025·2026 음력/대체공휴일 근사(데모용).
+// 근무일(월~금 중 공휴일 제외)만 학습 '완료/일부완료'의 판정 대상이 된다.
+const SOLAR_HOLIDAYS = new Set(['1-1', '3-1', '5-5', '6-6', '8-15', '10-3', '10-9', '12-25']);
+const LUNAR_HOLIDAYS: Record<number, string[]> = {
+  2025: ['1-27', '1-28', '1-29', '1-30', '5-5', '10-6', '10-7', '10-8', '10-9'],
+  2026: ['2-16', '2-17', '2-18', '5-24', '5-25', '9-24', '9-25', '9-26'],
+};
+/** 해당 날짜가 공휴일인지. month0 은 0-based 월. */
+function isHoliday(year: number, month0: number, day: number): boolean {
+  const md = `${month0 + 1}-${day}`;
+  return SOLAR_HOLIDAYS.has(md) || (LUNAR_HOLIDAYS[year] ?? []).includes(md);
 }
 
 /**
@@ -141,20 +147,26 @@ export function LearningCalendar() {
               if (d === null) return <View key={`e${w}-${dow}`} style={styles.cell} />;
               const key = `${year}-${month}-${d}`;
               const isToday = key === todayStr;
-              const reviewCount = history[key]?.length ?? 0;
-              const dueCount = dueByDate.get(key) ?? 0;
+              // 그날 학습한(신규+복습) 카드 수. 근무일 기준으로 완료/일부완료를 판정하고,
+              // 미수행(0장)은 아무 표시도 하지 않는다.
+              const learned = history[key]?.length ?? 0;
+              const holiday = isHoliday(year, month, d);
+              const done = learned >= DAILY_NEW_LIMIT;       // 하루 신규 목표(3장) 달성 → 완료
+              const partial = learned > 0 && !done;           // 1~2장 → 일부완료
               const attended = !!stamps[key];
-              const bg = heatColor(reviewCount, c.primary, c.surfaceAlt);
-              const intense = reviewCount > 4;
               return (
                 <Pressable key={`${w}-${dow}`} style={styles.cell} onPress={() => setSelected(key)}>
                   <View style={[
                     styles.dayCell,
-                    { backgroundColor: bg },
+                    done && { backgroundColor: c.success },
+                    partial && { backgroundColor: c.warning + '26', borderWidth: 1.5, borderColor: c.warning },
                     isToday && { borderWidth: 2, borderColor: c.primary },
                   ]}>
                     <Text style={[styles.dayText, {
-                      color: intense ? '#fff' : dow === 0 ? '#EF4444' : dow === 6 ? '#3B82F6' : c.textPrimary,
+                      color: done ? '#fff'
+                        : (dow === 0 || holiday) ? '#EF4444'
+                        : dow === 6 ? '#3B82F6'
+                        : c.textPrimary,
                     }]}>{d}</Text>
                     {/* 출석 도장 — 우상단 미니 체크 */}
                     {attended && (
@@ -163,8 +175,11 @@ export function LearningCalendar() {
                       </View>
                     )}
                   </View>
+                  {/* 완료/일부완료 날에만 학습한 카드 수를 작게 표기(미수행은 빈칸). */}
                   <View style={styles.dotRow}>
-                    {dueCount > 0 && !isToday ? <View style={[styles.dueDot, { backgroundColor: c.warning }]} /> : null}
+                    {done || partial ? (
+                      <Text style={{ color: done ? c.success : c.warning, fontSize: 9, fontFamily: fontMono, fontWeight: '800' }}>{learned}</Text>
+                    ) : null}
                   </View>
                 </Pressable>
               );
@@ -173,16 +188,14 @@ export function LearningCalendar() {
         ))}
       </View>
 
-      {/* 범례 */}
+      {/* 범례 — 근무일 기준 완료/일부완료(미수행은 미표시) */}
       <View style={styles.legend}>
-        <Text style={[styles.legendText, { color: c.textSecondary }]}>적음</Text>
-        {[c.surfaceAlt, c.primary + '33', c.primary + '77', c.primary].map((col, i) => (
-          <View key={i} style={[styles.legendBox, { backgroundColor: col }]} />
-        ))}
-        <Text style={[styles.legendText, { color: c.textSecondary }]}>많음</Text>
+        <View style={[styles.legendBox, { backgroundColor: c.success }]} />
+        <Text style={[styles.legendText, { color: c.textSecondary }]}>완료</Text>
+        <View style={[styles.legendBox, { backgroundColor: c.warning + '26', borderWidth: 1.5, borderColor: c.warning }]} />
+        <Text style={[styles.legendText, { color: c.textSecondary }]}>일부완료</Text>
         <View style={{ flex: 1 }} />
-        <View style={[styles.dueDot, { backgroundColor: c.warning, marginTop: 0 }]} />
-        <Text style={[styles.legendText, { color: c.textSecondary }]}>복습 예정</Text>
+        <Text style={[styles.legendText, { color: c.textSecondary }]}>토·일·공휴일 제외</Text>
       </View>
 
       {/* 오늘 출석 — 캘린더에 자연스럽게 통합(별도 카드 없이 바로 도장 찍기) */}

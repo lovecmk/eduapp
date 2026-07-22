@@ -29,8 +29,10 @@ export interface MomentInput {
 }
 
 const ANNIVERSARY_DAYS = [7, 30, 50, 100, 200, 365, 500, 1000];
-const STREAK_STEPS = [3, 7, 14, 30, 50, 100, 200, 365];
-const LEARNED_STEPS = [10, 25, 50, 100, 200, 300, 500, 1000];
+// 연속 학습(주말 제외 평일 기준) 이정표 — '연속 5일'을 첫 축하 지점으로.
+const STREAK_STEPS = [5, 10, 20, 30, 50, 100, 200, 365];
+// 누적 학습 이정표 — 50개 단위(대략 한 달 60개)로 축하: 50·100·150…
+const LEARNED_STEPS = [50, 100, 150, 200, 250, 300, 400, 500, 750, 1000];
 
 /** 1장당 약 40초 몰입으로 환산한 누적 몰입 시간(분). "총 얼마나 몰입했는지" 표현용. */
 export function immersionMinutes(totalLearned: number): number {
