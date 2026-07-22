@@ -8,6 +8,7 @@ import { useSettingsStore } from '../../src/store/settingsStore';
 import { Avatar } from '../../src/components/ui/Avatar';
 import { AchievementBadge } from '../../src/components/ui/AchievementBadge';
 import { RewardsGuideSheet } from '../../src/components/rewards/RewardsGuideSheet';
+import { AmbientThemeSheet, useAmbientThemeLabel } from '../../src/components/settings/AmbientThemeSheet';
 import { fontMono, fontCute, fontDisplay, fontBody } from '../../src/theme/tokens';
 import { ROUTES } from '../../src/constants/routes';
 import { useAllCards } from '../../src/hooks/useCards';
@@ -28,6 +29,8 @@ export default function MyPageScreen() {
   const packs = useCollectionStore((s) => s.packs);
   const rewardsGuideSeen = useSettingsStore((s) => s.rewardsGuideSeen);
   const markRewardsGuideSeen = useSettingsStore((s) => s.markRewardsGuideSeen);
+  const [themeSheetOpen, setThemeSheetOpen] = useState(false);
+  const ambientLabel = useAmbientThemeLabel();
 
   const masteredCount = useMemo(() => allCards.filter((c) => c.status === 'mastered').length, [allCards]);
   const collectedCount = Object.keys(ownedCollectibles).length;
@@ -180,7 +183,23 @@ export default function MyPageScreen() {
       <SectionLabel>커뮤니티</SectionLabel>
       <MyRow icon="search-outline" title="닉네임으로 친구 찾기" desc="닉네임을 검색해 다른 점검자의 진행도를 확인해요" onPress={() => router.push(ROUTES.userSearch as never)} />
 
-      <SectionLabel>계정 · 설정</SectionLabel>
+      <SectionLabel>꾸미기 · 계정</SectionLabel>
+      <Pressable onPress={() => setThemeSheetOpen(true)}
+        style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: c.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: c.border, marginVertical: 6 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+          <Ionicons name="color-wand-outline" size={20} color={c.textPrimary} />
+          <View style={{ flex: 1 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontWeight: '700', fontFamily: fontCute }}>배경 테마</Text>
+              <View style={{ backgroundColor: c.primary + '14', borderRadius: 999, paddingHorizontal: 7, paddingVertical: 1.5 }}>
+                <Text style={{ color: c.primary, fontSize: 10.5, fontWeight: '800', fontFamily: fontCute }}>NEW</Text>
+              </View>
+            </View>
+            <Text style={{ color: c.textSecondary, fontSize: 12, fontFamily: fontCute }}>비·눈·별 반짝·바람 — 지금: {ambientLabel}</Text>
+          </View>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={c.primary} />
+      </Pressable>
       <MyRow icon="person-circle-outline" title="내 정보 수정" desc="닉네임 · 이름 · 이메일 · 소속 변경" onPress={() => router.push(ROUTES.editProfile as never)} />
       <MyRow icon="eye-outline" title="프로필 공개 범위" desc="내 진행도를 누구에게 어디까지 보여줄지 설정" onPress={() => router.push(ROUTES.privacy as never)} />
       {/* 내 QR 명함 — 우선 비활성화(제거). 코드는 주석으로 보존.
@@ -192,6 +211,8 @@ export default function MyPageScreen() {
 
       {/* 보상 3종 안내 — 첫 진입 자동 1회 + [안내] 버튼 */}
       <RewardsGuideSheet visible={guideOpen} onClose={closeGuide} />
+      {/* 배경 테마 빠른 선택 — 고르면 바로 적용(라이브) */}
+      <AmbientThemeSheet visible={themeSheetOpen} onClose={() => setThemeSheetOpen(false)} />
     </View>
   );
 }
