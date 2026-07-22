@@ -117,7 +117,8 @@ const DEFAULT_SETTINGS = {
   rewardsGuideSeen: false,
   // 프로필 공개 범위 기본값 — 진행도·스트릭·엠블럼 공개, 컬렉션 비공개.
   profileVisibility: DEFAULT_VISIBILITY,
-  // 배경 테마 기본값 — 자동(날씨 연동). 맑으면 아무 효과 없이 깔끔한 흰 배경.
+  // 배경 테마 기본값 — 자동(날씨·시간대 연동). 맑은 낮이면 아무 효과 없이 깔끔한 흰 배경,
+  // 비/눈/강풍이면 해당 효과, 밤 9시 이후엔 별이 반짝인다(별은 API 없이 기기 시계만으로 동작).
   ambientTheme: 'auto' as AmbientThemeSetting,
 };
 

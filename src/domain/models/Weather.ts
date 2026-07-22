@@ -18,11 +18,20 @@ export interface Weather {
   condition: WeatherCondition;
   /** 섭씨 기온(없으면 null). */
   temperatureC: number | null;
+  /** 풍속(m/s). 없으면 null. '바람이 많이 부는' 날의 배경 효과(wind) 판정에 쓰인다. */
+  windSpeedMs: number | null;
   /** 사람이 읽는 짧은 설명(예: '맑음', '비'). */
   description: string;
   /** 관측 시각 ISO 문자열. */
   observedAt: string;
 }
+
+/**
+ * '바람이 많이 분다'고 볼 풍속 임계값(m/s).
+ * 보퍼트 6('된바람', strong breeze ≈ 10.8m/s)에 해당 — 나뭇가지가 흔들리고
+ * 우산을 쓰기 힘든, 눈에 띄게 바람이 센 상태. 이 이상이면 배경에 바람 효과를 켠다.
+ */
+export const WIND_STRONG_MS = 10.8;
 
 const KO_LABEL: Record<WeatherCondition, string> = {
   clear: '맑음',

@@ -20,8 +20,12 @@ interface WeatherDTO {
   /** OpenWeather 원본을 그대로 프록시하는 경우. */
   weather?: { main?: string; id?: number; description?: string }[];
   main?: { temp?: number };
+  /** OpenWeather 원본의 바람 정보(속도 m/s). */
+  wind?: { speed?: number };
   /** 정규화 서버가 기온을 평평하게 주는 경우. */
   temperature_c?: number;
+  /** 정규화 서버가 풍속(m/s)을 평평하게 주는 경우. */
+  wind_speed_ms?: number;
   observed_at?: string;
 }
 
@@ -39,10 +43,12 @@ export class WeatherRepository implements IWeatherRepository {
         : normalizeOpenWeather(dto.weather?.[0]?.main, dto.weather?.[0]?.id);
 
     const temperatureC = dto.temperature_c ?? dto.main?.temp ?? null;
+    const windSpeedMs = dto.wind_speed_ms ?? dto.wind?.speed ?? null;
 
     return {
       condition,
       temperatureC: typeof temperatureC === 'number' ? Math.round(temperatureC) : null,
+      windSpeedMs: typeof windSpeedMs === 'number' ? windSpeedMs : null,
       description: dto.weather?.[0]?.description || weatherLabel(condition),
       observedAt: dto.observed_at ?? new Date().toISOString(),
     };
