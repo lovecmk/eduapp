@@ -1,0 +1,35 @@
+# 올인원(All-in-one) Caddy — 웹앱(Expo web) 정적 제공 + API 리버스 프록시를 한 오리진에서.
+#
+# 하나의 Ubuntu KVM/VM 에 프런트(웹)와 백엔드를 함께 올릴 때 쓴다.
+#   • 그 외 모든 경로: /srv/web(= 레포 루트의 dist, SPA)을 정적 제공.
+#   • /api/* 와 /health: Go 백엔드(api:8080)로 프록시.
+#
+# 같은 오리진이므로 웹 빌드 시 EXPO_PUBLIC_API_BASE_URL 을 이 사이트 주소로 준다
+# (앱은 `${API_BASE_URL}/api/...` 로 호출 → Caddy 가 /api/* 를 백엔드로 넘긴다).
+#
+# 사용: 레포 루트에서 웹을 먼저 빌드해 dist 를 만든 뒤(backend/DEPLOY-KVM.md 참고),
+#        `make up-web` (= CADDYFILE=Caddyfile.web docker compose --profile prod up).
+
+{
+	email {$ACME_EMAIL}
+}
+
+{$SITE_ADDRESS} {
+	encode gzip zstd
+
+	# 백엔드 API — /api/* 와 헬스체크는 Go 서버로 프록시(로드밸런서/업타임 모니터 호환).
+	@backend path /api/* /health
+	handle @backend {
+		reverse_proxy api:8080 {
+			health_uri /health
+			health_interval 10s
+		}
+	}
+
+	# 그 외 모든 경로 — Expo 웹 빌드(SPA). 없는 경로는 index.html 로 폴백(클라이언트 라우팅).
+	handle {
+		root * /srv/web
+		try_files {path} /index.html
+		file_server
+	}
+}

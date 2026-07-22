@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, ScrollView, Pressable, RefreshControl, Image, Animated, Easing } from 'react-native';
-import { useRouter } from 'expo-router';
+import { View, Text, ScrollView, Pressable, RefreshControl, Image, Animated, Easing, BackHandler, Platform, ToastAndroid } from 'react-native';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../src/theme/ThemeProvider';
 import { useResponsive } from '../../src/theme/responsive';
@@ -167,6 +167,30 @@ export default function HomeScreen() {
     await Promise.all([refetchAll(), refetchToday(), refetchStats()]);
     setRefreshing(false);
   }, [refetchAll, refetchToday, refetchStats]);
+
+  // 홈(앱의 루트 탭)에서의 하드웨어 뒤로가기 UX 정리.
+  // 기존엔 탭 네비게이터의 backBehavior="history" 때문에 홈에서 뒤로가기를 누르면
+  // '직전에 보던 탭(예: 학습카드)'으로 되돌아가, 앱 밖으로 나가려는 사용자를 앱 안으로 되돌렸다.
+  // 홈은 더 이상 되돌아갈 곳이 없는 최상위 화면이므로, 여기서 뒤로가기는 '앱 종료'가 자연스럽다.
+  // 실수 종료를 막기 위해 안드로이드 관례대로 '한 번 더 누르면 종료'(2초 내 재입력) 방식을 쓴다.
+  const lastBackPressRef = useRef(0);
+  useFocusEffect(
+    useCallback(() => {
+      if (Platform.OS !== 'android') return;
+      const onBack = () => {
+        const now = Date.now();
+        if (now - lastBackPressRef.current < 2000) {
+          BackHandler.exitApp();
+          return true;
+        }
+        lastBackPressRef.current = now;
+        ToastAndroid.show('뒤로가기를 한 번 더 누르면 종료돼요', ToastAndroid.SHORT);
+        return true; // 기본 동작(학습카드 등 이전 탭으로 이동) 차단
+      };
+      const sub = BackHandler.addEventListener('hardwareBackPress', onBack);
+      return () => sub.remove();
+    }, []),
+  );
 
   if (statsLoading && !stats && cardsLoading && allCards.length === 0) {
     return <HomeSkeleton />;

@@ -96,3 +96,10 @@ Ubuntu 든 **같은 명령**으로 돌고 설정만 `.env` 로 다르다.
   DB 만 관리형(RDS·Cloud SQL·Supabase·Neon)으로 분리, API 컨테이너는 그대로.
 
 자세한 절차·보안 체크리스트·마이그레이션 전략은 **`backend/README.md`** 참고.
+
+- **Ubuntu KVM/VM 배포**: 우분투 호스트의 KVM 게스트(VM) 한 대에 올리는 절차는
+  **`backend/DEPLOY-KVM.md`**. 포트-어댑터+Compose 구조라 VM 이든 물리서버든 같은
+  명령(`make up`)으로 돌고, VM 특성상 추가로 필요한 것은 **네트워크(브리지/NAT 포워딩)**
+  와 **부팅 자동기동(systemd: `backend/deploy/eduapp.service`)** 정도다. 웹앱까지 한 VM
+  에서 제공하려면 웹을 빌드(`npx expo export --platform web`)한 뒤 `make up-web` 로
+  Caddy(`Caddyfile.web`)가 `dist` 를 정적 제공하고 `/api/*` 만 백엔드로 프록시한다.

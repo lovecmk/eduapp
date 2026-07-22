@@ -93,7 +93,10 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # 기본은 API 프록시 전용 Caddyfile. 올인원(웹+API) 배포는 CADDYFILE=Caddyfile.web 로 바꾼다
+      # (make up-web). 웹 정적 루트(../dist)는 항상 마운트해 두되, 기본 Caddyfile 은 이를 무시한다.
+      - ./${CADDYFILE:-Caddyfile}:/etc/caddy/Caddyfile:ro
+      - ../dist:/srv/web:ro
       - caddy-data:/data
       - caddy-config:/config
 

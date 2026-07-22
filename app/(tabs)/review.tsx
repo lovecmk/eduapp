@@ -10,6 +10,7 @@ import { fontDisplay, fontBody, fontMono, fontCute } from '../../src/theme/token
 import { getCategoryIcon, getCategoryColor } from '../../src/constants/categories';
 import { ROUTES } from '../../src/constants/routes';
 import { useAllCards } from '../../src/hooks/useCards';
+import { TodayStudiedSection } from '../../src/components/review/TodayStudiedSection';
 import { useBookmarkStore } from '../../src/store/bookmarkStore';
 import { useLikeStore } from '../../src/store/likeStore';
 import { useReportStore } from '../../src/store/reportStore';
@@ -78,6 +79,12 @@ export default function ReviewScreen() {
       <Text style={{ color: c.textSecondary, fontSize: 13 * fs, marginBottom: 18, fontFamily: fontBody }}>
         오늘 학습을 다 했어도, 배웠던 내용은 언제든 다시 볼 수 있어요
       </Text>
+
+      {/* 복습 구조(효율 우선순위, 위 → 아래):
+          1) 오늘 학습한 카드 — 당일 복습(same-day retrieval)으로 초기 망각 구간 방어(최상단).
+          2) 모아 보기 — 학습 완료/한번 더/저장/좋아요 등 자기주도 묶음.
+          3) 분야별 보기 — 간격 반복(SRS) 상태가 반영된 분야별 진도로 취약 분야 심화 복습. */}
+      <TodayStudiedSection allCards={allCards} />
 
       {/* 모아 보기 — 자주 찾는 묶음을 상단에 먼저 노출 */}
       <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontFamily: fontDisplay, marginBottom: 12 }}>모아 보기</Text>
