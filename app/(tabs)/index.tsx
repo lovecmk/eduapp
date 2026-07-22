@@ -69,6 +69,9 @@ export default function HomeScreen() {
   const quota = useDailyQuota();
 
   const masteredCount = useMemo(() => allCards.filter((x) => x.status === 'mastered').length, [allCards]);
+  // 실제로 지금 배울 수 있는 '신규' 카드 수 — 하루 상한과 별개로 풀이 비었는지 확인용.
+  // (상한은 남았지만 새 카드가 없으면 '학습 시작' 버튼이 빈 화면으로 이어지던 어긋남 방지.)
+  const newAvailable = useMemo(() => allCards.filter((x) => x.status === 'new').length, [allCards]);
 
   // 앱을 켠 시각에 맞춰 인사·이모지·톤이 바뀐다(히어로 적극 활용).
   // 시간대(아침/저녁)를 '의도적으로 문구로 띄우지 않는다'. 인사·문구는 시간 중립으로 두고,
@@ -253,17 +256,35 @@ export default function HomeScreen() {
             <Text style={{ color: quota.canLearn ? c.primary : c.success, fontSize: 12.5 * fs, fontFamily: fontMono, fontWeight: '900', marginLeft: 4, minWidth: 34, textAlign: 'right' }}>{quota.used}/{quota.limit}</Text>
           </View>
 
-          {/* 오늘의 학습 CTA — 진행 중이면 '이어서', 다 하면 축하 상태 */}
-          <Pressable onPress={() => router.push(ROUTES.cards)} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: quota.canLearn ? c.primary : c.success + '18', borderRadius: 14, padding: 14, borderWidth: quota.canLearn ? 0 : 1, borderColor: c.success + '55' }}>
-            <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: quota.canLearn ? 'rgba(255,255,255,0.2)' : c.success + '22', alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name={quota.canLearn ? 'play' : 'checkmark-done'} size={20} color={quota.canLearn ? '#fff' : c.success} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: quota.canLearn ? '#fff' : c.success, fontSize: 15 * fs, fontFamily: fontDisplay }}>{quota.canLearn ? (quota.used > 0 ? '이어서 학습하기' : '오늘 학습 시작') : '오늘 학습 완료! 🎉'}</Text>
-              <Text style={{ color: quota.canLearn ? 'rgba(255,255,255,0.85)' : c.textSecondary, fontSize: 11.5 * fs, marginTop: 2, fontFamily: fontCute }}>{quota.canLearn ? `${quota.remaining}장 남았어요 · 무리 말고 딱 오늘 치만` : '내일 자정에 새 5장이 열려요'}</Text>
-            </View>
-            {quota.canLearn && <Ionicons name="chevron-forward" size={20} color="#fff" />}
-          </Pressable>
+          {/* 오늘의 학습 CTA — 3상태를 정직하게 구분:
+              (1) 배울 새 카드가 있고 상한도 남음 → 학습 시작/이어서 (파랑, 학습으로)
+              (2) 상한은 남았지만 배울 새 카드가 없음 → '새 카드를 다 배웠어요' (복습으로)
+              (3) 오늘 상한을 다 채움 → '오늘 학습 완료!' (복습으로)
+             ⇒ '학습 시작'을 눌렀는데 빈 화면이 뜨는 어긋남을 홈에서부터 없앤다. */}
+          {(() => {
+            const canLearnNow = quota.canLearn && newAvailable > 0;
+            const noNewLeft = quota.canLearn && newAvailable === 0;
+            const cta = canLearnNow
+              ? { to: ROUTES.cards, bg: c.primary, fg: '#fff', sub: 'rgba(255,255,255,0.85)', iconBg: 'rgba(255,255,255,0.2)', iconColor: '#fff', icon: 'play' as const, bw: 0, border: 'transparent', chevron: true,
+                  title: quota.used > 0 ? '이어서 학습하기' : '오늘 학습 시작', desc: `${quota.remaining}장 남았어요 · 무리 말고 딱 오늘 치만` }
+              : noNewLeft
+                ? { to: ROUTES.review, bg: c.surfaceAlt, fg: c.textPrimary, sub: c.textSecondary, iconBg: c.surface, iconColor: c.primary, icon: 'sparkles' as const, bw: 1, border: c.border, chevron: true,
+                    title: '새 카드를 다 배웠어요', desc: '복습으로 배운 내용을 탄탄히 다져요' }
+                : { to: ROUTES.review, bg: c.success + '18', fg: c.success, sub: c.textSecondary, iconBg: c.success + '22', iconColor: c.success, icon: 'checkmark-done' as const, bw: 1, border: c.success + '55', chevron: false,
+                    title: '오늘 학습 완료! 🎉', desc: '내일 자정에 새 5장이 열려요' };
+            return (
+              <Pressable onPress={() => router.push(cta.to as never)} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: cta.bg, borderRadius: 14, padding: 14, borderWidth: cta.bw, borderColor: cta.border }}>
+                <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: cta.iconBg, alignItems: 'center', justifyContent: 'center' }}>
+                  <Ionicons name={cta.icon} size={20} color={cta.iconColor} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: cta.fg, fontSize: 15 * fs, fontFamily: fontDisplay }}>{cta.title}</Text>
+                  <Text style={{ color: cta.sub, fontSize: 11.5 * fs, marginTop: 2, fontFamily: fontCute }}>{cta.desc}</Text>
+                </View>
+                {cta.chevron && <Ionicons name="chevron-forward" size={20} color={cta.fg} />}
+              </Pressable>
+            );
+          })()}
 
           {/* 복습 — '언제든 자유'임을 명확히(상한 없음). 대기 개수는 부담이 아니라 '기다리는 카드'로. */}
           <Pressable onPress={() => router.push(ROUTES.review)} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.surface, borderRadius: 14, padding: 14, borderWidth: 1, borderColor: c.border, marginTop: 10 }}>
