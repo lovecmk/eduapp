@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, ScrollView, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -27,8 +27,6 @@ export default function MyPageScreen() {
   const bookmarkCount = useBookmarkStore((s) => s.ids.length);
   const ownedCollectibles = useCollectionStore((s) => s.owned);
   const packs = useCollectionStore((s) => s.packs);
-  const rewardsGuideSeen = useSettingsStore((s) => s.rewardsGuideSeen);
-  const markRewardsGuideSeen = useSettingsStore((s) => s.markRewardsGuideSeen);
   const [themeSheetOpen, setThemeSheetOpen] = useState(false);
   const ambientLabel = useAmbientThemeLabel();
 
@@ -36,19 +34,11 @@ export default function MyPageScreen() {
   const collectedCount = Object.keys(ownedCollectibles).length;
   const collectibleTotal = COLLECTIBLES.length;
 
-  // 보상 안내 시트 — 초보자가 처음 MY 탭에 오면 한 번 자동으로 띄워
-  // 엠블럼/도감/트로피의 차이를 알려준다. 이후에는 [안내] 버튼으로만 연다.
+  // 보상 안내 시트 — 오직 [안내] 버튼을 눌렀을 때만 연다.
+  // (예전엔 첫 MY 진입 시 자동으로 떴는데, 하이드레이트 타이밍 때문에 재방문에도
+  //  간헐적으로 떠버리는 버그가 있어 자동 노출을 없앴다.)
   const [guideOpen, setGuideOpen] = useState(false);
-  useEffect(() => {
-    if (!rewardsGuideSeen) {
-      const t = setTimeout(() => setGuideOpen(true), 600);
-      return () => clearTimeout(t);
-    }
-  }, [rewardsGuideSeen]);
-  const closeGuide = () => {
-    setGuideOpen(false);
-    if (!rewardsGuideSeen) markRewardsGuideSeen();
-  };
+  const closeGuide = () => setGuideOpen(false);
 
   return (
     <View style={{ flex: 1, backgroundColor: 'transparent' }}>

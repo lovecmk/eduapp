@@ -3,6 +3,7 @@ import type { LearningCard, CardStatus } from '../../domain/models/LearningCard'
 import type { CardDraft } from '../../domain/models/CardDraft';
 import { draftToSeedCard } from '../../domain/models/CardDraft';
 import { useAuthoredCardsStore } from '../../store/authoredCardsStore';
+import { useCardProgressStore } from '../../store/cardProgressStore';
 import { CARD_SEED } from '../cards.seed';
 import { STUDY_SESSION_SECONDS } from '../../constants/difficulty';
 import { delay } from './_delay';
@@ -40,66 +41,51 @@ const day = (offset: number) => {
   return d;
 };
 
-// 시드(엑셀 원본) 카드에 학습 진행 상태를 입혀 런타임 카드로 구성한다.
-// 결정론적 분포: 앞쪽 일부는 이미 학습/마스터한 것으로, 나머지는 오늘/이후 예정으로 배치해
-// 통계·복습·캘린더가 "살아있는" 값을 갖도록 한다.
-function seedToLearningCard(seed: (typeof CARD_SEED)[number], i: number): LearningCard {
-  // 6장마다 1장은 마스터, 3장마다 1장은 학습 중, 나머지는 새 카드.
-  let status: CardStatus = 'new';
-  if (i % 6 === 2) status = 'mastered';
-  else if (i % 3 === 0) status = 'learning';
-
-  // 예정일: 학습/마스터한 카드는 과거~오늘, 새 카드는 오늘부터 순차 배분.
-  const dueAt =
-    status === 'mastered' ? day(-((i % 5) + 1)) : status === 'learning' ? day(0) : day(i % 4);
-
-  return { ...seed, status, dueAt };
+// 시드(엑셀 원본) 카드를 런타임 학습카드로 구성한다.
+// ⚠️ 상태는 절대 임의로 지어내지 않는다 — 모든 카드는 기본이 'new'(학습전)이고,
+//    실제 학습으로 바뀐 상태만 cardProgressStore 에서 덮어쓴다. 그래야 '학습전/학습중/학습완료'가
+//    엄격히 실제 학습을 반영하고, 데이터 초기화 후에도 완료 상태가 남지 않는다.
+function seedToLearningCard(seed: (typeof CARD_SEED)[number]): LearningCard {
+  return { ...seed, status: 'new', dueAt: day(0) };
 }
 
-function createMockCards(): LearningCard[] {
-  return CARD_SEED.map(seedToLearningCard);
+// 시드 원본(모두 학습전). 카드 자체 정보는 불변이므로 한 번만 만든다.
+const baseCards: LearningCard[] = CARD_SEED.map(seedToLearningCard);
+
+/** 저장된 실제 학습 상태를 입혀 반환한다(없으면 'new'). */
+function withProgress(card: LearningCard): LearningCard {
+  const status = useCardProgressStore.getState().getStatus(card.id);
+  return status === card.status ? card : { ...card, status };
 }
-
-let mockCards = createMockCards();
-
-// 등록(authored) 카드의 진행 상태 — 시드 카드와 별도로 메모리에 보관.
-const authoredStatus: Record<string, CardStatus> = {};
 
 /** 등록 보관소의 시드카드를 런타임 학습카드로 변환(진행 상태 반영). */
 function authoredLearningCards(): LearningCard[] {
-  return useAuthoredCardsStore.getState().cards.map((seed) => ({
-    ...seed,
-    status: authoredStatus[seed.id] ?? 'new',
-    dueAt: day(0),
-  }));
+  return useAuthoredCardsStore.getState().cards.map((seed) =>
+    withProgress({ ...seed, status: 'new', dueAt: day(0) }),
+  );
 }
 
 export class MockCardRepository implements ICardRepository {
   async getTodayCards(opts?: TodaySessionOptions): Promise<LearningCard[]> {
     await delay(300);
-    let pool = [...mockCards, ...authoredLearningCards()].filter((c) => c.status !== 'mastered');
+    let pool = [...baseCards.map(withProgress), ...authoredLearningCards()].filter((c) => c.status !== 'mastered');
     if (opts?.difficulty) pool = pool.filter((c) => c.difficulty === opts.difficulty);
     return packSession(pool);
   }
 
   async getAllCards(): Promise<LearningCard[]> {
     await delay(300);
-    return [...mockCards, ...authoredLearningCards()];
+    return [...baseCards.map(withProgress), ...authoredLearningCards()];
   }
 
   async markCard(id: string, status: CardStatus): Promise<LearningCard> {
     await delay(200);
-    const idx = mockCards.findIndex((c) => c.id === id);
-    if (idx >= 0) {
-      const updated = { ...mockCards[idx], status };
-      mockCards = [...mockCards];
-      mockCards[idx] = updated;
-      return updated;
-    }
-    // 등록 카드
+    // 실제 학습 상태 변화는 cardProgressStore(영속) 한 곳에만 기록한다.
+    useCardProgressStore.getState().setStatus(id, status);
+    const base = baseCards.find((c) => c.id === id);
+    if (base) return { ...base, status };
     const seed = useAuthoredCardsStore.getState().cards.find((c) => c.id === id);
     if (!seed) throw new Error('목업 데이터에 없는 id입니다');
-    authoredStatus[id] = status;
     return { ...seed, status, dueAt: day(0) };
   }
 

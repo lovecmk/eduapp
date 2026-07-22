@@ -7,8 +7,8 @@ import { useTheme } from '../src/theme/ThemeProvider';
 import { ScreenHeader } from '../src/components/ui/ScreenHeader';
 import { CollectibleCard } from '../src/components/collection/CollectibleCard';
 import { PackOpenModal } from '../src/components/collection/PackOpenModal';
-import { COLLECTIBLES, COLLECTIBLE_BY_ID, PACK_SIZE } from '../src/data/collectibles';
-import { RARITY_META, RARITY_RANK as RANK, RARITY_ORDER, type RarityTier } from '../src/utils/rarity';
+import { COLLECTIBLES, COLLECTIBLE_BY_ID, PACK_SIZE, JEWEL_META } from '../src/data/collectibles';
+import { RARITY_RANK as RANK, RARITY_ORDER, type RarityTier } from '../src/utils/rarity';
 import { useTilt } from '../src/hooks/useTilt';
 import { useCollectionStore, STUDY_PER_PACK, DAILY_PACK, INITIAL_PACKS, type DrawResult } from '../src/store/collectionStore';
 import { fontCute, fontBody, fontMono, fontDisplay } from '../src/theme/tokens';
@@ -18,7 +18,7 @@ const GAP = 10;
 const COL_W = (SCREEN_W - 20 * 2 - GAP * 2) / 3;
 // 도감은 높은 등급을 위에 노출(공용 오름차순을 뒤집는다).
 const ORDER: RarityTier[] = [...RARITY_ORDER].reverse();
-const label = (t: RarityTier) => RARITY_META[t].label;
+const label = (t: RarityTier) => JEWEL_META[t].label;
 
 export default function CollectionBookScreen() {
   const { theme, fontScale: fs } = useTheme();
@@ -92,7 +92,7 @@ export default function CollectionBookScreen() {
               const ownT = byRarity[tier].filter((x) => owned[x.id]).length;
               return (
                 <View key={tier} style={{ flex: 1, alignItems: 'center', backgroundColor: c.surfaceAlt, borderRadius: 12, paddingVertical: 8 }}>
-                  <Text style={{ color: tier === 'common' ? c.textSecondary : RARITY_META[tier].glow, fontSize: 10.5, fontFamily: fontDisplay, fontWeight: '800' }}>{label(tier)}</Text>
+                  <Text style={{ color: JEWEL_META[tier].glow, fontSize: 10.5, fontFamily: fontDisplay, fontWeight: '800' }}>{label(tier)}</Text>
                   <Text style={{ color: c.textPrimary, fontSize: 12.5, fontFamily: fontMono, fontWeight: '800', marginTop: 2 }}>{ownT}/{totalT}</Text>
                 </View>
               );
@@ -152,7 +152,7 @@ export default function CollectionBookScreen() {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8, backgroundColor: c.surfaceAlt, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 9 }}>
             <Text style={{ fontSize: 13 }}>💎</Text>
             <Text style={{ color: c.textSecondary, fontSize: 11.5 * fs, fontFamily: fontBody, flex: 1, lineHeight: 16 }}>
-              한 팩({PACK_SIZE}장)에는 레어 이상 카드가 최소 1장 나와요
+              한 팩({PACK_SIZE}장)에는 에메랄드 등급 이상 카드가 최소 1장 나와요
             </Text>
           </View>
         </View>
@@ -161,7 +161,7 @@ export default function CollectionBookScreen() {
         {ORDER.map((tier) => (
           <View key={tier} style={{ marginTop: 22 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 }}>
-              <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: tier === 'common' ? c.textSecondary : RARITY_META[tier].glow }} />
+              <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: JEWEL_META[tier].glow }} />
               <Text style={{ color: c.textPrimary, fontSize: 14 * fs, fontFamily: fontCute, fontWeight: '800' }}>{label(tier)}</Text>
               <Text style={{ color: c.textSecondary, fontSize: 11.5, fontFamily: fontMono }}>{byRarity[tier].filter((x) => owned[x.id]).length}/{byRarity[tier].length}</Text>
             </View>
@@ -189,7 +189,7 @@ function CollectibleDetailModal({ id, count, onClose }: { id: string | null; cou
   const { fontScale: fs } = useTheme();
   const tilt = useTilt(!!id);
   const col = id ? COLLECTIBLE_BY_ID[id] : null;
-  const meta = col ? RARITY_META[col.rarity] : null;
+  const meta = col ? JEWEL_META[col.rarity] : null;
   const bigW = Math.min(SCREEN_W - 120, 240);
 
   return (

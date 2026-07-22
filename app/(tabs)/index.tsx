@@ -133,11 +133,15 @@ export default function HomeScreen() {
   const [resumeOpen, setResumeOpen] = useState(false);
   useEffect(() => {
     if (sessionMomentHandled || !stats || !sessionBaseline) return;
+    // 진영 하이드레이트 전이거나 아직 진영을 안 골랐으면(=진영 선택 화면이 뜨는 상황)
+    // '이어서 학습' 팝업을 띄우지 않는다. 진영 선택은 가입/최초 진입 흐름이라
+    // 그 위에 학습 이어가기 팝업이 겹쳐 뜨면 안 된다.
+    if (!factionHydrated || faction === null) return;
     sessionMomentHandled = true;
     const learnedToday = (useSrsStore.getState().history[dateKey(new Date())] ?? []).length;
     if (learnedToday === 0) return; // 오늘 학습 이력이 없으면 팝업 없음.
     setResumeOpen(true);
-  }, [stats]);
+  }, [stats, factionHydrated, faction]);
 
   const dismissMoment = useCallback(() => {
     if (moment) useMomentStore.getState().markCelebrated(moment.key);

@@ -74,6 +74,8 @@ interface CollectionState {
   openPack: () => DrawResult[] | null;
   /** 도감에서 NEW 표시를 확인 처리. */
   clearNew: (ids: string[]) => void;
+  /** 데이터 초기화 — 첫 방문 상태(빈 도감 + 기본 지급팩)로 되돌린다. */
+  reset: () => void;
 }
 
 
@@ -147,6 +149,16 @@ export const useCollectionStore = create<CollectionState>()(
       },
 
       clearNew: (ids) => set((s) => ({ newIds: s.newIds.filter((x) => !ids.includes(x)) })),
+
+      reset: () => set({
+        owned: {},
+        packs: INITIAL_PACKS,
+        lastDailyPack: null,
+        studyProgress: 0,
+        newIds: [],
+        claimedRules: {},
+        redeemedCodes: [],
+      }),
     }),
     {
       name: 'collection',

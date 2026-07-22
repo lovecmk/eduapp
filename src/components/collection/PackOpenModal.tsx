@@ -4,8 +4,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { hapticSuccess, hapticWarning } from '../../utils/haptics';
 import Animated, { ZoomIn, FadeIn } from 'react-native-reanimated';
 import { CollectibleCard } from './CollectibleCard';
-import { COLLECTIBLE_BY_ID } from '../../data/collectibles';
-import { RARITY_META, RARITY_RANK as RANK, type RarityTier } from '../../utils/rarity';
+import { COLLECTIBLE_BY_ID, JEWEL_META } from '../../data/collectibles';
+import { RARITY_RANK as RANK, type RarityTier } from '../../utils/rarity';
 import { fontCute, fontDisplay } from '../../theme/tokens';
 import type { DrawResult } from '../../store/collectionStore';
 
@@ -35,7 +35,7 @@ export function PackOpenModal({ results, onClose }: { results: DrawResult[] | nu
   };
 
   const cardW = Math.min((SCREEN_W - 48 - 14) / 2, 150);
-  const bestMeta = RARITY_META[best];
+  const bestMeta = JEWEL_META[best];
 
   return (
     <Modal visible={!!results} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
@@ -56,9 +56,9 @@ export function PackOpenModal({ results, onClose }: { results: DrawResult[] | nu
           // 개봉 결과
           <View style={{ alignItems: 'center', width: '100%' }}>
             {RANK[best] >= 1 && (
-              <Animated.View entering={FadeIn.delay(results.length * 160 + 200)} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 16, backgroundColor: bestMeta.badgeBg, borderRadius: 999, paddingHorizontal: 16, paddingVertical: 8, borderWidth: 1, borderColor: bestMeta.glow + '99' }}>
-                <Text style={{ fontSize: 15 }}>✨</Text>
-                <Text style={{ color: '#fff', fontSize: 14, fontFamily: fontDisplay, fontWeight: '900' }}>{RARITY_META[best].label} 카드 등장!</Text>
+              <Animated.View entering={FadeIn.delay(results.length * 160 + 200)} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 16, backgroundColor: bestMeta.glow + '2A', borderRadius: 999, paddingHorizontal: 16, paddingVertical: 8, borderWidth: 1, borderColor: bestMeta.glow + '99' }}>
+                <Text style={{ fontSize: 15 }}>{bestMeta.emoji}</Text>
+                <Text style={{ color: '#fff', fontSize: 14, fontFamily: fontDisplay, fontWeight: '900' }}>{bestMeta.label} 카드 등장!</Text>
               </Animated.View>
             )}
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 14, justifyContent: 'center' }}>

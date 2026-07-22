@@ -124,6 +124,15 @@ export function shadowBox(sh: typeof lightTheme.shadow): string {
   return `0 ${sh.offsetY}px ${sh.radius}px rgba(${r},${g},${b},${sh.opacity})`;
 }
 
+/**
+ * 섹션 카드(홈의 오늘의 학습·학습 현황·캘린더 등) 공통 그림자.
+ * 모든 섹션 카드가 '같은' 옅고 짧은 그림자를 쓰도록 단일 출처로 둔다 —
+ * 카드마다 그림자 세기가 달라 한 카드만 붕 떠 보이던 문제를 없앤다(통일감).
+ */
+export function sectionCardShadow(sh: typeof lightTheme.shadow): string {
+  return shadowBox({ ...sh, opacity: sh.opacity * 0.45, radius: 8, offsetY: 2 });
+}
+
 /** 헤더/앱바 하단 경계용 — 아래쪽으로만 살짝 떨어지는 은은한 그림자. */
 export function shadowHeaderBottom(sh: typeof lightTheme.shadow): string {
   const r = parseInt(sh.color.slice(1, 3), 16);

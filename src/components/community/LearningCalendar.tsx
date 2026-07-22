@@ -1,14 +1,16 @@
 import React, { useMemo, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Modal, ScrollView } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 import { resolveCardImage } from '../../data/cardImages';
 import { Ionicons } from '@expo/vector-icons';
 import { hapticSuccess } from '../../utils/haptics';
 import { useTheme } from '../../theme/ThemeProvider';
-import { radius, fontMono, fontDisplay, fontBody, fontCute } from '../../theme/tokens';
+import { radius, fontMono, fontDisplay, fontBody, fontCute, sectionCardShadow } from '../../theme/tokens';
 import { Button } from '../ui/Button';
 import { AnimatedSheet } from '../ui/AnimatedSheet';
 import { getCategoryIcon, getCategoryColor } from '../../constants/categories';
+import { ROUTES } from '../../constants/routes';
 import { dateKey, dayDiff } from '../../utils/dateKey';
 import { DAILY_NEW_LIMIT } from '../../constants/learning';
 import { useAllCards } from '../../hooks/useCards';
@@ -117,7 +119,7 @@ export function LearningCalendar() {
   }, [selected, history, cardById, allCards, srsCards]);
 
   return (
-    <View style={[styles.container, { backgroundColor: c.surface, borderColor: c.border }]}>
+    <View style={[styles.container, { backgroundColor: c.surface, borderColor: c.border, boxShadow: sectionCardShadow(theme.shadow), elevation: 1 }]}>
       {/* 월 네비게이션 */}
       <View style={styles.header}>
         <Pressable onPress={prev} hitSlop={8} style={styles.arrow}><Ionicons name="chevron-back" size={20} color={c.primary} /></Pressable>
@@ -151,8 +153,11 @@ export function LearningCalendar() {
               // 미수행(0장)은 아무 표시도 하지 않는다.
               const learned = history[key]?.length ?? 0;
               const holiday = isHoliday(year, month, d);
-              const done = learned >= DAILY_NEW_LIMIT;       // 하루 신규 목표(3장) 달성 → 완료
-              const partial = learned > 0 && !done;           // 1~2장 → 일부완료
+              // 근무일(월~금 중 공휴일 제외)만 완료/일부완료 판정 대상.
+              // 주말·공휴일은 '학습일'로 세지 않으므로, 기록이 있어도 완료 표시를 하지 않는다.
+              const workday = dow !== 0 && dow !== 6 && !holiday;
+              const done = workday && learned >= DAILY_NEW_LIMIT;   // 하루 신규 목표(3장) 달성 → 완료
+              const partial = workday && learned > 0 && !done;      // 1~2장 → 일부완료
               const attended = !!stamps[key];
               return (
                 <Pressable key={`${w}-${dow}`} style={styles.cell} onPress={() => setSelected(key)}>
@@ -272,8 +277,15 @@ function DayDetailSheet({
 }: { visible: boolean; dateKey: string | null; reviewed: LearningCard[]; due: LearningCard[]; onClose: () => void }) {
   const { theme } = useTheme();
   const c = theme.colors;
+  const router = useRouter();
   const [ , mo, d] = (key ?? '0-0-0').split('-').map(Number);
   const title = `${mo + 1}월 ${d}일`;
+
+  // 카드를 누르면 시트를 닫고 '컨텐츠 상세'(앞·뒷면 모두 보기)로 이동한다.
+  const openDetail = (id: string) => {
+    onClose();
+    router.push(ROUTES.content(id) as never);
+  };
 
   return (
     <AnimatedSheet visible={visible} onClose={onClose}>
@@ -289,13 +301,13 @@ function DayDetailSheet({
             <SectionTitle icon="checkmark-done" color={c.success} text={`학습한 카드 ${reviewed.length}`} />
             {reviewed.length === 0 ? (
               <Text style={[styles.empty, { color: c.textSecondary }]}>이 날은 학습 기록이 없어요</Text>
-            ) : reviewed.map((card) => <CardRow key={`r${card.id}`} card={card} />)}
+            ) : reviewed.map((card) => <CardRow key={`r${card.id}`} card={card} onPress={() => openDetail(card.id)} />)}
 
             {due.length > 0 && (
               <>
                 <View style={{ height: 12 }} />
                 <SectionTitle icon="alarm" color={c.warning} text={`복습 예정 ${due.length}`} />
-                {due.map((card) => <CardRow key={`d${card.id}`} card={card} />)}
+                {due.map((card) => <CardRow key={`d${card.id}`} card={card} onPress={() => openDetail(card.id)} />)}
               </>
             )}
           </ScrollView>
@@ -315,12 +327,12 @@ function SectionTitle({ icon, color, text }: { icon: keyof typeof Ionicons.glyph
   );
 }
 
-function CardRow({ card }: { card: LearningCard }) {
+function CardRow({ card, onPress }: { card: LearningCard; onPress?: () => void }) {
   const { theme } = useTheme();
   const c = theme.colors;
   const accent = getCategoryColor(card.category) ?? c.primary;
   return (
-    <View style={[styles.cardRow, { backgroundColor: c.surfaceAlt }]}>
+    <Pressable onPress={onPress} style={[styles.cardRow, { backgroundColor: c.surfaceAlt }]}>
       {resolveCardImage(card.imageUrl) ? (
         <Image source={resolveCardImage(card.imageUrl)!} style={styles.thumb} contentFit="cover" transition={200} />
       ) : (
@@ -335,7 +347,8 @@ function CardRow({ card }: { card: LearningCard }) {
         </View>
         <Text numberOfLines={2} style={{ color: c.textPrimary, fontSize: 13, lineHeight: 18, fontFamily: fontBody }}>{card.question}</Text>
       </View>
-    </View>
+      {onPress && <Ionicons name="chevron-forward" size={15} color={c.textSecondary} />}
+    </Pressable>
   );
 }
 
@@ -346,7 +359,8 @@ const styles = StyleSheet.create({
   summaryRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
   summaryPill: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 12, paddingVertical: 8 },
   stampBadge: { position: 'absolute', top: -3, right: -3, width: 14, height: 14, borderRadius: 7, backgroundColor: '#22C55E', alignItems: 'center', justifyContent: 'center' },
-  dotRow: { flexDirection: 'row', gap: 3, height: 5, marginTop: 2, alignItems: 'center', justifyContent: 'center' },
+  // 작은 스크린(스마트폰)에서 아래 숫자가 잘리지 않도록 넉넉한 높이를 준다.
+  dotRow: { flexDirection: 'row', gap: 3, minHeight: 13, marginTop: 2, alignItems: 'center', justifyContent: 'center' },
   weekRow: { flexDirection: 'row', marginBottom: 8 },
   weekLabel: { flex: 1, textAlign: 'center', fontSize: 12, fontWeight: '600' },
   grid: {},

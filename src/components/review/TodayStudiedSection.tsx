@@ -42,8 +42,10 @@ export function TodayStudiedSection({ allCards }: { allCards: LearningCard[] }) 
       .reverse();
   }, [history, allCards]);
 
-  const studyOne = (id: string) => {
-    router.push({ pathname: ROUTES.cards, params: { focusId: id, returnTo: ROUTES.review } });
+  // 오늘 학습한 카드를 누르면 '컨텐츠 상세'(앞면 질문 + 뒷면 해설이 한 화면에 모두 보임)로 이동한다.
+  // 다시 학습 세션으로 들어가 카드를 넘기는 대신, 앞뒤를 한눈에 복습하도록 한다.
+  const openDetail = (id: string) => {
+    router.push(ROUTES.content(id) as never);
   };
 
   return (
@@ -81,7 +83,7 @@ export function TodayStudiedSection({ allCards }: { allCards: LearningCard[] }) 
             return (
               <Pressable
                 key={card.id}
-                onPress={() => studyOne(card.id)}
+                onPress={() => openDetail(card.id)}
                 style={{ width: 168, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: radius.card, padding: 14, boxShadow: softShadow, elevation: 1 }}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>

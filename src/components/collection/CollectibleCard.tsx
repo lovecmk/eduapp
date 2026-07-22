@@ -3,20 +3,11 @@ import { View, Text, Animated } from 'react-native';
 import Svg, { Defs, LinearGradient, RadialGradient, Stop, Rect, Circle } from 'react-native-svg';
 import { Ionicons } from '@expo/vector-icons';
 import { fontDisplay, fontMono, fontBody } from '../../theme/tokens';
-import { COLLECTIBLE_BY_ID } from '../../data/collectibles';
-import { RARITY_META, type RarityTier } from '../../utils/rarity';
+import { COLLECTIBLE_BY_ID, JEWEL_META } from '../../data/collectibles';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 export const COLLECTIBLE_ASPECT = 0.72; // w/h — 트레이딩 카드 비율
-
-// 등급별 카드 배경 톤(어두운 베이스 + 등급색).
-const TIER_BG: Record<RarityTier, [string, string]> = {
-  common: ['#2B303C', '#1B1F28'],
-  rare: ['#0E3557', '#0A2036'],
-  epic: ['#3A1D57', '#22103C'],
-  legendary: ['#5A3B12', '#33210A'],
-};
 
 /**
  * 수집형 안전 카드 한 장.
@@ -39,14 +30,14 @@ function CollectibleCardBase({
   tilt?: Animated.ValueXY;
 }) {
   const col = COLLECTIBLE_BY_ID[id];
-  const meta = RARITY_META[col.rarity];
+  const meta = JEWEL_META[col.rarity];
   const W = width;
   const H = Math.round(W / COLLECTIBLE_ASPECT);
   const k = W / 150;
   const R = 16 * k;
   const uid = React.useId().replace(/[^a-zA-Z0-9]/g, '');
-  const [bg0, bg1] = TIER_BG[col.rarity];
-  const borderColor = col.rarity === 'common' ? 'rgba(255,255,255,0.22)' : meta.glow;
+  const [bg0, bg1] = meta.bg;
+  const borderColor = meta.glow;
 
   return (
     <View style={{ width: W, height: H, borderRadius: R, overflow: 'hidden', backgroundColor: bg1 }}>
