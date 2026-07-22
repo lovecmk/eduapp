@@ -60,7 +60,11 @@ make up                  # docker compose --profile prod up -d → Caddy→API�
 | 단계 | 저장소 | 명령 | 특징 |
 |------|--------|------|------|
 | 테스트로 올려보기 | `memory` | `make up-test` | DB 0대·무설정. 재시작 시 리셋(데모에 이상적) |
-| 본격 운영 | `postgres` | `make up` | Postgres 볼륨 영속 + Caddy 자동 HTTPS |
+| 본격 운영(API 전용) | `postgres` | `make up` | Postgres 볼륨 영속 + Caddy 자동 HTTPS |
+| 올인원(웹앱+API) | `postgres` | `make up-web` | 위 + Caddy 가 `dist`(Expo 웹) 정적 제공 + `/api` 프록시 |
+
+> **Ubuntu KVM/VM 한 대에 올리는 실전 절차**(VM 생성·네트워크·부팅 자동기동 포함)는
+> **[`DEPLOY-KVM.md`](./DEPLOY-KVM.md)** 참고. 올인원 배포에 필요한 웹 빌드 방법도 거기 있다.
 
 **보안(외부 노출 대비, 내부 배포에도 권장)**
 - `make secret` 로 `JWT_SECRET` 생성해 `.env` 에 넣는다. 기본 취약값으로 운영

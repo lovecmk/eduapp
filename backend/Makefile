@@ -7,6 +7,7 @@
 #   make secret        # JWT_SECRET 용 랜덤 키 생성
 #   make up-test       # 도커: 테스트 스택(무 DB) 기동
 #   make up            # 도커: 운영 스택(Postgres+API+Caddy) 백그라운드 기동
+#   make up-web        # 도커: 올인원(웹앱+API) — Caddy 가 dist 정적 제공 + /api 프록시
 #   make down          # 도커: 스택 중지
 #   make logs          # 도커: 로그 팔로우
 #   make backup        # 운영 DB 백업(./backups)
@@ -16,7 +17,7 @@
 .DEFAULT_GOAL := help
 COMPOSE ?= docker compose
 
-.PHONY: help run test test-pg secret up-test up down logs backup psql fmt vet build
+.PHONY: help run test test-pg secret up-test up up-web down logs backup psql fmt vet build
 
 help:
 	@grep -E '^#   make ' $(MAKEFILE_LIST) | sed 's/^#   /  /'
@@ -42,6 +43,10 @@ up-test:
 
 up:
 	$(COMPOSE) --profile prod up -d --build
+
+# 올인원(웹앱+API): 먼저 레포 루트에서 웹을 빌드해 dist 를 만들어 둔다(backend/DEPLOY-KVM.md).
+up-web:
+	CADDYFILE=Caddyfile.web $(COMPOSE) --profile prod up -d --build
 
 down:
 	$(COMPOSE) --profile prod --profile test down

@@ -1,0 +1,32 @@
+# eduapp 백엔드 — systemd 유닛(부팅 시 자동 기동/재시작).
+#
+# KVM/VM 은 재부팅되면 컨테이너가 꺼진 채로 남을 수 있다. 이 유닛을 등록하면
+# 호스트가 켜질 때 docker compose 스택을 자동으로 올린다(운영 필수).
+#
+# 설치:
+#   sudo cp /opt/eduapp/backend/deploy/eduapp.service /etc/systemd/system/eduapp.service
+#   # (레포를 /opt/eduapp 가 아닌 곳에 뒀다면 아래 WorkingDirectory 를 그 경로로 수정)
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now eduapp
+#   sudo systemctl status eduapp
+#
+# 올인원(웹앱+API)로 올리려면 아래 ExecStart 의 `up` 을 `up-web` 로 바꾸거나,
+# `Environment=CADDYFILE=Caddyfile.web` 를 추가하고 ExecStart 를 up 으로 두면 된다.
+
+[Unit]
+Description=eduapp backend (docker compose)
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/eduapp/backend
+# 운영(Postgres+API+Caddy). 올인원은 up 을 up-web 으로.
+ExecStart=/usr/bin/make up
+ExecStop=/usr/bin/make down
+TimeoutStartSec=0
+
+[Install]
+WantedBy=multi-user.target
