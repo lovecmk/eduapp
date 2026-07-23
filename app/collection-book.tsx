@@ -132,12 +132,14 @@ export default function CollectionBookScreen() {
     if (!hasMore || loadingMore) return;
     const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
     const distanceToBottom = contentSize.height - contentOffset.y - layoutMeasurement.height;
-    if (distanceToBottom < 500) {
+    // 바닥에 닿기 한참 전(약 1.5화면 앞)에서 미리 불러와, 스켈레톤 자리에
+    // 도착할 즈음이면 실제 카드가 이미 채워져 있도록 한다.
+    if (distanceToBottom < 700) {
       setLoadingMore(true);
       loadTimer.current = setTimeout(() => {
         setVisibleCount((v) => v + PAGE);
         setLoadingMore(false);
-      }, 380);
+      }, 220);
     }
   };
 
