@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { View, Text, ScrollView, Pressable, Dimensions, Modal, Platform } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { View, Text, ScrollView, Pressable, Dimensions, Modal, Platform, type NativeSyntheticEvent, type NativeScrollEvent } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { hapticImpact, hapticSuccess, hapticTap } from '../src/utils/haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -7,6 +7,7 @@ import { useTheme } from '../src/theme/ThemeProvider';
 import { ScreenHeader } from '../src/components/ui/ScreenHeader';
 import { SearchBar } from '../src/components/ui/SearchBar';
 import { CollectibleCard } from '../src/components/collection/CollectibleCard';
+import { CardSkeleton } from '../src/components/collection/CardSkeleton';
 import { PackOpenModal } from '../src/components/collection/PackOpenModal';
 import { COLLECTIBLES, COLLECTIBLE_BY_ID, PACK_SIZE, JEWEL_META, type CollectibleCategory } from '../src/data/collectibles';
 import { RARITY_RANK as RANK, RARITY_ORDER, type RarityTier } from '../src/utils/rarity';
@@ -17,6 +18,9 @@ import { fontCute, fontBody, fontMono, fontDisplay } from '../src/theme/tokens';
 const { width: SCREEN_W } = Dimensions.get('window');
 const GAP = 10;
 const COL_W = (SCREEN_W - 20 * 2 - GAP * 2) / 3;
+// 한 번에 그리는 카드 수(6줄×3열). 150여 장을 한꺼번에 렌더하지 않고
+// 아래로 스크롤할 때마다 이 단위로 조금씩 불러온다.
+const PAGE = 18;
 // 도감은 높은 등급을 위에 노출(공용 오름차순을 뒤집는다).
 const ORDER: RarityTier[] = [...RARITY_ORDER].reverse();
 const label = (t: RarityTier) => JEWEL_META[t].label;
@@ -97,6 +101,46 @@ export default function CollectionBookScreen() {
   const filterActive = query.trim() !== '' || rarityFilter !== 'all' || categoryFilter !== 'all' || statusFilter !== 'all';
   const resetFilters = () => { setQuery(''); setRarityFilter('all'); setCategoryFilter('all'); setStatusFilter('all'); };
 
+  // ── 아래로 스크롤하며 조금씩 불러오기(무한 스크롤 + 스켈레톤) ──────────
+  const [visibleCount, setVisibleCount] = useState(PAGE);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const loadTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // 필터가 바뀌면 처음부터 다시 조금씩 보여준다.
+  useEffect(() => { setVisibleCount(PAGE); }, [query, rarityFilter, categoryFilter, statusFilter]);
+  useEffect(() => () => { if (loadTimer.current) clearTimeout(loadTimer.current); }, []);
+
+  const totalFiltered = filtered.length;
+  const hasMore = visibleCount < totalFiltered;
+  const remaining = totalFiltered - visibleCount;
+
+  // 등급 섹션을 유지하되, 현재 노출 수(visibleCount)까지만 잘라서 렌더한다.
+  const visibleSections = useMemo(() => {
+    let budget = visibleCount;
+    const out: { tier: RarityTier; items: typeof COLLECTIBLES; total: number; ownedCount: number }[] = [];
+    for (const s of sections) {
+      if (budget <= 0) break;
+      const shown = budget >= s.items.length ? s.items : s.items.slice(0, budget);
+      out.push({ tier: s.tier, items: shown, total: s.items.length, ownedCount: s.items.filter((x) => owned[x.id]).length });
+      budget -= shown.length;
+    }
+    return out;
+  }, [sections, visibleCount, owned]);
+
+  // 바닥 근처에 닿으면 스켈레톤을 잠깐 보여준 뒤 다음 페이지를 붙인다.
+  const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (!hasMore || loadingMore) return;
+    const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
+    const distanceToBottom = contentSize.height - contentOffset.y - layoutMeasurement.height;
+    if (distanceToBottom < 500) {
+      setLoadingMore(true);
+      loadTimer.current = setTimeout(() => {
+        setVisibleCount((v) => v + PAGE);
+        setLoadingMore(false);
+      }, 380);
+    }
+  };
+
   const onOpen = () => {
     const res = openPack();
     if (res) {
@@ -113,7 +157,7 @@ export default function CollectionBookScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <ScreenHeader title="안전 카드 컬렉션" />
-      <ScrollView contentContainerStyle={{ paddingBottom: 40 }} stickyHeaderIndices={[1]} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 40 }} stickyHeaderIndices={[1]} showsVerticalScrollIndicator={false} onScroll={onScroll} scrollEventThrottle={16}>
         {/* ── 헤더 영역: 진행도 배너 + 카드팩 획득 안내(접기) ── (index 0) */}
         <View style={{ paddingHorizontal: 20, paddingTop: 20 }}>
           {/* 진행도 배너 */}
@@ -272,24 +316,35 @@ export default function CollectionBookScreen() {
               </Pressable>
             </View>
           ) : (
-            sections.map(({ tier, items }) => (
-              <View key={tier} style={{ marginTop: 22 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 }}>
-                  <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: JEWEL_META[tier].glow }} />
-                  <Text style={{ color: c.textPrimary, fontSize: 14 * fs, fontFamily: fontCute, fontWeight: '800' }}>{label(tier)}</Text>
-                  <Text style={{ color: c.textSecondary, fontSize: 11.5, fontFamily: fontMono }}>{items.filter((x) => owned[x.id]).length}/{items.length}</Text>
+            <>
+              {visibleSections.map(({ tier, items, total, ownedCount }) => (
+                <View key={tier} style={{ marginTop: 22 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 }}>
+                    <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: JEWEL_META[tier].glow }} />
+                    <Text style={{ color: c.textPrimary, fontSize: 14 * fs, fontFamily: fontCute, fontWeight: '800' }}>{label(tier)}</Text>
+                    <Text style={{ color: c.textSecondary, fontSize: 11.5, fontFamily: fontMono }}>{ownedCount}/{total}</Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: GAP }}>
+                    {items.map((col, i) => (
+                      <Animated.View key={col.id} entering={FadeInDown.delay(Math.min(i, 6) * 24).duration(240)}>
+                        <Pressable onPress={() => onDetail(col.id)}>
+                          <CollectibleCard id={col.id} owned={!!owned[col.id]} count={owned[col.id] ?? 0} isNew={newIds.includes(col.id)} width={COL_W} />
+                        </Pressable>
+                      </Animated.View>
+                    ))}
+                  </View>
                 </View>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: GAP }}>
-                  {items.map((col, i) => (
-                    <Animated.View key={col.id} entering={FadeInDown.delay(Math.min(i, 6) * 24).duration(240)}>
-                      <Pressable onPress={() => onDetail(col.id)}>
-                        <CollectibleCard id={col.id} owned={!!owned[col.id]} count={owned[col.id] ?? 0} isNew={newIds.includes(col.id)} width={COL_W} />
-                      </Pressable>
-                    </Animated.View>
+              ))}
+
+              {/* 아래로 스크롤하면 나타나는 로딩 스켈레톤 — 다음 카드들이 채워질 자리 */}
+              {hasMore && (
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: GAP, marginTop: 22 }}>
+                  {Array.from({ length: Math.min(PAGE, remaining) }).map((_, i) => (
+                    <CardSkeleton key={`sk-${i}`} width={COL_W} />
                   ))}
                 </View>
-              </View>
-            ))
+              )}
+            </>
           )}
         </View>
       </ScrollView>
