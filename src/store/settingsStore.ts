@@ -1,8 +1,8 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { CardCategory } from '../domain/models/LearningCard';
 import type { ProfileVisibility } from '../domain/models/PublicProfile';
+import { type InterestField, isInterestField } from '../constants/interests';
 import { DEFAULT_VISIBILITY } from '../domain/models/PublicProfile';
 import type { AmbientThemeSetting } from '../constants/ambient';
 
@@ -34,8 +34,8 @@ interface SettingsState {
   prioritizeWeakSpots: boolean;
   /** 카드 넘김 중 '모를 때(빨간 버튼)'에만 미세한 햅틱(ImpactLight)을 준다. */
   dontKnowHaptic: boolean;
-  /** 관심 분야(대분류) — 개인화용 */
-  interests: CardCategory[];
+  /** 관심 분야(설비·시설) — 개인화용 */
+  interests: InterestField[];
   profileImage: string | null;
   /** 내 프로필 한 줄 소개(bio) */
   bio: string;
@@ -66,7 +66,7 @@ interface SettingsState {
   toggleOfflineMode: () => void;
   togglePrioritizeWeakSpots: () => void;
   toggleDontKnowHaptic: () => void;
-  toggleInterest: (cat: CardCategory) => void;
+  toggleInterest: (field: InterestField) => void;
   setProfileImage: (uri: string | null) => void;
   setBio: (bio: string) => void;
   toggleFlexPrompt: () => void;
@@ -104,7 +104,7 @@ const DEFAULT_SETTINGS = {
   prioritizeWeakSpots: false,
   // 기본 켜짐 — '모를 때'만 살짝 진동해 촉감 피드백을 준다. 설정에서 완전히 끌 수 있다.
   dontKnowHaptic: true,
-  interests: [] as CardCategory[],
+  interests: [] as InterestField[],
   profileImage: null as string | null,
   bio: '',
   // 기본 켜짐 — 목표 달성 순간 자연스럽게 자랑(플렉스)하도록 유도. 설정에서 끌 수 있다.
@@ -141,8 +141,8 @@ export const useSettingsStore = create<SettingsState>()(
       toggleOfflineMode: () => set((s) => ({ offlineMode: !s.offlineMode })),
       togglePrioritizeWeakSpots: () => set((s) => ({ prioritizeWeakSpots: !s.prioritizeWeakSpots })),
       toggleDontKnowHaptic: () => set((s) => ({ dontKnowHaptic: !s.dontKnowHaptic })),
-      toggleInterest: (cat) => set((s) => ({
-        interests: s.interests.includes(cat) ? s.interests.filter((x) => x !== cat) : [...s.interests, cat],
+      toggleInterest: (field) => set((s) => ({
+        interests: s.interests.includes(field) ? s.interests.filter((x) => x !== field) : [...s.interests, field],
       })),
       setProfileImage: (uri) => set({ profileImage: uri }),
       setBio: (bio) => set({ bio }),
@@ -166,6 +166,8 @@ export const useSettingsStore = create<SettingsState>()(
           ...current,
           ...p,
           notifications: { ...current.notifications, ...(p.notifications ?? {}) },
+          // 구버전(카드 대분류 기반) 관심 분야 값은 새 설비·시설 목록에 없으므로 걸러낸다.
+          interests: Array.isArray(p.interests) ? p.interests.filter(isInterestField) : current.interests,
         };
       },
     },
