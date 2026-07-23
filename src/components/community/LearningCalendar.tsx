@@ -6,7 +6,7 @@ import { resolveCardImage } from '../../data/cardImages';
 import { Ionicons } from '@expo/vector-icons';
 import { hapticSuccess } from '../../utils/haptics';
 import { useTheme } from '../../theme/ThemeProvider';
-import { radius, fontMono, fontDisplay, fontBody, fontCute, sectionCardShadow } from '../../theme/tokens';
+import { radius, fontMono, fontDisplay, fontBody, fontCute } from '../../theme/tokens';
 import { Button } from '../ui/Button';
 import { AnimatedSheet } from '../ui/AnimatedSheet';
 import { getCategoryIcon, getCategoryColor } from '../../constants/categories';
@@ -119,7 +119,7 @@ export function LearningCalendar() {
   }, [selected, history, cardById, allCards, srsCards]);
 
   return (
-    <View style={[styles.container, { backgroundColor: c.surface, borderColor: c.border, boxShadow: sectionCardShadow(theme.shadow), elevation: 1 }]}>
+    <View style={[styles.container, { backgroundColor: c.surface, borderColor: c.border }]}>
       {/* 월 네비게이션 */}
       <View style={styles.header}>
         <Pressable onPress={prev} hitSlop={8} style={styles.arrow}><Ionicons name="chevron-back" size={20} color={c.primary} /></Pressable>
