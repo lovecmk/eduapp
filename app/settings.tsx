@@ -19,7 +19,7 @@ import { SupportModal } from '../src/components/settings/SupportModal';
 import { ChangelogModal } from '../src/components/settings/ChangelogModal';
 import { CenterModal } from '../src/components/ui/CenterModal';
 import { fontMono, fontCute, fontDisplay, fontBody } from '../src/theme/tokens';
-import { ALL_CATEGORIES, CATEGORY_COLOR, getCategoryIcon } from '../src/constants/categories';
+import { INTEREST_FIELDS, INTEREST_COLOR, INTEREST_ICON } from '../src/constants/interests';
 import { env } from '../src/data/network/env';
 import { ROUTES } from '../src/constants/routes';
 import { downloadSystemLog } from '../src/utils/downloadLog';
@@ -144,14 +144,14 @@ export default function SettingsScreen() {
         <SettingsGroup title="관심 분야">
           <SettingsBlock label="관심 분야 선택 (통계·추천에 반영)">
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-              {ALL_CATEGORIES.map((cat) => {
-                const active = interests.includes(cat);
-                const color = CATEGORY_COLOR[cat];
+              {INTEREST_FIELDS.map((field) => {
+                const active = interests.includes(field);
+                const color = INTEREST_COLOR[field];
                 return (
-                  <Pressable key={cat} onPress={() => toggleInterest(cat)}
+                  <Pressable key={field} onPress={() => toggleInterest(field)}
                     style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, borderWidth: 1.5, backgroundColor: active ? color + '1A' : c.surfaceAlt, borderColor: active ? color : c.border }}>
-                    <Ionicons name={getCategoryIcon(cat)} size={14} color={active ? color : c.textSecondary} />
-                    <Text style={{ color: active ? color : c.textSecondary, fontSize: 12.5, fontFamily: fontDisplay }}>{cat}</Text>
+                    <Ionicons name={INTEREST_ICON[field]} size={14} color={active ? color : c.textSecondary} />
+                    <Text style={{ color: active ? color : c.textSecondary, fontSize: 12.5, fontFamily: fontDisplay }}>{field}</Text>
                     {active && <Ionicons name="checkmark-circle" size={13} color={color} />}
                   </Pressable>
                 );
