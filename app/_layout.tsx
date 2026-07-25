@@ -113,6 +113,7 @@ function RootContent() {
         <Stack.Screen name="user-search" />
         <Stack.Screen name="u/[id]" />
         <Stack.Screen name="privacy" />
+        <Stack.Screen name="legal" />
       </Stack>
       <UpdatePrompt
         visible={ready && updateAvailable}

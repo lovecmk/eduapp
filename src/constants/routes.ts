@@ -25,6 +25,7 @@ export const ROUTES = {
   share: '/share',
   userSearch: '/user-search',
   privacy: '/privacy',
+  legal: '/legal',
   publicProfile: (id: string) => `/u/${id}`,
   content: (id: string) => `/content/${id}`,
   qna: (id: string) => `/qna/${id}`,
