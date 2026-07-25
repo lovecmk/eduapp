@@ -18,7 +18,36 @@ const SCREEN_W = Dimensions.get('window').width;
 type Props = {
   /** 그릴 효과. 기본 'none'(흰 배경). */
   effect?: AmbientEffect;
+  /**
+   * 화면 위/아래에 있는 '불투명 UI'(앱바·탭바)의 높이(px).
+   * 배경 레이어는 화면 전체를 덮지만 앱바·탭바가 그 위에 불투명하게 덮이므로,
+   * 그 경계에서 눈/비가 갑자기 나타났다 사라져 '잘린 것'처럼 보인다.
+   * 이 구간에서 서서히 나타나고(사라지고) 하도록 페이드 범위를 받는다.
+   */
+  topInset?: number;
+  bottomInset?: number;
 };
+
+/** 경계에서 부드럽게 나타나/사라지는 데 쓰는 페이드 길이(px). */
+const FADE_LEN = 64;
+
+/**
+ * 낙하 요소(비·눈)의 진행도(0~1) 대비 투명도 보간 구간을 만든다.
+ * y(t) = from + t*(to-from) 이므로, 화면 좌표 기준 페이드 지점을 진행도로 환산한다.
+ */
+function fadeRanges(from: number, to: number, topInset: number, bottomInset: number, base: number) {
+  const span = to - from;
+  const at = (y: number) => Math.max(0, Math.min(1, (y - from) / span));
+  // 앱바 아래에서 서서히 등장 → 탭바 위에서 서서히 소멸.
+  const inStart = at(topInset);
+  const inEnd = at(topInset + FADE_LEN);
+  const outStart = at(SCREEN_H - bottomInset - FADE_LEN);
+  const outEnd = at(SCREEN_H - bottomInset);
+  // 보간 입력은 반드시 단조 증가해야 한다(구간이 겹치면 미세하게 밀어준다).
+  const xs = [0, inStart, inEnd, outStart, outEnd, 1];
+  for (let i = 1; i < xs.length; i++) if (xs[i] <= xs[i - 1]) xs[i] = Math.min(1, xs[i - 1] + 0.0001);
+  return { inputRange: xs, outputRange: [0, 0, base, base, 0, 0] };
+}
 
 /**
  * 스태거 시작 지연은 '한 번만' 준 뒤, 이후에는 지연 없이 루프만 반복한다.
@@ -61,7 +90,7 @@ function useWind(strong = false) {
 }
 
 // ── 비 / 눈 ────────────────────────────────────────────────────────────────
-function Precipitation({ kind, wind }: { kind: 'rain' | 'snow'; wind: Animated.Value }) {
+function Precipitation({ kind, wind, topInset, bottomInset }: { kind: 'rain' | 'snow'; wind: Animated.Value; topInset: number; bottomInset: number }) {
   const isRain = kind === 'rain';
   const drops = useMemo(
     () =>
@@ -80,13 +109,13 @@ function Precipitation({ kind, wind }: { kind: 'rain' | 'snow'; wind: Animated.V
   return (
     <>
       {drops.map((d, i) => (
-        <Drop key={i} isRain={isRain} wind={wind} {...d} />
+        <Drop key={i} isRain={isRain} wind={wind} topInset={topInset} bottomInset={bottomInset} {...d} />
       ))}
     </>
   );
 }
 
-function Drop({ left, size, dur, delay, isRain, flake, wind }: { left: string; size: number; dur: number; delay: number; isRain: boolean; flake: boolean; wind: Animated.Value }) {
+function Drop({ left, size, dur, delay, isRain, flake, wind, topInset, bottomInset }: { left: string; size: number; dur: number; delay: number; isRain: boolean; flake: boolean; wind: Animated.Value; topInset: number; bottomInset: number }) {
   const v = useRef(new Animated.Value(0)).current;
   const spin = useRef(new Animated.Value(0)).current;
   useLoopedValue(
@@ -107,6 +136,9 @@ function Drop({ left, size, dur, delay, isRain, flake, wind }: { left: string; s
 
   const travel = SCREEN_H + 60;
   const translateY = v.interpolate({ inputRange: [0, 1], outputRange: [-40, travel] });
+  // 앱바/탭바 경계에서 톡 끊기지 않도록 진행도에 따라 서서히 나타나고 사라진다.
+  const fade = fadeRanges(-40, travel, topInset, bottomInset, isRain ? 0.82 : 0.92);
+  const fadeOpacity = v.interpolate(fade);
   const windSpan = isRain ? 24 : 52; // 눈은 더 크게 살랑살랑
   const windX = wind.interpolate({ inputRange: [0, 1], outputRange: [-windSpan, windSpan] });
   const translateX = Animated.multiply(windX, v);
@@ -121,7 +153,7 @@ function Drop({ left, size, dur, delay, isRain, flake, wind }: { left: string; s
           width: size * 0.8, height: size * 1.15,
           borderTopLeftRadius: size, borderTopRightRadius: size,
           borderBottomLeftRadius: size * 0.9, borderBottomRightRadius: size * 0.9,
-          backgroundColor: 'rgba(110,170,240,0.5)', opacity: 0.82,
+          backgroundColor: 'rgba(110,170,240,0.5)', opacity: fadeOpacity,
           transform: [{ translateY }, { translateX }],
         }}
       />
@@ -132,7 +164,7 @@ function Drop({ left, size, dur, delay, isRain, flake, wind }: { left: string; s
     <Animated.Text
       style={{
         position: 'absolute', top: -40, left: left as never,
-        fontSize: size, color: 'rgba(140,190,232,0.92)', opacity: 0.92,
+        fontSize: size, color: 'rgba(140,190,232,0.92)', opacity: fadeOpacity,
         transform: [{ translateY }, { translateX }, { rotate }],
       }}
     >
@@ -296,15 +328,15 @@ function Leaf({ top, size, dur, delay, emoji, wind }: { top: string; size: numbe
  * 전역 배경 앰비언트 레이어. 흰 배경은 그대로 두고, 선택한 테마 효과만
  * 화면 전체에 얇게 얹는다. 터치는 통과시킨다.
  */
-export function AmbientSky({ effect = 'none' }: Props) {
+export function AmbientSky({ effect = 'none', topInset = 0, bottomInset = 0 }: Props) {
   // 바람 테마(태풍)는 더 강한 바람 값을 쓴다.
   const wind = useWind(effect === 'wind');
   if (effect === 'none') return null;
 
   return (
     <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { width: SCREEN_W }]}>
-      {effect === 'rain' && <Precipitation kind="rain" wind={wind} />}
-      {effect === 'snow' && <Precipitation kind="snow" wind={wind} />}
+      {effect === 'rain' && <Precipitation kind="rain" wind={wind} topInset={topInset} bottomInset={bottomInset} />}
+      {effect === 'snow' && <Precipitation kind="snow" wind={wind} topInset={topInset} bottomInset={bottomInset} />}
       {effect === 'stars' && <Stars />}
       {effect === 'wind' && <Wind wind={wind} />}
     </Animated.View>

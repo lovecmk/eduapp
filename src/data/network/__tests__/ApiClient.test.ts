@@ -21,6 +21,11 @@ jest.mock('../../storage/secureStorage', () => {
 import { apiClient } from '../ApiClient';
 import { ApiError } from '../errors';
 import { secureStorage, StorageKeys } from '../../storage/secureStorage';
+import { setLogSink, resetLogSink } from '../../../utils/logger';
+
+// 실패 응답을 다수 검증하므로 구조화 로그를 흡수해 테스트 출력을 깨끗하게 유지한다.
+beforeAll(() => setLogSink(() => {}));
+afterAll(() => resetLogSink());
 
 type Init = { headers?: Record<string, string> };
 const resp = (status: number, body: unknown) => ({

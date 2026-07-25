@@ -17,6 +17,11 @@ jest.mock('../../storage/secureStorage', () => {
 });
 
 import { apiClient } from '../ApiClient';
+import { setLogSink, resetLogSink } from '../../../utils/logger';
+
+// 실패 경로를 의도적으로 테스트하므로, 구조화 로그가 콘솔을 더럽히지 않게 흡수한다.
+beforeAll(() => setLogSink(() => {}));
+afterAll(() => resetLogSink());
 
 const resp = (status: number, body: unknown) => ({
   ok: status >= 200 && status < 300,

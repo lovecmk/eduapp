@@ -31,6 +31,7 @@ import { useLikeStore } from '../../src/store/likeStore';
 import { useReportStore } from '../../src/store/reportStore';
 import { useCollectionStore } from '../../src/store/collectionStore';
 import { useSrsStore } from '../../src/store/srsStore';
+import { predictLabel, initialState } from '../../src/domain/srs';
 
 // 하루 학습 정책(운영 지속가능성 · '하루 3분'):
 //  · '오늘의 학습'은 신규 카드만, 하루 상한(DAILY_NEW_LIMIT)까지만 진행할 수 있다.
@@ -114,6 +115,15 @@ export default function CardsScreen() {
   const allQuery = useAllCards();
   const { isLoading, error, refetch } = allQuery;
   const markCardMutation = useMarkCard();
+  // 채점 직후 '다음 복습까지' 안내(잠깐 떴다 사라진다).
+  const [nextReviewHint, setNextReviewHint] = useState<string | null>(null);
+  const hintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!nextReviewHint) return;
+    if (hintTimer.current) clearTimeout(hintTimer.current);
+    hintTimer.current = setTimeout(() => setNextReviewHint(null), 1800);
+    return () => { if (hintTimer.current) clearTimeout(hintTimer.current); };
+  }, [nextReviewHint]);
 
   // 학습 옵션(설정) — 카드 순서 섞기 / 약점 우선 복습 / '모를 때' 햅틱.
   const shuffleCards = useSettingsStore((s) => s.shuffleCards);
@@ -254,7 +264,12 @@ export default function CardsScreen() {
       // 오늘의 학습(신규+복습)은 모두 SRS 일정에 반영하고 그날 학습 기록(history)에 남긴다.
       // (알았음=good → 다음 복습 간격이 늘고, 몰랐음=again → 곧 다시 복습). 이렇게 하면
       // 신규 카드도 첫 복습 일정이 잡히고, 달력의 '완료/일부완료·카드수'가 정확해진다.
-      srsGrade(card.id, status === 'mastered' ? 'good' : 'again');
+      const g = status === 'mastered' ? 'good' : 'again';
+      // 알고리즘이 잡아준 '다음 복습까지'를 사용자에게 보여준다 —
+      // 언제 다시 만나는지 알아야 '이해했어요/한번 더'가 의미 있는 선택이 된다.
+      const prevState = useSrsStore.getState().cards[card.id] ?? initialState();
+      setNextReviewHint(predictLabel(prevState, g));
+      srsGrade(card.id, g);
       // 신규 카드 한 장을 마치면 하루 상한 사용량에도 집계(복습은 상한과 무관).
       if (card.status === 'new') recordNewLearned(1);
     }
@@ -692,7 +707,12 @@ export default function CardsScreen() {
                 )}
               </ScrollView>
             ) : (
-              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+              /* 설명형 앞면 — 문제/상황이 길면 카드 밖으로 잘리므로 스크롤 가능하게 두고,
+                 짧을 때는 flexGrow + center 로 지금처럼 가운데 정렬을 유지한다. */
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={{ flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 4 }}
+              >
                 {resolveCardImage(card.imageUrl) ? (
                   <View style={{ width: '100%', marginBottom: 18 }}>
                     <QuestionImage source={resolveCardImage(card.imageUrl)} height={200} />
@@ -711,7 +731,7 @@ export default function CardsScreen() {
                 <View style={{ marginTop: 20 }}>
                   <CardTimer seconds={card.studySeconds} resetKey={card.id} onExpire={haptic} />
                 </View>
-              </View>
+              </ScrollView>
             )}
           </Animated.View>
 
@@ -730,10 +750,14 @@ export default function CardsScreen() {
             <View style={{ marginBottom: 12 }}>
               <CategoryTrail category={card.category} subCategory={card.subCategory} topic={card.topic} size="sm" />
             </View>
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 4 }}>
+            {/* 해설은 스크롤, 액션 행은 카드 하단에 고정.
+                (예전엔 액션 행도 ScrollView 안에 있어, 해설이 길면 카드 밖으로 밀려
+                 '추천/저장/신고'가 잘려 보이지 않았다.) */}
+            <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator contentContainerStyle={{ paddingBottom: 8 }}>
               <CardBackBody card={card} />
-              {/* 카드 내부 오른쪽 하단 — 추천 / 저장 / 신고. 학습자가 조작하는 하단 버튼과 구분되는 '카드에 대한 반응'. */}
-              <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 8, marginTop: 18, paddingTop: 14, borderTopWidth: 1, borderTopColor: c.border }}>
+            </ScrollView>
+            {/* 카드 내부 오른쪽 하단 — 추천 / 저장 / 신고. 학습자가 조작하는 하단 버튼과 구분되는 '카드에 대한 반응'. */}
+            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 8, paddingTop: 12, borderTopWidth: 1, borderTopColor: c.border }}>
                 <Pressable onPress={() => { haptic(); toggleLike(card.id); }} hitSlop={6}
                   style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: isLiked ? c.error + '18' : c.surfaceAlt, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8 }}>
                   <Ionicons name={isLiked ? 'heart' : 'heart-outline'} size={17} color={isLiked ? c.error : c.textSecondary} />
@@ -749,8 +773,7 @@ export default function CardsScreen() {
                   <Ionicons name={hasReported ? 'flag' : 'flag-outline'} size={16} color={hasReported ? c.warning : c.textSecondary} />
                   <Text style={{ color: hasReported ? c.warning : c.textSecondary, fontSize: 13 * fs, fontFamily: fontCute }}>{hasReported ? '신고됨' : '신고'}</Text>
                 </Pressable>
-              </View>
-            </ScrollView>
+            </View>
           </Animated.View>
 
           {/* 스와이프 방향 라벨 — 오른쪽=아는 것, 왼쪽=모르는 것 */}
@@ -774,9 +797,15 @@ export default function CardsScreen() {
           // 스와이프 트랙(원진섭) — 뒤집기 버튼 없이 탭/스와이프로 조작.
           !backControls ? (
             <View style={{ height: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingHorizontal: 12 }}>
-              <Ionicons name={solveHint ? 'alert-circle' : 'swap-horizontal-outline'} size={16} color={solveHint ? c.warning : c.textSecondary} />
-              <Text style={{ color: solveHint ? c.warning : c.textSecondary, fontSize: 13 * fs, fontFamily: fontCute, textAlign: 'center' }}>
-                {solveHint ? '문제를 먼저 풀어주세요!' : '카드를 탭해 뒤집고, 좌우로 넘겨 분류해요'}
+              <Ionicons
+                name={nextReviewHint ? 'alarm-outline' : solveHint ? 'alert-circle' : 'swap-horizontal-outline'}
+                size={16}
+                color={nextReviewHint ? c.primary : solveHint ? c.warning : c.textSecondary}
+              />
+              <Text style={{ color: nextReviewHint ? c.primary : solveHint ? c.warning : c.textSecondary, fontSize: 13 * fs, fontFamily: fontCute, textAlign: 'center' }}>
+                {nextReviewHint
+                  ? `다음 복습은 ${nextReviewHint} 뒤에 만나요`
+                  : solveHint ? '문제를 먼저 풀어주세요!' : '카드를 탭해 뒤집고, 좌우로 넘겨 분류해요'}
               </Text>
             </View>
           ) : (

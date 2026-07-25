@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AmbientSky } from '../home/AmbientSky';
 import { useWeather } from '../../hooks/useWeather';
 import { useSettingsStore } from '../../store/settingsStore';
@@ -44,9 +45,16 @@ function resolveEffect(theme: AmbientThemeSetting, weather: Weather | undefined,
   return theme; // 'rain' | 'snow' | 'stars' | 'wind'
 }
 
+/** 앱바 높이(=MinimalHeader) / 하단 탭바 높이 — 배경 효과 페이드 경계 계산용. */
+const APP_BAR_H = 58;
+const TAB_BAR_H = 64;
+
 export function WeatherBackground() {
   const { data: weather } = useWeather();
   const theme = useSettingsStore((s) => s.ambientTheme);
+  // 앱바·탭바는 이 배경 위에 '불투명'하게 덮인다. 그 경계에서 눈/비가 툭 끊겨
+  // 잘려 보이므로, 가려지는 높이를 넘겨 경계에서 서서히 나타나고 사라지게 한다.
+  const insets = useSafeAreaInsets();
 
   // 'auto' 는 시각(밤 9시)에 따라 효과가 바뀌므로, 시간이 흘러 경계를 넘으면 자동 반영되도록
   // 몇 분마다 현재 시(hour)를 갱신한다. (auto 가 아니면 시각과 무관하니 타이머를 돌리지 않는다.)
@@ -62,7 +70,7 @@ export function WeatherBackground() {
 
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-      <AmbientSky effect={effect} />
+      <AmbientSky effect={effect} topInset={insets.top + APP_BAR_H} bottomInset={insets.bottom + TAB_BAR_H} />
     </View>
   );
 }

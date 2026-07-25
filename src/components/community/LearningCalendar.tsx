@@ -16,6 +16,8 @@ import { DAILY_NEW_LIMIT } from '../../constants/learning';
 import { useAllCards } from '../../hooks/useCards';
 import { useSrsStore } from '../../store/srsStore';
 import { useAttendanceStore } from '../../store/attendanceStore';
+import { AttendanceStamp } from './AttendanceStamp';
+import { CheckInSuccess } from './CheckInSuccess';
 import type { LearningCard } from '../../domain/models/LearningCard';
 
 const DAYS = ['일', '월', '화', '수', '목', '금', '토'];
@@ -109,7 +111,13 @@ export function LearningCalendar() {
 
   // 오늘 출석 여부 · 캘린더에서 바로 도장 찍기(별도 카드 없이 통합).
   const checkedToday = !!stamps[todayStr];
-  const onCheckIn = () => { if (checkIn()) hapticSuccess(); };
+  // 방금 찍은 날짜만 도장 애니메이션을 재생한다(지난 출석은 정적으로 그린다).
+  const [justStamped, setJustStamped] = useState<string | null>(null);
+  const onCheckIn = () => {
+    if (!checkIn()) return;
+    hapticSuccess();
+    setJustStamped(dateKey(new Date()));
+  };
 
   const selectedCards = useMemo(() => {
     if (!selected) return { reviewed: [] as LearningCard[], due: [] as LearningCard[] };
@@ -173,12 +181,8 @@ export function LearningCalendar() {
                         : dow === 6 ? '#3B82F6'
                         : c.textPrimary,
                     }]}>{d}</Text>
-                    {/* 출석 도장 — 우상단 미니 체크 */}
-                    {attended && (
-                      <View style={styles.stampBadge}>
-                        <Ionicons name="checkmark-sharp" size={8} color="#fff" />
-                      </View>
-                    )}
+                    {/* 출석 도장 — 우상단 미니 체크(방금 찍은 날은 찍히는 연출 재생) */}
+                    {attended && <AttendanceStamp animate={key === justStamped} />}
                   </View>
                   {/* 완료/일부완료 날에만 학습한 카드 수를 작게 표기(미수행은 빈칸). */}
                   <View style={styles.dotRow}>
@@ -205,10 +209,10 @@ export function LearningCalendar() {
 
       {/* 오늘 출석 — 캘린더에 자연스럽게 통합(별도 카드 없이 바로 도장 찍기) */}
       {checkedToday ? (
-        <View style={[styles.checkIn, { backgroundColor: c.success + '18' }]}>
+        <CheckInSuccess animate={justStamped !== null} style={[styles.checkIn, { backgroundColor: c.success + '18' }]}>
           <Ionicons name="checkmark-circle" size={18} color={c.success} />
           <Text style={{ color: c.success, fontSize: 14, fontFamily: fontCute, fontWeight: '800' }}>오늘 출석 완료!</Text>
-        </View>
+        </CheckInSuccess>
       ) : (
         <Pressable onPress={onCheckIn} style={[styles.checkIn, { backgroundColor: c.primary }]}>
           <Ionicons name="hand-left" size={17} color="#fff" />
@@ -358,7 +362,6 @@ const styles = StyleSheet.create({
   arrow: { padding: 4 },
   summaryRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
   summaryPill: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 12, paddingVertical: 8 },
-  stampBadge: { position: 'absolute', top: -3, right: -3, width: 14, height: 14, borderRadius: 7, backgroundColor: '#22C55E', alignItems: 'center', justifyContent: 'center' },
   // 작은 스크린(스마트폰)에서 아래 숫자가 잘리지 않도록 넉넉한 높이를 준다.
   dotRow: { flexDirection: 'row', gap: 3, minHeight: 13, marginTop: 2, alignItems: 'center', justifyContent: 'center' },
   weekRow: { flexDirection: 'row', marginBottom: 8 },
