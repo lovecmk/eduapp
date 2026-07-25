@@ -113,6 +113,37 @@ class ApiClient {
   delete<T>(path: string) {
     return this.request<T>(path, { method: 'DELETE' });
   }
+
+  /**
+   * 서버 상태 점검(GET /api/health) — 개발자 화면·배포 후 스모크 체크용.
+   * 던지지 않고 결과 객체로 돌려주므로 호출부에서 try/catch 가 필요 없다.
+   * 백엔드 계약: 200 + { status: 'ok', version?: string } 을 인증 없이 응답할 것.
+   */
+  async health(): Promise<HealthResult> {
+    const startedAt = Date.now();
+    try {
+      const body = await this.request<{ status?: string; version?: string }>('/api/health', { method: 'GET' });
+      return {
+        ok: body?.status === 'ok',
+        latencyMs: Date.now() - startedAt,
+        version: body?.version,
+      };
+    } catch (e) {
+      return {
+        ok: false,
+        latencyMs: Date.now() - startedAt,
+        error: e instanceof ApiError ? `${e.status} ${e.message}` : '알 수 없는 오류',
+      };
+    }
+  }
+}
+
+/** 헬스체크 결과 — 실패해도 예외 대신 ok:false 로 표현한다. */
+export interface HealthResult {
+  ok: boolean;
+  latencyMs: number;
+  version?: string;
+  error?: string;
 }
 
 export const apiClient = new ApiClient();

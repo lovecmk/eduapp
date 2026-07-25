@@ -9,6 +9,11 @@ import { AppLogo } from '../../src/components/ui/AppLogo';
 import { useTheme } from '../../src/theme/ThemeProvider';
 import { useAuthStore } from '../../src/store/authStore';
 import { fontBody, fontDisplay } from '../../src/theme/tokens';
+import {
+  validatePassword as rulePassword,
+  validatePasswordConfirm as rulePasswordConfirm,
+  PASSWORD_PLACEHOLDER,
+} from '../../src/domain/validation/auth';
 
 type Errors = { identifier?: string; pw?: string; pw2?: string };
 
@@ -31,9 +36,12 @@ export default function FindPwScreen() {
 
   const onSubmit = async () => {
     const next: Errors = {};
+    // 검증 규칙은 src/domain/validation/auth.ts 단일 소스를 사용(회원가입과 동일).
     if (!identifier.trim()) next.identifier = '아이디 또는 가입 이메일을 입력해주세요';
-    if (pw.length < 4) next.pw = '비밀번호는 4자 이상이어야 합니다';
-    if (pw !== pw2) next.pw2 = '비밀번호가 일치하지 않습니다';
+    const pwError = rulePassword(pw);
+    const pw2Error = rulePasswordConfirm(pw, pw2);
+    if (pwError) next.pw = pwError;
+    if (pw2Error) next.pw2 = pw2Error;
     setErrors(next);
     if (Object.keys(next).length > 0) return;
 
@@ -69,7 +77,7 @@ export default function FindPwScreen() {
             <>
               <TextField label="아이디 또는 가입 이메일" value={identifier} onChangeText={(t) => { setIdentifier(t); clearField('identifier'); }} placeholder="아이디 또는 이메일을 입력하세요" autoCapitalize="none"
                 status={errors.identifier ? 'error' : 'default'} helperText={errors.identifier} />
-              <TextField label="새 비밀번호" value={pw} onChangeText={(t) => { setPw(t); clearField('pw'); }} secureTextEntry placeholder="4자 이상"
+              <TextField label="새 비밀번호" value={pw} onChangeText={(t) => { setPw(t); clearField('pw'); }} secureTextEntry placeholder={PASSWORD_PLACEHOLDER}
                 status={errors.pw ? 'error' : 'default'} helperText={errors.pw} />
               <TextField label="새 비밀번호 확인" value={pw2} onChangeText={(t) => { setPw2(t); clearField('pw2'); }} secureTextEntry placeholder="새 비밀번호를 다시 입력하세요"
                 status={errors.pw2 ? 'error' : 'default'} helperText={errors.pw2 ?? authError ?? undefined} />

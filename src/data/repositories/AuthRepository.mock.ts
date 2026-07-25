@@ -1,5 +1,5 @@
 // TODO: 실제 API 연동 필요 - 담당: 백엔드팀 (POST /api/auth/login, /register, /reset-password)
-import type { IAuthRepository, AuthSession, SignupInput, ProfileUpdateInput } from '../../domain/repositories/IAuthRepository';
+import type { IAuthRepository, AuthSession, SignupInput, ProfileUpdateInput, EmailCodeRequestResult } from '../../domain/repositories/IAuthRepository';
 import type { User } from '../../domain/models/User';
 import { secureStorage, StorageKeys } from '../storage/secureStorage';
 import { mockUserDb } from '../auth/mockUserDb';
@@ -10,6 +10,51 @@ import { delay } from './_delay';
  * 회원가입/로그인/비밀번호 찾기를 실제처럼 검증한다.
  */
 export class MockAuthRepository implements IAuthRepository {
+  /**
+   * 이메일 인증코드 보관소(데모) — 실서버에서는 서버가 갖는 상태다.
+   * 화면(컴포넌트)이 코드를 들고 비교하지 않도록 저장소 안에 둔다.
+   */
+  private emailCodes = new Map<string, { code: string; expiresAt: number; attempts: number }>();
+
+  private static readonly CODE_TTL_MS = 5 * 60 * 1000; // 5분
+  private static readonly MAX_ATTEMPTS = 5; // 무차별 대입 방지
+
+  private normalizeEmail(email: string): string {
+    return email.trim().toLowerCase();
+  }
+
+  async requestEmailCode(email: string): Promise<EmailCodeRequestResult> {
+    await delay(400);
+    const key = this.normalizeEmail(email);
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    this.emailCodes.set(key, {
+      code,
+      expiresAt: Date.now() + MockAuthRepository.CODE_TTL_MS,
+      attempts: 0,
+    });
+    // 목업에서만 화면에 표시할 코드를 돌려준다(실서버 구현은 절대 반환하지 않음).
+    return { devPreviewCode: code };
+  }
+
+  async verifyEmailCode(email: string, code: string): Promise<boolean> {
+    await delay(250);
+    const key = this.normalizeEmail(email);
+    const entry = this.emailCodes.get(key);
+    if (!entry) return false;
+    if (Date.now() > entry.expiresAt) {
+      this.emailCodes.delete(key); // 만료 코드는 폐기
+      return false;
+    }
+    if (entry.attempts >= MockAuthRepository.MAX_ATTEMPTS) {
+      this.emailCodes.delete(key); // 시도 초과 시 코드 무효화 → 재발송 필요
+      return false;
+    }
+    entry.attempts += 1;
+    const ok = entry.code === code.trim();
+    if (ok) this.emailCodes.delete(key); // 1회용(재사용 방지)
+    return ok;
+  }
+
   private async persistSession(user: User): Promise<AuthSession> {
     const session: AuthSession = {
       user,

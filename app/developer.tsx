@@ -7,7 +7,9 @@ import { ScreenHeader } from '../src/components/ui/ScreenHeader';
 import { Button } from '../src/components/ui/Button';
 import { fontDisplay, fontBody, fontMono } from '../src/theme/tokens';
 import { sendTestNotification, triggerServerAlert } from '../src/data/notifications/NotificationService';
-import { ENV_SUMMARY } from '../src/data/network/env';
+import { ENV_SUMMARY, env } from '../src/data/network/env';
+import { apiClient, type HealthResult } from '../src/data/network/ApiClient';
+import { logger } from '../src/utils/logger';
 import { ROUTES } from '../src/constants/routes';
 import { useAuthoredCardsStore } from '../src/store/authoredCardsStore';
 
@@ -27,6 +29,22 @@ export default function DeveloperScreen() {
   const [state, setState] = useState<SendState>('idle');
   const [alertBusy, setAlertBusy] = useState<number | null>(null);
   const [alertMsg, setAlertMsg] = useState<string | null>(null);
+  const [health, setHealth] = useState<HealthResult | null>(null);
+  const [healthBusy, setHealthBusy] = useState(false);
+
+  // 서버 헬스체크 — 목업 모드에서는 호출할 서버가 없으므로 즉시 안내한다.
+  const runHealthCheck = async () => {
+    if (healthBusy) return; // 중복 요청 방지
+    if (env.useMockData) {
+      setHealth({ ok: false, latencyMs: 0, error: '목업 모드 — 점검할 실서버가 없습니다' });
+      return;
+    }
+    setHealthBusy(true);
+    const result = await apiClient.health(); // 내부에서 예외를 흡수해 항상 결과를 반환
+    setHealth(result);
+    logger.info('health_check', { ok: result.ok, latencyMs: result.latencyMs, version: result.version });
+    setHealthBusy(false);
+  };
 
   const onSend = async () => {
     setState('sending');
@@ -104,6 +122,29 @@ export default function DeveloperScreen() {
                 </Text>
               </View>
             ))}
+          </View>
+
+          {/* 서버 헬스체크 — 배포 후 스모크 확인용(GET /api/health) */}
+          <View style={{ marginTop: 14, borderTopWidth: 1, borderTopColor: c.surfaceAlt, paddingTop: 14 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <Pressable onPress={runHealthCheck} disabled={healthBusy}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: c.primary + '14', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, opacity: healthBusy ? 0.6 : 1 }}>
+                <Ionicons name="pulse-outline" size={14} color={c.primary} />
+                <Text style={{ color: c.primary, fontSize: 12.5 * fs, fontFamily: fontDisplay }}>
+                  {healthBusy ? '점검 중…' : '서버 상태 점검'}
+                </Text>
+              </Pressable>
+              {health && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, flex: 1 }}>
+                  <Ionicons name={health.ok ? 'checkmark-circle' : 'alert-circle'} size={15} color={health.ok ? c.success : c.warning} />
+                  <Text style={{ color: c.textSecondary, fontSize: 11.5 * fs, fontFamily: fontMono, flex: 1 }} numberOfLines={1}>
+                    {health.ok
+                      ? `정상 · ${health.latencyMs}ms${health.version ? ` · v${health.version}` : ''}`
+                      : `실패 · ${health.error ?? '알 수 없음'}`}
+                  </Text>
+                </View>
+              )}
+            </View>
           </View>
         </View>
 

@@ -27,8 +27,21 @@ export interface ProfileUpdateInput {
   jobTitle?: string;
 }
 
+/** 이메일 인증코드 발송 결과. */
+export interface EmailCodeRequestResult {
+  /**
+   * 목업(데모) 모드에서만 채워지는 화면 표시용 코드.
+   * 실서버 모드에서는 **절대 채우지 않는다** — 코드는 메일로만 전달되고 검증도 서버가 한다.
+   */
+  devPreviewCode?: string;
+}
+
 export interface IAuthRepository {
   login(id: string, password: string): Promise<AuthSession>;
+  /** 이메일 인증코드 발송 요청. 코드 생성·보관은 저장소(실서버) 책임. */
+  requestEmailCode(email: string): Promise<EmailCodeRequestResult>;
+  /** 이메일 인증코드 검증. 일치 여부만 반환하며, 비교는 저장소(실서버)에서 수행한다. */
+  verifyEmailCode(email: string, code: string): Promise<boolean>;
   /** 소셜 간편 로그인(데모) — 지정한 이름/이메일 계정으로 로그인(없으면 생성). */
   socialLogin(name: string, email: string): Promise<AuthSession>;
   logout(): Promise<void>;
