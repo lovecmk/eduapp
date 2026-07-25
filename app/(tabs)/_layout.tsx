@@ -22,6 +22,7 @@ import { useNotificationStore } from '../../src/store/notificationStore';
 import { useSettingsStore } from '../../src/store/settingsStore';
 import { fontDisplay, shadowHeaderBottom } from '../../src/theme/tokens';
 import { ROUTES } from '../../src/constants/routes';
+import { APP_NAME } from '../../src/constants/brand';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
@@ -141,7 +142,7 @@ function MinimalHeader({ title, showBack }: { title: string; showBack?: boolean 
 }
 
 const TITLES: Record<string, string> = {
-  index: '하루3분ON', cards: '학습', review: '복습', community: '커뮤니티', stats: '통계', mypage: 'MY',
+  index: APP_NAME, cards: '학습', review: '복습', community: '커뮤니티', stats: '통계', mypage: 'MY',
 };
 
 const TAB_ICON: Record<string, { active: IconName; inactive: IconName }> = {

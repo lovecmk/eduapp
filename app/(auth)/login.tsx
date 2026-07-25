@@ -13,6 +13,7 @@ import { fontDisplay, fontBody } from '../../src/theme/tokens';
 import { isBiometricAvailable, tryBiometricLogin } from '../../src/data/auth/BiometricAuth';
 import { useAuthStore } from '../../src/store/authStore';
 import { ROUTES } from '../../src/constants/routes';
+import { APP_NAME } from '../../src/constants/brand';
 
 const SAVED_ID_KEY = 'saved_login_id';
 
@@ -77,7 +78,7 @@ export default function LoginScreen() {
             }}>
               <AppLogo size={52} />
             </View>
-            <Text style={{ color: c.textPrimary, fontSize: 24 * fs, fontFamily: fontDisplay, marginTop: 18, letterSpacing: 1 }}>현장학습</Text>
+            <Text style={{ color: c.textPrimary, fontSize: 24 * fs, fontFamily: fontDisplay, marginTop: 18, letterSpacing: 1 }}>{APP_NAME}</Text>
             <Text style={{ color: c.textSecondary, fontSize: 13 * fs, marginTop: 6, fontFamily: fontBody }}>현장 안전학습, 매일 3분이면 충분합니다</Text>
           </View>
 

@@ -5,13 +5,14 @@ import { useTheme } from '../../theme/ThemeProvider';
 import { fontDisplay, fontBody } from '../../theme/tokens';
 import { Switch } from '../ui/Switch';
 import { useNotificationStore, NOTIFICATION_TYPE_META, type NotificationType } from '../../store/notificationStore';
+import { APP_NAME } from '../../constants/brand';
 
 /** 종류별 대표 알림 예시 — 사용자가 "이런 알림"이 무엇인지 보고 on/off 판단. */
 const SAMPLE: Record<NotificationType, string> = {
   remind: '지금 복습할 카드 5장이 있어요',
   new: '새 소방 학습 카드가 추가되었어요',
   achievement: '연속 학습 5일 달성! 🔥',
-  system: '현장학습 업데이트 소식이 도착했어요',
+  system: `${APP_NAME} 업데이트 소식이 도착했어요`,
 };
 
 /** 예시 알림을 보여주며 해당 종류를 켜고 끄는 카드. */

@@ -1,4 +1,4 @@
-import type { IAuthRepository, AuthSession, SignupInput, ProfileUpdateInput } from '../../domain/repositories/IAuthRepository';
+import type { IAuthRepository, AuthSession, SignupInput, ProfileUpdateInput, EmailCodeRequestResult } from '../../domain/repositories/IAuthRepository';
 import type { User } from '../../domain/models/User';
 import type { AuthResultDTO, UserDTO } from '../dto/UserDTO';
 import { UserMapper } from '../mappers/UserMapper';
@@ -41,6 +41,21 @@ export class AuthRepository implements IAuthRepository {
 
   async resetPassword(username: string, email: string, newPassword: string): Promise<void> {
     await apiClient.post('/api/auth/reset-password', { username, email, newPassword });
+  }
+
+  /**
+   * 인증코드 발송 — 코드는 서버가 생성해 메일로만 보낸다.
+   * 응답에 코드를 포함시키지 않는 것이 계약이다(포함되면 우회 가능).
+   */
+  async requestEmailCode(email: string): Promise<EmailCodeRequestResult> {
+    await apiClient.post('/api/auth/email/request-code', { email });
+    return {};
+  }
+
+  /** 인증코드 검증 — 비교는 서버에서만 수행한다. */
+  async verifyEmailCode(email: string, code: string): Promise<boolean> {
+    const dto = await apiClient.post<{ verified: boolean }>('/api/auth/email/verify-code', { email, code });
+    return dto.verified === true;
   }
 
   async isUsernameTaken(username: string): Promise<boolean> {

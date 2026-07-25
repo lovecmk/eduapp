@@ -29,6 +29,7 @@ import {
   cancelAllReminders,
   syncPushTokenWithServer,
 } from '../src/data/notifications/NotificationService';
+import { APP_NAME } from '../src/constants/brand';
 
 const THEME_OPTIONS: ThemeMode[] = ['light', 'dark', 'dim', 'system'];
 const THEME_LABELS = ['Light', 'Dark', 'Dim', 'System'];
@@ -319,7 +320,7 @@ export default function SettingsScreen() {
 
         <View style={{ alignItems: 'center', marginTop: 28, gap: 4 }}>
           <Text style={{ color: c.textSecondary, fontSize: 12, fontFamily: fontMono }}>
-            현장학습 v{env.build.version} · build {env.build.buildNumber}
+            {APP_NAME} v{env.build.version} · build {env.build.buildNumber}
           </Text>
           <Text style={{ color: c.textSecondary, fontSize: 11, opacity: 0.7, fontFamily: fontMono }}>
             {env.useMockData ? 'MOCK DATA' : 'LIVE'} · {env.build.commit.slice(0, 7)}

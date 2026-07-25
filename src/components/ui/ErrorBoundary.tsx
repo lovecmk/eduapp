@@ -1,6 +1,7 @@
 import React, { Component, type ReactNode, type ErrorInfo } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { logger } from '../../utils/logger';
 
 interface Props {
   children: ReactNode;
@@ -19,7 +20,13 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error('[ErrorBoundary]', error, info.componentStack);
+    // 구조화 로깅으로 남긴다 — 운영에서 sink 를 수집기(Sentry 등)로 바꾸면
+    // 이 크래시가 그대로 수집된다(호출부 수정 불필요).
+    logger.error('ui_crash', {
+      message: error.message,
+      name: error.name,
+      componentStack: info.componentStack,
+    });
   }
 
   render() {

@@ -13,9 +13,16 @@ import { authRepository } from '../../src/data/repositories';
 import { fontBody, fontDisplay } from '../../src/theme/tokens';
 import { ROUTES } from '../../src/constants/routes';
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const USERNAME_RE = /^[a-zA-Z0-9가-힣_]{2,20}$/;
-const NICKNAME_RE = /^[a-zA-Z0-9가-힣_]{2,12}$/;
+import {
+  validateUsername as ruleUsername,
+  validateNickname as ruleNickname,
+  validateEmail as ruleEmail,
+  validateName as ruleName,
+  validatePassword as rulePassword,
+  validatePasswordConfirm as rulePasswordConfirm,
+  PASSWORD_PLACEHOLDER,
+} from '../../src/domain/validation/auth';
+import { APP_NAME } from '../../src/constants/brand';
 
 type Errors = { name?: string; email?: string; pw?: string; pw2?: string };
 
@@ -36,8 +43,11 @@ export default function SignupScreen() {
   const [usernameState, setUsernameState] = useState<CheckState>('idle');
   const [nicknameState, setNicknameState] = useState<CheckState>('idle');
   const [formHint, setFormHint] = useState<string | null>(null);
-  // 이메일 인증코드(데모) — 실서버 연동 시 발송/검증을 API로 대체.
-  const [sentCode, setSentCode] = useState<string | null>(null);
+  // 이메일 인증 — 코드 생성/비교는 저장소(실서버) 책임. 화면은 '발송됨/검증됨' 상태만 갖는다.
+  // (데모 모드에서만 devPreviewCode 를 받아 화면에 노출한다.)
+  const [codeSent, setCodeSent] = useState(false);
+  const [previewCode, setPreviewCode] = useState<string | null>(null);
+  const [codeBusy, setCodeBusy] = useState(false);
   const [codeInput, setCodeInput] = useState('');
   const [emailVerified, setEmailVerified] = useState(false);
   const [codeError, setCodeError] = useState<string | null>(null);
@@ -51,35 +61,57 @@ export default function SignupScreen() {
     setEmail(t);
     clearField('email');
     // 이메일을 바꾸면 이전 인증은 무효화.
-    if (sentCode || emailVerified) { setSentCode(null); setEmailVerified(false); setCodeInput(''); setCodeError(null); }
+    if (codeSent || emailVerified) { setCodeSent(false); setPreviewCode(null); setEmailVerified(false); setCodeInput(''); setCodeError(null); }
   };
 
-  const sendCode = () => {
-    if (!EMAIL_RE.test(email.trim())) { setErrors((e) => ({ ...e, email: '올바른 이메일 형식이 아닙니다' })); return; }
-    const code = String(Math.floor(100000 + Math.random() * 900000));
-    setSentCode(code);
-    setCodeInput('');
-    setCodeError(null);
-    setEmailVerified(false);
+  const sendCode = async () => {
+    const emailError = ruleEmail(email);
+    if (emailError) { setErrors((e) => ({ ...e, email: emailError })); return; }
+    if (codeBusy) return; // 중복 발송 방지
+    setCodeBusy(true);
+    try {
+      const { devPreviewCode } = await authRepository.requestEmailCode(email.trim());
+      setCodeSent(true);
+      setPreviewCode(devPreviewCode ?? null);
+      setCodeInput('');
+      setCodeError(null);
+      setEmailVerified(false);
+    } catch {
+      setCodeError('인증코드 발송에 실패했어요. 잠시 후 다시 시도해주세요');
+    } finally {
+      setCodeBusy(false);
+    }
   };
 
-  const verifyCode = () => {
-    if (codeInput.trim() === sentCode) { setEmailVerified(true); setCodeError(null); }
-    else setCodeError('인증코드가 일치하지 않습니다');
+  const verifyCode = async () => {
+    if (codeBusy) return; // 중복 검증 방지
+    setCodeBusy(true);
+    try {
+      const ok = await authRepository.verifyEmailCode(email.trim(), codeInput);
+      if (ok) { setEmailVerified(true); setCodeError(null); }
+      else setCodeError('인증코드가 일치하지 않습니다');
+    } catch {
+      setCodeError('인증 확인에 실패했어요. 잠시 후 다시 시도해주세요');
+    } finally {
+      setCodeBusy(false);
+    }
   };
 
-  const validateUsername = (v: string) =>
-    USERNAME_RE.test(v.trim()) ? null : '아이디는 2~20자(한글/영문/숫자)로 입력하세요';
-  const validateNickname = (v: string) =>
-    NICKNAME_RE.test(v.trim()) ? null : '닉네임은 2~12자(한글/영문/숫자)로 입력하세요';
+  const validateUsername = (v: string) => ruleUsername(v);
+  const validateNickname = (v: string) => ruleNickname(v);
 
   const onSubmit = async () => {
     setFormHint(null);
     const next: Errors = {};
-    if (!name.trim()) next.name = '이름을 입력해주세요';
-    if (!EMAIL_RE.test(email.trim())) next.email = '올바른 이메일 형식이 아닙니다';
-    if (pw.length < 4) next.pw = '비밀번호는 4자 이상이어야 합니다';
-    if (pw !== pw2) next.pw2 = '비밀번호가 일치하지 않습니다';
+    // 검증 규칙은 src/domain/validation/auth.ts 단일 소스를 사용(백엔드와 동일 규칙).
+    const nameError = ruleName(name);
+    const emailError = ruleEmail(email);
+    const pwError = rulePassword(pw);
+    const pw2Error = rulePasswordConfirm(pw, pw2);
+    if (nameError) next.name = nameError;
+    if (emailError) next.email = emailError;
+    if (pwError) next.pw = pwError;
+    if (pw2Error) next.pw2 = pw2Error;
     setErrors(next);
 
     if (usernameState !== 'available') {
@@ -115,7 +147,7 @@ export default function SignupScreen() {
           <View style={{ alignItems: 'center', marginBottom: 24 }}>
             <AppLogo size={64} />
             <Text style={{ color: c.textPrimary, fontSize: 22 * fs, marginTop: 12, fontFamily: fontDisplay }}>회원가입</Text>
-            <Text style={{ color: c.textSecondary, fontSize: 13 * fs, marginTop: 6, fontFamily: fontBody }}>현장학습 계정을 만들어 안전학습을 시작하세요</Text>
+            <Text style={{ color: c.textSecondary, fontSize: 13 * fs, marginTop: 6, fontFamily: fontBody }}>{APP_NAME} 계정을 만들어 안전학습을 시작하세요</Text>
           </View>
 
           <AvailabilityField
@@ -156,24 +188,30 @@ export default function SignupScreen() {
             </View>
           ) : (
             <View style={{ marginTop: -4, marginBottom: 12 }}>
-              <Pressable onPress={sendCode}
-                style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: c.primary + '14', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 }}>
+              <Pressable onPress={sendCode} disabled={codeBusy}
+                style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: c.primary + '14', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, opacity: codeBusy ? 0.6 : 1 }}>
                 <Ionicons name="mail-outline" size={14} color={c.primary} />
-                <Text style={{ color: c.primary, fontSize: 12.5 * fs, fontFamily: fontDisplay }}>{sentCode ? '인증코드 재발송' : '인증코드 발송'}</Text>
+                <Text style={{ color: c.primary, fontSize: 12.5 * fs, fontFamily: fontDisplay }}>{codeSent ? '인증코드 재발송' : '인증코드 발송'}</Text>
               </Pressable>
-              {sentCode && (
+              {codeSent && (
                 <>
-                  {/* 데모: 실제 메일 발송 대신 코드를 화면에 노출(실서버 연동 시 제거). */}
-                  <Text style={{ color: c.textSecondary, fontSize: 11.5 * fs, fontFamily: fontBody, marginTop: 6 }}>
-                    데모용 인증코드: <Text style={{ color: c.textPrimary, fontWeight: '700' }}>{sentCode}</Text> · 실서버에선 이메일로 발송돼요
-                  </Text>
+                  {/* 데모(목업) 모드에서만 코드가 화면에 보인다. 실서버 응답에는 코드가 없어 이 줄은 사라진다. */}
+                  {previewCode ? (
+                    <Text style={{ color: c.textSecondary, fontSize: 11.5 * fs, fontFamily: fontBody, marginTop: 6 }}>
+                      데모용 인증코드: <Text style={{ color: c.textPrimary, fontWeight: '700' }}>{previewCode}</Text> · 실서버에선 이메일로 발송돼요
+                    </Text>
+                  ) : (
+                    <Text style={{ color: c.textSecondary, fontSize: 11.5 * fs, fontFamily: fontBody, marginTop: 6 }}>
+                      입력하신 이메일로 인증코드를 보냈어요 (5분 내 입력)
+                    </Text>
+                  )}
                   <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginTop: 6 }}>
                     <View style={{ flex: 1 }}>
                       <TextField label="인증코드" value={codeInput} onChangeText={(t) => { setCodeInput(t); setCodeError(null); }} placeholder="6자리 코드" keyboardType="number-pad"
                         status={codeError ? 'error' : 'default'} helperText={codeError ?? undefined} />
                     </View>
-                    <Pressable onPress={verifyCode}
-                      style={{ marginTop: 28, backgroundColor: c.primary, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 13 }}>
+                    <Pressable onPress={verifyCode} disabled={codeBusy}
+                      style={{ marginTop: 28, backgroundColor: c.primary, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 13, opacity: codeBusy ? 0.6 : 1 }}>
                       <Text style={{ color: '#fff', fontSize: 13 * fs, fontFamily: fontDisplay }}>확인</Text>
                     </Pressable>
                   </View>
@@ -183,7 +221,7 @@ export default function SignupScreen() {
           )}
 
           <TextField label="소속 (선택)" value={org} onChangeText={setOrg} placeholder="예) 안전관리본부" />
-          <TextField label="비밀번호" value={pw} onChangeText={(t) => { setPw(t); clearField('pw'); }} secureTextEntry placeholder="4자 이상"
+          <TextField label="비밀번호" value={pw} onChangeText={(t) => { setPw(t); clearField('pw'); }} secureTextEntry placeholder={PASSWORD_PLACEHOLDER}
             status={errors.pw ? 'error' : 'default'} helperText={errors.pw} />
           <TextField label="비밀번호 확인" value={pw2} onChangeText={(t) => { setPw2(t); clearField('pw2'); }} secureTextEntry placeholder="비밀번호를 다시 입력하세요"
             status={errors.pw2 ? 'error' : 'default'} helperText={errors.pw2 ?? authError ?? formHint ?? undefined} />

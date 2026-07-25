@@ -17,6 +17,8 @@ import { syncPushTokenWithServer } from '../src/data/notifications/NotificationS
 import { ErrorBoundary } from '../src/components/ui/ErrorBoundary';
 import { UpdatePrompt } from '../src/components/ui/UpdatePrompt';
 import { useAppUpdate } from '../src/hooks/useAppUpdate';
+import { useAppResume } from '../src/hooks/useAppResume';
+import { applyWebTypography } from '../src/theme/webTypography';
 import { APP_FONTS } from '../src/theme/tokens';
 import { applyGlobalFont } from '../src/theme/applyGlobalFont';
 
@@ -43,9 +45,16 @@ function RootContent() {
   // 비어 보이는(로딩 전 빈 글리프) 현상을 방지한다.
   const [fontsLoaded, fontError] = useFonts({ ...APP_FONTS, ...Ionicons.font });
   const { updateAvailable, remote, apply, dismiss } = useAppUpdate();
+  // 백그라운드에 오래 있다 돌아오거나 자정을 넘겼을 때 '오늘' 데이터를 갱신한다.
+  useAppResume();
 
   useEffect(() => {
     restore();
+  }, []);
+
+  // 웹에서만 한글이 단어 중간에서 잘리는 문제를 전역 스타일로 교정(네이티브는 no-op).
+  useEffect(() => {
+    applyWebTypography();
   }, []);
 
   // 로그인 완료 + 알림 On 상태면 원격 푸시 토큰을 서버에 등록/갱신한다.
