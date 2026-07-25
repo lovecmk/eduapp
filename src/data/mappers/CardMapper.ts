@@ -1,5 +1,6 @@
 import type { CardDTO } from '../dto/CardDTO';
 import type { LearningCard, CardCategory, CardStatus } from '../../domain/models/LearningCard';
+import { parseDate } from './_date';
 
 const CATEGORY_MAP: Record<string, CardCategory> = {
   ELEC: '전기 위험',
@@ -57,7 +58,7 @@ export class CardMapper {
       answerIndex: dto.answer_index,
       hasImage: Boolean(dto.image_url?.trim()),
       status: STATUS_MAP[dto.status_cd] ?? 'new',
-      dueAt: dto.due_at ? new Date(dto.due_at) : null,
+      dueAt: parseDate(dto.due_at),
     };
   }
 
