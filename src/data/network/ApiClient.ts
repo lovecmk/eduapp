@@ -5,6 +5,7 @@ import { env } from './env';
 import { validateResponse } from './validation';
 import { secureStorage, StorageKeys } from '../storage/secureStorage';
 import { ApiError } from './errors';
+import { logger } from '../../utils/logger';
 
 class ApiClient {
   // 동시에 여러 요청이 401을 받아도 refresh 는 한 번만 수행하고 결과를 공유한다(single-flight).
@@ -48,6 +49,8 @@ class ApiClient {
     }
     if (!res.ok) {
       const body = await res.json().catch(() => ({}) as { message?: string });
+      // 실패한 요청을 구조화 로그로 남긴다(경로·상태만 — 본문/토큰은 남기지 않는다).
+      logger.warn('api_request_failed', { path, status: res.status, method: init.method ?? 'GET' });
       throw new ApiError(res.status, body.message ?? `요청 실패 (${res.status})`);
     }
     const body = await res.json();

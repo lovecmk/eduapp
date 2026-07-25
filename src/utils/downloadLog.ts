@@ -1,5 +1,6 @@
 import { Platform, Share } from 'react-native';
 import { env } from '../data/network/env';
+import { APP_NAME } from '../constants/brand';
 
 /**
  * 진단용 시스템 로그를 생성해 내려받는다(운영 마감 기능).
@@ -8,7 +9,7 @@ import { env } from '../data/network/env';
 export async function downloadSystemLog(): Promise<void> {
   const now = new Date();
   const log = [
-    '=== 현장학습 시스템 로그 ===',
+    `=== ${APP_NAME} 시스템 로그 ===`,
     `생성 시각: ${now.toISOString()}`,
     `앱 버전: v${env.build.version} (build ${env.build.buildNumber})`,
     `커밋: ${env.build.commit}`,

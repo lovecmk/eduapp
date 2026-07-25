@@ -28,7 +28,10 @@ import { useDailyQuota } from '../../src/hooks/useDailyQuota';
 import { DAILY_TOTAL_LIMIT } from '../../src/constants/learning';
 
 // 홈 히어로 고정 문구 — 앱의 미션을 한 줄로.
-const HERO_TAGLINE = '하루 3분이 모여 국민의 안전한 내일을 지켜요!';
+// 히어로 텍스트 열은 오른쪽 실드 아이콘 때문에 폭이 좁아, 한 문장으로 두면
+// '지켜/요!' 처럼 단어 중간에서 잘린다. 의미 단위로 끊어 2줄 락업으로 고정한다.
+const HERO_TAGLINE_LINES = ['하루 3분이 모여', '국민의 안전한 내일을 지켜요!'];
+const HERO_TAGLINE = HERO_TAGLINE_LINES.join(' ');
 
 // 앱 실행(런치)당 1회만 실행 기록/축하 계산이 일어나도록 하는 모듈 가드.
 // (홈 탭을 오갈 때 컴포넌트가 재마운트돼도 중복 카운트/중복 팝업을 막는다.)
@@ -225,7 +228,11 @@ export default function HomeScreen() {
                   <Text style={{ color: '#fff', fontSize: rs(18) * fs, marginTop: 1, fontFamily: fontDisplay }} numberOfLines={1}>{user?.name ?? '점검자'} 님</Text>
                 </View>
               </View>
-              <Text style={{ color: 'rgba(255,255,255,0.92)', fontSize: rs(13) * fs, marginTop: 14, lineHeight: rs(19) * fs, fontFamily: fontBody }}>{greeting}</Text>
+              <View style={{ marginTop: 14 }} accessible accessibilityLabel={greeting}>
+                {HERO_TAGLINE_LINES.map((line) => (
+                  <Text key={line} numberOfLines={1} style={{ color: 'rgba(255,255,255,0.92)', fontSize: rs(13) * fs, lineHeight: rs(19) * fs, fontFamily: fontBody }}>{line}</Text>
+                ))}
+              </View>
               {/* 플레이풀 응원 스티커 — 격언(명언) 톤 대신, 이모지 '스티커 배지 + 짤막한 한 줄'로
                   가볍고 재밌게. 태그라인과 컨셉이 겹치지 않도록 게임형 진행 응원을 돌린다. */}
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 10, backgroundColor: 'rgba(255,255,255,0.15)', alignSelf: 'flex-start', maxWidth: '100%', borderRadius: 12, paddingLeft: 5, paddingRight: 11, paddingVertical: 5 }}>

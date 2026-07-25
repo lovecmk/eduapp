@@ -1,6 +1,8 @@
 import type { ICommunityRepository } from '../../domain/repositories/ICommunityRepository';
 import type { CommunitySnapshot, LiveActivity, SafetyBuilding, BuildingMonth } from '../../domain/models/Community';
 import { delay } from './_delay';
+import { useAuthStore } from '../../store/authStore';
+import { displayName } from '../../domain/models/User';
 
 // ── 함께 짓는 안전 빌딩 (월별 초기화) ────────────────────────────────
 /** 한 층을 올리는 데 필요한 공동 문제 수. */
@@ -130,18 +132,21 @@ export class MockCommunityRepository implements ICommunityRepository {
   }
 }
 
-/** 이번 주 기여 랭킹 목업 — 내 기여(나)를 끼워 순위를 계산한다. */
+/** 이번 주 기여 랭킹 목업 — 내 기여를 끼워 순위를 계산한다. */
 function makeLeaderboard(): Pick<CommunitySnapshot, 'leaderboard' | 'myRank'> {
+  // 내 항목은 실제 로그인 사용자의 표시명을 쓴다. 고정 문자열('나')을 쓰면
+  // 화면에 "나 (나)" 처럼 어색하게 찍히고, 내가 누구인지도 알아보기 어렵다.
+  const myName = displayName(useAuthStore.getState().user);
   const base = [
-    { name: '김안전', cards: 48, color: '#F2B705' },
-    { name: '이현장', cards: 41, color: '#5C6BC0' },
-    { name: '박점검', cards: 37, color: '#E2574C' },
-    { name: '최예방', cards: 29, color: '#26A69A' },
-    { name: '정관리', cards: 22, color: '#7E57C2' },
-    { name: '나', cards: 23, color: '#2563EB' },
+    { name: '김안전', cards: 48, color: '#F2B705', isMe: false },
+    { name: '이현장', cards: 41, color: '#5C6BC0', isMe: false },
+    { name: '박점검', cards: 37, color: '#E2574C', isMe: false },
+    { name: '최예방', cards: 29, color: '#26A69A', isMe: false },
+    { name: '정관리', cards: 22, color: '#7E57C2', isMe: false },
+    { name: myName, cards: 23, color: '#2563EB', isMe: true },
   ];
   base.sort((a, b) => b.cards - a.cards);
-  const leaderboard = base.map((r, i) => ({ ...r, rank: i + 1, isMe: r.name === '나' }));
+  const leaderboard = base.map((r, i) => ({ ...r, rank: i + 1 }));
   const myRank = leaderboard.find((r) => r.isMe)?.rank ?? 0;
   return { leaderboard, myRank };
 }

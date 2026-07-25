@@ -22,6 +22,7 @@ import {
   validatePasswordConfirm as rulePasswordConfirm,
   PASSWORD_PLACEHOLDER,
 } from '../../src/domain/validation/auth';
+import { APP_NAME } from '../../src/constants/brand';
 
 type Errors = { name?: string; email?: string; pw?: string; pw2?: string };
 
@@ -146,7 +147,7 @@ export default function SignupScreen() {
           <View style={{ alignItems: 'center', marginBottom: 24 }}>
             <AppLogo size={64} />
             <Text style={{ color: c.textPrimary, fontSize: 22 * fs, marginTop: 12, fontFamily: fontDisplay }}>회원가입</Text>
-            <Text style={{ color: c.textSecondary, fontSize: 13 * fs, marginTop: 6, fontFamily: fontBody }}>현장학습 계정을 만들어 안전학습을 시작하세요</Text>
+            <Text style={{ color: c.textSecondary, fontSize: 13 * fs, marginTop: 6, fontFamily: fontBody }}>{APP_NAME} 계정을 만들어 안전학습을 시작하세요</Text>
           </View>
 
           <AvailabilityField

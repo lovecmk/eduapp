@@ -65,7 +65,19 @@ export function WeeklyChart({ weekly }: { weekly: DailyProgress[] }) {
         </View>
       </View>
 
-      {/* 차트 */}
+      {/* 차트 — 아직 학습 기록이 없으면 빈 캔버스 대신 안내를 보여준다.
+          (0으로 가득한 축만 그리면 화면이 '깨진 것'처럼 보인다) */}
+      {total === 0 ? (
+        <View style={[styles.empty, { backgroundColor: c.surfaceAlt }]}>
+          <Ionicons name="bar-chart-outline" size={26} color={c.textSecondary} />
+          <Text style={{ color: c.textPrimary, fontSize: 13, marginTop: 8, fontFamily: fontDisplay }}>
+            아직 학습 기록이 없어요
+          </Text>
+          <Text style={{ color: c.textSecondary, fontSize: 11.5, marginTop: 4, fontFamily: fontBody, textAlign: 'center' }}>
+            오늘 카드를 학습하면 여기에 그래프가 쌓여요
+          </Text>
+        </View>
+      ) : (
       <View style={styles.chart}>
         {/* 평균선 */}
         <View style={{ position: 'absolute', left: 0, right: 0, bottom: 22 + (avg / max) * 108, height: 1, backgroundColor: c.warning + '99', borderStyle: 'dashed', borderWidth: 0.5, borderColor: c.warning + '99' }} />
@@ -87,12 +99,16 @@ export function WeeklyChart({ weekly }: { weekly: DailyProgress[] }) {
           );
         })}
       </View>
+      )}
+      {/* 범례는 실제 그래프가 있을 때만 의미가 있다 */}
+      {total > 0 && (
       <View style={styles.legend}>
         <View style={{ width: 12, height: 0, borderTopWidth: 1, borderTopColor: c.warning + '99', borderStyle: 'dashed' }} />
         <Text style={{ color: c.textSecondary, fontSize: 10.5, fontFamily: fontBody }}>일평균</Text>
         <Ionicons name="ellipse" size={7} color={c.primary} style={{ marginLeft: 8 }} />
         <Text style={{ color: c.textSecondary, fontSize: 10.5, fontFamily: fontBody }}>최다 학습일</Text>
       </View>
+      )}
     </View>
   );
 }
@@ -105,6 +121,7 @@ const styles = StyleSheet.create({
   summary: { flexDirection: 'row', gap: 8, marginTop: 14, marginBottom: 6 },
   chip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999 },
   chart: { flexDirection: 'row', alignItems: 'flex-end', height: 150, gap: 4, marginTop: 8, position: 'relative' },
+  empty: { height: 150, marginTop: 8, borderRadius: 12, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
   col: { flex: 1, alignItems: 'center', justifyContent: 'flex-end' },
   count: { fontSize: 10, fontFamily: fontMono, marginBottom: 3, height: 13 },
   legend: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 10 },

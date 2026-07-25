@@ -1,6 +1,7 @@
 // 격려·축하 "순간"(Moment) 계산 — 학습 성취/기념일/누적 몰입을 감지해
 // 앱을 켠 순간 인앱으로 전할 한 건의 메시지를 만든다. (알림 off 대비)
 import { daysSinceFirstOpen } from '../store/momentStore';
+import { APP_NAME } from '../constants/brand';
 
 export type MomentKind = 'welcome' | 'anniversary' | 'streak' | 'milestone' | 'comeback';
 
@@ -72,7 +73,7 @@ export function computeMoment(input: MomentInput): Moment | null {
       key: 'welcome',
       kind: 'welcome',
       emoji: '🎒',
-      title: '현장학습에 오신 걸 환영해요!',
+      title: `${APP_NAME}에 오신 걸 환영해요!`,
       message: '하루 3분이면 충분해요. 오늘부터 안전 지식을 한 장씩 쌓아가요. 함께 시작해볼까요?',
       accent: '#2563EB',
     };
