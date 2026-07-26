@@ -32,6 +32,7 @@ import { useReportStore } from '../../src/store/reportStore';
 import { useCollectionStore } from '../../src/store/collectionStore';
 import { useSrsStore } from '../../src/store/srsStore';
 import { predictLabel, initialState } from '../../src/domain/srs';
+import { safeInternalPath } from '../../src/utils/safeRoute';
 
 // 하루 학습 정책(운영 지속가능성 · '하루 3분'):
 //  · '오늘의 학습'은 신규 카드만, 하루 상한(DAILY_NEW_LIMIT)까지만 진행할 수 있다.
@@ -105,7 +106,10 @@ export default function CardsScreen() {
   // 복습 탭에서 카테고리를 눌러 진입하면 category 파라미터로 해당 카테고리만 학습한다.
   // content 상세의 "이 카드 학습하기"로 진입하면 focusId(그 카드 1장)만 학습하고,
   // 끝나면 returnTo 경로(원래 보던 컨텐츠)로 되돌아간다.
-  const { category, focusId, returnTo } = useLocalSearchParams<{ category?: string; focusId?: string; returnTo?: string }>();
+  const { category, focusId, returnTo: rawReturnTo } = useLocalSearchParams<{ category?: string; focusId?: string; returnTo?: string }>();
+  // returnTo 는 주소창·딥링크로 아무 값이나 들어올 수 있다. 앱 내부 경로가 아니면 버린다
+  // (웹에서 외부 주소로 사용자를 그대로 내보내는 열린 리다이렉트 방지).
+  const returnTo = safeInternalPath(rawReturnTo);
   const isCategoryMode = !!category;
   const isFocusMode = !!focusId;
 
@@ -426,7 +430,7 @@ export default function CardsScreen() {
     // (사용자가 직접 복습하러 가거나 홈으로 이동). 로딩바/이동 안내 문구도 두지 않는다.
     if (returnTo) {
       Animated.timing(progressAnim, { toValue: 1, duration: 900, useNativeDriver: false }).start(({ finished: ok }) => {
-        if (ok) router.replace(returnTo as any);
+        if (ok) router.replace(returnTo as never);
       });
     }
   }, [finished]);
@@ -474,7 +478,7 @@ export default function CardsScreen() {
   const leaveSession = useCallback((target: string) => {
     if (autoFlipTimer.current) clearTimeout(autoFlipTimer.current);
     setExitConfirm(false);
-    router.replace(target as any);
+    router.replace(target as never);
   }, [router]);
 
   if (isLoading && deck.length === 0 && !error) {

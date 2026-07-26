@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef } from 'react';
-import { Animated, Easing, StyleSheet, Dimensions } from 'react-native';
+import { Animated, Easing, StyleSheet, useWindowDimensions } from 'react-native';
 import type { AmbientEffect } from '../../constants/ambient';
 
 // ── 전역 배경 앰비언트 테마 ────────────────────────────────────────────────
@@ -11,9 +11,6 @@ import type { AmbientEffect } from '../../constants/ambient';
 //  · none  → 아무것도 그리지 않음(깔끔한 흰 배경)
 // 모든 요소는 pointerEvents="none" 로 터치를 막지 않으며, 가독성을 해치지 않도록
 // 낮은 투명도로만 그린다.
-
-const SCREEN_H = Dimensions.get('window').height;
-const SCREEN_W = Dimensions.get('window').width;
 
 type Props = {
   /** 그릴 효과. 기본 'none'(흰 배경). */
@@ -35,14 +32,14 @@ const FADE_LEN = 64;
  * 낙하 요소(비·눈)의 진행도(0~1) 대비 투명도 보간 구간을 만든다.
  * y(t) = from + t*(to-from) 이므로, 화면 좌표 기준 페이드 지점을 진행도로 환산한다.
  */
-function fadeRanges(from: number, to: number, topInset: number, bottomInset: number, base: number) {
+function fadeRanges(from: number, to: number, topInset: number, bottomInset: number, base: number, screenH: number) {
   const span = to - from;
   const at = (y: number) => Math.max(0, Math.min(1, (y - from) / span));
   // 앱바 아래에서 서서히 등장 → 탭바 위에서 서서히 소멸.
   const inStart = at(topInset);
   const inEnd = at(topInset + FADE_LEN);
-  const outStart = at(SCREEN_H - bottomInset - FADE_LEN);
-  const outEnd = at(SCREEN_H - bottomInset);
+  const outStart = at(screenH - bottomInset - FADE_LEN);
+  const outEnd = at(screenH - bottomInset);
   // 보간 입력은 반드시 단조 증가해야 한다(구간이 겹치면 미세하게 밀어준다).
   const xs = [0, inStart, inEnd, outStart, outEnd, 1];
   for (let i = 1; i < xs.length; i++) if (xs[i] <= xs[i - 1]) xs[i] = Math.min(1, xs[i - 1] + 0.0001);
@@ -90,7 +87,7 @@ function useWind(strong = false) {
 }
 
 // ── 비 / 눈 ────────────────────────────────────────────────────────────────
-function Precipitation({ kind, wind, topInset, bottomInset }: { kind: 'rain' | 'snow'; wind: Animated.Value; topInset: number; bottomInset: number }) {
+function Precipitation({ kind, wind, topInset, bottomInset, screenH }: { kind: 'rain' | 'snow'; wind: Animated.Value; topInset: number; bottomInset: number; screenH: number }) {
   const isRain = kind === 'rain';
   const drops = useMemo(
     () =>
@@ -109,13 +106,13 @@ function Precipitation({ kind, wind, topInset, bottomInset }: { kind: 'rain' | '
   return (
     <>
       {drops.map((d, i) => (
-        <Drop key={i} isRain={isRain} wind={wind} topInset={topInset} bottomInset={bottomInset} {...d} />
+        <Drop key={i} isRain={isRain} wind={wind} topInset={topInset} bottomInset={bottomInset} screenH={screenH} {...d} />
       ))}
     </>
   );
 }
 
-function Drop({ left, size, dur, delay, isRain, flake, wind, topInset, bottomInset }: { left: string; size: number; dur: number; delay: number; isRain: boolean; flake: boolean; wind: Animated.Value; topInset: number; bottomInset: number }) {
+function Drop({ left, size, dur, delay, isRain, flake, wind, topInset, bottomInset, screenH }: { left: string; size: number; dur: number; delay: number; isRain: boolean; flake: boolean; wind: Animated.Value; topInset: number; bottomInset: number; screenH: number }) {
   const v = useRef(new Animated.Value(0)).current;
   const spin = useRef(new Animated.Value(0)).current;
   useLoopedValue(
@@ -134,10 +131,10 @@ function Drop({ left, size, dur, delay, isRain, flake, wind, topInset, bottomIns
     return () => loop.stop();
   }, [spin, dur, isRain]);
 
-  const travel = SCREEN_H + 60;
+  const travel = screenH + 60;
   const translateY = v.interpolate({ inputRange: [0, 1], outputRange: [-40, travel] });
   // 앱바/탭바 경계에서 톡 끊기지 않도록 진행도에 따라 서서히 나타나고 사라진다.
-  const fade = fadeRanges(-40, travel, topInset, bottomInset, isRain ? 0.82 : 0.92);
+  const fade = fadeRanges(-40, travel, topInset, bottomInset, isRain ? 0.82 : 0.92, screenH);
   const fadeOpacity = v.interpolate(fade);
   const windSpan = isRain ? 24 : 52; // 눈은 더 크게 살랑살랑
   const windX = wind.interpolate({ inputRange: [0, 1], outputRange: [-windSpan, windSpan] });
@@ -230,7 +227,7 @@ function Sparkle({ top, left, size, dur, delay, gold, glyph }: { top: string; le
 }
 
 // ── 바람 (태풍) ───────────────────────────────────────────────────────────────
-function Wind({ wind }: { wind: Animated.Value }) {
+function Wind({ wind, screenW }: { wind: Animated.Value; screenW: number }) {
   const leaves = useMemo(
     () =>
       // 태풍답게 잎을 더 많이, 더 빠르게.
@@ -256,17 +253,17 @@ function Wind({ wind }: { wind: Animated.Value }) {
   return (
     <>
       {gusts.map((g, i) => (
-        <Gust key={`g${i}`} {...g} />
+        <Gust key={`g${i}`} screenW={screenW} {...g} />
       ))}
       {leaves.map((l, i) => (
-        <Leaf key={`l${i}`} wind={wind} {...l} />
+        <Leaf key={`l${i}`} wind={wind} screenW={screenW} {...l} />
       ))}
     </>
   );
 }
 
 // 화면을 빠르게 가로지르는 옅은 '바람결' 선.
-function Gust({ top, dur, delay, len }: { top: string; dur: number; delay: number; len: number }) {
+function Gust({ top, dur, delay, len, screenW }: { top: string; dur: number; delay: number; len: number; screenW: number }) {
   const v = useRef(new Animated.Value(0)).current;
   useLoopedValue(
     v,
@@ -274,7 +271,7 @@ function Gust({ top, dur, delay, len }: { top: string; dur: number; delay: numbe
     delay,
     [v, dur, delay],
   );
-  const translateX = v.interpolate({ inputRange: [0, 1], outputRange: [-len - 20, SCREEN_W + 20] });
+  const translateX = v.interpolate({ inputRange: [0, 1], outputRange: [-len - 20, screenW + 20] });
   const opacity = v.interpolate({ inputRange: [0, 0.15, 0.85, 1], outputRange: [0, 0.35, 0.35, 0] });
   return (
     <Animated.View
@@ -289,7 +286,7 @@ function Gust({ top, dur, delay, len }: { top: string; dur: number; delay: numbe
   );
 }
 
-function Leaf({ top, size, dur, delay, emoji, wind }: { top: string; size: number; dur: number; delay: number; emoji: string; wind: Animated.Value }) {
+function Leaf({ top, size, dur, delay, emoji, wind, screenW }: { top: string; size: number; dur: number; delay: number; emoji: string; wind: Animated.Value; screenW: number }) {
   const v = useRef(new Animated.Value(0)).current;
   const sway = useRef(new Animated.Value(0)).current;
   useLoopedValue(
@@ -309,7 +306,7 @@ function Leaf({ top, size, dur, delay, emoji, wind }: { top: string; size: numbe
     return () => swayLoop.stop();
   }, [sway, dur]);
   // 왼쪽 밖에서 오른쪽 밖으로 빠르게 휘몰아친다(태풍 바람 방향).
-  const translateX = v.interpolate({ inputRange: [0, 1], outputRange: [-40, SCREEN_W + 40] });
+  const translateX = v.interpolate({ inputRange: [0, 1], outputRange: [-40, screenW + 40] });
   // 바람이 셀 때(바람값이 클 때) 상하 흔들림을 더 크게.
   const swayY = sway.interpolate({ inputRange: [0, 1], outputRange: [-26, 26] });
   const windY = wind.interpolate({ inputRange: [0, 1], outputRange: [-10, 10] });
@@ -331,14 +328,17 @@ function Leaf({ top, size, dur, delay, emoji, wind }: { top: string; size: numbe
 export function AmbientSky({ effect = 'none', topInset = 0, bottomInset = 0 }: Props) {
   // 바람 테마(태풍)는 더 강한 바람 값을 쓴다.
   const wind = useWind(effect === 'wind');
+  // 모듈 상수로 굳히면 브라우저 리사이즈·기기 회전에서 파티클이 화면 밖에 남거나
+  // 레이어 폭이 뷰포트와 어긋난다. 창 크기를 구독한다.
+  const { width: screenW, height: screenH } = useWindowDimensions();
   if (effect === 'none') return null;
 
   return (
-    <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { width: SCREEN_W }]}>
-      {effect === 'rain' && <Precipitation kind="rain" wind={wind} topInset={topInset} bottomInset={bottomInset} />}
-      {effect === 'snow' && <Precipitation kind="snow" wind={wind} topInset={topInset} bottomInset={bottomInset} />}
+    <Animated.View pointerEvents="none" style={StyleSheet.absoluteFill}>
+      {effect === 'rain' && <Precipitation kind="rain" wind={wind} topInset={topInset} bottomInset={bottomInset} screenH={screenH} />}
+      {effect === 'snow' && <Precipitation kind="snow" wind={wind} topInset={topInset} bottomInset={bottomInset} screenH={screenH} />}
       {effect === 'stars' && <Stars />}
-      {effect === 'wind' && <Wind wind={wind} />}
+      {effect === 'wind' && <Wind wind={wind} screenW={screenW} />}
     </Animated.View>
   );
 }

@@ -22,6 +22,7 @@ import { ROUTES } from '../../src/constants/routes';
 import { useQnaStore, type Question } from '../../src/store/qnaStore';
 import { timeAgoLabel } from '../../src/store/notificationStore';
 import { contentColumn } from '../../src/theme/layout';
+import { useSafeTimeout } from '../../src/hooks/useSafeTimeout';
 
 // 목록에 보여줄 질문 수. 예전엔 4개를 30초마다 자동 교체했는데,
 // 읽는 도중 목록이 바뀌어 버려 "방금 본 질문이 어디 갔지?" 하는 혼란과 피로를 줬다.
@@ -40,6 +41,7 @@ export default function CommunityScreen() {
   const [offset, setOffset] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const refreshLockRef = useRef(false);
+  const { run } = useSafeTimeout();
 
   // 내가 올린 질문은 항상 상단 고정, 나머지(시드 풀)는 회전 대상.
   const mine = useMemo(() => questions.filter((q) => q.mine), [questions]);
@@ -68,8 +70,8 @@ export default function CommunityScreen() {
     setRefreshing(true);
     setOffset((o) => (pool.length ? (o + QNA_LIMIT) % pool.length : o));
     try { await refetch(); } catch { /* 무시 */ }
-    setTimeout(() => { setRefreshing(false); refreshLockRef.current = false; }, 700);
-  }, [pool.length, refetch]);
+    run(() => { setRefreshing(false); refreshLockRef.current = false; }, 700);
+  }, [pool.length, refetch, run]);
 
   const onScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;

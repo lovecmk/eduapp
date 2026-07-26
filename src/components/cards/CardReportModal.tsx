@@ -9,6 +9,7 @@ import { Button } from '../ui/Button';
 import { delay } from '../../data/repositories/_delay';
 import { useReportStore, REPORT_REASON_LABEL, type ReportReason } from '../../store/reportStore';
 import { sanitizeText, textLength, INPUT_LIMITS } from '../../utils/sanitize';
+import { useSafeTimeout, useIsMounted } from '../../hooks/useSafeTimeout';
 import type { LearningCard } from '../../domain/models/LearningCard';
 
 const REASONS = Object.keys(REPORT_REASON_LABEL) as ReportReason[];
@@ -23,14 +24,18 @@ export function CardReportModal({ visible, card, onClose }: { visible: boolean; 
   const [detail, setDetail] = useState('');
   const [phase, setPhase] = useState<Phase>('form');
 
+  const { run } = useSafeTimeout();
+  const alive = useIsMounted();
+
   const reset = () => { setReason('wrong_answer'); setDetail(''); setPhase('form'); };
-  const handleClose = () => { onClose(); setTimeout(reset, 200); };
+  const handleClose = () => { onClose(); run(reset, 200); };
 
   const send = async () => {
-    if (!card) return;
+    if (!card || phase !== 'form') return; // 연타로 두 번 접수되는 것을 막는다
     setPhase('sending');
     await delay(800);
     submit({ cardId: card.id, reason, detail: sanitizeText(detail, { maxLength: INPUT_LIMITS.reportDetail, allowNewlines: true }) });
+    if (!alive()) return; // 전송 중 화면을 떠났다면 상태를 건드리지 않는다
     setPhase('done');
   };
 

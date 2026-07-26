@@ -158,7 +158,7 @@ export function LivePresenceCard() {
         <Text style={[styles.goalLabel, { color: c.textSecondary }]} numberOfLines={1}>
           오늘 함께 쌓은 학습 · {data.studiedToday.toLocaleString()}명 참여
         </Text>
-        <Text style={[styles.goalValue, { color: c.textPrimary }]}>
+        <Text style={[styles.goalValue, { color: c.textPrimary }]} numberOfLines={1}>
           {data.totalMinutesToday.toLocaleString()}
           <Text style={{ color: c.textSecondary, fontFamily: fontBody }}> / {data.dailyGoalMinutes.toLocaleString()}분</Text>
         </Text>
@@ -189,8 +189,10 @@ const styles = StyleSheet.create({
   tickerText: { fontSize: 12.5, fontFamily: fontBody },
   tickerTime: { fontSize: 10, fontFamily: fontMono },
   goalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, marginBottom: 8 },
-  goalLabel: { fontSize: 12, fontFamily: fontBody },
-  goalValue: { fontSize: 14, fontFamily: fontMono, fontWeight: '800' },
+  // 좁은 화면(320px)에서 라벨이 줄지 않아 오른쪽 '5,619 / 9,000분' 이 두 줄로 접혔다.
+  // flex 행에서는 줄어들 쪽에 flex:1 + minWidth:0 을, 지킬 쪽에 flexShrink:0 을 줘야 한다.
+  goalLabel: { fontSize: 12, fontFamily: fontBody, flex: 1, minWidth: 0, marginRight: 8 },
+  goalValue: { fontSize: 14, fontFamily: fontMono, fontWeight: '800', flexShrink: 0 },
   track: { height: 8, borderRadius: 4, overflow: 'hidden' },
   fill: { height: '100%', borderRadius: 4 },
 });

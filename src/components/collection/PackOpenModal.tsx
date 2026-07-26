@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, Modal, Pressable, Dimensions } from 'react-native';
+import { View, Text, Modal, Pressable, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { hapticSuccess, hapticWarning } from '../../utils/haptics';
 import Animated, { ZoomIn, FadeIn } from 'react-native-reanimated';
@@ -9,11 +9,10 @@ import { RARITY_RANK as RANK, type RarityTier } from '../../utils/rarity';
 import { fontCute, fontDisplay } from '../../theme/tokens';
 import type { DrawResult } from '../../store/collectionStore';
 
-const { width: SCREEN_W } = Dimensions.get('window');
-
 /** 카드팩 개봉 연출 — 닫힌 팩 탭 → 카드가 하나씩 반짝이며 등장. */
 export function PackOpenModal({ results, onClose }: { results: DrawResult[] | null; onClose: () => void }) {
   const [opened, setOpened] = useState(false);
+  const { width: screenW } = useWindowDimensions();
 
   useEffect(() => {
     if (results) setOpened(false);
@@ -34,7 +33,7 @@ export function PackOpenModal({ results, onClose }: { results: DrawResult[] | nu
     else hapticWarning();
   };
 
-  const cardW = Math.min((SCREEN_W - 48 - 14) / 2, 150);
+  const cardW = Math.min((screenW - 48 - 14) / 2, 150);
   const bestMeta = JEWEL_META[best];
 
   return (

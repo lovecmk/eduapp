@@ -1,12 +1,10 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Pressable, Modal, Dimensions, type ImageSourcePropType } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, Pressable, Modal, useWindowDimensions, type ImageSourcePropType } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../theme/ThemeProvider';
 import { fontBody, fontDisplay } from '../../theme/tokens';
-
-const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
 /**
  * 이미지 문제용 이미지 뷰 — 로딩 중 스켈레톤, 실패 시 아이콘 폴백으로 깨진 이미지를 방지.
@@ -28,6 +26,8 @@ export function QuestionImage({
   expandable?: boolean;
 }) {
   const { theme } = useTheme();
+  // 전체 화면 뷰어 크기는 리사이즈·회전에 따라가야 한다(모듈 상수로 굳히면 안 된다).
+  const { width: screenW, height: screenH } = useWindowDimensions();
   const c = theme.colors;
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(true);
@@ -92,7 +92,7 @@ export function QuestionImage({
             <Image
               source={imgSource}
               pointerEvents="none"
-              style={{ width: SCREEN_W, height: SCREEN_H }}
+              style={{ width: screenW, height: screenH }}
               contentFit="contain"
               transition={150}
             />

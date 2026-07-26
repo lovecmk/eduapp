@@ -42,8 +42,13 @@ export default function LoginScreen() {
     const ok = await login(id.trim(), pw);
     if (ok) {
       // 로그인 성공 시에만 아이디 저장 상태를 반영(비번은 저장하지 않는다).
-      if (rememberId) await AsyncStorage.setItem(SAVED_ID_KEY, id.trim());
-      else await AsyncStorage.removeItem(SAVED_ID_KEY);
+      // 저장소 쓰기가 실패해도(용량 부족·브라우저 시크릿 모드) 로그인 자체는 성공했으므로
+      // 반드시 홈으로 보낸다. 예전엔 여기서 예외가 나면 홈 이동이 통째로 취소돼
+      // "로그인은 됐는데 화면이 안 넘어간다"로 보였다.
+      try {
+        if (rememberId) await AsyncStorage.setItem(SAVED_ID_KEY, id.trim());
+        else await AsyncStorage.removeItem(SAVED_ID_KEY);
+      } catch { /* 아이디 저장 실패는 로그인 흐름을 막지 않는다 */ }
       router.replace(ROUTES.home);
     }
   };

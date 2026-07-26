@@ -48,10 +48,16 @@ export default function ProfileScreen() {
 
   const pickImage = async () => {
     if (Platform.OS === 'web') { Alert.alert('안내', '프로필 사진 변경은 앱에서 가능합니다'); return; }
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') { Alert.alert('권한 필요', '갤러리 접근 권한이 필요합니다'); return; }
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.8 });
-    if (!result.canceled && result.assets[0]) setProfileImage(result.assets[0].uri);
+    // 갤러리 호출은 기기 상태에 따라 예외를 던진다(권한 창 취소, 사진 앱 없음 등).
+    // 감싸지 않으면 아바타를 눌러도 아무 반응이 없어 고장난 것처럼 보인다.
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') { Alert.alert('권한 필요', '갤러리 접근 권한이 필요합니다'); return; }
+      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.8 });
+      if (!result.canceled && result.assets[0]) setProfileImage(result.assets[0].uri);
+    } catch {
+      Alert.alert('사진을 불러오지 못했어요', '잠시 후 다시 시도해주세요');
+    }
   };
 
   const saveBio = () => { setBio(draft.trim()); setEditing(false); };

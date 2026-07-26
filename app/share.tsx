@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { View, Text, ScrollView, Pressable, Dimensions, Platform, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, Pressable, useWindowDimensions, Platform, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { captureRef } from 'react-native-view-shot';
@@ -16,12 +16,14 @@ import { useShareFeedStore } from '../src/store/shareFeedStore';
 import { fontCute, fontBody, fontMono } from '../src/theme/tokens';
 import { ROUTES } from '../src/constants/routes';
 import { contentColumn } from '../src/theme/layout';
-
-const { width: SCREEN_W } = Dimensions.get('window');
-const CARD_W = Math.min(SCREEN_W - 48, 360);
+import { useSafeTimeout, useIsMounted } from '../src/hooks/useSafeTimeout';
 
 export default function ShareScreen() {
   const { theme, fontScale: fs } = useTheme();
+  // 모듈 로드 시점의 Dimensions.get() 은 값이 고정돼 브라우저 리사이즈·기기 회전에
+  // 반응하지 않는다(카드가 화면을 넘치거나 여백이 크게 남는다). 훅으로 구독한다.
+  const { width: screenW } = useWindowDimensions();
+  const cardW = Math.min(screenW - 48, 360);
   const c = theme.colors;
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
@@ -37,6 +39,8 @@ export default function ShareScreen() {
 
   const cardRef = useRef<View>(null);
   const [phase, setPhase] = useState<'idle' | 'uploading' | 'done'>('idle');
+  const { run } = useSafeTimeout();
+  const alive = useIsMounted();
 
   const onShare = async () => {
     if (phase !== 'idle') return;
@@ -52,8 +56,11 @@ export default function ShareScreen() {
       }
     }
     uploadShareCard({ author, color: '#2563EB', imageUri, aspect: SHARE_CARD_ASPECT, snapshot });
+    // 캡처는 수백 ms 걸린다. 그 사이 사용자가 뒤로 갔다면 화면을 되돌리지 않는다.
+    if (!alive()) return;
     setPhase('done');
-    setTimeout(() => router.replace(ROUTES.community), 900);
+    // 자동 이동도 언마운트되면 취소된다(뒤로 간 사용자를 커뮤니티로 끌고 가지 않는다).
+    run(() => router.replace(ROUTES.community), 900);
   };
 
   return (
@@ -68,8 +75,8 @@ export default function ShareScreen() {
         </Text>
 
         {/* 미리보기 = 실제로 캡처되는 뷰. 기기를 기울이면 광택이 일렁이고 등급별 효과가 붙는다. */}
-        <View style={{ borderRadius: 28 * (CARD_W / 320), boxShadow: `0 16px 44px ${rarity.glow === 'transparent' ? 'rgba(37,99,235,0.32)' : rarity.glow + '66'}` }}>
-          <WrappedShareCard ref={cardRef} snapshot={snapshot} author={author} width={CARD_W} tilt={tilt} animated />
+        <View style={{ borderRadius: 28 * (cardW / 320), boxShadow: `0 16px 44px ${rarity.glow === 'transparent' ? 'rgba(37,99,235,0.32)' : rarity.glow + '66'}` }}>
+          <WrappedShareCard ref={cardRef} snapshot={snapshot} author={author} width={cardW} tilt={tilt} animated />
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 12 }}>
           <Ionicons name="phone-portrait-outline" size={13} color={c.textSecondary} />

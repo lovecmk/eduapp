@@ -107,22 +107,28 @@ function SettingsBody({ scrollRef }: { scrollRef: React.RefObject<ScrollView> })
     setTimePickerOpen(true);
   }, [notifications.dailyReminderTime]);
 
+  // OS 알림 API 는 기기·권한 상태에 따라 예외를 던진다(웹, 권한 거부, 시뮬레이터 등).
+  // 예전엔 이걸 감싸지 않아서, 실패하면 모달이 닫히지 않거나 스위치가 그대로 남아
+  // "눌렀는데 아무 일도 안 일어난다"로 보였다. 예약은 실패해도 설정 자체는 저장한다.
   const saveTime = async () => {
     const t = `${String(editH).padStart(2, '0')}:${String(editM).padStart(2, '0')}`;
     updateNotificationSetting('dailyReminderTime', t);
-    if (notifications.enabled) await scheduleDailyReminder(t);
+    if (notifications.enabled) {
+      try { await scheduleDailyReminder(t); } catch { /* 예약 실패는 설정 저장을 막지 않는다 */ }
+    }
     setTimePickerOpen(false);
   };
 
   const onToggleNotification = async (enabled: boolean) => {
     if (enabled) {
-      const granted = await requestNotificationPermission();
+      let granted = false;
+      try { granted = await requestNotificationPermission(); } catch { granted = false; }
       if (!granted && Platform.OS !== 'web') return;
-      await scheduleDailyReminder(notifications.dailyReminderTime);
+      try { await scheduleDailyReminder(notifications.dailyReminderTime); } catch { /* 위와 동일 */ }
       // 실서버 사용 시 원격 푸시 토큰도 함께 등록(서버·텔레그램 알림 수신용).
       void syncPushTokenWithServer();
     } else {
-      await cancelAllReminders();
+      try { await cancelAllReminders(); } catch { /* 이미 없는 예약이면 무시 */ }
     }
     updateNotificationSetting('enabled', enabled);
   };
@@ -130,10 +136,13 @@ function SettingsBody({ scrollRef }: { scrollRef: React.RefObject<ScrollView> })
   const doReset = async () => {
     setResetting(true);
     try {
-      await cancelAllReminders();
-      await logout();
+      // 각 단계는 개별적으로 실패할 수 있다(예약 없음, 서버 응답 없음, 저장소 오류).
+      // 어느 하나가 던져도 나머지 초기화는 반드시 끝내야 한다 —
+      // 중간에 멈추면 '반쯤 초기화된' 상태로 남아 더 나쁘다.
+      try { await cancelAllReminders(); } catch { /* 예약이 없어도 계속 */ }
+      try { await logout(); } catch { /* 서버 통지 실패해도 로컬은 비운다 */ }
       queryClient.clear();
-      await AsyncStorage.clear();
+      try { await AsyncStorage.clear(); } catch { /* 저장소 오류여도 메모리는 비운다 */ }
       resetAll();
       // 디스크(AsyncStorage)뿐 아니라 각 스토어의 '메모리' 상태까지 즉시 비워야
       // 앱을 다시 켜지 않아도 학습완료/출석/도감 등이 깨끗하게 초기화된다.
@@ -146,7 +155,9 @@ function SettingsBody({ scrollRef }: { scrollRef: React.RefObject<ScrollView> })
   };
 
   const doLogout = async () => {
-    await logout();
+    // 서버에 토큰 폐기를 알리지 못해도 로컬 세션은 이미 지워진다.
+    // 여기서 예외가 새면 모달이 열린 채 멈춰 사용자가 로그아웃을 못 하게 된다.
+    try { await logout(); } catch { /* 무시하고 로그인 화면으로 */ }
     queryClient.clear();
     setLogoutOpen(false);
     router.replace(ROUTES.login);

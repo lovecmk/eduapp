@@ -14,6 +14,7 @@ import {
   validatePasswordConfirm as rulePasswordConfirm,
   PASSWORD_PLACEHOLDER,
 } from '../../src/domain/validation/auth';
+import { ROUTES } from '../../src/constants/routes';
 
 type Errors = { identifier?: string; pw?: string; pw2?: string };
 
@@ -28,6 +29,13 @@ export default function FindPwScreen() {
   const [pw2, setPw2] = useState('');
   const [errors, setErrors] = useState<Errors>({});
   const [done, setDone] = useState(false);
+
+  // 비밀번호 재설정을 링크로 바로 열면 돌아갈 화면이 없어 back() 이 먹통이 된다.
+  // 그때는 로그인 화면으로 교체 이동해 사용자가 갇히지 않게 한다.
+  const goLogin = () => {
+    if (router.canGoBack()) router.back();
+    else router.replace(ROUTES.login);
+  };
 
   const clearField = (key: keyof Errors) => {
     if (errors[key]) setErrors((e) => ({ ...e, [key]: undefined }));
@@ -70,7 +78,7 @@ export default function FindPwScreen() {
                 새 비밀번호로 로그인해주세요
               </Text>
               <View style={{ width: '100%' }}>
-                <Button label="로그인하러 가기" variant="filled" onPress={() => router.back()} />
+                <Button label="로그인하러 가기" variant="filled" onPress={goLogin} />
               </View>
             </View>
           ) : (
@@ -87,7 +95,7 @@ export default function FindPwScreen() {
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 16 }}>
                 <Ionicons name="arrow-back" size={14} color={c.textSecondary} />
-                <Text onPress={() => router.back()} style={{ color: c.textSecondary, fontSize: 13 * fs, fontFamily: fontBody }}>로그인으로 돌아가기</Text>
+                <Text onPress={goLogin} style={{ color: c.textSecondary, fontSize: 13 * fs, fontFamily: fontBody }}>로그인으로 돌아가기</Text>
               </View>
             </>
           )}

@@ -8,6 +8,7 @@ import { TextField } from '../ui/TextField';
 import { Button } from '../ui/Button';
 import { delay } from '../../data/repositories/_delay';
 import { isMeaningful, textLength, INPUT_LIMITS } from '../../utils/sanitize';
+import { useSafeTimeout, useIsMounted } from '../../hooks/useSafeTimeout';
 
 const CATEGORIES = ['학습 오류', '결제/멤버십', '계정 문제', '기능 제안', '기타'] as const;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -31,6 +32,8 @@ export function SupportModal({
   const [message, setMessage] = useState('');
   const [touched, setTouched] = useState(false);
   const [phase, setPhase] = useState<Phase>('form');
+  const { run } = useSafeTimeout();
+  const alive = useIsMounted();
 
   const emailValid = EMAIL_RE.test(email.trim()) && email.trim().length <= INPUT_LIMITS.email;
   const messageValid = isMeaningful(message, 10);
@@ -47,7 +50,7 @@ export function SupportModal({
   const handleClose = () => {
     onClose();
     // 닫힘 애니메이션 이후 상태 초기화
-    setTimeout(reset, 200);
+    run(reset, 200);
   };
 
   const submit = async () => {
@@ -55,6 +58,7 @@ export function SupportModal({
     if (!canSubmit) return;
     setPhase('sending');
     await delay(900); // 실제 전송 지연 시뮬레이션
+    if (!alive()) return; // 전송 중 화면을 떠났다면 상태를 건드리지 않는다
     setPhase('done');
   };
 

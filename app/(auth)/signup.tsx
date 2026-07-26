@@ -100,6 +100,13 @@ export default function SignupScreen() {
   const validateUsername = (v: string) => ruleUsername(v);
   const validateNickname = (v: string) => ruleNickname(v);
 
+  // 회원가입을 웹 주소나 딥링크로 바로 열면 뒤로 갈 화면이 없어 back() 이 먹통이 된다.
+  // 그때는 로그인 화면으로 교체 이동해 '로그인으로 돌아가기'가 항상 동작하게 한다.
+  const goLogin = () => {
+    if (router.canGoBack()) router.back();
+    else router.replace(ROUTES.login);
+  };
+
   const onSubmit = async () => {
     setFormHint(null);
     const next: Errors = {};
@@ -231,7 +238,7 @@ export default function SignupScreen() {
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 16 }}>
             <Ionicons name="arrow-back" size={14} color={c.textSecondary} />
-            <Text onPress={() => router.back()} style={{ color: c.textSecondary, fontSize: 13 * fs, fontFamily: fontBody }}>로그인으로 돌아가기</Text>
+            <Text onPress={goLogin} style={{ color: c.textSecondary, fontSize: 13 * fs, fontFamily: fontBody }}>로그인으로 돌아가기</Text>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

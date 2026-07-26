@@ -49,8 +49,8 @@ function RootContent() {
   useAppResume();
 
   useEffect(() => {
-    restore();
-  }, []);
+    void restore();
+  }, [restore]);
 
   // 웹에서만 한글이 단어 중간에서 잘리는 문제를 전역 스타일로 교정(네이티브는 no-op).
   useEffect(() => {

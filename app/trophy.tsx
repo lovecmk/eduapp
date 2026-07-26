@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, ScrollView, Pressable, Dimensions, Modal } from 'react-native';
+import { View, Text, ScrollView, Pressable, useWindowDimensions, Modal } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -16,11 +16,22 @@ import { useShareFeedStore } from '../src/store/shareFeedStore';
 import { BragFeedCard } from '../src/components/community/BragFeedCard';
 import { fontCute, fontBody, fontMono } from '../src/theme/tokens';
 import { ROUTES } from '../src/constants/routes';
-import { contentColumn } from '../src/theme/layout';
+import { contentColumn, CONTENT_MAX_WIDTH } from '../src/theme/layout';
 
-const { width: SCREEN_W } = Dimensions.get('window');
 const GAP = 12;
-const COL_W = (SCREEN_W - 20 * 2 - GAP) / 2;
+
+/**
+ * 2열 트로피 그리드의 열 너비.
+ *
+ * 두 가지를 고친다.
+ *  · 모듈 로드 시점의 Dimensions.get() 은 고정값이라 리사이즈·회전에 반응하지 않았다.
+ *  · 창 너비로만 계산해 본문 칼럼 제한(560px)을 무시했다 → 넓은 데스크톱에서
+ *    카드가 칼럼 밖으로 튀어나갈 만큼 커졌다. 본문 폭을 기준으로 잡는다.
+ */
+function useColumnWidth(screenW: number) {
+  const gridW = Math.min(screenW, CONTENT_MAX_WIDTH);
+  return (gridW - 20 * 2 - GAP) / 2;
+}
 
 interface Trophy {
   key: string;
@@ -37,6 +48,8 @@ export default function TrophyRoomScreen() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const author = user?.name ?? '현장 작업자';
+  const { width: screenW } = useWindowDimensions();
+  const colW = useColumnWidth(screenW);
 
   const { data: allCards = [] } = useAllCards();
   const { data: stats } = useStudyStats();
@@ -93,9 +106,9 @@ export default function TrophyRoomScreen() {
             const rarity = getRarity(t.snapshot);
             return (
               <Animated.View key={t.key} entering={FadeInDown.delay(Math.min(i, 8) * 45).duration(300)}>
-                <Pressable onPress={() => setSelected(t)} style={{ width: COL_W }}>
+                <Pressable onPress={() => setSelected(t)} style={{ width: colW }}>
                   <View style={{ borderRadius: 20, overflow: 'hidden', boxShadow: `0 8px 20px ${rarity.glow === 'transparent' ? 'rgba(37,99,235,0.2)' : rarity.glow + '55'}` }}>
-                    <WrappedShareCard snapshot={t.snapshot} author={t.author} width={COL_W} />
+                    <WrappedShareCard snapshot={t.snapshot} author={t.author} width={colW} />
                   </View>
                   {t.live && (
                     <View style={{ position: 'absolute', top: 8, left: 8, backgroundColor: c.success, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 }}>
@@ -111,7 +124,7 @@ export default function TrophyRoomScreen() {
 
           {/* 새로 만들기 타일 */}
           <Pressable onPress={() => router.push(ROUTES.share as never)}
-            style={{ width: COL_W, height: COL_W / SHARE_CARD_ASPECT, borderRadius: 20, borderWidth: 1.5, borderColor: c.border, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.surface }}>
+            style={{ width: colW, height: colW / SHARE_CARD_ASPECT, borderRadius: 20, borderWidth: 1.5, borderColor: c.border, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.surface }}>
             <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: c.primary + '18', alignItems: 'center', justifyContent: 'center' }}>
               <Ionicons name="add" size={26} color={c.primary} />
             </View>
@@ -133,7 +146,8 @@ export default function TrophyRoomScreen() {
 function TrophyDetailModal({ trophy, onClose }: { trophy: Trophy | null; onClose: () => void }) {
   const { fontScale: fs } = useTheme();
   const tilt = useTilt(!!trophy);
-  const bigW = Math.min(SCREEN_W - 64, 320);
+  const { width: screenW } = useWindowDimensions();
+  const bigW = Math.min(screenW - 64, 320);
   const rarity = trophy ? getRarity(trophy.snapshot) : null;
 
   return (

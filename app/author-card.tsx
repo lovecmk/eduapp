@@ -12,6 +12,9 @@ import { ALL_CATEGORIES } from '../src/constants/categories';
 import { validateCardDraft, type CardDraft } from '../src/domain/models/CardDraft';
 import type { CardCategory, CardType, CardDifficulty } from '../src/domain/models/LearningCard';
 import { useCreateCards } from '../src/hooks/useCards';
+import { errorMessage } from '../src/data/network/errors';
+import { useSafeTimeout } from '../src/hooks/useSafeTimeout';
+import { useGoBack } from '../src/hooks/useGoBack';
 import { fontCute, fontBody, fontMono, fontDisplay } from '../src/theme/tokens';
 
 const TYPES: CardType[] = ['explanation', 'ox', 'choice'];
@@ -39,6 +42,8 @@ export default function AuthorCardScreen() {
   const c = theme.colors;
   const router = useRouter();
   const createCards = useCreateCards();
+  // 딥링크로 바로 열렸을 때도 등록 후 갈 곳이 있도록 홈 폴백을 둔다.
+  const goBack = useGoBack();
 
   const [mode, setMode] = useState(0); // 0=폼, 1=JSON
 
@@ -53,9 +58,9 @@ export default function AuthorCardScreen() {
           </Text>
         </View>
         {mode === 0 ? (
-          <FormAuthor createCards={createCards} onDone={() => router.back()} />
+          <FormAuthor createCards={createCards} onDone={goBack} />
         ) : (
-          <JsonAuthor createCards={createCards} onDone={() => router.back()} />
+          <JsonAuthor createCards={createCards} onDone={goBack} />
         )}
       </KeyboardAvoidingView>
     </View>
@@ -82,6 +87,11 @@ function FormAuthor({ createCards, onDone }: { createCards: ReturnType<typeof us
   const [source, setSource] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [done, setDone] = useState(false);
+  // 등록 실패(네트워크 끊김·서버 오류)를 화면에 드러내기 위한 상태.
+  // 예전엔 mutateAsync 를 try 없이 await 해서, 실패하면 아무 반응 없이
+  // 버튼 로딩만 풀렸다(사용자는 등록됐는지 아닌지 알 수 없었다).
+  const [sendError, setSendError] = useState<string | null>(null);
+  const { run } = useSafeTimeout();
 
   const type = TYPES[typeIdx];
   const choices = useMemo(
@@ -102,10 +112,16 @@ function FormAuthor({ createCards, onDone }: { createCards: ReturnType<typeof us
 
   const submit = async () => {
     setSubmitted(true);
+    setSendError(null);
     if (errors.length > 0) return;
-    await createCards.mutateAsync([draft as CardDraft]);
+    try {
+      await createCards.mutateAsync([draft as CardDraft]);
+    } catch (e) {
+      setSendError(errorMessage(e));
+      return; // 입력값은 그대로 남겨 다시 시도할 수 있게 한다
+    }
     setDone(true);
-    setTimeout(onDone, 900);
+    run(onDone, 900);
   };
 
   return (
@@ -164,6 +180,15 @@ function FormAuthor({ createCards, onDone }: { createCards: ReturnType<typeof us
         </View>
       )}
 
+      {sendError && (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 16, backgroundColor: c.error + '14', borderRadius: 12, padding: 12 }}>
+          <Ionicons name="cloud-offline" size={16} color={c.error} />
+          <Text style={{ color: c.error, fontSize: 12.5 * fs, fontFamily: fontBody, flex: 1 }}>
+            {sendError} 입력한 내용은 그대로 있어요. 다시 시도해주세요.
+          </Text>
+        </View>
+      )}
+
       <View style={{ marginTop: 20 }}>
         {done ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.success + '18', borderRadius: 16, height: 52 }}>
@@ -184,6 +209,7 @@ function JsonAuthor({ createCards, onDone }: { createCards: ReturnType<typeof us
   const c = theme.colors;
   const [text, setText] = useState('');
   const [result, setResult] = useState<{ ok: boolean; msg: string } | null>(null);
+  const { run } = useSafeTimeout();
 
   const submit = async () => {
     let parsed: unknown;
@@ -203,9 +229,15 @@ function JsonAuthor({ createCards, onDone }: { createCards: ReturnType<typeof us
       setResult({ ok: false, msg: allErrors.slice(0, 5).join('\n') });
       return;
     }
-    await createCards.mutateAsync(arr as CardDraft[]);
+    try {
+      await createCards.mutateAsync(arr as CardDraft[]);
+    } catch (e) {
+      // 저장 실패를 삼키면 사용자는 등록됐다고 오해한다. 입력은 남겨두고 이유를 보여준다.
+      setResult({ ok: false, msg: `${errorMessage(e)} 입력한 JSON은 그대로 있어요.` });
+      return;
+    }
     setResult({ ok: true, msg: `${arr.length}개 문제를 등록했어요` });
-    setTimeout(onDone, 1000);
+    run(onDone, 1000);
   };
 
   return (

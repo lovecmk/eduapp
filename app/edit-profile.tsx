@@ -12,6 +12,7 @@ import { useFactionStore } from '../src/store/factionStore';
 import { getFaction } from '../src/constants/factions';
 import { authRepository } from '../src/data/repositories';
 import { fontBody, fontCute } from '../src/theme/tokens';
+import { useGoBack } from '../src/hooks/useGoBack';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const NICKNAME_RE = /^[a-zA-Z0-9가-힣_]{2,12}$/;
@@ -20,6 +21,8 @@ export default function EditProfileScreen() {
   const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
   const router = useRouter();
+  // 저장 후 돌아갈 화면이 없으면(딥링크 진입) 홈으로 — 저장하고 갇히지 않게.
+  const goBack = useGoBack();
   const user = useAuthStore((s) => s.user);
   const { updateProfile, loading, error: authError, clearError } = useAuthStore();
   const factionId = useFactionStore((s) => s.faction);
@@ -79,7 +82,7 @@ export default function EditProfileScreen() {
       org: org.trim(),
       jobTitle: jobTitle.trim(),
     });
-    if (ok) router.back();
+    if (ok) goBack();
   };
 
   return (

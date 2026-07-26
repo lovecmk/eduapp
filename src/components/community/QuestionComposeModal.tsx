@@ -9,6 +9,7 @@ import { ALL_CATEGORIES, CATEGORY_COLOR } from '../../constants/categories';
 import { isMeaningful, textLength, INPUT_LIMITS } from '../../utils/sanitize';
 import { useQnaStore } from '../../store/qnaStore';
 import { useAuthStore } from '../../store/authStore';
+import { useSafeTimeout } from '../../hooks/useSafeTimeout';
 import type { CardCategory } from '../../domain/models/LearningCard';
 
 /** 질문 작성 모달 — 제목 + 내용 + 분야 선택. */
@@ -21,8 +22,10 @@ export function QuestionComposeModal({ visible, onClose, onCreated }: { visible:
   const [body, setBody] = useState('');
   const [category, setCategory] = useState<CardCategory | undefined>();
 
+  const { run } = useSafeTimeout();
+
   const reset = () => { setTitle(''); setBody(''); setCategory(undefined); };
-  const handleClose = () => { onClose(); setTimeout(reset, 200); };
+  const handleClose = () => { onClose(); run(reset, 200); };
 
   const canSubmit = isMeaningful(title, 4) && isMeaningful(body, 5);
   const submit = () => {

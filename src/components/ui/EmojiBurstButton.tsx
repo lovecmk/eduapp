@@ -1,6 +1,7 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { Pressable, Text, View, Animated, Easing, type ViewStyle } from 'react-native';
 import { hapticTap } from '../../utils/haptics';
+import { useSafeTimeout } from '../../hooks/useSafeTimeout';
 import { useTheme } from '../../theme/ThemeProvider';
 import { fontMono } from '../../theme/tokens';
 
@@ -37,6 +38,9 @@ export function EmojiBurstButton({
   const [particles, setParticles] = useState<Particle[]>([]);
   const idRef = useRef(0);
   const pop = useRef(new Animated.Value(1)).current;
+  // 파티클 정리 타이머는 1초 뒤에 돈다. 그 사이 사용자가 화면을 떠나면
+  // 사라진 컴포넌트의 setState 가 호출되므로 언마운트 시 함께 정리한다.
+  const { run } = useSafeTimeout();
 
   const burst = useCallback(() => {
     const n = 7;
@@ -62,11 +66,11 @@ export function EmojiBurstButton({
     }
     setParticles((p) => [...p, ...batch]);
     const ids = new Set(batch.map((b) => b.id));
-    setTimeout(() => setParticles((p) => p.filter((x) => !ids.has(x.id))), 1000);
+    run(() => setParticles((p) => p.filter((x) => !ids.has(x.id))), 1000);
 
     pop.setValue(0.8);
     Animated.spring(pop, { toValue: 1, useNativeDriver: true, friction: 4, tension: 120 }).start();
-  }, [pop]);
+  }, [pop, run]);
 
   const handle = useCallback(() => {
     hapticTap();

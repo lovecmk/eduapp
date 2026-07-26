@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, ScrollView, Pressable, Dimensions, Modal, Platform, type NativeSyntheticEvent, type NativeScrollEvent } from 'react-native';
+import { View, Text, ScrollView, Pressable, useWindowDimensions, Modal, Platform, type NativeSyntheticEvent, type NativeScrollEvent } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { hapticImpact, hapticSuccess, hapticTap } from '../src/utils/haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -19,10 +19,11 @@ import { contentColumn, CONTENT_MAX_WIDTH } from '../src/theme/layout';
 // 그리드 열 너비는 '본문 칼럼 폭' 기준으로 계산한다.
 // 창 너비(SCREEN_W)로 계산하면 넓은 화면(웹)에서 본문은 560px 로 제한되는데
 // 카드만 창 크기에 맞춰 부풀어, 3열이 1열로 무너지고 카드가 거대해진다.
-const { width: SCREEN_W } = Dimensions.get('window');
+// 모듈 로드 시점에 창 크기를 한 번 읽으면 리사이즈·회전에 반응하지 않으므로
+// 화면 안에서 useWindowDimensions 로 구독한다.
 const GAP = 10;
-const GRID_W = Math.min(SCREEN_W, CONTENT_MAX_WIDTH);
-const COL_W = (GRID_W - 20 * 2 - GAP * 2) / 3;
+const gridWidth = (screenW: number) => Math.min(screenW, CONTENT_MAX_WIDTH);
+const columnWidth = (screenW: number) => (gridWidth(screenW) - 20 * 2 - GAP * 2) / 3;
 // 한 번에 그리는 카드 수(6줄×3열). 150여 장을 한꺼번에 렌더하지 않고
 // 아래로 스크롤할 때마다 이 단위로 조금씩 불러온다.
 const PAGE = 18;
@@ -47,6 +48,8 @@ const CATEGORIES: { key: CategoryFilter; label: string; emoji: string }[] = [
 export default function CollectionBookScreen() {
   const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
+  const { width: screenW } = useWindowDimensions();
+  const colW = columnWidth(screenW);
 
   const owned = useCollectionStore((s) => s.owned);
   const packs = useCollectionStore((s) => s.packs);
@@ -335,7 +338,7 @@ export default function CollectionBookScreen() {
                     {items.map((col, i) => (
                       <Animated.View key={col.id} entering={FadeInDown.delay(Math.min(i, 6) * 24).duration(240)}>
                         <Pressable onPress={() => onDetail(col.id)}>
-                          <CollectibleCard id={col.id} owned={!!owned[col.id]} count={owned[col.id] ?? 0} isNew={newIds.includes(col.id)} width={COL_W} />
+                          <CollectibleCard id={col.id} owned={!!owned[col.id]} count={owned[col.id] ?? 0} isNew={newIds.includes(col.id)} width={colW} />
                         </Pressable>
                       </Animated.View>
                     ))}
@@ -347,7 +350,7 @@ export default function CollectionBookScreen() {
               {hasMore && (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: GAP, marginTop: 22 }}>
                   {Array.from({ length: Math.min(PAGE, remaining) }).map((_, i) => (
-                    <CardSkeleton key={`sk-${i}`} width={COL_W} />
+                    <CardSkeleton key={`sk-${i}`} width={colW} />
                   ))}
                 </View>
               )}
@@ -368,7 +371,8 @@ function CollectibleDetailModal({ id, count, onClose }: { id: string | null; cou
   const tilt = useTilt(!!id);
   const col = id ? COLLECTIBLE_BY_ID[id] : null;
   const meta = col ? JEWEL_META[col.rarity] : null;
-  const bigW = Math.min(GRID_W - 120, 240);
+  const { width: screenW } = useWindowDimensions();
+  const bigW = Math.min(gridWidth(screenW) - 120, 240);
 
   return (
     <Modal visible={!!id} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -43,12 +43,33 @@ export function HeaderMenuSheet({ visible, onClose }: { visible: boolean; onClos
   const unread = useNotificationStore((s) => s.unreadCount());
   const meta = user ? MEMBERSHIP_META[user.membership] : null;
 
-  const go = (route: string) => { onClose(); setTimeout(() => router.push(route as never), 180); };
+  // 시트가 닫히는 애니메이션(180ms)이 끝난 뒤 이동해야 화면이 겹쳐 보이지 않는다.
+  // 다만 그 사이 사용자가 다른 항목을 또 누르면 두 화면이 연달아 쌓이므로 한 번만 받는다.
+  const navLockRef = useRef(false);
+  useEffect(() => {
+    if (visible) navLockRef.current = false; // 시트가 다시 열리면 잠금 해제
+  }, [visible]);
+
+  const go = (route: string) => {
+    if (navLockRef.current) return;
+    navLockRef.current = true;
+    onClose();
+    setTimeout(() => router.push(route as never), 180);
+  };
 
   const onLogout = () => {
+    if (navLockRef.current) return;
+    navLockRef.current = true;
     onClose();
     setTimeout(async () => {
-      await logout();
+      // 로그아웃이 실패해도(토큰 폐기 요청 실패 등) 로컬 세션은 이미 정리된다.
+      // 여기서 예외를 삼키지 않으면 unhandled rejection 이 되고, 사용자는
+      // 로그아웃을 눌렀는데 아무 일도 일어나지 않는 화면에 갇힌다.
+      try {
+        await logout();
+      } catch {
+        /* 서버 통지 실패는 무시하고 로그인 화면으로 보낸다 */
+      }
       router.replace(ROUTES.login as never);
     }, 180);
   };

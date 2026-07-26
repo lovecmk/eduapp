@@ -15,6 +15,7 @@ import {
   type NotificationType, type AppNotification, type TimeGroup,
 } from '../src/store/notificationStore';
 import { contentColumn } from '../src/theme/layout';
+import { useSafeTimeout, useIsMounted } from '../src/hooks/useSafeTimeout';
 
 // 알림 종류별 연결 서비스 — 항목을 누르면 해당 화면으로 이동한다.
 const ROUTE_BY_TYPE: Record<NotificationType, string> = {
@@ -52,11 +53,15 @@ export default function NotificationsScreen() {
   const [muteTarget, setMuteTarget] = useState<NotificationType | null>(null);
   const [suggestionDismissed, setSuggestionDismissed] = useState(false);
   const [headerMenu, setHeaderMenu] = useState(false);
+  const { run } = useSafeTimeout();
+  const alive = useIsMounted();
 
   const onRefresh = async () => {
+    if (refreshing) return; // 연타로 새로고침이 겹치지 않게
     setRefreshing(true);
     refresh();
     await new Promise((r) => setTimeout(r, 600));
+    if (!alive()) return;
     setRefreshing(false);
   };
 
@@ -241,7 +246,7 @@ export default function NotificationsScreen() {
               icon="notifications-off-outline"
               label="이런 알림 끄기"
               highlight
-              onPress={() => { const t = sheetItem.type; setSheetItem(null); setTimeout(() => setMuteTarget(t), 150); }}
+              onPress={() => { const t = sheetItem.type; setSheetItem(null); run(() => setMuteTarget(t), 150); }}
             />
           </>
         )}

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, StyleSheet, Pressable, Animated, Dimensions } from 'react-native';
+import { View, StyleSheet, Pressable, Animated, useWindowDimensions } from 'react-native';
 import { useTheme } from '../../theme/ThemeProvider';
 import { shadowBox } from '../../theme/tokens';
 
@@ -15,6 +15,7 @@ export function BottomSheet({
   const { theme, isDark } = useTheme();
   const c = theme.colors;
   const slideAnim = useRef(new Animated.Value(0)).current;
+  const { height: screenH } = useWindowDimensions();
 
   useEffect(() => {
     if (visible) {
@@ -22,7 +23,7 @@ export function BottomSheet({
     } else {
       slideAnim.setValue(0);
     }
-  }, [visible]);
+  }, [visible, slideAnim]);
 
   if (!visible) return null;
 
@@ -39,7 +40,7 @@ export function BottomSheet({
             borderColor: c.border,
             boxShadow: shadowBox(theme.shadow),
             elevation: 16,
-            transform: [{ translateY: slideAnim.interpolate({ inputRange: [0, 1], outputRange: [Dimensions.get('window').height, 0] }) }],
+            transform: [{ translateY: slideAnim.interpolate({ inputRange: [0, 1], outputRange: [screenH, 0] }) }],
           },
         ]}
       >
