@@ -114,24 +114,30 @@ function MinimalHeader({ title, showBack }: { title: string; showBack?: boolean 
       {/* 기존 전체폭 앱바 — 하단에만 살짝 그림자를 얹어 콘텐츠와 분리. */}
       <View style={{ height: 58, flexDirection: 'row', alignItems: 'center', backgroundColor: c.bg, borderBottomWidth: 1, borderBottomColor: c.border, paddingHorizontal: 16, boxShadow: shadowHeaderBottom(theme.shadow), zIndex: 10 }}>
         {showBack ? (
-          <PressableScale haptic onPress={goBack} hitSlop={6} style={{ paddingRight: 6, marginLeft: -4 }}>
+          <PressableScale haptic onPress={goBack} hitSlop={6} style={{ paddingRight: 6, marginLeft: -4 }}
+            accessibilityRole="button" accessibilityLabel="뒤로 가기">
             <Ionicons name="chevron-back" size={26} color={c.textPrimary} />
           </PressableScale>
         ) : (
-          <Pressable onPress={() => router.push(ROUTES.home as never)} hitSlop={6}>
+          <Pressable onPress={() => router.push(ROUTES.home as never)} hitSlop={6}
+            accessibilityRole="button" accessibilityLabel="홈으로">
             <AppLogo size={30} />
           </Pressable>
         )}
         <Text style={{ color: c.textPrimary, fontSize: 16, marginLeft: 8, flex: 1, fontFamily: fontDisplay }}>{title}</Text>
 
         {/* 알림 */}
-        <PressableScale haptic onPress={() => router.push(ROUTES.notifications as never)} style={{ padding: 6, marginRight: 2 }} hitSlop={4}>
+        {/* 아이콘만 있는 버튼은 스크린리더가 읽을 텍스트가 없다. 안 읽은 개수까지 라벨에 담는다. */}
+        <PressableScale haptic onPress={() => router.push(ROUTES.notifications as never)} style={{ padding: 6, marginRight: 2 }} hitSlop={4}
+          accessibilityRole="button"
+          accessibilityLabel={unreadCount > 0 ? `알림, 안 읽은 알림 ${unreadCount}개` : '알림'}>
           <Ionicons name="notifications-outline" size={23} color={c.textPrimary} />
           {unreadCount > 0 && <NotificationBadge count={unreadCount} />}
         </PressableScale>
 
         {/* 메뉴(아바타) */}
-        <PressableScale haptic onPress={() => setMenuOpen(true)} hitSlop={4} style={{ marginLeft: 4 }}>
+        <PressableScale haptic onPress={() => setMenuOpen(true)} hitSlop={4} style={{ marginLeft: 4 }}
+          accessibilityRole="button" accessibilityLabel="내 메뉴 열기">
           <Avatar uri={profileImage} size={30} ring={1.5} ringColor={c.border} />
         </PressableScale>
       </View>

@@ -9,7 +9,8 @@
     "web": "expo start --web --offline",
     "typecheck": "tsc --noEmit",
     "test": "jest",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "verify": "npm run typecheck && npm test"
   },
   "dependencies": {
     "@expo/metro-runtime": "~4.0.1",
