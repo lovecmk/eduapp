@@ -54,7 +54,7 @@ export function CardTips({ cardId }: { cardId: string }) {
           onFocus={() => setFocused(true)}
           placeholder="현장에서 얻은 팁을 공유해보세요"
           placeholderTextColor={c.textSecondary}
-          style={{ flex: 1, color: c.textPrimary, fontSize: 13, fontFamily: fontBody, paddingVertical: 4 }}
+          style={{ flex: 1, minWidth: 0, color: c.textPrimary, fontSize: 13, fontFamily: fontBody, paddingVertical: 4 }}
           multiline
           maxLength={INPUT_LIMITS.tip + 20}
         />

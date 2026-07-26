@@ -16,6 +16,7 @@ import { useShareFeedStore } from '../src/store/shareFeedStore';
 import { BragFeedCard } from '../src/components/community/BragFeedCard';
 import { fontCute, fontBody, fontMono } from '../src/theme/tokens';
 import { ROUTES } from '../src/constants/routes';
+import { contentColumn } from '../src/theme/layout';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const GAP = 12;
@@ -66,7 +67,7 @@ export default function TrophyRoomScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <ScreenHeader title="내 트로피룸" />
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40, ...contentColumn }} showsVerticalScrollIndicator={false}>
         <Text style={{ color: c.textPrimary, fontSize: 18 * fs, fontFamily: fontCute, fontWeight: '800' }}>나의 성취 박물관 🏛️</Text>
         <Text style={{ color: c.textSecondary, fontSize: 13 * fs, fontFamily: fontBody, marginTop: 6, lineHeight: 19 }}>
           달성하고 플렉스한 성취 카드가 모여요. 탭하면 크게 볼 수 있어요.

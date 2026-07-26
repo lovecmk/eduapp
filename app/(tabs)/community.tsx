@@ -19,6 +19,7 @@ import { getCategoryColor } from '../../src/constants/categories';
 import { ROUTES } from '../../src/constants/routes';
 import { useQnaStore, type Question } from '../../src/store/qnaStore';
 import { timeAgoLabel } from '../../src/store/notificationStore';
+import { contentColumn } from '../../src/theme/layout';
 
 // 한 번에 보여줄 최대 질문 수 — 최대 4개.
 const QNA_WINDOW = 4;
@@ -77,7 +78,7 @@ export default function CommunityScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: 'transparent' }}>
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 36 }} showsVerticalScrollIndicator={false} onScroll={onScroll} scrollEventThrottle={16}>
+      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 36, ...contentColumn }} showsVerticalScrollIndicator={false} onScroll={onScroll} scrollEventThrottle={16}>
         {/* 함께 학습 — 실시간 데이터가 도착하기 전엔 스켈레톤으로 자리를 지킨다 */}
         {liveLoading && !liveData ? (
           <CommunitySkeleton />

@@ -9,6 +9,7 @@ import { normalize } from '../../utils/koreanSearch';
 import { searchSettings } from '../../utils/settingsSearch';
 import { SETTINGS_BY_ID, type SettingsEntry } from '../../constants/settingsIndex';
 import { useSettingsStore } from '../../store/settingsStore';
+import { contentColumn } from '../../theme/layout';
 
 /**
  * 설정 전역 검색 — 메뉴 depth 와 무관하게 모든 설정 항목을 이름 · 설명 · 동의어 · 초성으로 찾는다.
@@ -59,7 +60,9 @@ export function SettingsSearchBar({
   );
 
   return (
-    <View>
+    // 넓은 화면(웹)에서 검색 바만 화면 끝까지 늘어나 아래 본문과 어긋나 보였다.
+    // 본문과 같은 최대 폭으로 맞춰 정렬을 통일한다.
+    <View style={contentColumn}>
       <View
         style={{
           flexDirection: 'row', alignItems: 'center', gap: 8,
@@ -81,7 +84,7 @@ export function SettingsSearchBar({
           autoCapitalize="none"
           accessibilityLabel="설정 검색"
           style={[
-            { flex: 1, color: c.textPrimary, fontSize: 14.5 * fs, fontFamily: fontCute, paddingVertical: 0 },
+            { flex: 1, minWidth: 0, color: c.textPrimary, fontSize: 14.5 * fs, fontFamily: fontCute, paddingVertical: 0 },
             // 웹에서 브라우저 기본 포커스 링이 컨테이너 테두리와 겹쳐 이중 사각형으로 보이는 것을 없앤다.
             // (포커스 표시는 컨테이너 테두리 색 변화로 이미 명확하다.)
             Platform.OS === 'web' ? ({ outlineStyle: 'none' } as object) : null,

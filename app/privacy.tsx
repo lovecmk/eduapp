@@ -8,6 +8,7 @@ import { SettingsGroup, SettingsItem } from '../src/components/ui/SettingsGroup'
 import { SettingsFocusProvider, MeasureOffset } from '../src/components/settings/SettingsFocus';
 import { fontBody } from '../src/theme/tokens';
 import { useSettingsStore } from '../src/store/settingsStore';
+import { contentColumn } from '../src/theme/layout';
 
 /**
  * 프로필 공개 범위 — 설정에서 한 단계만 들어오는 상세 화면.
@@ -26,7 +27,7 @@ export default function PrivacyScreen() {
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <ScreenHeader title="프로필 공개 범위" />
       <SettingsFocusProvider scrollRef={scrollRef} initialFocusId={focusId} offset={40}>
-        <ScrollView ref={scrollRef} contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+        <ScrollView ref={scrollRef} contentContainerStyle={{ padding: 16, paddingBottom: 40, ...contentColumn }}>
           <MeasureOffset>
             <Text style={{ color: c.textSecondary, fontSize: 13 * fs, lineHeight: 19 * fs, marginBottom: 12, fontFamily: fontBody }}>
               다른 점검자가 내 프로필을 봤을 때 어디까지 보여줄지 정할 수 있어요. 끈 항목은 상대에게 보이지 않아요.

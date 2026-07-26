@@ -75,7 +75,10 @@ export function AvailabilityField({
   return (
     <View style={{ marginBottom: 16 }}>
       <Text style={[styles.label, { color: c.textPrimary, fontSize: 13 * fs, fontFamily: fontDisplay }]}>{label}</Text>
-      <View style={{ flexDirection: 'row', gap: 8 }}>
+      {/* 좁은 화면(320px 등)에서도 '중복확인'이 화면 밖으로 밀리지 않도록:
+          입력창은 minWidth:0 으로 줄어들 수 있게 하고(flex 기본값 min-width:auto 가
+          입력창을 콘텐츠 폭 아래로 못 줄여 버튼을 밀어냈다), 버튼은 flexShrink:0 으로 지킨다. */}
+      <View style={{ flexDirection: 'row', gap: 8, alignItems: 'stretch' }}>
         <TextInput
           {...inputProps}
           value={value}
@@ -94,7 +97,8 @@ export function AvailabilityField({
             backgroundColor: canCheck ? c.primary : c.surfaceAlt,
             borderWidth: 1,
             borderColor: canCheck ? c.primary : c.border,
-            minWidth: 88,
+            minWidth: 76,
+            flexShrink: 0,
           }}
         >
           {state === 'checking' ? (
@@ -120,5 +124,5 @@ export function AvailabilityField({
 
 const styles = StyleSheet.create({
   label: { fontWeight: '600', marginBottom: 6 },
-  input: { flex: 1, height: 50, borderWidth: 1.5, borderRadius: 14, paddingHorizontal: 14 },
+  input: { flex: 1, minWidth: 0, height: 50, borderWidth: 1.5, borderRadius: 14, paddingHorizontal: 14 },
 });

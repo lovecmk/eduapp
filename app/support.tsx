@@ -10,6 +10,7 @@ import { fontDisplay, fontBody } from '../src/theme/tokens';
 import { useAuthStore } from '../src/store/authStore';
 import { useReportStore } from '../src/store/reportStore';
 import { ROUTES } from '../src/constants/routes';
+import { contentColumn } from '../src/theme/layout';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -40,7 +41,7 @@ export default function SupportScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <ScreenHeader title="고객센터" />
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40, ...contentColumn }} showsVerticalScrollIndicator={false}>
         {/* 문의하기 CTA */}
         <View style={[styles.hero, { backgroundColor: c.primary }]}>
           <Ionicons name="headset" size={26} color="#fff" />

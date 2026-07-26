@@ -18,6 +18,7 @@ import { useFactionStore } from '../../src/store/factionStore';
 import { getFaction } from '../../src/constants/factions';
 import { COLLECTIBLES } from '../../src/data/collectibles';
 import { MEMBERSHIP_META, displayName } from '../../src/domain/models/User';
+import { contentColumn } from '../../src/theme/layout';
 
 export default function MyPageScreen() {
   const { theme, fontScale: fs } = useTheme();
@@ -45,7 +46,7 @@ export default function MyPageScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: 'transparent' }}>
-    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, paddingBottom: 48 }}>
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, paddingBottom: 48, ...contentColumn }}>
       <Pressable onPress={() => router.push(ROUTES.profile as never)} style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 12 }}>
         <Avatar uri={profileImage} size={56} ring={2} ringColor={c.primary} />
         <View style={{ flex: 1, gap: 4 }}>

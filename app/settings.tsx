@@ -34,6 +34,7 @@ import {
   syncPushTokenWithServer,
 } from '../src/data/notifications/NotificationService';
 import { APP_NAME } from '../src/constants/brand';
+import { contentColumn } from '../src/theme/layout';
 
 const THEME_OPTIONS: ThemeMode[] = ['light', 'dark', 'dim', 'system'];
 const THEME_LABELS = ['라이트', '다크', '딤', '시스템'];
@@ -195,7 +196,7 @@ function SettingsBody({ scrollRef }: { scrollRef: React.RefObject<ScrollView> })
         <ScrollView
           ref={scrollRef}
           style={{ flex: 1 }}
-          contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 4, paddingBottom: 48 }}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 4, paddingBottom: 48, ...contentColumn }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
