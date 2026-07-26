@@ -4,8 +4,15 @@
 import { env } from './env';
 import { validateResponse } from './validation';
 import { secureStorage, StorageKeys } from '../storage/secureStorage';
-import { ApiError } from './errors';
+import { ApiError, kindOf, toApiError } from './errors';
 import { logger } from '../../utils/logger';
+import { enqueue, flushQueue, setQueueSender, type QueuedWrite } from './offlineQueue';
+
+/** 읽기 요청 재시도 정책 — 일시적 실패(연결 없음·5xx·429)에 한해 지수 백오프로 다시 시도. */
+const GET_RETRIES = 2;
+const RETRY_BASE_MS = 400;
+
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 class ApiClient {
   // 동시에 여러 요청이 401을 받아도 refresh 는 한 번만 수행하고 결과를 공유한다(single-flight).
@@ -34,9 +41,9 @@ class ApiClient {
       // 던져진다. Repository/UI 레이어가 ApiError 로 일관되게 처리하도록 정규화한다.
       // (status 0 = 응답을 받기 전 클라이언트/네트워크 단계 실패)
       if ((e as { name?: string })?.name === 'AbortError') {
-        throw new ApiError(0, `요청 시간이 초과되었습니다 (${env.apiTimeoutMs}ms)`);
+        throw new ApiError(0, `요청 시간이 초과되었습니다 (${env.apiTimeoutMs}ms)`, 'offline');
       }
-      throw new ApiError(0, '네트워크에 연결할 수 없어요. 연결 상태를 확인해주세요.');
+      throw new ApiError(0, '네트워크에 연결할 수 없어요. 연결 상태를 확인해주세요.', 'offline');
     } finally {
       clearTimeout(timeout);
     }
@@ -51,7 +58,7 @@ class ApiClient {
       const body = await res.json().catch(() => ({}) as { message?: string });
       // 실패한 요청을 구조화 로그로 남긴다(경로·상태만 — 본문/토큰은 남기지 않는다).
       logger.warn('api_request_failed', { path, status: res.status, method: init.method ?? 'GET' });
-      throw new ApiError(res.status, body.message ?? `요청 실패 (${res.status})`);
+      throw new ApiError(res.status, body.message ?? '', kindOf(res.status));
     }
     const body = await res.json();
     return validateResponse<T>(body);
@@ -104,9 +111,26 @@ class ApiClient {
     await secureStorage.removeItem(StorageKeys.refreshToken);
   }
 
-  get<T>(path: string) {
-    return this.request<T>(path, { method: 'GET' });
+  /**
+   * 읽기 요청 — 일시적 실패(연결 끊김·5xx·429)는 지수 백오프로 몇 번 더 시도한다.
+   * GET 은 부수효과가 없어 재시도가 안전하다(멱등).
+   */
+  async get<T>(path: string): Promise<T> {
+    let lastError: unknown;
+    for (let attempt = 0; attempt <= GET_RETRIES; attempt++) {
+      try {
+        return await this.request<T>(path, { method: 'GET' });
+      } catch (e) {
+        lastError = e;
+        const err = toApiError(e);
+        if (!err.retryable || attempt === GET_RETRIES) throw err;
+        // 400ms → 800ms … 재시도 간격을 늘려 서버 부담과 배터리 소모를 줄인다.
+        await sleep(RETRY_BASE_MS * 2 ** attempt);
+      }
+    }
+    throw toApiError(lastError);
   }
+
   post<T>(path: string, body: unknown) {
     return this.request<T>(path, { method: 'POST', body: JSON.stringify(body) });
   }
@@ -115,6 +139,48 @@ class ApiClient {
   }
   delete<T>(path: string) {
     return this.request<T>(path, { method: 'DELETE' });
+  }
+
+  /**
+   * '반드시 전달되어야 하는' 쓰기 — 실패해도 사용자 행동을 잃지 않는다.
+   *
+   * 네트워크/서버 일시 오류면 오프라인 큐에 넣고 조용히 성공 처리한다(낙관적 UI).
+   * 입력·권한 오류처럼 다시 보내도 실패할 요청은 그대로 던져 화면이 안내하게 한다.
+   *
+   * 서버는 `Idempotency-Key` 헤더가 같은 요청을 한 번만 반영해야 한다 —
+   * 재전송으로 출석이 두 번 찍히거나 신고가 중복 접수되면 안 되기 때문이다.
+   */
+  async postDurable(path: string, body: unknown, idempotencyKey?: string): Promise<'sent' | 'queued'> {
+    const key = idempotencyKey ?? `${path}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`;
+    try {
+      await this.request(path, {
+        method: 'POST',
+        body: JSON.stringify(body),
+        headers: { 'Idempotency-Key': key },
+      });
+      // 이번 요청이 통했다면 네트워크가 살아났다는 뜻 — 밀린 큐도 함께 흘려보낸다.
+      void flushQueue();
+      return 'sent';
+    } catch (e) {
+      const err = toApiError(e);
+      if (!err.retryable) throw err;
+      await enqueue('POST', path, body, key);
+      return 'queued';
+    }
+  }
+
+  /** 큐에 밀린 쓰기를 지금 전송 시도한다. 성공 건수를 반환. */
+  flushPendingWrites(): Promise<number> {
+    return flushQueue();
+  }
+
+  /** 오프라인 큐 전용 재전송 통로 — 큐에 다시 넣지 않고 실패를 그대로 알린다. */
+  rawSend(method: string, path: string, body: unknown, idempotencyKey: string): Promise<unknown> {
+    return this.request(path, {
+      method,
+      body: body === undefined ? undefined : JSON.stringify(body),
+      headers: { 'Idempotency-Key': idempotencyKey },
+    });
   }
 
   /**
@@ -150,3 +216,11 @@ export interface HealthResult {
 }
 
 export const apiClient = new ApiClient();
+
+// 오프라인 큐가 항목을 재전송할 때 쓰는 실제 전송 경로를 주입한다.
+// (offlineQueue 가 ApiClient 를 직접 import 하면 순환 참조가 되므로 주입 방식을 쓴다.)
+setQueueSender((item: QueuedWrite) =>
+  apiClient
+    .rawSend(item.method, item.path, item.body, item.idempotencyKey)
+    .then(() => undefined),
+);

@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { dateKey } from '../utils/dateKey';
 import { logger } from '../utils/logger';
 import { useDailyLearningStore } from '../store/dailyLearningStore';
+import { apiClient } from '../data/network/ApiClient';
 
 /**
  * 백그라운드 → 복귀(포그라운드) 처리 정책.
@@ -53,6 +54,10 @@ export function useAppResume(): void {
 
       const awayMs = leftAtRef.current === null ? 0 : Date.now() - leftAtRef.current;
       leftAtRef.current = null;
+
+      // 네트워크가 끊겼던 동안 쌓인 쓰기(출석·채점·신고)를 우선 흘려보낸다.
+      // 사용자가 이미 '했다고 믿는' 행동이라 무엇보다 먼저 서버에 반영되어야 한다.
+      void apiClient.flushPendingWrites();
 
       const today = dateKey(new Date(Date.now()));
       const dayChanged = today !== lastDayRef.current;

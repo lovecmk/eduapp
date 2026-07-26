@@ -3,18 +3,9 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Ionicons } from '@expo/vector-icons';
 
-export type NotificationType = 'new' | 'remind' | 'achievement' | 'system';
-
-export interface AppNotification {
-  id: string;
-  type: NotificationType;
-  title: string;
-  desc: string;
-  /** 발생 후 경과 분 — 상대 시간/그룹핑의 기준(고정값이라 라벨이 안정적). */
-  minutesAgo: number;
-  read: boolean;
-  category?: string;
-}
+// 모델은 domain 으로 옮겨 서버 저장소(INotificationRepository)와 공유한다.
+export type { NotificationType, AppNotification } from '../domain/models/Notification';
+import type { NotificationType, AppNotification } from '../domain/models/Notification';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 

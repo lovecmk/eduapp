@@ -17,6 +17,14 @@ import { LearningQuotaRepository } from './LearningQuotaRepository';
 import { MockLearningQuotaRepository } from './LearningQuotaRepository.mock';
 import { UserDirectoryRepository } from './UserDirectoryRepository';
 import { MockUserDirectoryRepository } from './UserDirectoryRepository.mock';
+import { ProgressRepository } from './ProgressRepository';
+import { MockProgressRepository } from './ProgressRepository.mock';
+import { EngagementRepository } from './EngagementRepository';
+import { MockEngagementRepository } from './EngagementRepository.mock';
+import { ReportRepository } from './ReportRepository';
+import { MockReportRepository } from './ReportRepository.mock';
+import { NotificationRepository } from './NotificationRepository';
+import { MockNotificationRepository } from './NotificationRepository.mock';
 
 import type { IAuthRepository } from '../../domain/repositories/IAuthRepository';
 import type { ICardRepository } from '../../domain/repositories/ICardRepository';
@@ -25,6 +33,10 @@ import type { ICommunityRepository } from '../../domain/repositories/ICommunityR
 import type { IWeatherRepository } from '../../domain/repositories/IWeatherRepository';
 import type { ILearningQuotaRepository } from '../../domain/repositories/ILearningQuotaRepository';
 import type { IUserDirectoryRepository } from '../../domain/repositories/IUserDirectoryRepository';
+import type { IProgressRepository } from '../../domain/repositories/IProgressRepository';
+import type { IEngagementRepository } from '../../domain/repositories/IEngagementRepository';
+import type { IReportRepository } from '../../domain/repositories/IReportRepository';
+import type { INotificationRepository } from '../../domain/repositories/INotificationRepository';
 
 export const authRepository: IAuthRepository = env.useMockData
   ? new MockAuthRepository()
@@ -62,3 +74,29 @@ export const learningQuotaRepository: ILearningQuotaRepository = env.useMockData
 export const userDirectoryRepository: IUserDirectoryRepository = env.useMockData
   ? new MockUserDirectoryRepository()
   : withMockFallback(new UserDirectoryRepository(), new MockUserDirectoryRepository(), 'user-directory');
+
+// ── 사용자 데이터 동기화 저장소 ─────────────────────────────────────────────
+// 아래 4개는 '사용자가 만든 데이터'를 다룬다. 서버가 준비되지 않았을 때 목업으로
+// 폴백하면 로컬 값이 서버 값인 척하게 되므로, 부분 배포 폴백(withMockFallback)을
+// 쓰지 않고 실서버 모드에서는 실패가 정직하게 드러나게 한다.
+// (쓰기 유실 방지는 폴백이 아니라 ApiClient 의 오프라인 큐가 담당한다.)
+
+/** 학습 진행(SRS·학습 이력·출석) 동기화 — 기기 변경/재설치 후 복원의 핵심. */
+export const progressRepository: IProgressRepository = env.useMockData
+  ? new MockProgressRepository()
+  : new ProgressRepository();
+
+/** 카드 반응(추천·저장). */
+export const engagementRepository: IEngagementRepository = env.useMockData
+  ? new MockEngagementRepository()
+  : new EngagementRepository();
+
+/** 카드 신고 접수 — 운영자에게 반드시 전달되어야 한다. */
+export const reportRepository: IReportRepository = env.useMockData
+  ? new MockReportRepository()
+  : new ReportRepository();
+
+/** 알림 목록·읽음·푸시 토큰. */
+export const notificationRepository: INotificationRepository = env.useMockData
+  ? new MockNotificationRepository()
+  : new NotificationRepository();
