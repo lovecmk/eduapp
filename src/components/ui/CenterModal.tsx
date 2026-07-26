@@ -77,7 +77,8 @@ export function CenterModal({
                 {title}
               </Text>
             </View>
-            <Pressable onPress={onClose} hitSlop={10} style={[styles.closeBtn, { backgroundColor: c.surfaceAlt }]}>
+            <Pressable onPress={onClose} hitSlop={10} style={[styles.closeBtn, { backgroundColor: c.surfaceAlt }]}
+              accessibilityRole="button" accessibilityLabel="닫기">
               <Ionicons name="close" size={18} color={c.textSecondary} />
             </Pressable>
           </View>

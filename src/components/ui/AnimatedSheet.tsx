@@ -46,7 +46,7 @@ export function AnimatedSheet({
     <Modal visible transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
       <View style={StyleSheet.absoluteFill}>
         <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.45)' }, backdropStyle]}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+          <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityRole="button" accessibilityLabel="닫기" />
         </Animated.View>
         <View style={styles.anchor} pointerEvents="box-none">
           <Animated.View style={[
