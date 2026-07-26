@@ -15,6 +15,7 @@ import { getRarity } from '../src/utils/rarity';
 import { useShareFeedStore } from '../src/store/shareFeedStore';
 import { fontCute, fontBody, fontMono } from '../src/theme/tokens';
 import { ROUTES } from '../src/constants/routes';
+import { contentColumn } from '../src/theme/layout';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const CARD_W = Math.min(SCREEN_W - 48, 360);
@@ -58,7 +59,7 @@ export default function ShareScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <ScreenHeader title="성취 카드 플렉스" />
-      <ScrollView contentContainerStyle={{ padding: 24, alignItems: 'center', paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ padding: 24, alignItems: 'center', paddingBottom: 40, ...contentColumn }} showsVerticalScrollIndicator={false}>
         <Text style={{ color: c.textPrimary, fontSize: 18 * fs, fontWeight: '800', fontFamily: fontCute, textAlign: 'center' }}>
           나의 성취, 플렉스 🎉
         </Text>

@@ -14,6 +14,7 @@ import { getDifficultyMeta } from '../src/constants/difficulty';
 import { ROUTES } from '../src/constants/routes';
 import { useAllCards } from '../src/hooks/useCards';
 import { useBookmarkStore } from '../src/store/bookmarkStore';
+import { contentColumn } from '../src/theme/layout';
 
 export default function SavedScreen() {
   const { theme, fontScale: fs } = useTheme();
@@ -32,7 +33,7 @@ export default function SavedScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <ScreenHeader title={`저장한 카드${saved.length ? ` (${saved.length})` : ''}`} />
-      <ScrollView contentContainerStyle={{ padding: 20, flexGrow: 1 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ padding: 20, flexGrow: 1, ...contentColumn }} showsVerticalScrollIndicator={false}>
         {saved.length === 0 ? (
           <Animated.View entering={FadeIn} style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 90 }}>
             <View style={{ width: 78, height: 78, borderRadius: 39, backgroundColor: c.surfaceAlt, alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>

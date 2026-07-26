@@ -12,6 +12,7 @@ import { apiClient, type HealthResult } from '../src/data/network/ApiClient';
 import { logger } from '../src/utils/logger';
 import { ROUTES } from '../src/constants/routes';
 import { useAuthoredCardsStore } from '../src/store/authoredCardsStore';
+import { contentColumn } from '../src/theme/layout';
 
 type SendState = 'idle' | 'sending' | 'sent' | 'denied' | 'error';
 
@@ -85,7 +86,7 @@ export default function DeveloperScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <ScreenHeader title="개발자 모드" />
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40, ...contentColumn }} showsVerticalScrollIndicator={false}>
         <View style={{ alignItems: 'center', marginBottom: 20 }}>
           <View style={{ width: 64, height: 64, borderRadius: 20, backgroundColor: c.primary + '14', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
             <Ionicons name="construct-outline" size={30} color={c.primary} />

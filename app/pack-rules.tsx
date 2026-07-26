@@ -11,6 +11,7 @@ import { useAttendanceStore } from '../src/store/attendanceStore';
 import { useCollectionStore } from '../src/store/collectionStore';
 import { evaluatePackRules, type PackRuleContext } from '../src/data/packRules';
 import { dateKey } from '../src/utils/dateKey';
+import { contentColumn } from '../src/theme/layout';
 
 export default function PackRulesScreen() {
   const { theme, fontScale: fs } = useTheme();
@@ -44,7 +45,7 @@ export default function PackRulesScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <ScreenHeader title="카드팩 획득 조건" />
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40, ...contentColumn }} showsVerticalScrollIndicator={false}>
         {/* 요약 배너 */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.primary, borderRadius: 18, padding: 16, marginBottom: 16, boxShadow: '0 8px 20px rgba(37,99,235,0.25)' }}>
           <View style={{ width: 46, height: 46, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' }}>

@@ -21,10 +21,12 @@ jest.mock('expo-font', () => ({
 }));
 
 // haptics/secure-store 등 네이티브 부수효과는 테스트에서 무시.
+// 실제 expo-haptics 는 Promise 를 돌려준다(호출부가 .catch 로 실패를 삼킨다).
+// 목업도 Promise 를 돌려줘야 실제 코드 경로와 같아진다.
 jest.mock('expo-haptics', () => ({
-  impactAsync: jest.fn(),
-  notificationAsync: jest.fn(),
-  selectionAsync: jest.fn(),
+  impactAsync: jest.fn(() => Promise.resolve()),
+  notificationAsync: jest.fn(() => Promise.resolve()),
+  selectionAsync: jest.fn(() => Promise.resolve()),
   ImpactFeedbackStyle: { Light: 'Light', Medium: 'Medium', Heavy: 'Heavy' },
   NotificationFeedbackType: { Success: 'Success', Warning: 'Warning', Error: 'Error' },
 }));

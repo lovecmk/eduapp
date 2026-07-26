@@ -26,6 +26,7 @@ import { useStudyStats } from '../../src/hooks/useStats';
 import { useReview } from '../../src/hooks/useReview';
 import { useDailyQuota } from '../../src/hooks/useDailyQuota';
 import { DAILY_TOTAL_LIMIT } from '../../src/constants/learning';
+import { contentColumn } from '../../src/theme/layout';
 
 // 홈 히어로 고정 문구 — 앱의 미션을 한 줄로.
 // 히어로 텍스트 열은 오른쪽 실드 아이콘 때문에 폭이 좁아, 한 문장으로 두면
@@ -207,7 +208,7 @@ export default function HomeScreen() {
     <View style={{ flex: 1, backgroundColor: 'transparent' }}>
       <ScrollView
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.primary} />}
-        contentContainerStyle={{ padding: 20 }}
+        contentContainerStyle={{ padding: 20, ...contentColumn }}
         showsVerticalScrollIndicator={false}
       >
         {/* 오늘의 학습 히어로 — 앱을 켠 시각에 따라 인사·이모지·톤이 달라진다 */}

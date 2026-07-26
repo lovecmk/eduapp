@@ -183,7 +183,9 @@ export function CommunityBuildCard() {
               >
                 <Text style={{ width: 16, color: c.textSecondary, fontSize: 12, fontFamily: fontMono, textAlign: 'center' }}>{rank + 1}</Text>
                 <Text style={{ fontSize: 15, width: 22, textAlign: 'center' }}>{f.emoji}</Text>
-                <View style={{ width: 54 }}>
+                {/* 고정폭 54px 은 '프로스트 (나)'(66px)를 담지 못해 이름이 잘렸다.
+                    최소폭만 주고 남는 공간은 옆 진행바(flex:1)가 흡수하게 한다. */}
+                <View style={{ minWidth: 54 }}>
                   <Text style={{ color: isMine ? f.color : c.textPrimary, fontSize: 12.5, fontFamily: fontDisplay }} numberOfLines={1}>
                     {f.name}{isMine ? ' (나)' : ''}
                   </Text>

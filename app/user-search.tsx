@@ -9,6 +9,7 @@ import { fontCute, fontBody, fontMono } from '../src/theme/tokens';
 import { MEMBERSHIP_META } from '../src/domain/models/User';
 import { useUserSearch } from '../src/hooks/useUserDirectory';
 import { ROUTES } from '../src/constants/routes';
+import { contentColumn } from '../src/theme/layout';
 
 export default function UserSearchScreen() {
   const { theme, fontScale: fs } = useTheme();
@@ -38,7 +39,9 @@ export default function UserSearchScreen() {
             placeholder="닉네임으로 검색"
             placeholderTextColor={c.textSecondary}
             autoFocus
-            style={{ flex: 1, color: c.textPrimary, fontSize: 15 * fs, fontFamily: fontBody }}
+            // minWidth:0 — flex 기본값(min-width:auto)이면 좁은 화면에서 입력창이
+            // 콘텐츠 폭 아래로 줄지 못해 컨테이너 밖으로 삐져나온다.
+            style={{ flex: 1, minWidth: 0, color: c.textPrimary, fontSize: 15 * fs, fontFamily: fontBody }}
           />
           {raw.length > 0 && (
             <Pressable onPress={() => setRaw('')} hitSlop={8}>
@@ -67,7 +70,7 @@ export default function UserSearchScreen() {
       <FlatList
         data={results}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 40 }}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 40, ...contentColumn }}
         renderItem={({ item }) => {
           const meta = MEMBERSHIP_META[item.membership];
           return (

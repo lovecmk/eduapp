@@ -16,6 +16,7 @@ import { useLikeStore } from '../../src/store/likeStore';
 import { useReportStore } from '../../src/store/reportStore';
 import { useSrsStore } from '../../src/store/srsStore';
 import { dateKey } from '../../src/utils/dateKey';
+import { contentColumn } from '../../src/theme/layout';
 
 interface CategoryStat {
   category: string;
@@ -88,7 +89,7 @@ export default function ReviewScreen() {
   }
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: 'transparent' }} contentContainerStyle={{ padding: 20 }} showsVerticalScrollIndicator={false}>
+    <ScrollView style={{ flex: 1, backgroundColor: 'transparent' }} contentContainerStyle={{ padding: 20, ...contentColumn }} showsVerticalScrollIndicator={false}>
       {/* ── 오늘의 복습 (효율 우선 추천) ─────────────────────────────────
           복습은 '무엇을' 다시 볼지가 중요하다. 두 개의 검증된 방식을 크게 제시한다:
            · 당일 복습(방금 배운 것 회상) — 초기 망각 구간 방어(테스트 효과)

@@ -51,6 +51,8 @@ interface SettingsState {
   profileVisibility: ProfileVisibility;
   /** 배경 앰비언트 테마 — 흰 배경 위에 얹는 분위기 효과(자동/없음/비/눈/별 반짝/바람). */
   ambientTheme: AmbientThemeSetting;
+  /** 최근에 연 설정 항목 id(최신 순, 최대 4개) — 설정 검색창의 '최근 본 설정' 바로가기. */
+  recentSettingIds: string[];
 
   setThemeMode: (mode: ThemeMode) => void;
   setFontScale: (scale: FontScale) => void;
@@ -78,6 +80,8 @@ interface SettingsState {
   toggleVisibility: (key: keyof ProfileVisibility) => void;
   /** 배경 앰비언트 테마 선택. */
   setAmbientTheme: (theme: AmbientThemeSetting) => void;
+  /** 설정 항목을 열었을 때 '최근 본 설정'에 기록. */
+  pushRecentSetting: (id: string) => void;
   /** 로컬 저장 데이터를 초기화하고 기본 설정으로 되돌린다(방어적 초기화). */
   resetAll: () => void;
 }
@@ -122,7 +126,12 @@ const DEFAULT_SETTINGS = {
   // 요청: 배경 테마 초기값은 '없음'(깔끔한 흰 배경). 사용자가 '자동'을 켜면
   // 날씨(비/눈/강풍)와 시간(밤 9시 이후 별 반짝)에 따라 효과가 나타난다.
   ambientTheme: 'off' as AmbientThemeSetting,
+  // 설정 검색창 위에 뜨는 '최근 본 설정' 바로가기 — 처음엔 비어 있다.
+  recentSettingIds: [] as string[],
 };
+
+/** '최근 본 설정' 최대 보관 개수 — 한 줄에 담기는 만큼만 남겨 화면을 어지럽히지 않는다. */
+const RECENT_SETTINGS_LIMIT = 4;
 
 export const useSettingsStore = create<SettingsState>()(
   persist(
@@ -153,6 +162,9 @@ export const useSettingsStore = create<SettingsState>()(
       toggleVisibility: (key) =>
         set((s) => ({ profileVisibility: { ...s.profileVisibility, [key]: !s.profileVisibility[key] } })),
       setAmbientTheme: (ambientTheme) => set({ ambientTheme }),
+      pushRecentSetting: (id) => set((s) => ({
+        recentSettingIds: [id, ...s.recentSettingIds.filter((x) => x !== id)].slice(0, RECENT_SETTINGS_LIMIT),
+      })),
       resetAll: () => set({ ...DEFAULT_SETTINGS }),
     }),
     {
@@ -168,6 +180,9 @@ export const useSettingsStore = create<SettingsState>()(
           notifications: { ...current.notifications, ...(p.notifications ?? {}) },
           // 구버전(카드 대분류 기반) 관심 분야 값은 새 설비·시설 목록에 없으므로 걸러낸다.
           interests: Array.isArray(p.interests) ? p.interests.filter(isInterestField) : current.interests,
+          recentSettingIds: Array.isArray(p.recentSettingIds)
+            ? p.recentSettingIds.filter((x): x is string => typeof x === 'string')
+            : current.recentSettingIds,
         };
       },
     },

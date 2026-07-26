@@ -14,10 +14,15 @@ import { RARITY_RANK as RANK, RARITY_ORDER, type RarityTier } from '../src/utils
 import { useTilt } from '../src/hooks/useTilt';
 import { useCollectionStore, STUDY_PER_PACK, DAILY_PACK, INITIAL_PACKS, type DrawResult } from '../src/store/collectionStore';
 import { fontCute, fontBody, fontMono, fontDisplay } from '../src/theme/tokens';
+import { contentColumn, CONTENT_MAX_WIDTH } from '../src/theme/layout';
 
+// 그리드 열 너비는 '본문 칼럼 폭' 기준으로 계산한다.
+// 창 너비(SCREEN_W)로 계산하면 넓은 화면(웹)에서 본문은 560px 로 제한되는데
+// 카드만 창 크기에 맞춰 부풀어, 3열이 1열로 무너지고 카드가 거대해진다.
 const { width: SCREEN_W } = Dimensions.get('window');
 const GAP = 10;
-const COL_W = (SCREEN_W - 20 * 2 - GAP * 2) / 3;
+const GRID_W = Math.min(SCREEN_W, CONTENT_MAX_WIDTH);
+const COL_W = (GRID_W - 20 * 2 - GAP * 2) / 3;
 // 한 번에 그리는 카드 수(6줄×3열). 150여 장을 한꺼번에 렌더하지 않고
 // 아래로 스크롤할 때마다 이 단위로 조금씩 불러온다.
 const PAGE = 18;
@@ -159,7 +164,7 @@ export default function CollectionBookScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <ScreenHeader title="안전 카드 컬렉션" />
-      <ScrollView contentContainerStyle={{ paddingBottom: 40 }} stickyHeaderIndices={[1]} showsVerticalScrollIndicator={false} onScroll={onScroll} scrollEventThrottle={16}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 40, ...contentColumn }} stickyHeaderIndices={[1]} showsVerticalScrollIndicator={false} onScroll={onScroll} scrollEventThrottle={16}>
         {/* ── 헤더 영역: 진행도 배너 + 카드팩 획득 안내(접기) ── (index 0) */}
         <View style={{ paddingHorizontal: 20, paddingTop: 20 }}>
           {/* 진행도 배너 */}
@@ -363,7 +368,7 @@ function CollectibleDetailModal({ id, count, onClose }: { id: string | null; cou
   const tilt = useTilt(!!id);
   const col = id ? COLLECTIBLE_BY_ID[id] : null;
   const meta = col ? JEWEL_META[col.rarity] : null;
-  const bigW = Math.min(SCREEN_W - 120, 240);
+  const bigW = Math.min(GRID_W - 120, 240);
 
   return (
     <Modal visible={!!id} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>

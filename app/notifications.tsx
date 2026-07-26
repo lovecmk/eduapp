@@ -14,6 +14,7 @@ import {
   useNotificationStore, NOTIFICATION_TYPE_META, timeAgoLabel, timeGroup,
   type NotificationType, type AppNotification, type TimeGroup,
 } from '../src/store/notificationStore';
+import { contentColumn } from '../src/theme/layout';
 
 // 알림 종류별 연결 서비스 — 항목을 누르면 해당 화면으로 이동한다.
 const ROUTE_BY_TYPE: Record<NotificationType, string> = {
@@ -125,7 +126,7 @@ export default function NotificationsScreen() {
 
       <ScrollView
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.primary} />}
-        contentContainerStyle={{ padding: 20, paddingBottom: 40, flexGrow: 1 }}
+        contentContainerStyle={{ padding: 20, paddingBottom: 40, flexGrow: 1, ...contentColumn }}
       >
         {/* 스마트 제안 배너 */}
         {suggestion && !suggestionDismissed && (

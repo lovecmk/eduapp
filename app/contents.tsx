@@ -18,6 +18,7 @@ import { TRACK_LEVEL_META } from '../src/domain/models/LearningTrack';
 import { ROUTES } from '../src/constants/routes';
 import { useTracks, type TrackProgress } from '../src/hooks/useTracks';
 import type { LearningCard, CardStatus, CardDifficulty } from '../src/domain/models/LearningCard';
+import { contentColumn } from '../src/theme/layout';
 
 const STATUS_META: Record<CardStatus, { label: string; color: string; icon: keyof typeof Ionicons.glyphMap }> = {
   new: { label: '새 카드', color: '#94A3B8', icon: 'ellipse-outline' },
@@ -116,7 +117,7 @@ export default function ContentsScreen() {
         /* --- 선택된 과정: 난이도별 문제 --- */
         <ScrollView
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.primary} />}
-          contentContainerStyle={{ paddingBottom: 40 }}
+          contentContainerStyle={{ paddingBottom: 40, ...contentColumn }}
           showsVerticalScrollIndicator={false}
         >
           <TrackDetail progress={active} onBack={() => setActiveId(null)} onCard={goCard} />

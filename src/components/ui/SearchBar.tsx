@@ -22,7 +22,7 @@ export function SearchBar({
         onChangeText={onChange}
         placeholder={placeholder}
         placeholderTextColor={c.disabled}
-        style={{ flex: 1, color: c.textPrimary, fontSize: 14, fontFamily: fontCute, paddingVertical: 0 }}
+        style={{ flex: 1, minWidth: 0, color: c.textPrimary, fontSize: 14, fontFamily: fontCute, paddingVertical: 0 }}
       />
       {value.length > 0 && (
         <Pressable onPress={() => onChange('')} style={{ padding: 4 }}>

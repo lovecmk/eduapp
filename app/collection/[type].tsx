@@ -108,7 +108,7 @@ export default function CollectionScreen() {
               onChangeText={setQuery}
               placeholder="카드 검색 (질문·분야)"
               placeholderTextColor={c.textSecondary}
-              style={{ flex: 1, color: c.textPrimary, fontSize: 14 * fs, fontFamily: fontBody, paddingVertical: 0 }}
+              style={{ flex: 1, minWidth: 0, color: c.textPrimary, fontSize: 14 * fs, fontFamily: fontBody, paddingVertical: 0 }}
               returnKeyType="search"
             />
             {query.length > 0 && (

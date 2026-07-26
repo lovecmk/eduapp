@@ -67,6 +67,18 @@ eduapp/
 | 내 정보 수정 | app/edit-profile.tsx | AuthRepository.updateProfile, mockUserDb.updateUser | authStore.updateProfile |
 | QR 명함 | app/qr-card.tsx | utils/qrcode(순수 TS 인코더)·components/ui/QRCode(svg) | authStore·settings |
 | 가챠 코드 교환 | app/redeem.tsx | data/gachaCodes | collectionStore.redeemCode/redeemedCodes |
+| 설정 전역 검색 | app/settings.tsx, components/settings/SettingsSearch·SettingsFocus | constants/settingsIndex(색인), utils/koreanSearch(초성)·settingsSearch(정렬) | settings.recentSettingIds |
+| 약관·법적 고지 | app/legal.tsx | constants/legal(약관·처리방침·접근권한·오픈소스) | settings.notifications.marketing |
+
+## 설정 화면 규칙
+
+- **depth 는 2단계까지**: 설정 본문 → 상세 화면 1단계. 토글·선택은 전부 본문에서 끝낸다.
+- **모든 항목은 색인에 등록**한다(`src/constants/settingsIndex.ts`). 화면의 `anchorId` 와 색인 `id` 가
+  같아야 검색 결과에서 그 자리로 스크롤·하이라이트된다.
+- 다른 화면의 항목은 `?focus=<id>` 로 이동한다. 그 화면은 `SettingsFocusProvider` +
+  `FocusAnchor` 로 앵커를 노출해야 한다(현재: settings·privacy·legal).
+- 법적 고지는 항상 **설정 최하단**의 `/legal` 한 화면에 모은다(약관·처리방침·접근권한·수신동의·
+  오픈소스·저작권·운영주체). 문구는 `src/constants/legal.ts` 에서만 고친다.
 
 ## 접근 게이트(설정)
 

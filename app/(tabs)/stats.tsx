@@ -25,6 +25,7 @@ import { useDailyQuota } from '../../src/hooks/useDailyQuota';
 import { useCommunity } from '../../src/hooks/useCommunity';
 import { useFactionStore } from '../../src/store/factionStore';
 import { FACTIONS, getFaction, factionStandings, type FactionId } from '../../src/constants/factions';
+import { contentColumn } from '../../src/theme/layout';
 
 function StatTile({ icon, color, value, label }: { icon: keyof typeof Ionicons.glyphMap; color: string; value: string; label: string }) {
   const { theme, fontScale } = useTheme();
@@ -300,7 +301,7 @@ export default function StatsScreen() {
     <View style={{ flex: 1, backgroundColor: 'transparent' }}>
       <ScrollView
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.primary} />}
-        contentContainerStyle={{ padding: 20 }}>
+        contentContainerStyle={{ padding: 20, ...contentColumn }}>
         <View style={{ flexDirection: 'row', gap: 8, marginBottom: 20 }}>
           <StatTile icon="book" color={c.primary} value={`${stats?.totalLearned ?? 0}`} label="누적 학습" />
           <StatTile icon="flame" color={c.warning} value={`${stats?.streakDays ?? 0}일`} label="연속 학습" />

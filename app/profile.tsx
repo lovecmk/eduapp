@@ -16,6 +16,7 @@ import { RARITY_META } from '../src/utils/rarity';
 import { COLLECTIBLE_BY_ID } from '../src/data/collectibles';
 import { useAllCards } from '../src/hooks/useCards';
 import { ROUTES } from '../src/constants/routes';
+import { contentColumn } from '../src/theme/layout';
 
 const BIO_MAX = 60;
 
@@ -66,7 +67,7 @@ export default function ProfileScreen() {
           </Pressable>
         }
       />
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 48 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 48, ...contentColumn }} showsVerticalScrollIndicator={false}>
         {/* 프로필 헤더 — 큰 아바타 + 이름 + 성취 뱃지 */}
         <View style={{ alignItems: 'center', marginTop: 8, marginBottom: 20 }}>
           <Pressable onPress={pickImage} style={{ marginBottom: 14 }}>
