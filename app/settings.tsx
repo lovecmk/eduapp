@@ -218,15 +218,15 @@ function SettingsBody({ scrollRef }: { scrollRef: React.RefObject<ScrollView> })
               <SettingsItem
                 anchorId="profile"
                 icon="person-circle-outline"
-                label="내 프로필"
-                description="사진 · 한 줄 소개 편집"
+                label="프로필 사진 · 소개"
+                description="다른 사람에게 보이는 내 모습"
                 onPress={go('profile', ROUTES.profile)}
               />
               <SettingsItem
                 anchorId="edit-profile"
                 icon="create-outline"
-                label="내 정보 수정"
-                description="닉네임 · 이름 · 이메일 · 소속"
+                label="계정 정보"
+                description="닉네임 · 이름 · 이메일 · 소속 변경"
                 onPress={go('edit-profile', ROUTES.editProfile)}
               />
               <SettingsItem
@@ -401,13 +401,6 @@ function SettingsBody({ scrollRef }: { scrollRef: React.RefObject<ScrollView> })
                 label="성취 뱃지 표시"
                 description="닉네임 옆에 최고 등급 뱃지 노출"
                 right={<Switch value={showAchievementBadge} onValueChange={toggleAchievementBadge} />}
-              />
-              <SettingsItem
-                anchorId="user-search"
-                icon="search-outline"
-                label="닉네임으로 친구 찾기"
-                description="다른 점검자의 진행도 보기"
-                onPress={go('user-search', ROUTES.userSearch)}
               />
               <SettingsItem
                 anchorId="collection"
