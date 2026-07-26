@@ -213,3 +213,119 @@
 - [ ] **에러 메시지**: 스택·쿼리·내부 경로 비노출
 - [ ] **토큰 수명**: access 짧게(15~60분) + refresh 회전, 로그아웃 시 서버측 폐기
 - [ ] **로그**: 토큰·비밀번호·인증코드는 로그에 남기지 않는다
+
+---
+
+## 6. 사용자 데이터 동기화 (신규)
+
+앱이 로컬에만 갖고 있던 데이터를 서버가 보관하도록 하는 엔드포인트다.
+**기기를 바꾸거나 앱을 재설치해도 학습 기록이 유지되려면 이 그룹이 필수다.**
+
+### 공통 — 멱등성(Idempotency) ⚠️ 중요
+
+이 그룹의 모든 쓰기(POST)는 `Idempotency-Key` 헤더를 함께 보낸다.
+클라이언트는 네트워크가 끊기면 요청을 큐에 쌓아 **나중에 자동 재전송**하기 때문에,
+**서버는 같은 키의 요청을 한 번만 반영해야 한다.**
+
+```
+POST /api/progress/attendance
+Idempotency-Key: attendance:2026-7-25
+```
+- 처음 받은 키 → 정상 처리 후 키를 (최소 24시간) 보관
+- 이미 처리한 키 → **다시 반영하지 말고 200 으로 응답**(409 아님 — 재전송은 정상 흐름)
+- 키 보관 실패보다 중복 반영이 더 위험하다(출석 2회, 신고 중복 접수 등)
+
+### 6-1. 학습 진행 `/api/progress`
+
+앱에서 가장 중요한 데이터(복습 일정·학습 이력·출석).
+
+```jsonc
+// GET /api/progress → 200
+{
+  "cards": {                       // 카드 id → SRS 상태
+    "c-001": {
+      "box": 2,                    // Leitner 단계 0~5
+      "ease": 2.5,                 // 쉬움 계수(1.3~2.8) — 없으면 2.5 로 간주
+      "due_at": "2026-08-01T00:00:00.000Z",
+      "reps": 3, "lapses": 1,
+      "last_grade": "good",        // again | hard | good | easy
+      "last_reviewed_at": "2026-07-25T09:00:00.000Z"
+    }
+  },
+  "history": { "2026-7-25": ["c-001", "c-002"] },  // 날짜키 → 그날 학습한 카드
+  "attendance": { "2026-7-25": "2026-07-25T00:10:00.000Z" },
+  "updated_at": "2026-07-25T09:00:00.000Z"
+}
+```
+- 날짜 키 형식은 **`YYYY-M-D`(월·일 zero-padding 없음)** — 앱의 `dateKey()` 와 일치해야 한다.
+- `due_at`/`last_reviewed_at` 이 파싱 불가하면 클라이언트가 현재 시각으로 폴백한다.
+
+```jsonc
+// POST /api/progress/grade   (Idempotency-Key: grade:<cardId>:<lastReviewedAt>)
+{ "card_id": "c-001", "grade": "good", "box": 2, "ease": 2.56,
+  "due_at": "2026-08-01T00:00:00.000Z", "reps": 3, "lapses": 1 }
+// → 200 (본문 무관)
+
+// POST /api/progress/attendance   (Idempotency-Key: attendance:<dayKey>)
+{ "day": "2026-7-25" }
+// → 200. 하루 1회만 유효 — 같은 날 재요청은 조용히 200.
+```
+
+### 6-2. 카드 반응 `/api/engagement`
+
+```jsonc
+// GET /api/engagement → 200
+{ "liked_ids": ["c-001"], "bookmarked_ids": ["c-002", "c-003"] }
+
+// POST /api/engagement/like      (Idempotency-Key: like:<cardId>:<liked>)
+{ "card_id": "c-001", "liked": true }
+// POST /api/engagement/bookmark  (Idempotency-Key: bookmark:<cardId>:<bookmarked>)
+{ "card_id": "c-002", "bookmarked": false }
+```
+- **토글이 아니라 '원하는 상태'를 보낸다.** 재전송돼도 결과가 같아야 하기 때문이다.
+
+### 6-3. 카드 신고 `/api/reports`
+
+```jsonc
+// POST /api/reports   (Idempotency-Key: report:<cardId>:<reason>)
+{ "card_id": "c-001",
+  "reason": "wrong_answer",   // wrong_question | wrong_answer | typo | outdated | etc
+  "detail": "KEC 개정으로 기준이 바뀌었습니다" }   // 선택, 300자 이내(클라이언트에서 정제)
+// → 200
+
+// GET /api/reports/mine → 200
+{ "card_ids": ["c-001"] }
+```
+- 신고는 운영자 확인이 필요한 데이터다. 접수 후 운영 콘솔에서 볼 수 있어야 한다.
+
+### 6-4. 알림 `/api/notifications`
+
+```jsonc
+// GET /api/notifications → 200 (최신순 배열)
+[{ "id": "n1", "type_cd": "SYSTEM",       // NEW | REMIND | ACHIEVEMENT | SYSTEM
+   "title_txt": "업데이트 안내", "desc_txt": "복습 알고리즘이 개선되었어요",
+   "created_at": "2026-07-25T08:00:00.000Z", "read_yn": false, "category_nm": "공지" }]
+
+// POST /api/notifications/:id/read   (Idempotency-Key: notif-read:<id>)
+// POST /api/notifications/read-all   (Idempotency-Key: notif-read-all:<date>)
+// POST /api/push/register            (Idempotency-Key: push:<token>)
+{ "token": "ExponentPushToken[...]", "platform": "ios" }
+```
+- 목록이 배열이 아니면 클라이언트는 빈 목록으로 처리한다(화면은 깨지지 않음).
+
+---
+
+## 7. 클라이언트 예외처리 동작 (백엔드가 알아야 할 것)
+
+서버 응답에 따라 앱이 어떻게 반응하는지 — 상태 코드를 정확히 골라야 하는 이유다.
+
+| 응답 | 앱 동작 |
+|---|---|
+| `0`(연결 실패)·`5xx`·`429` | **재시도 대상.** GET 은 지수 백오프로 2회 더 시도(0.4s→0.8s). 쓰기는 오프라인 큐에 적재 후 앱 복귀 시 자동 재전송 |
+| `400`/`422` | 재시도하지 않음. `message` 를 폼 오류로 그대로 노출 → **사용자가 고칠 수 있는 한국어 문구**로 보낼 것 |
+| `401` | refresh 1회 시도(동시 요청이 여러 개여도 refresh 는 1회) → 실패 시 로그아웃 |
+| `403`/`404`/`409` | 재시도하지 않고 `message` 노출 |
+
+- 응답에 `message` 가 없으면 앱이 종류별 기본 문구로 대체하므로, **내부 스택·SQL 을 message 에 넣지 말 것.**
+- 오프라인 큐는 항목당 최대 5회 재시도 후 폐기하며, 큐 길이는 100건으로 제한한다.
+- 재시도 가능한 실패가 반복되면 순서 보존을 위해 큐 전송을 그 자리에서 멈춘다(뒤 항목을 건너뛰지 않음).

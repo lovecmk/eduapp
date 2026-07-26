@@ -2,22 +2,10 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export type ReportReason = 'wrong_question' | 'wrong_answer' | 'typo' | 'outdated' | 'etc';
-
-export interface CardReport {
-  cardId: string;
-  reason: ReportReason;
-  detail: string;
-  ts: number;
-}
-
-export const REPORT_REASON_LABEL: Record<ReportReason, string> = {
-  wrong_question: '문제 오류',
-  wrong_answer: '정답 오류',
-  typo: '오탈자·표현',
-  outdated: '기준 변경·최신화',
-  etc: '기타',
-};
+// 모델은 domain 으로 옮겨 서버 저장소(IReportRepository)와 공유한다.
+export type { ReportReason, CardReport } from '../domain/models/CardReport';
+export { REPORT_REASON_LABEL } from '../domain/models/CardReport';
+import type { CardReport } from '../domain/models/CardReport';
 
 interface ReportState {
   reports: CardReport[];
