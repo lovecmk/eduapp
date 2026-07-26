@@ -8,7 +8,6 @@ import { useSettingsStore } from '../../src/store/settingsStore';
 import { Avatar } from '../../src/components/ui/Avatar';
 import { AchievementBadge } from '../../src/components/ui/AchievementBadge';
 import { RewardsGuideSheet } from '../../src/components/rewards/RewardsGuideSheet';
-import { AmbientThemeSheet, useAmbientThemeLabel } from '../../src/components/settings/AmbientThemeSheet';
 import { fontMono, fontCute, fontDisplay, fontBody } from '../../src/theme/tokens';
 import { ROUTES } from '../../src/constants/routes';
 import { useAllCards } from '../../src/hooks/useCards';
@@ -31,8 +30,6 @@ export default function MyPageScreen() {
   const ownedCollectibles = useCollectionStore((s) => s.owned);
   const packs = useCollectionStore((s) => s.packs);
   const myFaction = getFaction(useFactionStore((s) => s.faction));
-  const [themeSheetOpen, setThemeSheetOpen] = useState(false);
-  const ambientLabel = useAmbientThemeLabel();
 
   const masteredCount = useMemo(() => allCards.filter((c) => c.status === 'mastered').length, [allCards]);
   const collectedCount = Object.keys(ownedCollectibles).length;
@@ -159,39 +156,27 @@ export default function MyPageScreen() {
         <Ionicons name="chevron-forward" size={18} color={c.primary} />
       </Pressable>
 
-      <SectionLabel>커뮤니티</SectionLabel>
+      {/* ── '내가 하는 것'만 남긴다 ────────────────────────────────────────
+          예전엔 '내 정보 수정 · 프로필 공개 범위 · 고객센터'가 여기에도 있고
+          설정에도 똑같이 있었다(중복 진입점 5건). 사용자는 "정보를 고치려면
+          MY 야 설정이야?" 를 매번 판단해야 했다.
+          → 역할을 나눴다. MY = 내 성취와 내 활동, 설정 = 앱 동작 조절.
+            계정·프라이버시·지원은 설정으로 일원화하고 여기서 뺐다. */}
+      <SectionLabel>내 활동</SectionLabel>
       <MyRow icon="search-outline" title="닉네임으로 친구 찾기" desc="닉네임을 검색해 다른 점검자의 진행도를 확인해요" onPress={() => router.push(ROUTES.userSearch as never)} />
-
-      <SectionLabel>꾸미기 · 계정</SectionLabel>
-      <Pressable onPress={() => setThemeSheetOpen(true)}
-        style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: c.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: c.border, marginVertical: 6 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
-          <Ionicons name="color-wand-outline" size={20} color={c.textPrimary} />
-          <View style={{ flex: 1 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontWeight: '700', fontFamily: fontCute }}>배경 테마</Text>
-              <View style={{ backgroundColor: c.primary + '14', borderRadius: 999, paddingHorizontal: 7, paddingVertical: 1.5 }}>
-                <Text style={{ color: c.primary, fontSize: 10.5, fontWeight: '800', fontFamily: fontCute }}>NEW</Text>
-              </View>
-            </View>
-            <Text style={{ color: c.textSecondary, fontSize: 12, fontFamily: fontCute }}>비·눈·별 반짝·바람 — 지금: {ambientLabel}</Text>
-          </View>
-        </View>
-        <Ionicons name="chevron-forward" size={18} color={c.primary} />
-      </Pressable>
-      <MyRow icon="person-circle-outline" title="내 정보 수정" desc="닉네임 · 이름 · 이메일 · 소속 변경" onPress={() => router.push(ROUTES.editProfile as never)} />
-      <MyRow icon="eye-outline" title="프로필 공개 범위" desc="내 진행도를 누구에게 어디까지 보여줄지 설정" onPress={() => router.push(ROUTES.privacy as never)} />
+      <MyRow icon="ticket-outline" title="이벤트 · 쿠폰" desc="이벤트 쿠폰으로 카드팩 받기" onPress={() => router.push('/redeem' as never)} />
+      {/* 배경 테마는 '설정 > 화면'에 인라인 선택기로 있다(테마·글자 크기와 같은 성격).
+          여기와 설정 두 곳에 두면 어디서 바꿔야 할지 매번 헷갈리므로 한 곳으로 모았다. */}
       {/* 내 QR 명함 — 우선 비활성화(제거). 코드는 주석으로 보존.
       <MyRow icon="qr-code-outline" title="내 QR 명함" desc="QR로 내 프로필을 빠르게 공유" onPress={() => router.push('/qr-card' as never)} /> */}
-      <MyRow icon="ticket-outline" title="이벤트 · 쿠폰" desc="이벤트 쿠폰으로 카드팩 받기" onPress={() => router.push('/redeem' as never)} />
-      <MyRow icon="headset-outline" title="고객센터 · 문의" desc="문의하기, 자주 묻는 질문" onPress={() => router.push(ROUTES.support)} />
-      <MyRow icon="settings-outline" title="설정" desc="알림, 테마, 계정 관리" onPress={() => router.push(ROUTES.settings)} />
+
+      {/* 계정·알림·화면·지원은 전부 설정 한 곳에서 관리한다. */}
+      <MyRow icon="settings-outline" title="설정" desc="계정 · 알림 · 화면 · 문의" onPress={() => router.push(ROUTES.settings)} />
       </ScrollView>
 
       {/* 보상 3종 안내 — 첫 진입 자동 1회 + [안내] 버튼 */}
       <RewardsGuideSheet visible={guideOpen} onClose={closeGuide} />
       {/* 배경 테마 빠른 선택 — 고르면 바로 적용(라이브) */}
-      <AmbientThemeSheet visible={themeSheetOpen} onClose={() => setThemeSheetOpen(false)} />
     </View>
   );
 }
