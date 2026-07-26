@@ -150,9 +150,14 @@ export function LivePresenceCard() {
         </View>
       ) : null}
 
-      {/* 공동 목표 진행바 */}
+      {/* 공동 목표 진행바 —
+          예전에는 진행바 아래에 '오늘 N명의 점검자가 함께했어요' 줄이 따로 있어
+          한 카드에 숫자 블록이 세 개(지금 N명 / 분 / 오늘 N명) 쌓였다.
+          누적 참여자 수를 목표 라벨에 합쳐 한 줄을 줄이고 카드를 가볍게 했다. */}
       <View style={styles.goalHeader}>
-        <Text style={[styles.goalLabel, { color: c.textSecondary }]}>오늘 함께 쌓은 학습</Text>
+        <Text style={[styles.goalLabel, { color: c.textSecondary }]} numberOfLines={1}>
+          오늘 함께 쌓은 학습 · {data.studiedToday.toLocaleString()}명 참여
+        </Text>
         <Text style={[styles.goalValue, { color: c.textPrimary }]}>
           {data.totalMinutesToday.toLocaleString()}
           <Text style={{ color: c.textSecondary, fontFamily: fontBody }}> / {data.dailyGoalMinutes.toLocaleString()}분</Text>
@@ -162,12 +167,6 @@ export function LivePresenceCard() {
         <View style={[styles.fill, { width: `${goalPct}%`, backgroundColor: c.primary }]} />
       </View>
 
-      <View style={styles.footer}>
-        <Ionicons name="people" size={13} color={c.textSecondary} />
-        <Text style={[styles.footerText, { color: c.textSecondary }]}>
-          오늘 <Text style={{ color: c.primary, fontFamily: fontDisplay }}>{data.studiedToday.toLocaleString()}명</Text>의 점검자가 함께했어요
-        </Text>
-      </View>
     </View>
   );
 }
@@ -194,6 +193,4 @@ const styles = StyleSheet.create({
   goalValue: { fontSize: 14, fontFamily: fontMono, fontWeight: '800' },
   track: { height: 8, borderRadius: 4, overflow: 'hidden' },
   fill: { height: '100%', borderRadius: 4 },
-  footer: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 12 },
-  footerText: { fontSize: 12, fontFamily: fontBody },
 });

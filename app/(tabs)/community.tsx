@@ -12,6 +12,8 @@ import { CommunityLeaderboardCard } from '../../src/components/community/Communi
 import { CollectionTeaserCard } from '../../src/components/community/CollectionTeaserCard';
 // '오늘의 플렉스' 피드는 커뮤니티에서 제거하고 MY(트로피룸)에서만 접근하도록 이동했다.
 import { QuestionComposeModal } from '../../src/components/community/QuestionComposeModal';
+import { HelpWantedCard, pickHelpWanted } from '../../src/components/community/HelpWantedCard';
+import { MyContributionLine } from '../../src/components/community/MyContributionLine';
 import { CommunitySkeleton } from '../../src/components/skeletons';
 import { useCommunity } from '../../src/hooks/useCommunity';
 import { fontDisplay, fontBody, fontMono } from '../../src/theme/tokens';
@@ -21,10 +23,10 @@ import { useQnaStore, type Question } from '../../src/store/qnaStore';
 import { timeAgoLabel } from '../../src/store/notificationStore';
 import { contentColumn } from '../../src/theme/layout';
 
-// 한 번에 보여줄 최대 질문 수 — 최대 4개.
-const QNA_WINDOW = 4;
-// 회전 주기(ms) — 30초마다 다른 질문 묶음이 실시간처럼 갈아끼워진다.
-const QNA_ROTATE_MS = 30_000;
+// 목록에 보여줄 질문 수. 예전엔 4개를 30초마다 자동 교체했는데,
+// 읽는 도중 목록이 바뀌어 버려 "방금 본 질문이 어디 갔지?" 하는 혼란과 피로를 줬다.
+// 이제 목록은 고정하고, 갱신은 사용자가 끝까지 내렸을 때만 일어난다.
+const QNA_LIMIT = 5;
 
 export default function CommunityScreen() {
   const { theme } = useTheme();
@@ -34,7 +36,7 @@ export default function CommunityScreen() {
   const collectionEnabled = useSettingsStore((s) => s.collectionEnabled);
   const { data: liveData, isLoading: liveLoading, refetch } = useCommunity();
   const [composeOpen, setComposeOpen] = useState(false);
-  // 회전 창(window)의 시작 오프셋 — 30초마다 앞으로 밀며 질문을 순환 노출.
+  // 끝까지 내려 새로고침할 때만 다음 묶음으로 넘어간다(자동 교체 없음).
   const [offset, setOffset] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const refreshLockRef = useRef(false);
@@ -43,30 +45,28 @@ export default function CommunityScreen() {
   const mine = useMemo(() => questions.filter((q) => q.mine), [questions]);
   const pool = useMemo(() => questions.filter((q) => !q.mine), [questions]);
 
-  // 30초마다 회전 — 창 크기만큼 앞으로 밀어 새 묶음이 나타나게 한다.
-  useEffect(() => {
-    if (pool.length <= QNA_WINDOW) return; // 회전이 필요 없을 만큼 적으면 고정.
-    const t = setInterval(() => setOffset((o) => (o + QNA_WINDOW) % pool.length), QNA_ROTATE_MS);
-    return () => clearInterval(t);
-  }, [pool.length]);
+  // '답변을 기다리는 질문' 카드가 강조할 질문 — 아래 목록에서는 빼서 같은 질문이
+  // 화면에 두 번 나오지 않게 한다(중복은 목록이 부실해 보이게 만든다).
+  const highlighted = useMemo(() => pickHelpWanted(questions), [questions]);
 
-  // 고정 슬롯(내 질문)을 빼고 남는 자리만큼만 회전 풀에서 채운다(전체 최대 4개 유지).
-  const rotateSlots = Math.max(0, QNA_WINDOW - mine.length);
+  // 내 질문은 항상 위, 나머지는 새로고침할 때마다 다음 묶음으로 넘어간다.
+  const listSlots = Math.max(0, QNA_LIMIT - mine.length);
   const rotated = useMemo(() => {
-    if (pool.length === 0 || rotateSlots === 0) return [];
-    const take = Math.min(rotateSlots, pool.length);
-    const start = offset % pool.length;
-    return Array.from({ length: take }, (_, k) => pool[(start + k) % pool.length]);
-  }, [pool, offset, rotateSlots]);
+    const source = highlighted ? pool.filter((q) => q.id !== highlighted.id) : pool;
+    if (source.length === 0 || listSlots === 0) return [];
+    const take = Math.min(listSlots, source.length);
+    const start = offset % source.length;
+    return Array.from({ length: take }, (_, k) => source[(start + k) % source.length]);
+  }, [pool, offset, listSlots, highlighted]);
 
-  const visibleQuestions = useMemo(() => [...mine, ...rotated].slice(0, QNA_WINDOW), [mine, rotated]);
+  const visibleQuestions = useMemo(() => [...mine, ...rotated].slice(0, QNA_LIMIT), [mine, rotated]);
 
   // 하단까지 스크롤하면 새로고침 — 질문 묶음을 앞으로 밀고 라이브 데이터를 재요청.
   const onRefresh = useCallback(async () => {
     if (refreshLockRef.current) return;
     refreshLockRef.current = true;
     setRefreshing(true);
-    setOffset((o) => (pool.length ? (o + QNA_WINDOW) % pool.length : o));
+    setOffset((o) => (pool.length ? (o + QNA_LIMIT) % pool.length : o));
     try { await refetch(); } catch { /* 무시 */ }
     setTimeout(() => { setRefreshing(false); refreshLockRef.current = false; }, 700);
   }, [pool.length, refetch]);
@@ -79,29 +79,19 @@ export default function CommunityScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: 'transparent' }}>
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 36, ...contentColumn }} showsVerticalScrollIndicator={false} onScroll={onScroll} scrollEventThrottle={16}>
-        {/* 함께 학습 — 실시간 데이터가 도착하기 전엔 스켈레톤으로 자리를 지킨다 */}
-        {liveLoading && !liveData ? (
-          <CommunitySkeleton />
-        ) : (
-          <>
-            <LivePresenceCard />
-            {collectionEnabled && <CollectionTeaserCard />}
-            <WeeklyChallengeCard />
-            <CommunityLeaderboardCard />
-            <CommunityBuildCard />
-          </>
-        )}
+        {/* ── 섹션 순서 원칙: '지금 할 수 있는 일'을 먼저, '쌓인 성과'는 뒤에 ──
+            예전엔 보기만 하는 카드 4개(실시간·챌린지·랭킹·빌딩) 뒤에 질문&답변이 있었다.
+            커뮤니티에서 사용자가 실제로 참여할 수 있는 유일한 행동이 Q&A 인데
+            네 번 스크롤해야 닿으니 참여가 일어나기 어려웠다. 참여 영역을 위로 올린다. */}
 
-        {/* 질문 & 답변 */}
+        {/* 1. 지금 함께 학습 중 — 혼자가 아니라는 신호(소셜 증거) */}
+        {liveLoading && !liveData ? <CommunitySkeleton /> : <LivePresenceCard />}
+
+        {/* 2. 참여 영역 — 질문 & 답변 */}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8, marginBottom: 12 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <Ionicons name="chatbox-ellipses" size={18} color={c.primary} />
             <Text style={{ color: c.textPrimary, fontSize: 16, fontFamily: fontDisplay }}>질문 & 답변</Text>
-            {/* 실시간처럼 갱신되는 느낌을 주는 라이브 표시 */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: 4, backgroundColor: c.error + '14', borderRadius: 999, paddingHorizontal: 7, paddingVertical: 2 }}>
-              <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: c.error }} />
-              <Text style={{ color: c.error, fontSize: 10, fontFamily: fontMono }}>LIVE</Text>
-            </View>
           </View>
           <Pressable onPress={() => setComposeOpen(true)} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.primary, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 }}>
             <Ionicons name="add" size={15} color="#fff" />
@@ -109,33 +99,36 @@ export default function CommunityScreen() {
           </Pressable>
         </View>
 
-        {/* 30초마다 최대 4개가 순환하며 갱신 — key 에 offset 을 섞어 매 회전마다 페이드 인 */}
+        {/* 내 기여 한 줄 — 기여가 있을 때만 조용히 보인다 */}
+        <MyContributionLine questions={questions} />
+
+        {/* 답변을 기다리는 질문 1건 — 없으면 렌더되지 않는다 */}
+        <HelpWantedCard question={highlighted} onPress={(id) => router.push(ROUTES.qna(id) as never)} />
+
         {visibleQuestions.map((q, i) => (
-          <Animated.View key={`${q.id}-${offset}`} entering={FadeInDown.delay(Math.min(i, 4) * 60).duration(320)}>
+          <Animated.View key={`${q.id}-${offset}`} entering={FadeInDown.delay(Math.min(i, 4) * 50).duration(280)}>
             <QuestionRow question={q} onPress={() => router.push(ROUTES.qna(q.id) as never)} />
           </Animated.View>
         ))}
 
-        {pool.length > QNA_WINDOW && (
-          <Text style={{ color: c.textSecondary, fontSize: 11.5, textAlign: 'center', marginTop: 4, fontFamily: fontBody }}>
-            30초마다 새로운 질문이 올라와요 · 전체 {questions.length}개
-          </Text>
+        {/* 3. 이번 주 목표·성과 — 참여 영역 아래로 */}
+        {(!liveLoading || liveData) && (
+          <View style={{ marginTop: 20 }}>
+            <WeeklyChallengeCard />
+            <CommunityLeaderboardCard />
+            <CommunityBuildCard />
+            {collectionEnabled && <CollectionTeaserCard />}
+          </View>
         )}
 
-        {/* 하단 새로고침 표시 */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 18 }}>
-          {refreshing ? (
-            <>
-              <ActivityIndicator size="small" color={c.primary} />
-              <Text style={{ color: c.textSecondary, fontSize: 12, fontFamily: fontBody }}>새로고침 중...</Text>
-            </>
-          ) : (
-            <>
-              <Ionicons name="chevron-up" size={13} color={c.textSecondary} />
-              <Text style={{ color: c.textSecondary, fontSize: 12, fontFamily: fontBody }}>맨 아래까지 내리면 새로고침돼요</Text>
-            </>
-          )}
-        </View>
+        {/* 하단 새로고침 — 진행 중일 때만 표시한다.
+            '맨 아래까지 내리면 새로고침돼요' 상시 안내는 매번 읽히는 노이즈라 없앴다. */}
+        {refreshing && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 18 }}>
+            <ActivityIndicator size="small" color={c.primary} />
+            <Text style={{ color: c.textSecondary, fontSize: 12, fontFamily: fontBody }}>새로고침 중...</Text>
+          </View>
+        )}
       </ScrollView>
 
       <QuestionComposeModal visible={composeOpen} onClose={() => setComposeOpen(false)} onCreated={(id) => router.push(ROUTES.qna(id) as never)} />
