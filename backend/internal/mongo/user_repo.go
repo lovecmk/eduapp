@@ -87,9 +87,15 @@ func (r *UserRepo) List(ctx context.Context, q ports.UserQuery) ([]domain.User, 
 	if offset < 0 {
 		offset = 0
 	}
-	// created_at 동률에 대비해 _id 를 두 번째 정렬 키로 둔다(페이지 간 중복/누락 방지).
+	// 동률에 대비해 _id 를 최종 정렬 키로 둔다(페이지 간 중복/누락 방지).
+	dir := 1
+	if q.Desc {
+		dir = -1
+	}
+	// 정렬 키는 ParseSortField 로 좁혀진 상수만 쓴다(임의 필드 정렬 차단).
+	field := sortKey(ports.ParseSortField(string(q.Sort)))
 	opt := options.Find().
-		SetSort(bson.D{{Key: "created_at", Value: -1}, {Key: "_id", Value: -1}}).
+		SetSort(bson.D{{Key: field, Value: dir}, {Key: "_id", Value: dir}}).
 		SetSkip(offset).SetLimit(limit)
 
 	cur, err := r.col.Find(ctx, filter, opt)
@@ -103,6 +109,22 @@ func (r *UserRepo) List(ctx context.Context, q ports.UserQuery) ([]domain.User, 
 		return nil, 0, err
 	}
 	return out, total, nil
+}
+
+// sortKey 는 정렬 기준을 Mongo 문서의 필드명으로 옮긴다.
+// 도메인 필드명과 bson 태그가 같아 대부분 그대로지만, 매핑을 한곳에 모아 둔다.
+func sortKey(f ports.SortField) string {
+	switch f {
+	case ports.SortName:
+		return "user_nm"
+	case ports.SortLoginID:
+		return "login_id"
+	case ports.SortRole:
+		return "role_cd"
+	case ports.SortStatus:
+		return "status_cd"
+	}
+	return "created_at"
 }
 
 // userFilter 는 UserQuery 를 Mongo 필터로 바꾼다.
