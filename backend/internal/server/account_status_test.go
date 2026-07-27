@@ -55,11 +55,17 @@ func TestSuspendedAccountIsBlocked(t *testing.T) {
 		t.Fatalf("정지 계정 me status=%d, want 403 (body=%s)", res.StatusCode, data)
 	}
 
-	// 3) 토큰 갱신 불가 — 여기가 막혀야 정지가 ACCESS_TTL 안에 실효화된다.
+	// 3) 토큰 갱신 불가.
 	if res, data := doJSON(t, app, "POST", "/api/auth/refresh", "", map[string]string{
 		"refresh_token": auth.RefreshToken,
 	}); res.StatusCode != 403 {
 		t.Fatalf("정지 계정 refresh status=%d, want 403 (body=%s)", res.StatusCode, data)
+	}
+
+	// 4) 일반 API 도 곧바로 끊긴다. 액세스 토큰은 아직 유효하지만 계정 상태 게이트가
+	//    막는다 — 이게 없으면 정지된 사람이 토큰 만료(15분)까지 학습을 계속한다.
+	if res, data := doJSON(t, app, "GET", "/api/cards", auth.AccessToken, nil); res.StatusCode != 403 {
+		t.Fatalf("정지 계정 cards status=%d, want 403 (body=%s)", res.StatusCode, data)
 	}
 
 	// 다시 활성(A)으로 되돌리면 정상 복귀해야 한다 — 정지가 되돌릴 수 없는 처분이면 곤란하다.

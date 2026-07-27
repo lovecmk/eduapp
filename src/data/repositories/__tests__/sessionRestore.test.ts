@@ -4,8 +4,9 @@
 // "서버에 닿지 못했다"와 "서버가 너를 거절했다"를 구분하지 못하면,
 // 토큰이 멀쩡한 사용자가 오프라인일 때마다 로그인 화면으로 튕긴다.
 
+// 타임아웃 경로를 실제로 태우는 테스트가 있어 짧게 잡는다.
 jest.mock('../../network/env', () => ({
-  env: { apiBaseUrl: 'https://api.test', apiTimeoutMs: 5000 },
+  env: { apiBaseUrl: 'https://api.test', apiTimeoutMs: 120 },
 }));
 
 jest.mock('../../storage/secureStorage', () => {
@@ -94,6 +95,35 @@ describe('AuthRepository.restore', () => {
     expect(user?.name).toBe('원진섭');
     // 토큰은 살아 있어야 한다 — 연결이 돌아오면 그대로 계속 쓴다.
     expect(await secureStorage.getItem(StorageKeys.accessToken)).toBe('a-1');
+  });
+
+  // 실기기의 약전계에서는 fetch 가 즉시 실패하지 않고 **매달린다**.
+  // 이 경로가 진짜 문제였다 — 재시도 3회 × 타임아웃이 곧 스플래시 정지 시간이다.
+  it('응답 없이 매달리는 연결도 타임아웃 한 번으로 끝내고 캐시로 복구한다', async () => {
+    const repo = new AuthRepository();
+    await signIn(repo);
+
+    const fetchMock = jest.fn(
+      (_url: unknown, init?: { signal?: AbortSignal }) =>
+        new Promise((_resolve, reject) => {
+          // 서버가 아무 응답도 주지 않는 상황. ApiClient 의 AbortController 만이 이걸 끊는다.
+          init?.signal?.addEventListener('abort', () => {
+            const e = new Error('Aborted');
+            e.name = 'AbortError';
+            reject(e);
+          });
+        }),
+    );
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const startedAt = Date.now();
+    const user = await repo.restore();
+    const elapsed = Date.now() - startedAt;
+
+    expect(user?.name).toBe('원진섭');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    // 타임아웃 한 번(120ms) 남짓이어야 한다. 재시도가 살아 있으면 3배 + 백오프로 늘어난다.
+    expect(elapsed).toBeLessThan(400);
   });
 
   it('부팅 경로에서는 재시도하지 않는다(스플래시를 오래 붙잡지 않기 위해)', async () => {

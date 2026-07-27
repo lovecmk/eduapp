@@ -46,22 +46,34 @@ export function HeaderMenuSheet({ visible, onClose }: { visible: boolean; onClos
   // 시트가 닫히는 애니메이션(180ms)이 끝난 뒤 이동해야 화면이 겹쳐 보이지 않는다.
   // 다만 그 사이 사용자가 다른 항목을 또 누르면 두 화면이 연달아 쌓이므로 한 번만 받는다.
   const navLockRef = useRef(false);
+  // 예약해 둔 이동. 시트가 사라지면 취소해야 한다 — 안 그러면 사용자가 뒤로 가기로
+  // 빠져나간 뒤에 예약된 push 가 뒤늦게 터져 엉뚱한 화면이 열린다.
+  const navTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
     if (visible) navLockRef.current = false; // 시트가 다시 열리면 잠금 해제
   }, [visible]);
 
-  const go = (route: string) => {
+  useEffect(
+    () => () => {
+      if (navTimer.current) clearTimeout(navTimer.current);
+    },
+    [],
+  );
+
+  /** 시트를 닫고, 닫힘 애니메이션이 끝나면 fn 을 한 번 실행한다. */
+  const afterClose = (fn: () => void) => {
     if (navLockRef.current) return;
     navLockRef.current = true;
     onClose();
-    setTimeout(() => router.push(route as never), 180);
+    if (navTimer.current) clearTimeout(navTimer.current);
+    navTimer.current = setTimeout(fn, 180);
   };
 
-  const onLogout = () => {
-    if (navLockRef.current) return;
-    navLockRef.current = true;
-    onClose();
-    setTimeout(async () => {
+  const go = (route: string) => afterClose(() => router.push(route as never));
+
+  const onLogout = () =>
+    afterClose(async () => {
       // 로그아웃이 실패해도(토큰 폐기 요청 실패 등) 로컬 세션은 이미 정리된다.
       // 여기서 예외를 삼키지 않으면 unhandled rejection 이 되고, 사용자는
       // 로그아웃을 눌렀는데 아무 일도 일어나지 않는 화면에 갇힌다.
@@ -71,8 +83,7 @@ export function HeaderMenuSheet({ visible, onClose }: { visible: boolean; onClos
         /* 서버 통지 실패는 무시하고 로그인 화면으로 보낸다 */
       }
       router.replace(ROUTES.login as never);
-    }, 180);
-  };
+    });
 
   return (
     <AnimatedSheet visible={visible} onClose={onClose} rounded={26}>

@@ -25,10 +25,8 @@ function isSensitive(key: string): boolean {
 }
 
 /**
- * 민감정보를 가린다. 중첩까지 따라 내려가는 이유:
- * `logger.error('login_failed', { request: { password: '...' } })` 처럼 한 겹만 감싸도
- * 최상위 키만 보는 마스킹은 그대로 통과시킨다. 로그는 오래 남고 여러 곳으로 흘러가므로
- * "실수로 한 번 새는" 비용이 크다 — 안쪽까지 훑는 편이 맞다.
+ * 민감정보를 가린다. 중첩까지 훑는 이유는 `{ request: { password } }` 처럼
+ * 한 겹만 감싸도 최상위 키만 보는 마스킹은 그대로 통과시키기 때문이다.
  */
 function redactValue(value: unknown, depth: number): unknown {
   if (value === null || typeof value !== 'object') return value;

@@ -97,11 +97,22 @@ func New(d Deps) *fiber.App {
 	auth.Post("/logout", authH.Logout)
 	auth.Get("/username-available", authH.UsernameAvailable)
 	auth.Get("/nickname-available", authH.NicknameAvailable)
+	// 정지된 계정을 액세스 토큰 만료(ACCESS_TTL) 전에 끊기 위한 게이트.
+	// 짧은 TTL 캐시를 두어 요청마다 저장소를 왕복하지는 않는다.
+	accounts := middleware.NewAccountGate(d.Users)
+	if accounts == nil {
+		log.Printf("[auth] Users 미주입 — 계정 상태 검사는 로그인·갱신 시점에만 수행합니다")
+	}
+
 	auth.Get("/me", middleware.RequireAuth(d.Tokens), authH.Me)
 	auth.Patch("/me", middleware.RequireAuth(d.Tokens), authH.UpdateMe)
 
-	// 이하 모두 인증 필요.
-	protected := api.Group("", middleware.RequireAuth(d.Tokens))
+	// 이하 모두 인증 필요. 상태 검사를 그룹에 걸어 두면 나중에 추가되는 라우트도
+	// 자동으로 보호된다 — 라우트마다 감싸는 방식은 새 엔드포인트에서 빠뜨리기 쉽다.
+	protected := api.Group("",
+		middleware.RequireAuth(d.Tokens),
+		middleware.RequireActiveAccount(accounts),
+	)
 
 	protected.Get("/cards", cardH.All)
 	protected.Get("/cards/today", cardH.Today)

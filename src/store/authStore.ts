@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import type { User } from '../domain/models/User';
 import type { SignupInput, ProfileUpdateInput } from '../domain/repositories/IAuthRepository';
 import { authRepository } from '../data/repositories';
+import { setQueueOwner } from '../data/network/offlineQueue';
 
 interface AuthState {
   user: User | null;
@@ -22,6 +23,17 @@ interface AuthState {
   setName: (name: string) => void;
 }
 
+/**
+ * 세션이 바뀔 때마다 오프라인 큐에도 주인을 알려준다.
+ *
+ * 현장 태블릿은 여러 명이 돌려 쓴다. 이걸 빠뜨리면 A 가 오프라인에서 찍은 출석·채점이
+ * 큐에 남아 있다가, B 가 로그인한 뒤 B 의 토큰으로 전송된다 — 안전교육 이력이
+ * 엉뚱한 사람에게 붙는다. 큐는 항목마다 주인을 보고 남의 것은 건드리지 않는다.
+ */
+function bindSession(user: User | null): void {
+  setQueueOwner(user?.id ?? null);
+}
+
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   loading: false,
@@ -32,6 +44,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ loading: true, error: null });
     try {
       const session = await authRepository.login(id, password);
+      bindSession(session.user);
       set({ user: session.user, loading: false });
       return true;
     } catch (e) {
@@ -44,6 +57,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ loading: true, error: null });
     try {
       const session = await authRepository.socialLogin(name, email);
+      bindSession(session.user);
       set({ user: session.user, loading: false });
       return true;
     } catch (e) {
@@ -53,6 +67,9 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   logout: async () => {
+    // 주인을 먼저 떼어 낸다. 로그아웃 도중 큐가 흐르더라도 남은 쓰기가
+    // 곧 로그인할 다음 사람 앞으로 나가지 않게 하기 위해서다.
+    bindSession(null);
     await authRepository.logout();
     set({ user: null });
   },
@@ -60,8 +77,10 @@ export const useAuthStore = create<AuthState>((set) => ({
   restore: async () => {
     try {
       const user = await authRepository.restore();
+      bindSession(user);
       set({ user, bootstrapped: true });
     } catch {
+      bindSession(null);
       set({ user: null, bootstrapped: true });
     }
   },
@@ -70,6 +89,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ loading: true, error: null });
     try {
       const session = await authRepository.register(input);
+      bindSession(session.user);
       set({ user: session.user, loading: false });
       return true;
     } catch (e) {

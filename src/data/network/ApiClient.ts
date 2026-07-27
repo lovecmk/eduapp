@@ -15,12 +15,9 @@ const RETRY_BASE_MS = 400;
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 /**
- * 성공 응답의 본문을 읽는다. 본문이 없으면 빈 객체를 돌려준다.
- *
- * 모든 성공 응답에 JSON 본문이 있는 것은 아니다 — 삭제(DELETE)는 204 No Content 로,
- * 일부 쓰기는 빈 200 으로 답한다. 그런 응답에 res.json() 을 걸면 SyntaxError 가
- * 나면서 **성공한 요청이 실패로 둔갑한다**(게다가 ApiError 가 아니라 원시 예외라
- * 화면의 에러 처리도 빗나간다). 본문이 없는 성공은 성공으로 다뤄야 한다.
+ * 성공 응답의 본문을 읽는다. 삭제는 204, 일부 쓰기는 빈 200 으로 답하므로
+ * 본문이 없는 경우를 성공으로 다뤄야 한다(res.json() 을 그냥 걸면 SyntaxError 가
+ * 나면서 성공한 요청이 실패로 둔갑한다).
  */
 async function readJsonBody(res: Response): Promise<unknown> {
   if (res.status === 204 || res.status === 205) return {};
@@ -30,7 +27,7 @@ async function readJsonBody(res: Response): Promise<unknown> {
     return JSON.parse(text) as unknown;
   } catch {
     // 본문은 있는데 JSON 이 아니다(프록시가 끼워 넣은 HTML 오류 페이지 등).
-    // 경로만 남기고 — 본문에는 토큰·개인정보가 섞일 수 있다 — 형식 오류로 알린다.
+    // 본문에는 토큰이 섞일 수 있으니 상태 코드만 남긴다.
     logger.warn('api_response_not_json', { status: res.status });
     throw new ApiError(res.status, '서버 응답 형식이 올바르지 않습니다', 'server');
   }

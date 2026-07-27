@@ -29,6 +29,11 @@ export interface QueuedWrite {
   idempotencyKey: string;
   createdAt: number;
   attempts: number;
+  /**
+   * 이 쓰기를 만든 사람. 현장 태블릿은 여러 명이 돌려 쓴다 —
+   * 소유자를 안 붙이면 A 가 오프라인에서 찍은 출석이 B 의 토큰으로 전송된다.
+   */
+  userId?: string;
 }
 
 const STORAGE_KEY = 'offline-write-queue';
@@ -39,18 +44,12 @@ export const MAX_ATTEMPTS = 5;
 
 let memory: QueuedWrite[] = [];
 let loaded = false;
-/**
- * 진행 중인 최초 로드. 여러 곳에서 동시에 큐를 건드려도 디스크 로드는 한 번만 하고,
- * 나머지는 그 결과를 기다린다(single-flight).
- *
- * 이 공유가 없으면 다음 순서로 항목이 사라진다:
- *   ① 배너가 pendingCount() 호출 → 디스크 읽기 시작(await)
- *   ② 그 사이 사용자가 출석 체크 → enqueue() 가 아직 빈 memory 에 push
- *   ③ ①의 읽기가 끝나며 memory 를 디스크 내용으로 통째 교체 → ②가 증발
- * 유실을 막으려고 만든 큐가 유실을 만드는 자리라 반드시 직렬화해야 한다.
- */
+// 최초 디스크 로드는 single-flight 로 공유한다. 이게 없으면 로드가 끝나는 순간
+// memory 가 디스크 내용으로 통째 교체되면서, 그 사이에 들어온 쓰기가 증발한다.
 let loading: Promise<void> | null = null;
 let flushing = false;
+// 지금 로그인한 사람. authStore 가 세션이 바뀔 때마다 갱신한다.
+let ownerId: string | null = null;
 
 function newId(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
@@ -100,6 +99,14 @@ export async function clearQueue(): Promise<void> {
   await persist();
 }
 
+/**
+ * 큐의 주인을 알려준다. 세션이 바뀌면(로그인·로그아웃·세션 복구) 반드시 호출해야
+ * 앞사람이 남긴 쓰기가 뒷사람 토큰으로 나가지 않는다.
+ */
+export function setQueueOwner(userId: string | null): void {
+  ownerId = userId;
+}
+
 /** 쓰기 요청을 큐에 넣는다. 넣은 항목의 멱등키를 돌려준다. */
 export async function enqueue(
   method: string,
@@ -117,6 +124,7 @@ export async function enqueue(
     idempotencyKey: key,
     createdAt: Date.now(),
     attempts: 0,
+    userId: ownerId ?? undefined,
   });
   // 오래된 것부터 버려 상한을 지킨다.
   if (memory.length > MAX_QUEUE) memory = memory.slice(memory.length - MAX_QUEUE);
@@ -144,8 +152,9 @@ export async function flushQueue(): Promise<number> {
   flushing = true;
   let sent = 0;
   try {
-    while (memory.length > 0) {
-      const item = memory[0];
+    for (;;) {
+      const item = nextSendable();
+      if (!item) break;
       try {
         await sender(item);
         removeById(item.id);
@@ -176,12 +185,21 @@ export async function flushQueue(): Promise<number> {
 }
 
 /**
+ * 지금 보낼 수 있는 가장 오래된 항목. 다른 사람이 남긴 쓰기는 건너뛴다 —
+ * 지금 붙어 있는 토큰은 그 사람 것이 아니라, 보내면 기록이 엉뚱한 계정에 붙는다.
+ * 지우지 않고 남겨 두는 이유는 본인이 다시 로그인하면 그때 정상 전송되기 때문이다
+ * (영영 안 돌아와도 MAX_QUEUE 상한에 밀려 결국 빠진다).
+ */
+function nextSendable(): QueuedWrite | undefined {
+  return memory.find((q) => !q.userId || q.userId === ownerId);
+}
+
+/**
  * 처리한 항목을 id 로 지운다.
  *
  * shift() 로 맨 앞을 자르지 않는 이유: 전송을 기다리는(await) 사이에 로그아웃
  * (clearQueue)이나 새 쓰기(enqueue)가 끼어들면 맨 앞이 더 이상 방금 보낸 항목이
  * 아닐 수 있다. 그때 shift() 는 아직 보내지도 않은 남의 기록을 지운다.
- * 이미 사라진 항목이면(clearQueue 후) 아무 일도 하지 않는다.
  */
 function removeById(id: string): void {
   const idx = memory.findIndex((q) => q.id === id);

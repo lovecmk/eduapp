@@ -5,6 +5,7 @@ import {
   pendingCount,
   clearQueue,
   setQueueSender,
+  setQueueOwner,
   __resetQueueForTests,
   MAX_ATTEMPTS,
   type QueuedWrite,
@@ -18,6 +19,7 @@ afterAll(() => resetLogSink());
 beforeEach(async () => {
   __resetQueueForTests();
   await clearQueue();
+  setQueueOwner(null);
 });
 
 describe('오프라인 쓰기 큐', () => {
@@ -92,6 +94,52 @@ describe('오프라인 쓰기 큐', () => {
     await enqueue('POST', '/api/a', {});
     await clearQueue();
     expect(await pendingCount()).toBe(0);
+  });
+
+  // 현장 태블릿은 여러 명이 돌려 쓴다. 앞사람이 오프라인에서 남긴 기록이
+  // 뒷사람 토큰으로 나가면 안전교육 이력이 엉뚱한 계정에 붙는다.
+  describe('사용자 격리', () => {
+    it('앞사람이 남긴 쓰기를 뒷사람 세션에서 보내지 않는다', async () => {
+      const sent: string[] = [];
+      setQueueSender(async (i: QueuedWrite) => { sent.push(i.path); });
+
+      setQueueOwner('user-a');
+      await enqueue('POST', '/api/progress/attendance', { day: 'd' });
+
+      // A 로그아웃 → B 로그인
+      setQueueOwner(null);
+      setQueueOwner('user-b');
+      await enqueue('POST', '/api/reports', { card_id: 'c1' });
+
+      expect(await flushQueue()).toBe(1);
+      expect(sent).toEqual(['/api/reports']); // A 의 출석은 건드리지 않는다
+      expect(await pendingCount()).toBe(1);
+    });
+
+    it('본인이 다시 로그인하면 남겨 둔 쓰기가 그때 전송된다', async () => {
+      const sent: string[] = [];
+      setQueueSender(async (i: QueuedWrite) => { sent.push(i.path); });
+
+      setQueueOwner('user-a');
+      await enqueue('POST', '/api/progress/attendance', { day: 'd' });
+
+      setQueueOwner('user-b');
+      expect(await flushQueue()).toBe(0); // B 세션에서는 아무것도 안 나간다
+
+      setQueueOwner('user-a'); // A 가 돌아왔다
+      expect(await flushQueue()).toBe(1);
+      expect(sent).toEqual(['/api/progress/attendance']);
+    });
+
+    it('로그인 전에 쌓인 쓰기(주인 없음)는 누구 세션에서든 나간다', async () => {
+      const sent: string[] = [];
+      setQueueSender(async (i: QueuedWrite) => { sent.push(i.path); });
+
+      await enqueue('POST', '/api/anon', {}); // 주인 미지정
+      setQueueOwner('user-a');
+      expect(await flushQueue()).toBe(1);
+      expect(sent).toEqual(['/api/anon']);
+    });
   });
 
   describe('동시 접근 (유실 방지)', () => {
