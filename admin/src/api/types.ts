@@ -101,6 +101,8 @@ export interface UntouchedCard {
 }
 
 export interface ContentSummary {
+  /** 접수된 신고 건수 — 가장 급한 숫자다. */
+  reports: number;
   total_cards: number;
   by_category: CategoryCount[];
   by_type: LabelCount[];
@@ -229,6 +231,29 @@ export interface CardQuery {
 }
 
 // ── 감사 로그 ─────────────────────────────────────────────────────────────────
+
+/** 접수된 문제 신고 한 건 — 서버가 카드 제목·신고자 이름을 붙여서 준다. */
+export interface AdminReport {
+  id: string;
+  user_id: string;
+  card_id: string;
+  reason: string;
+  detail: string;
+  created_at: string;
+  card_title: string;
+  card_category: string;
+  /** 신고된 카드가 이미 삭제됐다. 없는 카드를 계속 찾지 않도록 표시한다. */
+  card_missing: boolean;
+  reporter_name: string;
+}
+
+/** 공지 발송 요청. user_id 가 비면 전체 발송. */
+export interface NotifyInput {
+  title_txt: string;
+  desc_txt: string;
+  type_cd: string;
+  user_id?: string;
+}
 
 export interface AuditLog {
   id: string;

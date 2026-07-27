@@ -289,3 +289,17 @@ func ignoreDuplicate(err error) error {
 }
 
 var _ ports.UserDataRepository = (*UserDataRepo)(nil)
+
+func (r *UserDataRepo) AddNotifications(ctx context.Context, list []domain.Notification) error {
+	if len(list) == 0 {
+		return nil
+	}
+	docs := make([]any, 0, len(list))
+	for _, n := range list {
+		docs = append(docs, n)
+	}
+	// ordered=false — 한 건이 중복 키로 실패해도 나머지는 계속 넣는다.
+	// 공지는 "일부라도 최대한 전달"이 맞다.
+	_, err := r.notifs.InsertMany(ctx, docs, options.InsertMany().SetOrdered(false))
+	return ignoreDuplicate(err)
+}

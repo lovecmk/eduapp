@@ -29,6 +29,10 @@ export const ICON_PATHS = {
   edit: 'M4 20h4L20 8l-4-4L4 16zM14 6l4 4',
   download: 'M12 4v11M7 11l5 5 5-5M4 20h16',
   refresh: 'M20 11a8 8 0 1 0-.6 4M20 5v6h-6',
+  // 공지 발송 — 종.
+  bell: 'M18 15V10a6 6 0 1 0-12 0v5l-2 3h16zM10 21h4',
+  // 신고 — 깃발. 신고는 '여기 문제가 있다'고 꽂아 두는 표시다.
+  flag: 'M5 21V4M5 4h11l-2 3.5L16 11H5',
   'chevron-left': 'M14 6l-6 6 6 6',
   'chevron-right': 'M10 6l6 6-6 6',
   check: 'M5 12.5l4.5 4.5L19 7',

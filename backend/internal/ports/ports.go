@@ -176,6 +176,10 @@ type UserDataRepository interface {
 	ListReports(ctx context.Context, limit int) ([]domain.Report, error)
 
 	// --- 알림 ---
+	// AddNotifications 는 알림을 한꺼번에 넣는다(관리자 발송).
+	// 한 건씩 넣는 API 를 두지 않은 이유 — 전체 공지는 수천 건이 한 번에 생기는데,
+	// 그때마다 왕복하면 저장소가 헛돈다.
+	AddNotifications(ctx context.Context, list []domain.Notification) error
 	Notifications(ctx context.Context, userID string) ([]domain.Notification, error)
 	MarkNotificationRead(ctx context.Context, userID, id string) error
 	MarkAllNotificationsRead(ctx context.Context, userID string) error

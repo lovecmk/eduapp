@@ -238,6 +238,9 @@ func registerAdminRoutes(api fiber.Router, d Deps) {
 	admin.Put("/cards/:id", h.UpdateCard)
 	admin.Delete("/cards/:id", h.DeleteCard)
 
+	admin.Get("/reports", h.Reports)
+	admin.Post("/notifications", h.Notify)
+
 	admin.Get("/audit", h.AuditLogs)
 }
 

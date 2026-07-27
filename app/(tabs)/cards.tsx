@@ -20,6 +20,7 @@ import { CardReportModal } from '../../src/components/cards/CardReportModal';
 import { fontCute } from '../../src/theme/tokens';
 import { getCategoryIcon } from '../../src/constants/categories';
 import { ROUTES } from '../../src/constants/routes';
+import { endFlow } from '../../src/navigation/flow';
 import { useAllCards, useMarkCard } from '../../src/hooks/useCards';
 import { useReview } from '../../src/hooks/useReview';
 import { useDailyQuota, recordNewLearned } from '../../src/hooks/useDailyQuota';
@@ -430,7 +431,7 @@ export default function CardsScreen() {
     // (사용자가 직접 복습하러 가거나 홈으로 이동). 로딩바/이동 안내 문구도 두지 않는다.
     if (returnTo) {
       Animated.timing(progressAnim, { toValue: 1, duration: 900, useNativeDriver: false }).start(({ finished: ok }) => {
-        if (ok) router.replace(returnTo as never);
+        if (ok) endFlow(router, returnTo);
       });
     }
   }, [finished]);
@@ -475,10 +476,13 @@ export default function CardsScreen() {
     }, [sessionActive, exitConfirm, isSwipeTrack]),
   );
 
+  // 세션을 떠날 때는 endFlow 로 이동한다.
+  // replace 만 쓰면 스택에 돌아갈 곳이 남지 않아, 도착한 화면에서 뒤로가기를 누르면
+  // 앱이 그대로 종료된다. endFlow 는 홈을 깔고 목적지를 얹어 뒤로가기가 홈으로 가게 한다.
   const leaveSession = useCallback((target: string) => {
     if (autoFlipTimer.current) clearTimeout(autoFlipTimer.current);
     setExitConfirm(false);
-    router.replace(target as never);
+    endFlow(router, target);
   }, [router]);
 
   if (isLoading && deck.length === 0 && !error) {
@@ -510,7 +514,7 @@ export default function CardsScreen() {
           <Text style={{ color: c.textSecondary, fontSize: 12.5 * fs, fontFamily: fontCute }}>내일 자정에 새 학습이 열려요</Text>
         </View>
         <Pressable
-          onPress={() => router.replace(ROUTES.review as never)}
+          onPress={() => endFlow(router, ROUTES.review)}
           style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.primary, borderRadius: 14, paddingVertical: 15, paddingHorizontal: 28, marginTop: 24, boxShadow: '0 6px 16px rgba(37,99,235,0.28)' }}
         >
           <Ionicons name="refresh" size={18} color="#fff" />
@@ -538,7 +542,7 @@ export default function CardsScreen() {
         <Text style={{ color: c.textPrimary, fontSize: 22 * fs, fontWeight: '800', fontFamily: fontCute }}>{emptyTitle}</Text>
         <Text style={{ color: c.textSecondary, marginTop: 8, textAlign: 'center', lineHeight: 21 * fs, fontFamily: fontCute }}>{emptyBody}</Text>
         <Pressable
-          onPress={() => router.replace((returnTo ?? (isFocusMode ? ROUTES.contents : ROUTES.review)) as never)}
+          onPress={() => endFlow(router, returnTo ?? (isFocusMode ? ROUTES.contents : ROUTES.review))}
           style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.primary, borderRadius: 14, paddingVertical: 15, paddingHorizontal: 28, marginTop: 24, boxShadow: '0 6px 16px rgba(37,99,235,0.28)' }}
         >
           <Ionicons name={isFocusMode ? 'arrow-back' : 'refresh'} size={18} color="#fff" />
@@ -570,14 +574,14 @@ export default function CardsScreen() {
           <View style={{ width: '100%', gap: 10, marginTop: 4 }}>
             {/* '복습하러 가기' — 방금 학습한 카드를 복습 > 모아보기 > 오늘 학습한 카드에서 바로 다시 본다. */}
             <Pressable
-              onPress={() => router.replace(ROUTES.collection('today') as never)}
+              onPress={() => endFlow(router, ROUTES.collection('today'))}
               style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.primary, borderRadius: 14, paddingVertical: 15, paddingHorizontal: 28, boxShadow: '0 6px 16px rgba(37,99,235,0.28)' }}
             >
               <Ionicons name="refresh" size={18} color="#fff" />
               <Text style={{ color: '#fff', fontSize: 15 * fs, fontWeight: '800', fontFamily: fontCute }}>복습하러 가기</Text>
             </Pressable>
             <Pressable
-              onPress={() => router.replace(ROUTES.home as never)}
+              onPress={() => endFlow(router, ROUTES.home)}
               style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.surfaceAlt, borderRadius: 14, paddingVertical: 15, paddingHorizontal: 28, borderWidth: 1, borderColor: c.border }}
             >
               <Ionicons name="home-outline" size={18} color={c.textPrimary} />
