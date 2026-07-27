@@ -10,7 +10,7 @@ import { BOX_META } from '../../domain/srs';
 import { ROUTES } from '../../constants/routes';
 import { UpcomingSchedule } from './UpcomingSchedule';
 
-/** 통계 화면의 간격 반복 복습 현황 — 오늘 복습 대상, 기억 강도 분포, 향후 일정. */
+/** 통계 화면의 간격 반복 복습 현황 — 지금 볼 만한 카드, 기억 강도 분포, 앞으로의 분포. */
 export function ReviewStatusCard() {
   const { theme } = useTheme();
   const c = theme.colors;
@@ -47,10 +47,11 @@ export function ReviewStatusCard() {
           </View>
           <View>
             <Text style={{ color: dueTodayCount > 0 ? '#fff' : c.textPrimary, fontSize: 14, fontFamily: fontDisplay }}>
-              {dueTodayCount > 0 ? '지금 복습할 카드가 있어요' : '복습 완료 상태예요'}
+              {/* '완료 상태'라고 하면 복습이 끝내야 할 일이 되고, 안 한 날은 미완이 된다. */}
+              {dueTodayCount > 0 ? '지금 보기 좋은 카드가 있어요' : '지금은 쉬어도 좋아요'}
             </Text>
             <Text style={{ color: dueTodayCount > 0 ? 'rgba(255,255,255,0.85)' : c.textSecondary, fontSize: 11.5, fontFamily: fontBody, marginTop: 1 }}>
-              오늘 복습 대상 {dueTodayCount}장 · 마스터 {mastered}장
+              지금 볼 만한 {dueTodayCount}장 · 마스터 {mastered}장
             </Text>
           </View>
         </View>

@@ -61,9 +61,13 @@ export function useReview() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allCards, cardsState]);
 
-  const dueTodayCount = plan.overdue + plan.dueToday;
+  /**
+   * 지금 볼 수 있는 카드 총 장수 — 세션 상한 적용 전 값이다.
+   * 하루 학습량을 신규/복습으로 나눌 때처럼 실제 총량이 필요한 계산에만 쓴다.
+   */
+  const dueTodayCount = plan.dueCount;
 
-  /** 향후 7일 복습 예정 분포(계획이 이미 계산해 둔 값). */
+  /** 향후 7일간 볼 카드 분포(계획이 이미 계산해 둔 값). */
   const upcoming = plan.upcoming;
 
   /** 채점 → SRS 갱신 + 백엔드 상태 동기화. */
