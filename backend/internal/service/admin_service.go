@@ -462,6 +462,9 @@ type CardQuery struct {
 	Type     string
 	Offset   int
 	Limit    int
+	// Sort: "" (제목) | category | type | difficulty | learning | mastered
+	Sort string
+	Desc bool
 }
 
 // CardPage 는 카드 목록 한 페이지.
@@ -505,8 +508,7 @@ func (s *AdminService) ListCards(ctx context.Context, q CardQuery) (*CardPage, e
 		st := stats[c.ID]
 		matched = append(matched, AdminCard{Card: c, Learning: st.Learning, Mastered: st.Mastered})
 	}
-	// 저장소 순서에 기대지 않도록 명시적으로 정렬한다(페이지가 흔들리지 않게).
-	sort.Slice(matched, func(i, j int) bool { return matched[i].ID < matched[j].ID })
+	sortCards(matched, q.Sort, q.Desc)
 
 	limit := q.Limit
 	if limit <= 0 || limit > 200 {
@@ -514,6 +516,53 @@ func (s *AdminService) ListCards(ctx context.Context, q CardQuery) (*CardPage, e
 	}
 	lo, hi := clampPage(q.Offset, limit, len(matched))
 	return &CardPage{Items: matched[lo:hi], Total: len(matched), Offset: lo, Limit: limit}, nil
+}
+
+// sortCards 는 요청한 기준으로 카드를 정렬한다.
+// 저장소 순서에 기대지 않고 항상 명시적으로 정렬해야 페이지가 흔들리지 않는다.
+// 동률은 항상 ID 로 갈라 순서를 고정한다(페이지 간 중복/누락 방지).
+func sortCards(cards []AdminCard, field string, desc bool) {
+	sort.Slice(cards, func(i, j int) bool {
+		a, b := cards[i], cards[j]
+		var less, equal bool
+		switch field {
+		case "category":
+			less, equal = a.CategoryCd < b.CategoryCd, a.CategoryCd == b.CategoryCd
+		case "type":
+			less, equal = a.CardTypeCd < b.CardTypeCd, a.CardTypeCd == b.CardTypeCd
+		case "difficulty":
+			// 사전순(EASY/HARD/MEDIUM)이 아니라 실제 난이도 순으로 정렬해야 의미가 있다.
+			less, equal = difficultyRank(a.DifficultyCd) < difficultyRank(b.DifficultyCd),
+				a.DifficultyCd == b.DifficultyCd
+		case "learning":
+			less, equal = a.Learning < b.Learning, a.Learning == b.Learning
+		case "mastered":
+			less, equal = a.Mastered < b.Mastered, a.Mastered == b.Mastered
+		default: // 제목
+			at, bt := firstNonEmpty(a.TitleTxt, a.QuestionTxt), firstNonEmpty(b.TitleTxt, b.QuestionTxt)
+			less, equal = at < bt, at == bt
+		}
+		if equal {
+			return a.ID < b.ID
+		}
+		if desc {
+			return !less
+		}
+		return less
+	})
+}
+
+// difficultyRank 는 난이도를 크기 비교가 가능한 순번으로 바꾼다.
+func difficultyRank(d domain.Difficulty) int {
+	switch d {
+	case domain.Easy:
+		return 0
+	case domain.Medium:
+		return 1
+	case domain.Hard:
+		return 2
+	}
+	return 3
 }
 
 // GetCard 는 카드 한 장을 반환한다.

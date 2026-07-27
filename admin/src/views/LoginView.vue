@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
+import ThemeSwitch from '../components/ThemeSwitch.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -11,7 +12,7 @@ const id = ref('');
 const password = ref('');
 const idInput = ref<HTMLInputElement | null>(null);
 
-/** 세션 만료로 튕겨 온 경우 이유를 알려준다(아무 설명 없이 로그인 화면이 뜨면 버그로 보인다). */
+/** 세션 만료로 튕겨 온 경우 이유를 알린다(설명 없이 로그인 화면이 뜨면 버그로 보인다). */
 const expired = route.query.expired === '1';
 
 onMounted(() => idInput.value?.focus());
@@ -37,16 +38,23 @@ function isInternalPath(path: string): boolean {
 
 <template>
   <div class="wrap">
-    <form class="card panel" @submit.prevent="onSubmit">
+    <ThemeSwitch class="theme-btn" />
+
+    <form class="box" @submit.prevent="onSubmit">
       <div class="head">
-        <span class="mark" aria-hidden="true">3</span>
+        <span class="mark" aria-hidden="true">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+            <circle cx="12" cy="13" r="8" />
+            <path d="M12 13V9M9 2h6" />
+          </svg>
+        </span>
         <div>
-          <h1 class="title">하루3분ON 관리 콘솔</h1>
-          <p class="sub">관리자 계정으로 로그인하세요</p>
+          <h1 class="title">하루3분ON</h1>
+          <p class="sub">관리 콘솔</p>
         </div>
       </div>
 
-      <p v-if="expired" class="notice" role="status">
+      <p v-if="expired" class="callout callout-warn notice" role="status">
         로그인이 만료되어 로그아웃되었습니다. 다시 로그인해주세요.
       </p>
 
@@ -75,7 +83,7 @@ function isInternalPath(path: string): boolean {
         />
       </label>
 
-      <p v-if="auth.error" class="hint hint-error err" role="alert">{{ auth.error }}</p>
+      <p v-if="auth.error" class="callout callout-danger err" role="alert">{{ auth.error }}</p>
 
       <button class="btn btn-primary submit" type="submit" :disabled="auth.loading">
         <span v-if="auth.loading" class="spinner" aria-hidden="true" />
@@ -96,65 +104,73 @@ function isInternalPath(path: string): boolean {
   display: grid;
   place-items: center;
   padding: 24px;
+  position: relative;
 }
-.panel {
+.theme-btn {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+}
+
+.box {
   width: 100%;
-  max-width: 380px;
-  padding: 26px 24px 20px;
+  max-width: 340px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-3);
+  padding: 22px 20px 16px;
 }
+
 .head {
   display: flex;
   align-items: center;
-  gap: 11px;
-  margin-bottom: 22px;
+  gap: 10px;
+  margin-bottom: 20px;
 }
 .mark {
-  width: 38px;
-  height: 38px;
-  border-radius: 11px;
-  background: var(--blue);
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-2);
+  background: var(--accent);
   color: #fff;
   display: grid;
   place-items: center;
-  font-weight: 800;
-  font-size: 18px;
   flex-shrink: 0;
 }
 .title {
-  font-size: 16px;
+  font-size: 15px;
+  line-height: 1.2;
 }
 .sub {
-  margin: 2px 0 0;
-  font-size: 12.5px;
-  color: var(--text-muted);
+  margin: 1px 0 0;
+  font-size: 11.5px;
+  color: var(--ink-4);
 }
+
 .notice {
-  background: var(--amber-weak);
-  color: var(--amber);
-  border-radius: var(--r);
-  padding: 9px 11px;
-  font-size: 12.5px;
-  margin: 0 0 16px;
+  margin: 0 0 15px;
 }
 .err {
-  margin-top: -6px;
-  margin-bottom: 12px;
+  margin: -4px 0 12px;
 }
+
 .submit {
   width: 100%;
-  height: 40px;
+  height: 34px;
+  margin-top: 3px;
 }
+
 .foot {
-  margin: 16px 0 0;
-  font-size: 11.5px;
-  color: var(--text-faint);
-  line-height: 1.6;
+  margin: 15px 0 0;
+  font-size: 11px;
+  color: var(--ink-4);
+  line-height: 1.65;
 }
 code {
   font-family: var(--mono);
-  font-size: 11px;
-  background: var(--surface-alt);
+  font-size: 10.5px;
+  background: var(--surface-3);
   padding: 1px 4px;
-  border-radius: 4px;
+  border-radius: var(--r-1);
 }
 </style>

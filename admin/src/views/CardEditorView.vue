@@ -12,6 +12,7 @@ import {
   type CardErrors,
 } from '../lib/cardValidation';
 import { toast } from '../lib/toast';
+import AppIcon from '../components/AppIcon.vue';
 
 /**
  * 문제 만들기 / 고치기.
@@ -172,38 +173,41 @@ const DIFFS: { value: Difficulty; label: string }[] = [
 
 <template>
   <div class="page">
-    <div class="page-head">
+    <header class="page-head">
       <div>
-        <RouterLink to="/cards" class="back">← 문제 목록</RouterLink>
+        <RouterLink to="/cards" class="back">
+          <AppIcon name="arrow-left" :size="13" />
+          문제 목록
+        </RouterLink>
         <h1 class="page-title">{{ isNew ? '문제 만들기' : '문제 수정' }}</h1>
         <p class="page-sub">학습자가 앱에서 보게 될 카드 한 장을 작성합니다</p>
       </div>
       <div class="row">
-        <span v-if="dirty" class="badge badge-amber">저장 안 됨</span>
-        <button class="btn btn-primary" type="button" :disabled="saving" @click="save">
+        <span v-if="dirty" class="badge badge-warn">저장 안 됨</span>
+        <button class="btn btn-primary btn-sm" type="button" :disabled="saving" @click="save">
           <span v-if="saving" class="spinner" aria-hidden="true" />
           {{ saving ? '저장 중…' : isNew ? '등록하기' : '저장하기' }}
         </button>
       </div>
-    </div>
+    </header>
 
-    <div v-if="loadError" class="card err-card" role="alert">
-      <div class="card-body">
+    <div v-if="loadError" class="panel err-panel" role="alert">
+      <div class="panel-body">
         <p class="err-msg">{{ loadError }}</p>
         <button class="btn btn-sm" type="button" @click="load">다시 시도</button>
       </div>
     </div>
 
-    <div v-else-if="loading" class="card">
-      <div class="card-body loading"><span class="spinner" aria-hidden="true" /> 불러오는 중…</div>
+    <div v-else-if="loading" class="panel">
+      <div class="panel-body loading"><span class="spinner" aria-hidden="true" /> 불러오는 중…</div>
     </div>
 
     <div v-else class="editor">
       <!-- 입력 -->
       <form class="col" @submit.prevent="save">
-        <section class="card">
-          <div class="card-head"><h2 class="card-title">분류</h2></div>
-          <div class="card-body">
+        <section class="panel">
+          <div class="panel-head"><h2 class="panel-title">분류</h2></div>
+          <div class="panel-body">
             <div class="two">
               <label class="field">
                 <span class="label">분야 <b class="req">*</b></span>
@@ -241,19 +245,17 @@ const DIFFS: { value: Difficulty; label: string }[] = [
           </div>
         </section>
 
-        <section class="card">
-          <div class="card-head"><h2 class="card-title">문제</h2></div>
-          <div class="card-body">
+        <section class="panel">
+          <div class="panel-head"><h2 class="panel-title">문제</h2></div>
+          <div class="panel-body">
             <div class="two">
               <div class="field">
                 <span class="label">형식 <b class="req">*</b></span>
-                <div class="seg-group" role="group" aria-label="문제 형식">
+                <div class="segmented" role="group" aria-label="문제 형식">
                   <button
                     v-for="t in TYPES"
                     :key="t.value"
                     type="button"
-                    class="seg-btn"
-                    :class="{ 'seg-btn-on': card.card_type_cd === t.value }"
                     :aria-pressed="card.card_type_cd === t.value"
                     @click="onTypeChange(t.value)"
                   >
@@ -263,13 +265,11 @@ const DIFFS: { value: Difficulty; label: string }[] = [
               </div>
               <div class="field">
                 <span class="label">난이도 <b class="req">*</b></span>
-                <div class="seg-group" role="group" aria-label="난이도">
+                <div class="segmented" role="group" aria-label="난이도">
                   <button
                     v-for="d in DIFFS"
                     :key="d.value"
                     type="button"
-                    class="seg-btn"
-                    :class="{ 'seg-btn-on': card.difficulty_cd === d.value }"
                     :aria-pressed="card.difficulty_cd === d.value"
                     @click="card.difficulty_cd = d.value"
                   >
@@ -328,12 +328,12 @@ const DIFFS: { value: Difficulty; label: string }[] = [
                   />
                   <button
                     v-if="card.card_type_cd === 'CHOICE' && (card.choices?.length ?? 0) > 2"
-                    class="btn btn-sm"
+                    class="btn btn-ghost btn-sm btn-icon"
                     type="button"
                     :aria-label="`보기 ${i + 1} 삭제`"
                     @click="removeChoice(i)"
                   >
-                    ✕
+                    <AppIcon name="x" :size="12" />
                   </button>
                 </li>
               </ul>
@@ -343,7 +343,8 @@ const DIFFS: { value: Difficulty; label: string }[] = [
                 type="button"
                 @click="addChoice"
               >
-                + 보기 추가
+                <AppIcon name="plus" :size="12" />
+                보기 추가
               </button>
               <span v-if="showError('choices')" class="hint hint-error">
                 {{ showError('choices') }}
@@ -355,9 +356,9 @@ const DIFFS: { value: Difficulty; label: string }[] = [
           </div>
         </section>
 
-        <section class="card">
-          <div class="card-head"><h2 class="card-title">해설 (카드 뒷면)</h2></div>
-          <div class="card-body">
+        <section class="panel">
+          <div class="panel-head"><h2 class="panel-title">해설 (카드 뒷면)</h2></div>
+          <div class="panel-body">
             <label class="field">
               <span class="label">핵심 원리 <b class="req">*</b></span>
               <textarea
@@ -402,13 +403,13 @@ const DIFFS: { value: Difficulty; label: string }[] = [
       </form>
 
       <!-- 미리보기 -->
-      <aside class="col col-aside">
-        <section class="card">
-          <div class="card-head">
-            <h2 class="card-title">미리보기</h2>
+      <aside class="col side-col">
+        <section class="panel">
+          <div class="panel-head">
+            <h2 class="panel-title">미리보기</h2>
             <span class="hint">학습자가 보는 화면</span>
           </div>
-          <div class="card-body">
+          <div class="panel-body">
             <div class="preview">
               <div class="pv-tag">{{ card.category_cd || '분야' }}</div>
               <p v-if="card.situation_txt" class="pv-situation">{{ card.situation_txt }}</p>
@@ -442,199 +443,186 @@ const DIFFS: { value: Difficulty; label: string }[] = [
 
 <style scoped>
 .back {
-  font-size: 12.5px;
-  font-weight: 600;
-  display: inline-block;
-  margin-bottom: 5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--ink-3);
+  margin-bottom: 4px;
 }
+.back:hover {
+  color: var(--accent);
+  text-decoration: none;
+}
+
 .editor {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
-  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) minmax(276px, 340px);
+  gap: 12px;
   align-items: start;
 }
 .col {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
   min-width: 0;
 }
 /*
  * 미리보기 고정.
- * sticky 는 '그리드 아이템' 에 걸어야 한다. 안쪽 카드에 걸면 부모(.col)가
+ * sticky 는 '그리드 아이템'에 걸어야 한다. 안쪽 판에 걸면 부모(.col)가
  * 콘텐츠 높이라 붙어 있을 여유가 없어 그냥 함께 스크롤돼 버린다.
  * 그리드 아이템은 align-items:start 여도 자기 그리드 영역(행 높이) 안에서 붙는다.
  */
-.col-aside {
+.side-col {
   position: sticky;
-  top: 16px;
+  top: 14px;
 }
+
 .two {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 0 12px;
 }
 .req {
-  color: var(--red);
-  font-weight: 700;
+  color: var(--danger);
+  font-weight: 600;
+  margin-left: 1px;
 }
 .loading {
   display: flex;
   align-items: center;
-  gap: 9px;
-  color: var(--text-muted);
+  gap: 8px;
+  color: var(--ink-3);
 }
-.err-card {
-  border-color: var(--red);
+.err-panel {
+  border-color: var(--danger);
 }
 .err-msg {
-  margin: 0 0 10px;
-  color: var(--red);
-  font-weight: 600;
+  margin: 0 0 9px;
+  color: var(--danger);
+  font-weight: 500;
 }
 
-.seg-group {
-  display: inline-flex;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--r);
-  overflow: hidden;
-}
-.seg-btn {
-  border: none;
-  background: var(--surface);
-  padding: 7px 14px;
-  font-family: inherit;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-muted);
-  cursor: pointer;
-  border-right: 1px solid var(--border);
-}
-.seg-btn:last-child {
-  border-right: none;
-}
-.seg-btn-on {
-  background: var(--blue);
-  color: #fff;
-}
-
+/* 보기·정답 */
 .choices {
   list-style: none;
-  margin: 0 0 8px;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-}
-.choices li {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-}
-.radio {
-  width: 17px;
-  height: 17px;
-  flex-shrink: 0;
-  accent-color: var(--blue);
-  cursor: pointer;
-}
-.choice-hint {
-  margin-top: -2px;
-  margin-bottom: 7px;
-}
-.add {
-  margin-bottom: 4px;
-}
-
-.preview {
-  border: 1px solid var(--border);
-  border-radius: var(--r);
-  padding: 14px;
-  background: var(--surface-alt);
-}
-.pv-back {
-  margin-top: 10px;
-  background: var(--blue-weak);
-  border-color: transparent;
-}
-.pv-tag {
-  display: inline-block;
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--blue-strong);
-  background: #fff;
-  border-radius: 999px;
-  padding: 2px 9px;
-  margin-bottom: 9px;
-}
-.pv-tag-back {
-  color: var(--violet);
-}
-.pv-situation {
   margin: 0 0 7px;
-  font-size: 12.5px;
-  color: var(--text-muted);
-  line-height: 1.6;
-}
-.pv-question {
-  margin: 0;
-  font-size: 14.5px;
-  font-weight: 700;
-  line-height: 1.6;
-}
-.pv-choices {
-  list-style: none;
-  margin: 12px 0 0;
   padding: 0;
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+.choices li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.radio {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.choice-hint {
+  margin: -2px 0 7px;
+}
+.add {
+  margin-bottom: 3px;
+}
+
+/*
+ * 미리보기 — 학습자가 볼 카드의 앞/뒷면.
+ * 관리 화면의 회색 톤과 구분되도록 살짝 다른 바탕을 쓰되,
+ * 실제 앱 화면을 흉내 내려고 색을 과하게 쓰지는 않는다(여긴 관리 도구다).
+ */
+.preview {
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+  padding: 12px;
+  background: var(--surface-2);
+}
+.pv-back {
+  margin-top: 8px;
+}
+.pv-tag {
+  display: inline-block;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--ink-3);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-1);
+  padding: 1px 6px;
+  margin-bottom: 8px;
+}
+.pv-situation {
+  margin: 0 0 6px;
+  font-size: 12px;
+  color: var(--ink-3);
+  line-height: 1.6;
+}
+.pv-question {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.6;
+}
+.pv-choices {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
 }
 .pv-choices li {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  background: #fff;
-  border: 1px solid var(--border);
-  border-radius: var(--r-sm);
-  padding: 8px 11px;
-  font-size: 13px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
+  padding: 6px 9px;
+  font-size: 12.5px;
 }
 .pv-answer {
-  border-color: var(--green);
-  background: var(--green-weak);
-  font-weight: 700;
+  border-color: var(--ok);
+  background: var(--ok-bg);
+  font-weight: 600;
 }
 .pv-check {
-  font-size: 10.5px;
-  font-weight: 800;
-  color: var(--green);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ok);
   flex-shrink: 0;
 }
 .pv-principle {
   margin: 0;
-  font-size: 13px;
+  font-size: 12.5px;
   line-height: 1.7;
   white-space: pre-wrap;
+  color: var(--ink-2);
 }
 .pv-conclusion {
-  margin: 10px 0 0;
-  font-size: 12.5px;
-  font-weight: 700;
-  color: var(--blue-strong);
+  margin: 9px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
 }
 .pv-source {
-  margin: 8px 0 0;
-  font-size: 11.5px;
-  color: var(--text-faint);
+  margin: 7px 0 0;
+  font-size: 11px;
+  color: var(--ink-4);
 }
 
-@media (max-width: 1020px) {
+@media (max-width: 1040px) {
   .editor {
     grid-template-columns: 1fr;
   }
-  .col-aside {
+  .side-col {
     position: static;
   }
 }

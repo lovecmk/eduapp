@@ -169,6 +169,10 @@ export interface UserQuery {
   membership?: string;
   offset?: number;
   limit?: number;
+  /** created_at | user_nm | login_id | role_cd | status_cd — 서버가 허용 값으로 좁힌다. */
+  sort?: string;
+  /** 'desc' 만 내림차순으로 해석된다. */
+  dir?: string;
 }
 
 // ── 문제(카드) 관리 ────────────────────────────────────────────────────────────
@@ -219,6 +223,9 @@ export interface CardQuery {
   type?: string;
   offset?: number;
   limit?: number;
+  /** title | category | type | difficulty | learning | mastered */
+  sort?: string;
+  dir?: string;
 }
 
 // ── 감사 로그 ─────────────────────────────────────────────────────────────────

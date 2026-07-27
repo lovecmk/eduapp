@@ -156,6 +156,10 @@ func (h *AdminHandler) ListUsers(c *fiber.Ctx) error {
 		Membership: c.Query("membership"),
 		Offset:     queryInt(c, "offset", 0),
 		Limit:      queryInt(c, "limit", 50),
+		// 정렬은 저장소가 한다 — 화면에서 페이지만 정렬하면 관리자가
+		// '전체가 정렬된 것'으로 오해한다.
+		Sort: ports.ParseSortField(c.Query("sort")),
+		Desc: c.Query("dir") == "desc",
 	})
 	if err != nil {
 		return adminError(err)
@@ -218,6 +222,8 @@ func (h *AdminHandler) ListCards(c *fiber.Ctx) error {
 		Type:     c.Query("type"),
 		Offset:   queryInt(c, "offset", 0),
 		Limit:    queryInt(c, "limit", 50),
+		Sort:     c.Query("sort"),
+		Desc:     c.Query("dir") == "desc",
 	})
 	if err != nil {
 		return adminError(err)

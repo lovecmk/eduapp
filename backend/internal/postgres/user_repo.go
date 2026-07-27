@@ -126,9 +126,17 @@ func (r *UserRepo) List(ctx context.Context, q ports.UserQuery) ([]domain.User, 
 	if offset < 0 {
 		offset = 0
 	}
-	// created_at 동률에 대비해 id 를 두 번째 정렬 키로 둔다(페이지 간 중복/누락 방지).
+	// 정렬 컬럼은 ParseSortField 로 좁혀진 상수만 들어오므로 문자열 결합이 안전하다
+	// (외부 입력을 그대로 붙이면 정렬 파라미터가 SQL 인젝션 통로가 된다).
+	// 동률에 대비해 id 를 최종 정렬 키로 둔다(페이지 간 중복/누락 방지).
+	dir := "ASC"
+	if q.Desc {
+		dir = "DESC"
+	}
+	col := string(ports.ParseSortField(string(q.Sort)))
 	sql := `SELECT ` + userCols + ` FROM users` + where +
-		fmt.Sprintf(` ORDER BY created_at DESC, id DESC LIMIT $%d OFFSET $%d`, len(args)+1, len(args)+2)
+		fmt.Sprintf(` ORDER BY %s %s, id %s LIMIT $%d OFFSET $%d`,
+			col, dir, dir, len(args)+1, len(args)+2)
 	rows, err := r.pool.Query(ctx, sql, append(args, limit, offset)...)
 	if err != nil {
 		return nil, 0, err

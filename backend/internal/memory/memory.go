@@ -95,12 +95,7 @@ func (r *UserRepo) List(_ context.Context, q ports.UserQuery) ([]domain.User, in
 			matched = append(matched, u)
 		}
 	}
-	sort.Slice(matched, func(i, j int) bool {
-		if matched[i].CreatedAt.Equal(matched[j].CreatedAt) {
-			return matched[i].ID < matched[j].ID // 동시 가입 시에도 순서를 고정
-		}
-		return matched[i].CreatedAt.After(matched[j].CreatedAt)
-	})
+	sortUsers(matched, q.Sort, q.Desc)
 
 	total := int64(len(matched))
 	lo, hi := pageBounds(q.Offset, q.Limit, len(matched))
@@ -127,6 +122,49 @@ func (r *UserRepo) CountCreatedSince(_ context.Context, since time.Time) (int64,
 		}
 	}
 	return n, nil
+}
+
+// sortUsers 는 요청한 기준으로 정렬한다.
+// 마지막에 항상 ID 로 한 번 더 가른다 — 같은 값이 여럿일 때 순서가 흔들리면
+// 페이지를 넘길 때마다 같은 사람이 두 번 나오거나 아예 빠진다.
+func sortUsers(users []domain.User, field ports.SortField, desc bool) {
+	sort.Slice(users, func(i, j int) bool {
+		a, b := users[i], users[j]
+		var less bool
+		switch field {
+		case ports.SortName:
+			less = a.UserNm < b.UserNm
+		case ports.SortLoginID:
+			less = a.LoginID < b.LoginID
+		case ports.SortRole:
+			less = a.Role() < b.Role()
+		case ports.SortStatus:
+			less = a.StatusCd < b.StatusCd
+		default: // 가입일
+			less = a.CreatedAt.Before(b.CreatedAt)
+		}
+		if equalByField(a, b, field) {
+			return a.ID < b.ID // 동률 시 안정적인 최종 기준
+		}
+		if desc {
+			return !less
+		}
+		return less
+	})
+}
+
+func equalByField(a, b domain.User, field ports.SortField) bool {
+	switch field {
+	case ports.SortName:
+		return a.UserNm == b.UserNm
+	case ports.SortLoginID:
+		return a.LoginID == b.LoginID
+	case ports.SortRole:
+		return a.Role() == b.Role()
+	case ports.SortStatus:
+		return a.StatusCd == b.StatusCd
+	}
+	return a.CreatedAt.Equal(b.CreatedAt)
 }
 
 // matchUser 는 UserQuery 조건을 하나라도 어기면 false.

@@ -1,51 +1,145 @@
 /*
- * 관리 콘솔 디자인 시스템.
+ * 관리 콘솔 디자인 시스템
+ * ─────────────────────────────────────────────────────────────────────────────
  *
- * UI 프레임워크를 쓰지 않은 이유: 이 콘솔에 필요한 요소는 표·카드·배지·폼 정도이고,
- * 그것 때문에 수 MB짜리 의존성과 그 취약점·업그레이드 부담을 떠안을 이유가 없다.
- * 대신 토큰(색·간격·반경)을 한곳에 모아 화면들이 같은 규칙을 따르게 한다.
+ * 이 도구는 운영자가 하루 종일 띄워 두는 화면이다. 그래서 예쁜 것보다
+ * **오래 봐도 피로하지 않고, 한 화면에 정보가 많이 들어가는 것**을 우선한다.
  *
- * 색은 앱(하루3분ON)의 파란색 계열을 이어받되, 관리 도구답게 채도를 낮추고
- * 정보 밀도를 높였다.
+ * 지키는 규칙:
+ *
+ *  1) 색은 '의미'에만 쓴다. 장식용 색을 쓰지 않는다.
+ *     상태(정상/경고/오류)와 링크·선택에만 색이 붙고, 나머지는 전부 회색 계열이다.
+ *     카드 왼쪽에 색 띠(border-left)를 두르는 식의 장식은 쓰지 않는다 —
+ *     의미 없는 색이 늘어나면 정작 중요한 빨강이 눈에 안 들어온다.
+ *
+ *  2) 경계는 최소한으로. 모든 것을 흰 상자에 담지 않는다.
+ *     구획은 여백과 타이포 위계가 먼저 하고, 선은 정말 필요할 때만 1px 로 긋는다.
+ *     그림자는 '떠 있는 것'(팝오버·모달·토스트)에만 쓴다.
+ *
+ *  3) 숫자는 표처럼. 등폭 숫자(tabular-nums)로 자릿수를 맞추고 우측 정렬한다.
+ *     값이 갱신될 때 자리가 흔들리면 읽는 사람이 계속 다시 초점을 맞춰야 한다.
+ *
+ *  4) 밀도. 여백은 4px 배수로만 쓰고, 기본 행 높이를 낮게 잡는다.
+ *
+ *  5) 라이트/다크 모두 1급으로 지원한다. 색은 전부 토큰을 거치고,
+ *     하드코딩된 색값은 이 파일 밖에 두지 않는다.
  */
 
 :root {
-  --blue: #2563eb;
-  --blue-weak: #eff4ff;
-  --blue-strong: #1d4ed8;
+  /* ── 중립 램프 ─────────────────────────────────────────────────────────
+     회색이 이 도구의 주된 색이다. 단계가 촘촘해야 경계·배경·비활성 텍스트를
+     각각 다른 밝기로 구분하면서도 전체가 차분하게 유지된다.
+     약간 푸른 기를 섞어(순회색 아님) 화면이 탁해 보이지 않게 했다. */
+  --n-0: #ffffff;
+  --n-25: #fcfcfd;
+  --n-50: #f7f8fa;
+  --n-100: #eff1f4;
+  --n-150: #e6e9ee;
+  --n-200: #dce0e6;
+  --n-300: #c2c8d2;
+  --n-400: #98a1b0;
+  --n-500: #6b7583;
+  --n-600: #515a67;
+  --n-700: #3b434e;
+  --n-800: #262c34;
+  --n-900: #171b21;
+  --n-950: #0f1216;
 
-  --green: #12a150;
-  --green-weak: #e8f7ee;
-  --amber: #b45309;
-  --amber-weak: #fef4e6;
-  --red: #dc2626;
-  --red-weak: #fdecec;
-  --violet: #7c3aed;
-  --violet-weak: #f3edff;
+  /* ── 의미색 ─────────────────────────────────────────────────────────────
+     각 색은 '진한 값(텍스트/아이콘)'과 '옅은 값(배경)' 한 쌍으로만 존재한다.
+     쌍을 넘어 색조를 늘리기 시작하면 규칙이 무너진다. */
+  --accent: #3056d3; /* 링크·선택·현재 위치 */
+  --accent-ink: #2544ab;
+  --accent-bg: #eef2ff;
 
-  --bg: #f6f7f9;
-  --surface: #ffffff;
-  --surface-alt: #f1f3f6;
-  --border: #e2e5ea;
-  --border-strong: #cbd1da;
+  --ok: #197a45;
+  --ok-bg: #e9f6ee;
+  --warn: #94600b;
+  --warn-bg: #fdf4e3;
+  --danger: #b4232a;
+  --danger-bg: #fdeeee;
+  --info: #1f6d8c;
+  --info-bg: #e8f4f9;
 
-  --text: #16191f;
-  --text-muted: #626b7a;
-  --text-faint: #949cab;
+  /* ── 역할 토큰 ──────────────────────────────────────────────────────── */
+  --bg: var(--n-50);
+  --surface: var(--n-0);
+  --surface-2: var(--n-50);
+  --surface-3: var(--n-100);
+  --line: var(--n-150);
+  --line-strong: var(--n-200);
 
-  --r-sm: 6px;
-  --r: 10px;
-  --r-lg: 14px;
+  --ink: var(--n-900);
+  --ink-2: var(--n-600);
+  --ink-3: var(--n-500);
+  --ink-4: var(--n-400);
 
-  --shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
-  --shadow-lg: 0 8px 24px rgba(16, 24, 40, 0.1);
+  --focus: 0 0 0 3px rgba(48, 86, 211, 0.28);
+  --pop: 0 1px 2px rgba(16, 20, 28, 0.06), 0 8px 24px -6px rgba(16, 20, 28, 0.16);
 
-  --sidebar-w: 216px;
-  --header-h: 56px;
+  /* ── 형태 ───────────────────────────────────────────────────────────────
+     라운딩을 작게 잡는다. 큰 라운딩은 소비자용 앱의 어휘고,
+     밀도 높은 도구에서는 요소가 실제보다 커 보여 화면을 낭비한다. */
+  --r-1: 4px;
+  --r-2: 6px;
+  --r-3: 8px;
 
-  --mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
-  --sans: -apple-system, BlinkMacSystemFont, 'Pretendard', 'Apple SD Gothic Neo',
-    'Malgun Gothic', system-ui, sans-serif;
+  --row-h: 34px;
+  --ctl-h: 30px;
+  --sidebar-w: 208px;
+
+  --mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, 'Cascadia Mono', Consolas, monospace;
+  --sans:
+    -apple-system, BlinkMacSystemFont, 'Pretendard Variable', Pretendard, 'Apple SD Gothic Neo',
+    'Segoe UI', 'Malgun Gothic', system-ui, sans-serif;
+}
+
+/*
+ * 다크 테마. 순검정이 아니라 아주 어두운 청회색을 바탕으로 쓴다 —
+ * 순검정 위의 흰 글씨는 대비가 지나쳐 잔상이 남는다.
+ * 다크에서는 '옅은 배경'을 색상 자체의 저채도 어두운 값으로 바꿔야
+ * 배지가 형광펜처럼 튀지 않는다.
+ */
+:root[data-theme='dark'] {
+  --n-0: #14181d;
+  --n-25: #171c22;
+  --n-50: #1a1f26;
+  --n-100: #212832;
+  --n-150: #2a323e;
+  --n-200: #333c4a;
+  --n-300: #46515f;
+  --n-400: #6b7684;
+  --n-500: #8e98a6;
+  --n-600: #aab3bf;
+  --n-700: #c6cdd6;
+  --n-800: #dfe4ea;
+  --n-900: #f0f3f6;
+  --n-950: #ffffff;
+
+  --accent: #7d9bff;
+  --accent-ink: #a3b8ff;
+  --accent-bg: #1d2743;
+
+  --ok: #56c98a;
+  --ok-bg: #14301f;
+  --warn: #dcae5a;
+  --warn-bg: #33270f;
+  --danger: #f0797f;
+  --danger-bg: #3a1c1f;
+  --info: #66b6d6;
+  --info-bg: #122c38;
+
+  --bg: #0f1216;
+  --surface: var(--n-25);
+  --surface-2: var(--n-50);
+  --surface-3: var(--n-100);
+  --line: var(--n-150);
+  --line-strong: var(--n-200);
+
+  --focus: 0 0 0 3px rgba(125, 155, 255, 0.32);
+  --pop: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 30px -8px rgba(0, 0, 0, 0.6);
+
+  color-scheme: dark;
 }
 
 * {
@@ -61,216 +155,327 @@ body,
 
 body {
   background: var(--bg);
-  color: var(--text);
+  color: var(--ink);
   font-family: var(--sans);
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1.5;
-  /* 한국어는 단어 중간에서 끊기면 읽기 힘들다 — 어절 단위로 넘긴다. */
+  /* 한국어는 어절 중간에서 끊기면 읽는 속도가 크게 떨어진다. */
   word-break: keep-all;
   overflow-wrap: break-word;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* 테마를 바꿀 때 화면 전체가 툭 바뀌지 않도록 아주 짧게만 섞는다. */
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 h1,
 h2,
-h3,
-h4 {
+h3 {
   margin: 0;
-  font-weight: 700;
-  letter-spacing: -0.01em;
+  font-weight: 600;
+  letter-spacing: -0.011em;
 }
 
 a {
-  color: var(--blue);
+  color: var(--accent);
   text-decoration: none;
 }
 a:hover {
   text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
-/* 키보드 사용자가 지금 어디에 있는지 항상 보이게 한다. */
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+/* 마우스 클릭에는 링을 띄우지 않고 키보드 이동에만 띄운다. */
 :focus-visible {
-  outline: 2px solid var(--blue);
-  outline-offset: 2px;
-  border-radius: var(--r-sm);
+  outline: none;
+  box-shadow: var(--focus);
+  border-radius: var(--r-2);
 }
 
-/* ── 레이아웃 ───────────────────────────────────────────────────────────── */
+::selection {
+  background: var(--accent-bg);
+  color: var(--accent-ink);
+}
+
+/* 스크롤바도 테마를 따라간다(다크에서 흰 스크롤바가 남으면 완성도가 깨진다). */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--n-300) transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--n-300);
+  border-radius: 99px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--n-400);
+  background-clip: content-box;
+}
+
+/* ── 레이아웃 ──────────────────────────────────────────────────────────── */
 
 .shell {
   display: grid;
-  grid-template-columns: var(--sidebar-w) 1fr;
+  grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
   min-height: 100%;
 }
 
 .main {
-  min-width: 0; /* 그리드 자식의 기본 min-width:auto 가 표 오버플로를 밀어낸다 */
+  min-width: 0;
   display: flex;
   flex-direction: column;
 }
 
 .page {
-  padding: 20px 24px 48px;
-  max-width: 1440px;
+  padding: 22px 26px 56px;
   width: 100%;
+  max-width: 1500px;
 }
 
 .page-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 16px;
+  gap: 20px;
   flex-wrap: wrap;
+  padding-bottom: 16px;
   margin-bottom: 18px;
+  border-bottom: 1px solid var(--line);
 }
 
 .page-title {
-  font-size: 20px;
+  font-size: 17px;
+  letter-spacing: -0.015em;
 }
 
 .page-sub {
-  color: var(--text-muted);
-  font-size: 13px;
-  margin-top: 3px;
+  color: var(--ink-3);
+  font-size: 12.5px;
+  margin: 3px 0 0;
 }
 
-/* ── 카드 ───────────────────────────────────────────────────────────────── */
+/* 화면 안의 구획 제목 — 카드로 감싸지 않고 제목만으로 구분하는 자리에 쓴다. */
+.section-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-3);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  margin: 0 0 10px;
+}
 
-.card {
+/* ── 판(panel) ─────────────────────────────────────────────────────────
+   '카드'라고 부르지 않는다 — 이 앱에는 학습 카드가 따로 있어 말이 겹친다. */
+
+.panel {
   background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--r-lg);
-  box-shadow: var(--shadow);
+  border: 1px solid var(--line);
+  border-radius: var(--r-3);
 }
 
-.card-head {
+.panel-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--border);
+  min-height: 42px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--line);
 }
 
-.card-title {
-  font-size: 14px;
-  font-weight: 700;
+.panel-title {
+  font-size: 13px;
+  font-weight: 600;
 }
 
-.card-body {
-  padding: 16px;
+.panel-note {
+  font-size: 11.5px;
+  color: var(--ink-4);
+}
+
+.panel-body {
+  padding: 14px;
 }
 
 .grid {
   display: grid;
-  gap: 14px;
+  gap: 12px;
 }
-
-/* auto-fit + minmax 로 화면 폭에 따라 열 수가 자연히 줄어든다(미디어쿼리 불필요). */
 .grid-stats {
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
 }
 .grid-2 {
-  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
 }
 
-/* ── 배지 ───────────────────────────────────────────────────────────────── */
+/* ── 배지 ──────────────────────────────────────────────────────────────
+   테두리 없이 옅은 배경 + 진한 글씨. 상태를 나타낼 때만 쓴다. */
 
 .badge {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 11.5px;
-  font-weight: 700;
+  gap: 5px;
+  height: 19px;
+  padding: 0 7px;
+  border-radius: var(--r-1);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
   white-space: nowrap;
 }
-.badge-blue {
-  background: var(--blue-weak);
-  color: var(--blue-strong);
+.badge-neutral {
+  background: var(--surface-3);
+  color: var(--ink-2);
 }
-.badge-green {
-  background: var(--green-weak);
-  color: var(--green);
+.badge-accent {
+  background: var(--accent-bg);
+  color: var(--accent-ink);
 }
-.badge-amber {
-  background: var(--amber-weak);
-  color: var(--amber);
+.badge-ok {
+  background: var(--ok-bg);
+  color: var(--ok);
 }
-.badge-red {
-  background: var(--red-weak);
-  color: var(--red);
+.badge-warn {
+  background: var(--warn-bg);
+  color: var(--warn);
 }
-.badge-violet {
-  background: var(--violet-weak);
-  color: var(--violet);
+.badge-danger {
+  background: var(--danger-bg);
+  color: var(--danger);
 }
-.badge-gray {
-  background: var(--surface-alt);
-  color: var(--text-muted);
+.badge-info {
+  background: var(--info-bg);
+  color: var(--info);
 }
 
-/* ── 버튼 ───────────────────────────────────────────────────────────────── */
+/* 상태를 배지 없이 점 하나로 표시할 때(표 안에서 공간을 아낀다). */
+.status-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  vertical-align: 1px;
+}
+.status-ok {
+  background: var(--ok);
+}
+.status-warn {
+  background: var(--warn);
+}
+.status-danger {
+  background: var(--danger);
+}
+.status-idle {
+  background: var(--n-300);
+}
+
+/* ── 버튼 ───────────────────────────────────────────────────────────── */
 
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  height: 34px;
-  padding: 0 14px;
-  border-radius: var(--r);
-  border: 1px solid var(--border-strong);
+  height: var(--ctl-h);
+  padding: 0 11px;
+  border-radius: var(--r-2);
+  border: 1px solid var(--line-strong);
   background: var(--surface);
-  color: var(--text);
-  font-family: inherit;
-  font-size: 13px;
-  font-weight: 600;
+  color: var(--ink);
+  font-size: 12.5px;
+  font-weight: 500;
+  white-space: nowrap;
   cursor: pointer;
-  transition: background 0.12s, border-color 0.12s;
+  transition: background-color 0.1s, border-color 0.1s;
 }
 .btn:hover:not(:disabled) {
-  background: var(--surface-alt);
+  background: var(--surface-2);
+  border-color: var(--n-300);
+}
+.btn:active:not(:disabled) {
+  background: var(--surface-3);
 }
 .btn:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: not-allowed;
 }
+
 .btn-primary {
-  background: var(--blue);
-  border-color: var(--blue);
+  background: var(--accent);
+  border-color: var(--accent);
   color: #fff;
+  font-weight: 600;
 }
 .btn-primary:hover:not(:disabled) {
-  background: var(--blue-strong);
+  background: var(--accent-ink);
+  border-color: var(--accent-ink);
 }
-.btn-danger {
-  background: var(--surface);
-  border-color: var(--red);
-  color: var(--red);
-}
-.btn-danger:hover:not(:disabled) {
-  background: var(--red-weak);
-}
-.btn-sm {
-  height: 28px;
-  padding: 0 10px;
-  font-size: 12px;
+.btn-primary:active:not(:disabled) {
+  background: var(--accent-ink);
 }
 
-/* ── 폼 ─────────────────────────────────────────────────────────────────── */
+.btn-danger {
+  color: var(--danger);
+  border-color: var(--line-strong);
+}
+.btn-danger:hover:not(:disabled) {
+  background: var(--danger-bg);
+  border-color: var(--danger);
+}
+
+/* 테두리 없는 보조 동작(표 안의 '수정' 같은 것). */
+.btn-ghost {
+  border-color: transparent;
+  background: transparent;
+  color: var(--ink-2);
+}
+.btn-ghost:hover:not(:disabled) {
+  background: var(--surface-3);
+  border-color: transparent;
+  color: var(--ink);
+}
+
+.btn-sm {
+  height: 24px;
+  padding: 0 8px;
+  font-size: 11.5px;
+}
+
+/* 아이콘만 있는 정사각 버튼. */
+.btn-icon {
+  width: var(--ctl-h);
+  padding: 0;
+}
+.btn-icon.btn-sm {
+  width: 24px;
+}
+
+/* ── 폼 ─────────────────────────────────────────────────────────────── */
 
 .field {
   display: block;
-  margin-bottom: 14px;
+  margin-bottom: 13px;
 }
 
 .label {
   display: block;
-  font-size: 12.5px;
+  font-size: 11.5px;
   font-weight: 600;
-  color: var(--text-muted);
+  color: var(--ink-2);
   margin-bottom: 5px;
 }
 
@@ -279,112 +484,271 @@ a:hover {
 .textarea {
   width: 100%;
   min-width: 0;
-  padding: 8px 11px;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--r);
+  height: var(--ctl-h);
+  padding: 0 9px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-2);
   background: var(--surface);
-  color: var(--text);
-  font-family: inherit;
-  font-size: 13.5px;
+  font-size: 12.5px;
+  transition: border-color 0.1s, box-shadow 0.1s;
+}
+.textarea {
+  height: auto;
+  padding: 7px 9px;
+  resize: vertical;
+  min-height: 68px;
+  line-height: 1.6;
+}
+.input::placeholder,
+.textarea::placeholder {
+  color: var(--ink-4);
+}
+.input:hover,
+.select:hover,
+.textarea:hover {
+  border-color: var(--n-300);
 }
 .input:focus,
 .select:focus,
 .textarea:focus {
-  border-color: var(--blue);
   outline: none;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  border-color: var(--accent);
+  box-shadow: var(--focus);
 }
-.textarea {
-  resize: vertical;
-  min-height: 76px;
-  line-height: 1.55;
+.input-error,
+.input-error:hover {
+  border-color: var(--danger);
 }
-.input-error {
-  border-color: var(--red);
+
+.select {
+  /* 기본 화살표를 지우고 직접 그린다 — 브라우저마다 모양이 제각각이라
+     같은 화면에서 컨트롤 높이가 어긋난다. */
+  appearance: none;
+  padding-right: 26px;
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
+    linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: calc(100% - 14px) 55%, calc(100% - 9px) 55%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  cursor: pointer;
 }
 
 .hint {
-  font-size: 12px;
-  color: var(--text-faint);
+  font-size: 11.5px;
+  color: var(--ink-4);
   margin-top: 4px;
+  display: block;
 }
 .hint-error {
-  color: var(--red);
+  color: var(--danger);
 }
 
 .row {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   align-items: center;
   flex-wrap: wrap;
 }
 
-/* ── 표 ─────────────────────────────────────────────────────────────────── */
+/* 검색창 — 왼쪽에 돋보기 자리를 비우고 오른쪽에 단축키를 안내한다. */
+.search-wrap {
+  position: relative;
+  flex: 1 1 240px;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+.search-wrap .input {
+  padding-left: 28px;
+  padding-right: 34px;
+}
+.search-icon {
+  position: absolute;
+  left: 9px;
+  color: var(--ink-4);
+  pointer-events: none;
+  display: flex;
+}
+.search-kbd {
+  position: absolute;
+  right: 8px;
+  pointer-events: none;
+}
 
-/* 표는 넓어질 수 있다. 페이지 전체가 아니라 표만 가로 스크롤되게 감싼다. */
+/* 키 캡. 실제로 쓰는 단축키만 표시한다. */
+.kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-1);
+  background: var(--surface-2);
+  color: var(--ink-4);
+  font-family: var(--mono);
+  font-size: 10px;
+  line-height: 1;
+}
+
+/* 분절 선택(형식·난이도 등 3~4개 중 하나). */
+.segmented {
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-2);
+  background: var(--surface-2);
+  gap: 2px;
+}
+.segmented button {
+  height: 24px;
+  padding: 0 11px;
+  border: none;
+  border-radius: var(--r-1);
+  background: transparent;
+  color: var(--ink-2);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.1s, color 0.1s;
+}
+.segmented button:hover {
+  color: var(--ink);
+}
+.segmented button[aria-pressed='true'] {
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(16, 20, 28, 0.08);
+}
+:root[data-theme='dark'] .segmented button[aria-pressed='true'] {
+  background: var(--n-200);
+  box-shadow: none;
+}
+
+/* ── 표 ─────────────────────────────────────────────────────────────── */
+
 .table-wrap {
   overflow-x: auto;
 }
 
 .table {
   width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 12.5px;
 }
 
 .table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
   text-align: left;
   font-weight: 600;
-  font-size: 12px;
-  color: var(--text-muted);
-  padding: 9px 12px;
-  border-bottom: 1px solid var(--border);
+  font-size: 11.5px;
+  color: var(--ink-3);
+  height: 30px;
+  padding: 0 12px;
   white-space: nowrap;
-  background: var(--surface-alt);
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--line);
 }
 
 .table td {
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--border);
+  height: var(--row-h);
+  padding: 0 12px;
+  border-bottom: 1px solid var(--line);
   vertical-align: middle;
-}
-
-.table tbody tr:hover {
-  background: var(--blue-weak);
 }
 
 .table tbody tr:last-child td {
   border-bottom: none;
 }
 
+.table tbody tr:hover td {
+  background: var(--surface-2);
+}
+
+/* 정렬 가능한 열 머리. 지금 정렬 중인 열만 화살표가 진해진다. */
+.th-sort {
+  cursor: pointer;
+  user-select: none;
+}
+.th-sort:hover {
+  color: var(--ink);
+}
+.th-sort-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.th-arrow {
+  opacity: 0;
+  font-size: 9px;
+  transition: opacity 0.1s;
+}
+.th-sort:hover .th-arrow {
+  opacity: 0.4;
+}
+.th-sort[aria-sort] .th-arrow {
+  opacity: 1;
+  color: var(--accent);
+}
+
 .num {
   font-family: var(--mono);
   font-variant-numeric: tabular-nums;
+  font-size: 12px;
 }
-
+.right {
+  text-align: right;
+}
+.nowrap {
+  white-space: nowrap;
+}
 .truncate {
-  max-width: 320px;
+  max-width: 340px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.muted {
+  color: var(--ink-4);
+}
+.strong {
+  font-weight: 600;
+}
 
-/* ── 상태 표시 ───────────────────────────────────────────────────────────── */
+/* 표 아래 페이지 이동 줄. */
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 14px;
+  border-top: 1px solid var(--line);
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+/* ── 상태 표시 ─────────────────────────────────────────────────────── */
 
 .empty {
-  padding: 40px 20px;
+  padding: 34px 20px;
   text-align: center;
-  color: var(--text-faint);
-  font-size: 13px;
+  color: var(--ink-4);
+  font-size: 12.5px;
 }
 
 .spinner {
-  width: 16px;
-  height: 16px;
-  border: 2px solid var(--border-strong);
-  border-top-color: var(--blue);
+  width: 13px;
+  height: 13px;
+  border: 1.5px solid var(--line-strong);
+  border-top-color: var(--accent);
   border-radius: 50%;
-  animation: spin 0.7s linear infinite;
+  animation: spin 0.65s linear infinite;
+  flex-shrink: 0;
 }
 @keyframes spin {
   to {
@@ -392,26 +756,31 @@ a:hover {
   }
 }
 
-.dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  flex-shrink: 0;
+/* 뼈대(skeleton) — 로딩 중에 표의 형태를 유지해 화면이 튀지 않게 한다. */
+.skel {
+  display: block;
+  height: 9px;
+  border-radius: var(--r-1);
+  background: linear-gradient(90deg, var(--surface-3), var(--n-150), var(--surface-3));
+  background-size: 200% 100%;
+  animation: shimmer 1.3s ease-in-out infinite;
 }
-.dot-live {
-  background: var(--green);
-  animation: pulse 1.8s ease-in-out infinite;
-}
-.dot-dead {
-  background: var(--text-faint);
-}
-@keyframes pulse {
-  50% {
-    opacity: 0.35;
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
   }
 }
 
-/* 움직임에 민감한 사용자를 위해 애니메이션을 끈다. */
+/* 실시간 연결 표시등. */
+.pulse {
+  animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse {
+  50% {
+    opacity: 0.3;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -422,7 +791,6 @@ a:hover {
   }
 }
 
-/* 화면에 보이지 않지만 스크린리더는 읽는 텍스트. */
 .sr-only {
   position: absolute;
   width: 1px;
@@ -435,13 +803,96 @@ a:hover {
   border: 0;
 }
 
-/* ── 좁은 화면 ───────────────────────────────────────────────────────────── */
+/* ── 겹쳐 뜨는 것(모달·팔레트) ───────────────────────────────────────── */
 
-@media (max-width: 860px) {
+.scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 18, 22, 0.5);
+  z-index: 60;
+  display: flex;
+  justify-content: center;
+  padding: 16px;
+  /* 모달은 화면 정중앙보다 살짝 위가 편하다(시선의 자연 위치). */
+  align-items: flex-start;
+  padding-top: 12vh;
+  animation: fade 0.12s ease-out;
+}
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+
+.modal {
+  width: 100%;
+  max-width: 440px;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-3);
+  box-shadow: var(--pop);
+  animation: rise 0.14s ease-out;
+}
+@keyframes rise {
+  from {
+    transform: translateY(-6px);
+    opacity: 0;
+  }
+}
+
+.modal-head {
+  padding: 13px 16px 0;
+}
+.modal-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+.modal-body {
+  padding: 9px 16px 16px;
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--ink-2);
+}
+.modal-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 7px;
+  padding: 11px 16px;
+  border-top: 1px solid var(--line);
+  background: var(--surface-2);
+  border-radius: 0 0 var(--r-3) var(--r-3);
+}
+
+/* 눈에 띄어야 하는 안내 상자 — 색 띠 대신 옅은 배경으로 구분한다. */
+.callout {
+  border-radius: var(--r-2);
+  padding: 9px 11px;
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+.callout-warn {
+  background: var(--warn-bg);
+  color: var(--warn);
+}
+.callout-danger {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+.callout-info {
+  background: var(--info-bg);
+  color: var(--info);
+}
+
+/* ── 좁은 화면 ─────────────────────────────────────────────────────── */
+
+@media (max-width: 900px) {
   .shell {
     grid-template-columns: 1fr;
   }
   .page {
-    padding: 16px 14px 40px;
+    padding: 16px 14px 44px;
+  }
+  .truncate {
+    max-width: 200px;
   }
 }

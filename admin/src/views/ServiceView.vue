@@ -4,126 +4,138 @@ import { api } from '../api/client';
 import type { ServiceStatus } from '../api/types';
 import { useAsync } from '../composables/useAsync';
 import { useLiveMetrics } from '../composables/useLiveMetrics';
+import { useNow } from '../composables/useNow';
 import { num, pct, ms, uptime, dateTime, timeAgo, statusTone } from '../lib/format';
 import StatTile from '../components/StatTile.vue';
 import TrafficChart from '../components/TrafficChart.vue';
 import AsyncSection from '../components/AsyncSection.vue';
+import LiveIndicator from '../components/LiveIndicator.vue';
+import AppIcon from '../components/AppIcon.vue';
 
 /**
- * 서비스 상태 — "지금 서버가 제대로 일하고 있나"에 답하는 화면.
+ * 서비스 상태 — 운영 진단 화면.
  *
- * 대시보드가 '서비스 전반의 요약'이라면 여기는 '운영 진단'이다.
- * 경로별 지연·오류, 느린 요청, 저장소 연결 상태를 자세히 본다.
+ * 대시보드가 '요약'이라면 여기는 '왜 느린가 / 무엇이 실패하는가'에 답한다.
+ * 경로별 지연·오류, 느린 요청, 실패 요청을 각각 따로 세워 원인을 좁힌다.
  */
 
 const status = useAsync<ServiceStatus>(() => api.status());
 const { snapshot, live, lastUpdate } = useLiveMetrics();
+const now = useNow();
 
 onMounted(() => void status.run());
 
 const m = computed(() => snapshot.value);
 const healthy = computed(() => status.data.value?.store_healthy === true);
 
-/** 최근 요청 중 느린 것만 — 병목을 바로 짚기 위해. */
-const slowRequests = computed(() => (m.value?.recent ?? []).filter((e) => e.slow));
-
-/** 오류가 난 요청만. */
-const failedRequests = computed(() => (m.value?.recent ?? []).filter((e) => e.status >= 400));
+const slow = computed(() => (m.value?.recent ?? []).filter((e) => e.slow));
+const failed = computed(() => (m.value?.recent ?? []).filter((e) => e.status >= 400));
 
 const errorTone = computed(() => {
-  const rate = m.value?.error_rate ?? 0;
-  if (rate >= 5) return 'red';
-  if (rate >= 1) return 'amber';
-  return 'green';
+  const r = m.value?.error_rate ?? 0;
+  return r >= 5 ? 'danger' : r >= 1 ? 'warn' : 'default';
 });
 </script>
 
 <template>
   <div class="page">
-    <div class="page-head">
+    <header class="page-head">
       <div>
         <h1 class="page-title">서비스 상태</h1>
-        <p class="page-sub">서버 연결·응답 속도·오류를 실시간으로 진단합니다</p>
+        <p class="page-sub">서버 연결 · 응답 속도 · 오류를 실시간으로 진단합니다</p>
       </div>
-      <div class="live">
-        <span class="dot" :class="live ? 'dot-live' : 'dot-dead'" aria-hidden="true" />
-        <span>{{ live ? '실시간 연결됨' : '연결 끊김 — 재연결 중' }}</span>
-        <span v-if="lastUpdate" class="live-time num">{{ timeAgo(lastUpdate.toISOString()) }}</span>
+      <div class="row">
+        <LiveIndicator :live="live" :last-update="lastUpdate" />
+        <button
+          class="btn btn-sm"
+          type="button"
+          :disabled="status.loading.value"
+          @click="() => void status.run()"
+        >
+          <AppIcon name="refresh" :size="13" />
+          다시 확인
+        </button>
       </div>
-    </div>
+    </header>
 
-    <!-- 저장소 연결 -->
+    <!-- 저장소 연결 상태: 색 띠 대신 아이콘 + 배지로 나타낸다 -->
     <AsyncSection
       :loading="status.loading.value"
       :error="status.error.value"
       :empty="!status.data.value"
+      :skeleton-rows="2"
       :on-retry="() => void status.run()"
     >
-      <section class="card sec" :class="healthy ? 'ok' : 'bad'">
-        <div class="card-body health">
-          <span class="health-dot" :class="healthy ? 'health-ok' : 'health-bad'" aria-hidden="true" />
-          <div class="health-text">
-            <div class="health-title">
-              {{ healthy ? '정상 동작 중' : '저장소에 연결할 수 없습니다' }}
-            </div>
-            <div class="health-sub">
-              저장소 <b>{{ status.data.value!.store }}</b>
-              · 가동 {{ uptime(status.data.value!.uptime_seconds) }}
-              · 확인 {{ dateTime(status.data.value!.checked_at) }}
-            </div>
-            <div v-if="status.data.value!.store_error" class="health-err">
-              {{ status.data.value!.store_error }}
-            </div>
+      <section class="panel health">
+        <AppIcon
+          :name="healthy ? 'check' : 'alert'"
+          :size="17"
+          :class="healthy ? 'h-ok' : 'h-bad'"
+        />
+        <div class="health-text">
+          <div class="health-title">
+            {{ healthy ? '정상 동작 중' : '저장소에 연결할 수 없습니다' }}
           </div>
-          <button class="btn btn-sm" type="button" @click="() => void status.run()">다시 확인</button>
+          <div class="health-meta num">
+            저장소 {{ status.data.value!.store }} · 가동
+            {{ uptime(status.data.value!.uptime_seconds) }} · 확인
+            {{ dateTime(status.data.value!.checked_at) }}
+          </div>
+          <div v-if="status.data.value!.store_error" class="callout callout-danger health-err">
+            {{ status.data.value!.store_error }}
+          </div>
         </div>
+        <span class="badge" :class="healthy ? 'badge-ok' : 'badge-danger'">
+          {{ healthy ? 'OK' : 'DOWN' }}
+        </span>
       </section>
     </AsyncSection>
 
-    <!-- 지표 요약 -->
-    <section class="grid grid-stats sec">
-      <StatTile label="누적 요청" :value="num(m?.total_requests)" hint="서버 기동 이후" />
+    <section class="panel tiles block">
+      <StatTile label="누적 요청" :value="num(m?.total_requests)" sub="서버 기동 이후" />
       <StatTile
-        label="오류율(최근 1시간)"
+        label="오류율"
         :value="pct(m?.error_rate)"
-        :hint="`5xx ${num(m?.total_errors)}건`"
+        :sub="`최근 1시간 · 5xx ${num(m?.total_errors)}`"
         :tone="errorTone"
       />
-      <StatTile label="4xx 거부" :value="num(m?.total_rejected)" hint="잘못된 요청·권한 없음" />
-      <StatTile label="평균 응답" :value="ms(m?.avg_latency_ms)" :hint="`p95 ${ms(m?.p95_latency_ms)}`" />
-      <StatTile label="지금 활동 중" :value="num(m?.active_users)" hint="최근 5분" tone="blue" />
+      <StatTile label="4xx 거부" :value="num(m?.total_rejected)" sub="잘못된 요청 · 권한 없음" />
+      <StatTile label="평균 응답" :value="ms(m?.avg_latency_ms)" :sub="`p95 ${ms(m?.p95_latency_ms)}`" />
+      <StatTile label="지금 활동 중" :value="num(m?.active_users)" sub="최근 5분" tone="accent" />
     </section>
 
-    <section class="card sec">
-      <div class="card-head"><h2 class="card-title">최근 1시간 요청량</h2></div>
-      <div class="card-body"><TrafficChart :points="m?.traffic ?? []" /></div>
+    <section class="panel block">
+      <div class="panel-head">
+        <h2 class="panel-title">요청량</h2>
+        <span class="panel-note">최근 1시간 · 분 단위</span>
+      </div>
+      <div class="panel-body"><TrafficChart :points="m?.traffic ?? []" /></div>
     </section>
 
-    <div class="grid grid-2 sec">
-      <!-- 경로별 -->
-      <section class="card">
-        <div class="card-head">
-          <h2 class="card-title">많이 호출된 경로</h2>
-          <span class="hint">평균 응답 · 오류 수</span>
+    <div class="grid grid-2 block">
+      <section class="panel">
+        <div class="panel-head">
+          <h2 class="panel-title">경로별</h2>
+          <span class="panel-note">호출 많은 순</span>
         </div>
         <div class="table-wrap">
           <table class="table">
             <thead>
               <tr>
                 <th>경로</th>
-                <th class="right">호출</th>
-                <th class="right">평균</th>
-                <th class="right">오류</th>
+                <th class="right" style="width: 62px">호출</th>
+                <th class="right" style="width: 70px">평균</th>
+                <th class="right" style="width: 58px">오류</th>
               </tr>
             </thead>
             <tbody>
               <tr v-if="!m?.top_paths?.length">
-                <td colspan="4" class="empty">아직 기록이 없어요</td>
+                <td colspan="4" class="empty">아직 기록이 없습니다</td>
               </tr>
               <tr v-for="p in m?.top_paths ?? []" :key="p.path">
                 <td class="truncate num">{{ p.path }}</td>
                 <td class="right num">{{ num(p.count) }}</td>
-                <td class="right num" :class="{ warn: p.avg_ms >= 300 }">{{ ms(p.avg_ms) }}</td>
+                <td class="right num" :class="{ attention: p.avg_ms >= 300 }">{{ ms(p.avg_ms) }}</td>
                 <td class="right num" :class="{ bad: p.errors > 0 }">{{ num(p.errors) }}</td>
               </tr>
             </tbody>
@@ -131,27 +143,26 @@ const errorTone = computed(() => {
         </div>
       </section>
 
-      <!-- 느린 요청 -->
-      <section class="card">
-        <div class="card-head">
-          <h2 class="card-title">느린 요청</h2>
-          <span class="hint">1초 이상 걸린 요청</span>
+      <section class="panel">
+        <div class="panel-head">
+          <h2 class="panel-title">느린 요청</h2>
+          <span class="panel-note">1초 이상</span>
         </div>
         <div class="table-wrap">
           <table class="table">
             <thead>
               <tr>
-                <th>시각</th>
+                <th style="width: 76px">시각</th>
                 <th>경로</th>
-                <th class="right">소요</th>
+                <th class="right" style="width: 72px">소요</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-if="slowRequests.length === 0">
-                <td colspan="3" class="empty">느린 요청이 없어요 👍</td>
+              <tr v-if="slow.length === 0">
+                <td colspan="3" class="empty">느린 요청이 없습니다</td>
               </tr>
-              <tr v-for="(e, i) in slowRequests" :key="`${e.at}-${i}`">
-                <td class="num">{{ timeAgo(e.at) }}</td>
+              <tr v-for="(e, i) in slow" :key="`${e.at}-${i}`">
+                <td class="num muted">{{ timeAgo(e.at, now) }}</td>
                 <td class="truncate num">{{ e.method }} {{ e.path }}</td>
                 <td class="right num bad">{{ ms(e.duration_ms) }}</td>
               </tr>
@@ -161,37 +172,36 @@ const errorTone = computed(() => {
       </section>
     </div>
 
-    <!-- 실패한 요청 -->
-    <section class="card sec">
-      <div class="card-head">
-        <h2 class="card-title">실패한 요청</h2>
-        <span class="hint">4xx · 5xx 응답</span>
+    <section class="panel block">
+      <div class="panel-head">
+        <h2 class="panel-title">실패한 요청</h2>
+        <span class="panel-note">4xx · 5xx</span>
       </div>
       <div class="table-wrap">
         <table class="table">
           <thead>
             <tr>
-              <th>시각</th>
-              <th>메서드</th>
+              <th style="width: 78px">시각</th>
+              <th style="width: 62px">메서드</th>
               <th>경로</th>
-              <th>상태</th>
-              <th class="right">소요</th>
-              <th>사용자</th>
+              <th style="width: 62px">상태</th>
+              <th class="right" style="width: 72px">소요</th>
+              <th style="width: 130px">사용자</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-if="failedRequests.length === 0">
-              <td colspan="6" class="empty">최근 실패한 요청이 없어요 👍</td>
+            <tr v-if="failed.length === 0">
+              <td colspan="6" class="empty">최근 실패한 요청이 없습니다</td>
             </tr>
-            <tr v-for="(e, i) in failedRequests" :key="`${e.at}-${i}`">
-              <td class="num">{{ timeAgo(e.at) }}</td>
+            <tr v-for="(e, i) in failed" :key="`${e.at}-${i}`">
+              <td class="num muted">{{ timeAgo(e.at, now) }}</td>
               <td class="num">{{ e.method }}</td>
               <td class="truncate num">{{ e.path }}</td>
               <td>
                 <span class="badge" :class="`badge-${statusTone(e.status)}`">{{ e.status }}</span>
               </td>
               <td class="right num">{{ ms(e.duration_ms) }}</td>
-              <td class="num muted">{{ e.user_id || '비로그인' }}</td>
+              <td class="num muted truncate">{{ e.user_id || '비로그인' }}</td>
             </tr>
           </tbody>
         </table>
@@ -201,76 +211,67 @@ const errorTone = computed(() => {
 </template>
 
 <style scoped>
-.sec {
-  margin-bottom: 16px;
-}
-.live {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 12.5px;
-  color: var(--text-muted);
-}
-.live-time {
-  color: var(--text-faint);
+.block {
+  margin-top: 12px;
 }
 
-.ok {
-  border-left: 3px solid var(--green);
-}
-.bad {
-  border-left: 3px solid var(--red);
-}
 .health {
   display: flex;
-  align-items: center;
-  gap: 13px;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 13px 14px;
 }
-.health-dot {
-  width: 11px;
-  height: 11px;
-  border-radius: 50%;
-  flex-shrink: 0;
+.h-ok {
+  color: var(--ok);
+  margin-top: 1px;
 }
-.health-ok {
-  background: var(--green);
-}
-.health-bad {
-  background: var(--red);
+.h-bad {
+  color: var(--danger);
+  margin-top: 1px;
 }
 .health-text {
   flex: 1;
   min-width: 0;
 }
 .health-title {
-  font-weight: 700;
-  font-size: 14px;
+  font-weight: 600;
+  font-size: 13px;
 }
-.health-sub {
-  font-size: 12.5px;
-  color: var(--text-muted);
+.health-meta {
+  font-size: 11.5px;
+  color: var(--ink-3);
   margin-top: 2px;
 }
 .health-err {
-  font-size: 12px;
-  color: var(--red);
-  margin-top: 5px;
+  margin-top: 8px;
   overflow-wrap: anywhere;
 }
 
-.right {
-  text-align: right;
+/*
+ * 지표 타일 띠.
+ *
+ * 칸 사이 구분선을 border 로 긋지 않는다. 칸이 줄바꿈되면 세로선이 엉뚱한 자리에
+ * 남아 어긋나고, 그때마다 미디어쿼리로 방향을 바꿔 주는 땜질이 필요해진다.
+ * 대신 격자 배경 위에 1px 간격을 두고 타일을 얹는다 — 가로·세로 어느 쪽으로
+ * 접히든 구분선이 정확히 칸 사이에만 생긴다.
+ */
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1px;
+  background: var(--line);
+  overflow: hidden;
 }
-.warn {
-  color: var(--amber);
-  font-weight: 700;
+.tiles > :deep(.tile) {
+  background: var(--surface);
 }
-td.bad {
-  color: var(--red);
-  font-weight: 700;
-  border-left: none;
+
+.attention {
+  color: var(--warn);
+  font-weight: 600;
 }
-.muted {
-  color: var(--text-faint);
+.bad {
+  color: var(--danger);
+  font-weight: 600;
 }
 </style>

@@ -4,240 +4,270 @@ import { api } from '../api/client';
 import type { Dashboard } from '../api/types';
 import { useAsync } from '../composables/useAsync';
 import { useLiveMetrics } from '../composables/useLiveMetrics';
+import { useNow } from '../composables/useNow';
 import { num, pct, ms, uptime, timeAgo, statusTone } from '../lib/format';
 import StatTile from '../components/StatTile.vue';
 import TrafficChart from '../components/TrafficChart.vue';
 import AsyncSection from '../components/AsyncSection.vue';
+import LiveIndicator from '../components/LiveIndicator.vue';
+import AppIcon from '../components/AppIcon.vue';
 
 /**
- * 대시보드 — "지금 서비스가 어떤가"를 한 화면에서 본다.
+ * 대시보드 — "지금 서비스가 어떤가"에 한 화면으로 답한다.
  *
- * 데이터가 두 갈래인 이유:
- *  · 집계(사용자 수·콘텐츠 분포)는 한 번 불러오면 되고 매초 바뀌지 않는다 → dashboard()
+ * 데이터를 두 갈래로 받는 이유:
+ *  · 집계(사용자 수·콘텐츠 분포)는 매초 바뀌지 않는다 → 한 번만 dashboard()
  *  · 트래픽·지연·활성 사용자는 실시간이어야 한다 → SSE 스트림
- * 둘을 하나로 합쳐 2초마다 전부 다시 계산하면 DB 를 헛되이 두드리게 된다.
+ * 둘을 합쳐 2초마다 전부 다시 계산하면 DB 를 헛되이 두드린다.
  */
 const dash = useAsync<Dashboard>(() => api.dashboard());
 const { snapshot, live, lastUpdate } = useLiveMetrics();
+const now = useNow();
 
 onMounted(() => void dash.run());
 
 /** 스트림이 붙기 전에는 최초 집계에 실려 온 지표를 쓴다(빈 화면 방지). */
-const metrics = computed(() => snapshot.value ?? dash.data.value?.metrics ?? null);
-
+const m = computed(() => snapshot.value ?? dash.data.value?.metrics ?? null);
 const users = computed(() => dash.data.value?.users ?? null);
 const content = computed(() => dash.data.value?.content ?? null);
 const learning = computed(() => dash.data.value?.learning ?? null);
 const service = computed(() => dash.data.value?.service ?? null);
 
-/** 에러율이 위험 수준이면 색으로 알린다 — 숫자만으로는 눈에 안 들어온다. */
+/** 지표에 색을 입히는 건 '주의가 필요할 때'뿐이다. */
 const errorTone = computed(() => {
-  const rate = metrics.value?.error_rate ?? 0;
-  if (rate >= 5) return 'red';
-  if (rate >= 1) return 'amber';
-  return 'green';
+  const r = m.value?.error_rate ?? 0;
+  return r >= 5 ? 'danger' : r >= 1 ? 'warn' : 'default';
+});
+const latencyTone = computed(() => {
+  const p = m.value?.p95_latency_ms ?? 0;
+  return p >= 1000 ? 'danger' : p >= 300 ? 'warn' : 'default';
 });
 
-const latencyTone = computed(() => {
-  const p95 = metrics.value?.p95_latency_ms ?? 0;
-  if (p95 >= 1000) return 'red';
-  if (p95 >= 300) return 'amber';
-  return 'green';
+/** 학습 진행 막대의 비율(0 나눗셈 방지). */
+const learnTotal = computed(() => {
+  const l = learning.value;
+  return l ? l.new + l.learning + l.mastered : 0;
 });
+function share(v: number): string {
+  return learnTotal.value === 0 ? '0%' : `${(v / learnTotal.value) * 100}%`;
+}
 </script>
 
 <template>
   <div class="page">
-    <div class="page-head">
+    <header class="page-head">
       <div>
         <h1 class="page-title">대시보드</h1>
-        <p class="page-sub">사용자 · 학습 콘텐츠 · 실시간 서비스 상태를 한눈에 봅니다</p>
+        <p class="page-sub">사용자 · 학습 콘텐츠 · 서비스 상태를 한눈에 봅니다</p>
       </div>
-      <div class="live">
-        <span class="dot" :class="live ? 'dot-live' : 'dot-dead'" aria-hidden="true" />
-        <span>{{ live ? '실시간 연결됨' : '연결 끊김 — 재연결 중' }}</span>
-        <span v-if="lastUpdate" class="live-time num">{{ timeAgo(lastUpdate.toISOString()) }}</span>
+      <div class="row">
+        <LiveIndicator :live="live" :last-update="lastUpdate" />
+        <button
+          class="btn btn-sm"
+          type="button"
+          :disabled="dash.loading.value"
+          @click="() => void dash.run()"
+        >
+          <AppIcon name="refresh" :size="13" />
+          새로고침
+        </button>
       </div>
-    </div>
+    </header>
 
     <AsyncSection
       :loading="dash.loading.value"
       :error="dash.error.value"
       :empty="!dash.data.value"
+      :skeleton-rows="6"
       :on-retry="() => void dash.run()"
     >
-      <!-- 실시간 지표 -->
-      <section class="grid grid-stats sec">
+      <!-- 실시간 지표: 상자 다섯 개가 아니라 하나의 띠 -->
+      <section class="panel tiles">
         <StatTile
           label="지금 활동 중"
-          :value="num(metrics?.active_users)"
-          hint="최근 5분 내 요청한 사용자"
-          tone="blue"
+          :value="num(m?.active_users)"
+          sub="최근 5분 내 요청"
+          tone="accent"
         />
         <StatTile
           label="분당 요청"
-          :value="num(metrics?.requests_per_min)"
-          :hint="`누적 ${num(metrics?.total_requests)}건`"
+          :value="num(m?.requests_per_min)"
+          :sub="`누적 ${num(m?.total_requests)}`"
         />
         <StatTile
           label="오류율"
-          :value="pct(metrics?.error_rate)"
-          :hint="`5xx ${num(metrics?.total_errors)}건 · 4xx ${num(metrics?.total_rejected)}건`"
+          :value="pct(m?.error_rate)"
+          :sub="`5xx ${num(m?.total_errors)} · 4xx ${num(m?.total_rejected)}`"
           :tone="errorTone"
         />
         <StatTile
           label="응답 p95"
-          :value="ms(metrics?.p95_latency_ms)"
-          :hint="`평균 ${ms(metrics?.avg_latency_ms)}`"
+          :value="ms(m?.p95_latency_ms)"
+          :sub="`평균 ${ms(m?.avg_latency_ms)}`"
           :tone="latencyTone"
         />
         <StatTile
-          label="가동 시간"
-          :value="uptime(metrics?.uptime_seconds)"
-          :hint="service ? `저장소 ${service.store}` : ''"
-          :tone="service?.store_healthy === false ? 'red' : 'gray'"
+          label="가동"
+          :value="uptime(m?.uptime_seconds)"
+          :sub="service ? `저장소 ${service.store}` : ''"
+          :tone="service && !service.store_healthy ? 'danger' : 'default'"
         />
       </section>
 
-      <!-- 트래픽 그래프 -->
-      <section class="card sec">
-        <div class="card-head">
-          <h2 class="card-title">최근 1시간 요청량</h2>
-          <span class="legend">
-            <i class="sw sw-blue" aria-hidden="true" />정상
-            <i class="sw sw-red" aria-hidden="true" />오류 발생
-          </span>
+      <!-- 저장소가 죽었을 때만 나타나는 경고 -->
+      <div v-if="service && !service.store_healthy" class="callout callout-danger alert-row">
+        <AppIcon name="alert" :size="15" />
+        <span>저장소({{ service.store }})에 연결할 수 없습니다. 서비스 상태에서 확인하세요.</span>
+        <RouterLink to="/service" class="alert-link">진단 →</RouterLink>
+      </div>
+
+      <section class="panel block">
+        <div class="panel-head">
+          <h2 class="panel-title">요청량</h2>
+          <span class="panel-note">최근 1시간 · 분 단위</span>
         </div>
-        <div class="card-body">
-          <TrafficChart :points="metrics?.traffic ?? []" />
+        <div class="panel-body">
+          <TrafficChart :points="m?.traffic ?? []" />
         </div>
       </section>
 
-      <div class="grid grid-2 sec">
+      <div class="grid grid-2 block">
         <!-- 사용자 -->
-        <section class="card">
-          <div class="card-head">
-            <h2 class="card-title">사용자</h2>
-            <RouterLink to="/users" class="more">전체 보기 →</RouterLink>
+        <section class="panel">
+          <div class="panel-head">
+            <h2 class="panel-title">사용자</h2>
+            <RouterLink to="/users" class="link-more">전체 보기</RouterLink>
           </div>
-          <div class="card-body">
-            <dl class="kv">
-              <div><dt>전체</dt><dd class="num">{{ num(users?.total) }}명</dd></div>
-              <div><dt>오늘 가입</dt><dd class="num">{{ num(users?.new_today) }}명</dd></div>
-              <div><dt>최근 7일 가입</dt><dd class="num">{{ num(users?.new_7days) }}명</dd></div>
-              <div><dt>관리자</dt><dd class="num">{{ num(users?.admins) }}명</dd></div>
-              <div>
-                <dt>정지 계정</dt>
-                <dd class="num" :class="{ warn: (users?.suspended ?? 0) > 0 }">
-                  {{ num(users?.suspended) }}명
-                </dd>
-              </div>
-            </dl>
-          </div>
+          <dl class="kv">
+            <div><dt>전체</dt><dd class="num">{{ num(users?.total) }}</dd></div>
+            <div><dt>오늘 가입</dt><dd class="num">{{ num(users?.new_today) }}</dd></div>
+            <div><dt>최근 7일</dt><dd class="num">{{ num(users?.new_7days) }}</dd></div>
+            <div><dt>관리자</dt><dd class="num">{{ num(users?.admins) }}</dd></div>
+            <div>
+              <dt>정지 계정</dt>
+              <dd class="num" :class="{ warn: (users?.suspended ?? 0) > 0 }">
+                {{ num(users?.suspended) }}
+              </dd>
+            </div>
+          </dl>
         </section>
 
         <!-- 학습 진행 -->
-        <section class="card">
-          <div class="card-head">
-            <h2 class="card-title">전체 학습 진행</h2>
-            <span class="badge badge-green">완료율 {{ pct(learning?.rate) }}</span>
+        <section class="panel">
+          <div class="panel-head">
+            <h2 class="panel-title">학습 진행</h2>
+            <span class="panel-note">전체 사용자 · 완료율 {{ pct(learning?.rate) }}</span>
           </div>
-          <div class="card-body">
-            <div class="bar" role="img" :aria-label="`완료 ${learning?.mastered ?? 0}건, 학습 중 ${learning?.learning ?? 0}건, 미시작 ${learning?.new ?? 0}건`">
-              <span class="seg seg-done" :style="{ flexGrow: learning?.mastered || 0 }" />
-              <span class="seg seg-doing" :style="{ flexGrow: learning?.learning || 0 }" />
-              <span class="seg seg-todo" :style="{ flexGrow: learning?.new || 0 }" />
+          <div class="panel-body">
+            <div
+              class="stack"
+              role="img"
+              :aria-label="`완료 ${learning?.mastered ?? 0}, 학습 중 ${learning?.learning ?? 0}, 미시작 ${learning?.new ?? 0}`"
+            >
+              <span class="seg s-done" :style="{ width: share(learning?.mastered ?? 0) }" />
+              <span class="seg s-doing" :style="{ width: share(learning?.learning ?? 0) }" />
+              <span class="seg s-todo" :style="{ width: share(learning?.new ?? 0) }" />
             </div>
-            <dl class="kv kv-tight">
-              <div><dt><i class="sw sw-green" />완료</dt><dd class="num">{{ num(learning?.mastered) }}</dd></div>
-              <div><dt><i class="sw sw-blue" />학습 중</dt><dd class="num">{{ num(learning?.learning) }}</dd></div>
-              <div><dt><i class="sw sw-gray" />미시작</dt><dd class="num">{{ num(learning?.new) }}</dd></div>
-            </dl>
+            <ul class="legend">
+              <li>
+                <span class="sw s-done" /><span>완료</span>
+                <b class="num">{{ num(learning?.mastered) }}</b>
+              </li>
+              <li>
+                <span class="sw s-doing" /><span>학습 중</span>
+                <b class="num">{{ num(learning?.learning) }}</b>
+              </li>
+              <li>
+                <span class="sw s-todo" /><span>미시작</span>
+                <b class="num">{{ num(learning?.new) }}</b>
+              </li>
+            </ul>
           </div>
         </section>
 
         <!-- 콘텐츠 분포 -->
-        <section class="card">
-          <div class="card-head">
-            <h2 class="card-title">문제 {{ num(content?.total_cards) }}장</h2>
-            <RouterLink to="/cards" class="more">관리하기 →</RouterLink>
+        <section class="panel">
+          <div class="panel-head">
+            <h2 class="panel-title">문제 {{ num(content?.total_cards) }}장</h2>
+            <RouterLink to="/cards" class="link-more">관리</RouterLink>
           </div>
-          <div class="card-body">
-            <div v-if="!content?.by_category?.length" class="empty">등록된 문제가 없어요</div>
+          <div class="panel-body">
+            <div v-if="!content?.by_category?.length" class="empty">등록된 문제가 없습니다</div>
             <ul v-else class="dist">
               <li v-for="c in content.by_category" :key="c.code">
-                <span class="dist-label">{{ c.label }}</span>
+                <span class="dist-name">{{ c.label }}</span>
                 <span class="dist-track">
                   <span
                     class="dist-fill"
                     :style="{ width: `${(c.count / (content!.total_cards || 1)) * 100}%` }"
                   />
                 </span>
-                <span class="dist-num num">{{ num(c.count) }}</span>
+                <span class="dist-n num">{{ num(c.count) }}</span>
               </li>
             </ul>
             <div v-if="content?.by_type?.length" class="chips">
-              <span v-for="t in content.by_type" :key="t.label" class="badge badge-gray">
+              <span v-for="t in content.by_type" :key="t.label" class="badge badge-neutral">
                 {{ t.label }} {{ num(t.count) }}
+              </span>
+              <span v-for="d in content?.by_difficulty ?? []" :key="d.label" class="badge badge-neutral">
+                {{ d.label }} {{ num(d.count) }}
               </span>
             </div>
           </div>
         </section>
 
-        <!-- 점검이 필요한 문제 -->
-        <section class="card">
-          <div class="card-head">
-            <h2 class="card-title">아무도 못 푼 문제</h2>
-            <span class="card-note">푼 사람은 있는데 완료가 0건</span>
+        <!-- 점검 대상 문제 -->
+        <section class="panel">
+          <div class="panel-head">
+            <h2 class="panel-title">점검이 필요한 문제</h2>
+            <span class="panel-note">푼 사람은 있는데 완료 0건</span>
           </div>
-          <div class="card-body">
-            <div v-if="!content?.untouched?.length" class="empty">
-              모든 문제에서 완료자가 나왔어요
-            </div>
-            <ul v-else class="untouched">
-              <li v-for="c in content.untouched" :key="c.id">
-                <RouterLink :to="`/cards/${c.id}/edit`" class="untouched-title truncate">
-                  {{ c.title || '(제목 없음)' }}
-                </RouterLink>
-                <span class="badge badge-gray">{{ c.category }}</span>
-                <span class="untouched-n num">{{ num(c.learning) }}명 시도</span>
-              </li>
-            </ul>
+          <div v-if="!content?.untouched?.length" class="empty">
+            모든 문제에서 완료자가 나왔습니다
           </div>
+          <ul v-else class="checklist">
+            <li v-for="c in content.untouched" :key="c.id">
+              <RouterLink :to="`/cards/${c.id}/edit`" class="check-title truncate">
+                {{ c.title || '(제목 없음)' }}
+              </RouterLink>
+              <span class="badge badge-neutral">{{ c.category }}</span>
+              <span class="check-n num">{{ num(c.learning) }}명 시도</span>
+            </li>
+          </ul>
         </section>
       </div>
 
-      <!-- 실시간 요청 흐름 -->
-      <section class="card sec">
-        <div class="card-head">
-          <h2 class="card-title">실시간 요청</h2>
-          <RouterLink to="/service" class="more">서비스 상태 →</RouterLink>
+      <!-- 실시간 요청 -->
+      <section class="panel block">
+        <div class="panel-head">
+          <h2 class="panel-title">실시간 요청</h2>
+          <RouterLink to="/service" class="link-more">서비스 상태</RouterLink>
         </div>
         <div class="table-wrap">
           <table class="table">
             <thead>
               <tr>
-                <th>시각</th>
-                <th>메서드</th>
+                <th style="width: 78px">시각</th>
+                <th style="width: 62px">메서드</th>
                 <th>경로</th>
-                <th>상태</th>
-                <th>소요</th>
-                <th>사용자</th>
+                <th style="width: 62px">상태</th>
+                <th class="right" style="width: 78px">소요</th>
+                <th style="width: 130px">사용자</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-if="!metrics?.recent?.length">
-                <td colspan="6" class="empty">아직 요청이 없어요</td>
+              <tr v-if="!m?.recent?.length">
+                <td colspan="6" class="empty">아직 요청이 없습니다</td>
               </tr>
-              <tr v-for="(e, i) in metrics?.recent ?? []" :key="`${e.at}-${i}`">
-                <td class="num">{{ timeAgo(e.at) }}</td>
+              <tr v-for="(e, i) in m?.recent ?? []" :key="`${e.at}-${i}`">
+                <td class="num muted">{{ timeAgo(e.at, now) }}</td>
                 <td class="num">{{ e.method }}</td>
-                <td class="truncate">{{ e.path }}</td>
+                <td class="truncate num">{{ e.path }}</td>
                 <td>
                   <span class="badge" :class="`badge-${statusTone(e.status)}`">{{ e.status }}</span>
                 </td>
-                <td class="num" :class="{ slow: e.slow }">{{ ms(e.duration_ms) }}</td>
-                <td class="num muted">{{ e.user_id || '비로그인' }}</td>
+                <td class="right num" :class="{ slow: e.slow }">{{ ms(e.duration_ms) }}</td>
+                <td class="num muted truncate">{{ e.user_id || '비로그인' }}</td>
               </tr>
             </tbody>
           </table>
@@ -248,182 +278,201 @@ const latencyTone = computed(() => {
 </template>
 
 <style scoped>
-.sec {
-  margin-bottom: 16px;
+.block {
+  margin-top: 12px;
 }
 
-.live {
+/*
+ * 지표 타일 띠.
+ *
+ * 칸 사이 구분선을 border 로 긋지 않는다. 칸이 줄바꿈되면 세로선이 엉뚱한 자리에
+ * 남아 어긋나고, 그때마다 미디어쿼리로 방향을 바꿔 주는 땜질이 필요해진다.
+ * 대신 격자 배경 위에 1px 간격을 두고 타일을 얹는다 — 가로·세로 어느 쪽으로
+ * 접히든 구분선이 정확히 칸 사이에만 생긴다.
+ */
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1px;
+  background: var(--line);
+  overflow: hidden;
+}
+.tiles > :deep(.tile) {
+  background: var(--surface);
+}
+
+.alert-row {
   display: flex;
   align-items: center;
-  gap: 7px;
-  font-size: 12.5px;
-  color: var(--text-muted);
+  gap: 8px;
+  margin-top: 12px;
 }
-.live-time {
-  color: var(--text-faint);
-}
-
-.legend,
-.card-note {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 11.5px;
-  color: var(--text-faint);
-}
-.sw {
-  width: 9px;
-  height: 9px;
-  border-radius: 2px;
-  display: inline-block;
-  flex-shrink: 0;
-}
-.sw-blue {
-  background: var(--blue);
-}
-.sw-red {
-  background: var(--red);
-}
-.sw-green {
-  background: var(--green);
-}
-.sw-gray {
-  background: var(--border-strong);
-}
-
-.more {
-  font-size: 12.5px;
+.alert-link {
+  margin-left: auto;
+  color: inherit;
   font-weight: 600;
+  white-space: nowrap;
 }
 
+.link-more {
+  font-size: 11.5px;
+  font-weight: 500;
+}
+
+/* 이름-값 목록 — 표를 쓸 만큼 항목이 많지 않을 때. */
 .kv {
   margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
+  padding: 4px 0;
 }
 .kv > div {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  height: 30px;
+  padding: 0 14px;
+}
+.kv > div + div {
+  border-top: 1px solid var(--line);
 }
 .kv dt {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--text-muted);
-  font-size: 13px;
+  color: var(--ink-2);
+  font-size: 12.5px;
 }
 .kv dd {
   margin: 0;
-  font-weight: 700;
-}
-.kv-tight {
-  margin-top: 12px;
-  gap: 6px;
+  font-weight: 600;
 }
 .warn {
-  color: var(--amber);
+  color: var(--warn);
 }
 
-.bar {
+/* 누적 막대 */
+.stack {
   display: flex;
-  height: 10px;
-  border-radius: 999px;
+  height: 7px;
+  border-radius: 99px;
   overflow: hidden;
-  background: var(--surface-alt);
+  background: var(--surface-3);
 }
 .seg {
   min-width: 0;
 }
-.seg-done {
-  background: var(--green);
+.s-done {
+  background: var(--ok);
 }
-.seg-doing {
-  background: var(--blue);
+.s-doing {
+  background: var(--accent);
 }
-.seg-todo {
-  background: var(--border-strong);
+.s-todo {
+  background: var(--n-300);
 }
 
+.legend {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.legend li {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+.legend b {
+  margin-left: auto;
+  color: var(--ink);
+  font-weight: 600;
+}
+.sw {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+/* 분야별 분포 */
 .dist {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 7px;
 }
 .dist li {
   display: grid;
-  grid-template-columns: 84px 1fr 44px;
+  grid-template-columns: 78px 1fr 38px;
   align-items: center;
   gap: 9px;
-  font-size: 12.5px;
+  font-size: 12px;
 }
-.dist-label {
-  color: var(--text-muted);
+.dist-name {
+  color: var(--ink-2);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .dist-track {
-  height: 7px;
-  border-radius: 999px;
-  background: var(--surface-alt);
+  height: 5px;
+  border-radius: 99px;
+  background: var(--surface-3);
   overflow: hidden;
 }
 .dist-fill {
   display: block;
   height: 100%;
-  background: var(--blue);
-  border-radius: 999px;
+  background: var(--n-400);
+  border-radius: 99px;
 }
-.dist-num {
+.dist-n {
   text-align: right;
-  font-weight: 700;
+  color: var(--ink-2);
 }
 
 .chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 14px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border);
+  gap: 5px;
+  margin-top: 13px;
+  padding-top: 11px;
+  border-top: 1px solid var(--line);
 }
 
-.untouched {
+/* 점검 목록 */
+.checklist {
   list-style: none;
   margin: 0;
   padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
 }
-.untouched li {
+.checklist li {
   display: flex;
   align-items: center;
   gap: 8px;
+  height: 32px;
+  padding: 0 14px;
   font-size: 12.5px;
 }
-.untouched-title {
+.checklist li + li {
+  border-top: 1px solid var(--line);
+}
+.check-title {
   flex: 1;
   min-width: 0;
-  font-weight: 600;
+  font-weight: 500;
 }
-.untouched-n {
-  color: var(--amber);
-  font-weight: 700;
+.check-n {
+  color: var(--warn);
+  font-size: 11.5px;
   flex-shrink: 0;
 }
 
 .slow {
-  color: var(--red);
-  font-weight: 700;
-}
-.muted {
-  color: var(--text-faint);
+  color: var(--danger);
+  font-weight: 600;
 }
 </style>

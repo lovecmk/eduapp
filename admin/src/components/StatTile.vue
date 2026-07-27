@@ -1,67 +1,77 @@
 <script setup lang="ts">
-/** 큰 숫자 하나를 보여주는 타일. 대시보드의 기본 단위. */
+/**
+ * 지표 타일.
+ *
+ * 라벨을 위, 값을 아래에 두고 값만 크게 키운다 — 훑을 때 눈이 값의 줄만 따라가면
+ * 되도록. 색은 '주의가 필요할 때'만 입힌다(정상 지표까지 색을 칠하면
+ * 정작 빨간 값이 눈에 안 들어온다).
+ */
 withDefaults(
   defineProps<{
     label: string;
     value: string;
-    /** 값 아래 한 줄 보조 설명(추이·비교 등). */
-    hint?: string;
-    tone?: 'blue' | 'green' | 'amber' | 'red' | 'violet' | 'gray';
+    /** 값 아래 한 줄 — 비교값·구성 등 맥락. */
+    sub?: string;
+    /** 값에 입힐 색. 기본은 색 없음. */
+    tone?: 'default' | 'ok' | 'warn' | 'danger' | 'accent';
   }>(),
-  { tone: 'gray', hint: '' },
+  { tone: 'default', sub: '' },
 );
 </script>
 
 <template>
-  <div class="card tile">
+  <div class="tile">
     <div class="tile-label">{{ label }}</div>
-    <div class="tile-value num" :class="`tone-${tone}`">{{ value }}</div>
-    <div v-if="hint" class="tile-hint">{{ hint }}</div>
+    <div class="tile-value num" :class="`t-${tone}`">{{ value }}</div>
+    <div v-if="sub" class="tile-sub">{{ sub }}</div>
   </div>
 </template>
 
 <style scoped>
+/*
+ * 타일은 개별 상자가 아니라 하나의 띠로 묶인다(부모가 .tiles 로 감싼다).
+ * 상자를 다섯 개 나열하면 테두리만 열 줄이 그어져 화면이 시끄러워진다.
+ */
 .tile {
-  padding: 14px 16px;
-  /* 힌트가 있는 타일과 없는 타일의 높이를 맞춰 그리드가 들쭉날쭉해지지 않게 한다. */
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  min-height: 92px;
+  padding: 11px 14px;
+  min-width: 0;
 }
 .tile-label {
-  font-size: 12.5px;
-  color: var(--text-muted);
-  font-weight: 600;
+  font-size: 11.5px;
+  color: var(--ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .tile-value {
-  font-size: 26px;
-  font-weight: 800;
-  line-height: 1.2;
-  margin-top: 4px;
+  font-size: 21px;
+  font-weight: 600;
+  line-height: 1.25;
+  margin-top: 3px;
   letter-spacing: -0.02em;
 }
-.tile-hint {
-  font-size: 12px;
-  color: var(--text-faint);
-  margin-top: 3px;
+.tile-sub {
+  font-size: 11px;
+  color: var(--ink-4);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.tone-blue {
-  color: var(--blue);
+
+.t-default {
+  color: var(--ink);
 }
-.tone-green {
-  color: var(--green);
+.t-ok {
+  color: var(--ok);
 }
-.tone-amber {
-  color: var(--amber);
+.t-warn {
+  color: var(--warn);
 }
-.tone-red {
-  color: var(--red);
+.t-danger {
+  color: var(--danger);
 }
-.tone-violet {
-  color: var(--violet);
-}
-.tone-gray {
-  color: var(--text);
+.t-accent {
+  color: var(--accent);
 }
 </style>

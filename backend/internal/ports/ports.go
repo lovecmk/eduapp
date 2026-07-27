@@ -19,6 +19,40 @@ type UserQuery struct {
 	Membership string // "" | BASIC | PREMIUM | VIP
 	Offset     int
 	Limit      int // 0 이면 저장소 기본값(50)
+
+	// 정렬은 반드시 저장소에서 한다. 페이지를 받아 온 뒤 화면에서 정렬하면
+	// '현재 페이지 안에서만' 정렬되어, 관리자는 전체가 정렬된 줄 알고
+	// 잘못된 결론(예: "가장 오래된 계정은 이것")을 내린다.
+	Sort SortField
+	Desc bool
+}
+
+// SortField 는 사용자 목록 정렬 기준. 문자열을 그대로 SQL 에 넣지 않기 위해
+// 허용 값을 타입으로 좁힌다(정렬 파라미터를 통한 SQL 인젝션 차단).
+type SortField string
+
+const (
+	SortCreatedAt SortField = "created_at"
+	SortName      SortField = "user_nm"
+	SortLoginID   SortField = "login_id"
+	SortRole      SortField = "role_cd"
+	SortStatus    SortField = "status_cd"
+)
+
+// ParseSortField 는 외부 입력을 허용된 정렬 기준으로만 해석한다.
+// 알 수 없는 값은 기본값(가입일)으로 — 오타 하나로 500 을 내지 않는다.
+func ParseSortField(raw string) SortField {
+	switch SortField(raw) {
+	case SortName:
+		return SortName
+	case SortLoginID:
+		return SortLoginID
+	case SortRole:
+		return SortRole
+	case SortStatus:
+		return SortStatus
+	}
+	return SortCreatedAt
 }
 
 // UserRepository 는 사용자 영속화 포트.
