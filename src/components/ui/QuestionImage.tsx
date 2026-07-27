@@ -87,7 +87,7 @@ export function QuestionImage({
       <Modal visible={viewerOpen} transparent animationType="fade" onRequestClose={() => setViewerOpen(false)} statusBarTranslucent>
         {/* 화면(이미지 포함) 어디를 탭해도 닫히도록 배경 전체를 Pressable 로 만든다.
             이미지는 pointerEvents="none" 으로 탭을 배경으로 흘려보낸다. */}
-        <Pressable style={styles.viewerBackdrop} onPress={() => setViewerOpen(false)}>
+        <Pressable style={styles.viewerBackdrop} onPress={() => setViewerOpen(false)} accessibilityRole="button" accessibilityLabel="확대 이미지 닫기">
           {imgSource && (
             <Image
               source={imgSource}
@@ -100,6 +100,8 @@ export function QuestionImage({
           <Pressable
             onPress={() => setViewerOpen(false)}
             hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel="확대 보기 닫기"
             style={[styles.viewerClose, { top: insets.top + 12 }]}
           >
             <Ionicons name="close" size={24} color="#fff" />

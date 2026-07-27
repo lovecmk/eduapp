@@ -25,7 +25,7 @@ export function SearchBar({
         style={{ flex: 1, minWidth: 0, color: c.textPrimary, fontSize: 14, fontFamily: fontCute, paddingVertical: 0 }}
       />
       {value.length > 0 && (
-        <Pressable onPress={() => onChange('')} style={{ padding: 4 }}>
+        <Pressable onPress={() => onChange('')} style={{ padding: 4 }} accessibilityRole="button" accessibilityLabel="검색어 지우기">
           <Ionicons name="close-circle" size={18} color={c.textSecondary} />
         </Pressable>
       )}

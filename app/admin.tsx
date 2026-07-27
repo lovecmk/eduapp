@@ -197,7 +197,7 @@ function CardsTab() {
             <Text numberOfLines={1} style={{ color: c.textPrimary, fontSize: 13, fontFamily: fontDisplay }}>{card.title}</Text>
             <Text style={{ color: c.textSecondary, fontSize: 11.5, fontFamily: fontBody }}>{card.category} · {card.subCategory}</Text>
           </View>
-          <Pressable onPress={() => removeCard(card.id)} hitSlop={8} style={{ padding: 6 }}>
+          <Pressable onPress={() => removeCard(card.id)} hitSlop={8} style={{ padding: 6 }} accessibilityRole="button" accessibilityLabel="이 문제 삭제">
             <Ionicons name="trash-outline" size={17} color={c.error} />
           </Pressable>
         </View>

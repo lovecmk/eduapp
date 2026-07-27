@@ -7,10 +7,10 @@ module.exports = {
     {
       displayName: 'logic',
       testEnvironment: 'node',
-      roots: ['<rootDir>/src'],
+      roots: ['<rootDir>/src', '<rootDir>/scripts'],
       testMatch: ['**/__tests__/**/*.test.ts'],
       transform: { '^.+\\.tsx?$': ['ts-jest', {}] },
-      moduleFileExtensions: ['ts', 'tsx', 'js', 'json'],
+      moduleFileExtensions: ['ts', 'tsx', 'js', 'cjs', 'json'],
       clearMocks: true,
     },
     {

@@ -100,7 +100,7 @@ export default function NotificationsScreen() {
       <ScreenHeader
         title="알림"
         right={
-          <Pressable onPress={() => setHeaderMenu(true)} hitSlop={8} style={{ padding: 4 }}>
+          <Pressable onPress={() => setHeaderMenu(true)} hitSlop={8} style={{ padding: 4 }} accessibilityRole="button" accessibilityLabel="알림 메뉴 열기">
             <Ionicons name="ellipsis-horizontal" size={20} color={c.textPrimary} />
           </Pressable>
         }
@@ -210,7 +210,7 @@ export default function NotificationsScreen() {
                           )}
                         </View>
                       </View>
-                      <Pressable onPress={() => setSheetItem(n)} hitSlop={8} style={{ padding: 4, marginLeft: 4 }}>
+                      <Pressable onPress={() => setSheetItem(n)} hitSlop={8} style={{ padding: 4, marginLeft: 4 }} accessibilityRole="button" accessibilityLabel="이 알림 메뉴">
                         <Ionicons name="ellipsis-vertical" size={16} color={c.textSecondary} />
                       </Pressable>
                     </Pressable>

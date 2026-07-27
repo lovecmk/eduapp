@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/ThemeProvider';
 import { fontMono, fontCute, fontBody } from '../../theme/tokens';
 import { CenterModal } from '../ui/CenterModal';
-import { CHANGELOG, type ChangelogEntry } from '../../constants/changelog';
+import { CHANGELOG, resolveChangelog, type ChangelogEntry } from '../../constants/changelog';
 import { env } from '../../data/network/env';
 
 /**
@@ -16,6 +16,9 @@ export function ChangelogModal({ visible, onClose }: { visible: boolean; onClose
   const { theme } = useTheme();
   const c = theme.colors;
   const [selected, setSelected] = useState<ChangelogEntry | null>(null);
+  // 현재 버전의 날짜는 실제 빌드 시각에서, 손으로 쓴 항목이 없는 배포는 자동 항목으로.
+  // useMemo 로 감싸는 것은 목록이 매 렌더마다 새 배열이 되어 자식이 헛되이 다시 그리는 것을 막기 위해서다.
+  const entries = useMemo(() => resolveChangelog(CHANGELOG, env.build), []);
 
   // 모달을 닫으면 목록 화면으로 초기화(다음에 열 때 항상 목록부터).
   useEffect(() => {
@@ -54,7 +57,7 @@ export function ChangelogModal({ visible, onClose }: { visible: boolean; onClose
       ) : (
         // 목록 — 커밋(버전)별 날짜 + 요약 한 줄. 같은 날짜가 여러 건이어도 그대로 나열된다.
         <View>
-          {CHANGELOG.map((entry, idx) => {
+          {entries.map((entry, idx) => {
             const isCurrent = entry.version === env.build.version;
             return (
               <Pressable
@@ -65,7 +68,7 @@ export function ChangelogModal({ visible, onClose }: { visible: boolean; onClose
                   {
                     borderColor: isCurrent ? c.primary + '55' : c.border,
                     backgroundColor: isCurrent ? c.primary + '0D' : c.surfaceAlt,
-                    marginBottom: idx === CHANGELOG.length - 1 ? 0 : 10,
+                    marginBottom: idx === entries.length - 1 ? 0 : 10,
                   },
                 ]}
               >

@@ -66,7 +66,7 @@ export default function SavedScreen() {
                     <Text numberOfLines={2} style={{ color: c.textPrimary, fontSize: 13.5 * fs, lineHeight: 19, marginTop: 5, fontFamily: fontDisplay }}>{card.question}</Text>
                     <Text style={{ color: diff.color, fontSize: 11, marginTop: 6, fontFamily: fontDisplay }}>{diff.label}</Text>
                   </View>
-                  <Pressable onPress={() => toggle(card.id)} hitSlop={8} style={{ padding: 4 }}>
+                  <Pressable onPress={() => toggle(card.id)} hitSlop={8} style={{ padding: 4 }} accessibilityRole="button" accessibilityLabel="저장 해제">
                     <Ionicons name="bookmark" size={20} color={c.primary} />
                   </Pressable>
                 </Pressable>

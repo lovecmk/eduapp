@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet, TextInput, FlatList } from 'react-native';
+import { View, Text, ScrollView, Pressable, StyleSheet, TextInput, FlatList, RefreshControl } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Image } from 'expo-image';
 import { resolveCardImage } from '../../src/data/cardImages';
@@ -13,6 +13,7 @@ import { getCategoryIcon, getCategoryColor } from '../../src/constants/categorie
 import { getDifficultyMeta } from '../../src/constants/difficulty';
 import { ROUTES } from '../../src/constants/routes';
 import { useAllCards } from '../../src/hooks/useCards';
+import { usePullToRefresh } from '../../src/hooks/usePullToRefresh';
 import { useBookmarkStore } from '../../src/store/bookmarkStore';
 import { useLikeStore } from '../../src/store/likeStore';
 import { useReportStore, REPORT_REASON_LABEL, type CardReport } from '../../src/store/reportStore';
@@ -40,7 +41,8 @@ export default function CollectionScreen() {
   const type = (TYPES.includes((params.type ?? '') as CollectionType) ? params.type : 'mastered') as CollectionType;
   const meta = META[type];
 
-  const { data: allCards = [] } = useAllCards();
+  const { data: allCards = [], refetch } = useAllCards();
+  const { refreshing, onRefresh } = usePullToRefresh(refetch);
   const savedIds = useBookmarkStore((s) => s.ids);
   const likedIds = useLikeStore((s) => s.ids);
   const reports = useReportStore((s) => s.reports);
@@ -112,7 +114,7 @@ export default function CollectionScreen() {
               returnKeyType="search"
             />
             {query.length > 0 && (
-              <Pressable onPress={() => setQuery('')} hitSlop={8}>
+              <Pressable onPress={() => setQuery('')} hitSlop={8} accessibilityRole="button" accessibilityLabel="검색어 지우기">
                 <Ionicons name="close-circle" size={17} color={c.textSecondary} />
               </Pressable>
             )}
@@ -152,6 +154,9 @@ export default function CollectionScreen() {
           data={cards}
           keyExtractor={(item) => item.id}
           showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.primary} colors={[c.primary]} />
+          }
           keyboardShouldPersistTaps="handled"
           initialNumToRender={10}
           maxToRenderPerBatch={10}

@@ -78,7 +78,13 @@ export default function ContentDetailScreen() {
         title="컨텐츠 상세"
         right={
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
-            <Pressable onPress={() => toggleBookmark(card.id)} hitSlop={8} style={{ padding: 6 }}>
+            <Pressable
+              onPress={() => toggleBookmark(card.id)}
+              hitSlop={8}
+              style={{ padding: 6 }}
+              accessibilityRole="button"
+              accessibilityLabel={bookmarked ? '저장 해제' : '이 카드 저장'}
+            >
               <Ionicons name={bookmarked ? 'bookmark' : 'bookmark-outline'} size={19} color={bookmarked ? c.primary : c.textSecondary} />
             </Pressable>
             <Pressable onPress={() => setReportOpen(true)} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 4, paddingHorizontal: 6, borderRadius: 8 }}>
