@@ -17,6 +17,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.12.0',
+    date: '2026-07-27',
+    highlights: [
+      '복습 화면이 지금 보기 좋은 카드를 먼저 골라 제안 — 무엇을 볼지 고르지 않아도 됩니다',
+      '앞으로 7일간 볼 카드 분포를 한눈에 표시',
+      '복습 안내에서 마감·독촉 표현을 걷어냈습니다 — 복습 여부는 사용자가 정합니다',
+    ],
+  },
+  {
     version: '1.11.0',
     date: '2026-07-13',
     highlights: [

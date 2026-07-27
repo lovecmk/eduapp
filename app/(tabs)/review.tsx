@@ -99,11 +99,15 @@ export default function ReviewScreen() {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.primary} colors={[c.primary]} />
       }
     >
-      {/* ── 오늘의 복습 — 고르는 화면이 아니라 '지시'하는 화면 ────────────────
+      {/* ── 오늘의 복습 — 고르게 하는 화면이 아니라 '먼저 권하는' 화면 ──────────
           간격반복 엔진은 어떤 카드를 지금 봐야 하는지 이미 알고 있다. 그런데 예전에는
           그 답을 쓰지 않고 '오늘 배운 것/약점 분야'처럼 고를 거리만 늘어놓았다.
           앱이 아는 답을 두고 사용자에게 매번 결정을 떠넘긴 셈이라 복습에 의도가 없었다.
-          이제는 계획(reviewPlan)이 정한 한 가지를 크게 제시한다. */}
+          이제는 계획(reviewPlan)이 정한 한 가지를 크게 제시한다.
+
+          다만 제시일 뿐 강제가 아니다. 복습을 할지 말지는 사용자가 정한다.
+          그래서 이 카드는 화면을 가로막지 않고, 바로 아래에 '직접 골라 보기'가
+          그대로 남아 있다. 권하는 길과 고르는 길이 나란히 있어야 선택이 된다. */}
       <View style={{ marginBottom: 22 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 }}>
           <Ionicons name="flash" size={16} color={c.primary} />
@@ -112,7 +116,7 @@ export default function ReviewScreen() {
 
         <ReviewPlanCard plan={plan} onStart={startReview} />
 
-        {/* 7일 예고 — 오늘 끝내도 '내일 또 올 이유'가 보여야 한다. */}
+        {/* 앞으로 7일 — 오늘 보지 않아도 '내일 또 올 이유'가 보여야 한다. */}
         <UpcomingStrip days={plan.upcoming} />
 
         {/* 마스터 진행 게이지 — 전체 여정에서 지금 어디쯤인지. */}
