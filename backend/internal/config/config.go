@@ -24,6 +24,13 @@ type Config struct {
 	SeedOnStart     bool          // 부팅 시 카드 시드 자동 주입 여부
 	StudySessionSec int           // 개인별 1회 학습 세션 목표 시간(초) — 기본 180(3분)
 
+	// --- 관리 콘솔(Vue) ---
+	// 부팅 시 이 자격증명으로 관리자 계정을 보장한다. 둘 다 비면 아무것도 만들지 않는다.
+	// 기본 관리자 비밀번호를 코드에 박지 않기 위한 의도적 설계 —
+	// 관리 콘솔은 전체 사용자 데이터를 볼 수 있어 기본 비밀번호 사고의 대가가 크다.
+	AdminLoginID  string
+	AdminPassword string
+
 	// --- 원격 푸시(Expo) ---
 	ExpoPushURL string // Expo 푸시 게이트웨이 주소(비면 서비스 기본값)
 
@@ -48,6 +55,9 @@ func Load() Config {
 		CORSOrigins:     getEnv("CORS_ORIGINS", "*"),
 		SeedOnStart:     getBool("SEED_ON_START", true),
 		StudySessionSec: getInt("STUDY_SESSION_SEC", 180),
+
+		AdminLoginID:  getEnv("ADMIN_LOGIN_ID", ""),
+		AdminPassword: getEnv("ADMIN_PASSWORD", ""),
 
 		ExpoPushURL: getEnv("EXPO_PUSH_URL", ""),
 

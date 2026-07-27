@@ -38,15 +38,17 @@ func main() {
 
 	// 저장소 선택 — 포트-어댑터 구조 덕에 구현만 교체된다(서비스 코드는 동일).
 	var (
-		userRepo ports.UserRepository
-		cardRepo ports.CardRepository
-		pushRepo ports.PushTokenRepository
+		userRepo  ports.UserRepository
+		cardRepo  ports.CardRepository
+		pushRepo  ports.PushTokenRepository
+		auditRepo ports.AuditRepository
 	)
 	switch cfg.Store {
 	case "memory":
 		userRepo = memory.NewUserRepo()
 		cardRepo = memory.NewCardRepo()
 		pushRepo = memory.NewPushTokenRepo()
+		auditRepo = memory.NewAuditRepo()
 		log.Printf("[store] 인메모리 모드(무 DB)")
 	case "postgres":
 		pool, err := postgresadapter.Connect(ctx, cfg.DatabaseURL)
@@ -61,6 +63,7 @@ func main() {
 		userRepo = postgresadapter.NewUserRepo(pool)
 		cardRepo = postgresadapter.NewCardRepo(pool)
 		pushRepo = postgresadapter.NewPushTokenRepo(pool)
+		auditRepo = postgresadapter.NewAuditRepo(pool)
 	default: // "mongo"
 		db, disconnect, err := mongoadapter.Connect(ctx, cfg.MongoURI, cfg.MongoDB)
 		if err != nil {
@@ -71,6 +74,7 @@ func main() {
 		userRepo = mongoadapter.NewUserRepo(db)
 		cardRepo = mongoadapter.NewCardRepo(db)
 		pushRepo = mongoadapter.NewPushTokenRepo(db)
+		auditRepo = mongoadapter.NewAuditRepo(db)
 	}
 
 	tm := token.NewManager(cfg.JWTSecret, cfg.AccessTTL, cfg.RefreshTTL)
@@ -80,6 +84,10 @@ func main() {
 	statsSvc := service.NewStatsService(cardSvc)
 	commSvc := service.NewCommunityService(cardSvc)
 	pushSvc := service.NewPushService(pushRepo, cfg.ExpoPushURL)
+	// 관리 콘솔(Vue) — 요청 지표 수집기와 관리 유스케이스.
+	metrics := service.NewMetrics()
+	adminSvc := service.NewAdminService(userRepo, cardRepo, auditRepo, metrics, cfg.Store)
+
 	tgSvc := service.NewTelegramService(service.TelegramConfig{
 		BotToken:     cfg.TelegramBotToken,
 		APIBase:      cfg.TelegramAPIBase,
@@ -97,6 +105,12 @@ func main() {
 		}
 	}
 
+	// 관리자 보장은 시드 여부와 무관하게 항상 수행한다 —
+	// SEED_ON_START=false 인 운영 환경에서도 콘솔에는 들어갈 수 있어야 한다.
+	if err := authSvc.EnsureAdmin(ctx, cfg.AdminLoginID, cfg.AdminPassword); err != nil {
+		log.Printf("[admin] 관리자 계정 보장 실패: %v", err)
+	}
+
 	app := server.New(server.Deps{
 		Cfg:       cfg,
 		Tokens:    tm,
@@ -106,6 +120,9 @@ func main() {
 		Community: commSvc,
 		Push:      pushSvc,
 		Telegram:  tgSvc,
+		Admin:     adminSvc,
+		Metrics:   metrics,
+		Users:     userRepo,
 	})
 
 	// 텔레그램 long-polling — 봇 토큰이 설정돼 있고 폴링이 켜져 있으면 백그라운드로 수신 대기.

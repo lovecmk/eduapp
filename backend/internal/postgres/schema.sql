@@ -12,10 +12,18 @@ CREATE TABLE IF NOT EXISTS users (
     org_nm        TEXT NOT NULL DEFAULT '',
     job_title     TEXT NOT NULL DEFAULT '',
     membership_cd TEXT NOT NULL DEFAULT 'BASIC',
+    -- 계정 권한. 멤버십(과금 등급)과 다른 축이다 — VIP 회원이 관리자가 되어서는 안 된다.
+    role_cd       TEXT NOT NULL DEFAULT 'USER',
     password_hash TEXT NOT NULL DEFAULT '',
     created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
     status_cd     TEXT NOT NULL DEFAULT 'A'
 );
+
+-- 이미 배포된 DB(role_cd 없던 시절)에도 안전하게 열을 추가한다.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS role_cd TEXT NOT NULL DEFAULT 'USER';
+
+-- 관리 콘솔 목록은 가입 최신순 + 필터가 기본이라 이 인덱스가 정렬을 받쳐준다.
+CREATE INDEX IF NOT EXISTS users_created_at_idx ON users (created_at DESC, id DESC);
 
 -- 닉네임 대소문자 무시 유일성(빈 닉네임은 제외). FindByNickname 조회도 이 인덱스를 탄다.
 CREATE UNIQUE INDEX IF NOT EXISTS users_nickname_lower_idx
@@ -56,6 +64,9 @@ CREATE TABLE IF NOT EXISTS progress (
 
 CREATE INDEX IF NOT EXISTS progress_user_idx ON progress (user_id);
 
+-- 카드별 진행 집계(관리 대시보드의 '아무도 못 푸는 문제' 탐지)가 이 인덱스를 탄다.
+CREATE INDEX IF NOT EXISTS progress_card_idx ON progress (card_id);
+
 -- 원격 푸시 토큰(브로드캐스트 대상). token 을 PK 로 두어 재등록이 자연스럽게 업서트된다.
 CREATE TABLE IF NOT EXISTS push_tokens (
     token      TEXT PRIMARY KEY,
@@ -64,3 +75,18 @@ CREATE TABLE IF NOT EXISTS push_tokens (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- 관리자 행위 이력(append-only). 남의 계정과 학습 콘텐츠를 바꾸는 도구이므로
+-- "누가·언제·무엇을" 을 남기지 않으면 사고가 났을 때 되짚을 방법이 없다.
+CREATE TABLE IF NOT EXISTS audit_logs (
+    id          TEXT PRIMARY KEY,
+    actor_id    TEXT NOT NULL DEFAULT '',
+    actor_name  TEXT NOT NULL DEFAULT '',
+    action      TEXT NOT NULL DEFAULT '',
+    target_type TEXT NOT NULL DEFAULT '',
+    target_id   TEXT NOT NULL DEFAULT '',
+    summary     TEXT NOT NULL DEFAULT '',
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS audit_logs_created_at_idx ON audit_logs (created_at DESC, id DESC);

@@ -1,0 +1,122 @@
+# 하루3분ON 관리 콘솔
+
+Vue 3 + Vite 로 만든 웹 관리 도구. Go 백엔드(`../backend`)의 `/api/admin/*` 을 소비한다.
+
+실시간 서비스 상태를 보고, 사용자 데이터를 조회·관리하고, 학습 문제를 만들고 고친다.
+
+```
+admin/          이 디렉터리 — Vue 관리 콘솔(정적 SPA)
+backend/        Go(Fiber) API 서버 — 관리 API 포함
+app/, src/      Expo 학습 앱(학습자용)
+```
+
+## 빠르게 실행
+
+```bash
+# 1) 백엔드 (무DB 데모 모드)
+cd backend
+STORE=memory ADMIN_LOGIN_ID=admin ADMIN_PASSWORD=<8자 이상> go run ./cmd/server
+
+# 2) 관리 콘솔
+cd admin
+npm ci
+npm run dev          # http://localhost:5174/admin/
+```
+
+`npm run dev` 는 `/api` 요청을 `http://localhost:8080` 으로 프록시한다.
+백엔드 주소가 다르면 `ADMIN_API_TARGET=http://... npm run dev`.
+
+## 관리자 계정
+
+**기본 관리자 비밀번호는 코드에 없다.** 서버 환경변수로만 주입한다.
+
+| 변수 | 설명 |
+|---|---|
+| `ADMIN_LOGIN_ID` | 관리자 아이디 |
+| `ADMIN_PASSWORD` | 비밀번호(8자 이상). 계정이 이미 있으면 **비밀번호는 건드리지 않고** 권한만 승격한다 |
+
+둘 다 비어 있고 관리자가 한 명도 없으면 서버가 부팅 로그로 안내만 하고 계정을 만들지 않는다.
+관리 콘솔은 전체 사용자 데이터를 볼 수 있어서, 기본 비밀번호를 심어 두는 쪽의 위험이 훨씬 크다.
+
+기존 학습자 계정을 관리자로 올리려면 콘솔의 **사용자 → 상세 → 관리자로 승격** 을 쓴다.
+
+## 명령
+
+| 명령 | 하는 일 |
+|---|---|
+| `npm run dev` | 개발 서버(5174) + `/api` 프록시 |
+| `npm run build` | 타입 검사 후 `dist/` 로 정적 빌드 |
+| `npm run typecheck` | `vue-tsc --noEmit` |
+| `npm test` | 단위 테스트(vitest) |
+| `npm run verify` | 타입 검사 + 테스트 |
+
+## 화면
+
+| 경로 | 화면 | 내용 |
+|---|---|---|
+| `/login` | 로그인 | 관리자 여부를 서버에 확인한 뒤에만 입장시킨다 |
+| `/` | 대시보드 | 실시간 트래픽·오류율·지연·활성 사용자, 사용자/콘텐츠 요약, 아무도 못 푼 문제 |
+| `/users` | 사용자 | 검색·필터·페이지네이션 |
+| `/users/:id` | 사용자 상세 | 프로필·학습 진행, 권한/상태 변경 |
+| `/cards` | 문제 관리 | 목록·검색·삭제, 카드별 학습 현황 |
+| `/cards/new`, `/cards/:id/edit` | 문제 편집기 | 작성 + 앱 화면 미리보기 |
+| `/service` | 서비스 상태 | 저장소 연결, 경로별 지연·오류, 느린/실패 요청 |
+| `/audit` | 관리 이력 | 누가·언제·무엇을 바꿨는지 |
+
+## 설계 메모
+
+### 실시간은 SSE, 단 `EventSource` 는 쓰지 않는다
+
+대시보드는 서버 → 화면 단방향이라 WebSocket 이 필요 없다. 다만 브라우저 기본
+`EventSource` 는 요청 헤더를 설정할 수 없어 `Authorization` 을 못 붙인다.
+흔한 우회는 토큰을 쿼리스트링에 싣는 것인데, 그러면 관리자 토큰이 접근 로그·프록시
+로그·브라우저 히스토리에 남는다. 그래서 `fetch` 스트림으로 직접 읽어 헤더를 지킨다
+(`src/api/client.ts` 의 `openStream`).
+
+끊기면 지수 백오프로 재연결하고, 화면 우측 상단에 **연결 상태를 항상 표시**한다 —
+멈춘 화면을 현재 값으로 착각하는 것이 가장 위험하다.
+
+### 권한은 토큰이 아니라 매 요청 확인
+
+서버가 `RequireAdmin` 에서 매번 사용자를 조회한다. 토큰에 역할을 박으면 권한을
+회수해도 토큰 만료(최대 30일)까지 관리자로 통한다. 관리 권한은 즉시 회수되어야 한다.
+
+### 검증은 양쪽에서, 진짜 방어선은 서버
+
+`src/lib/cardValidation.ts` 는 서버 `service.ValidateCard` 와 **같은 규칙**이다.
+화면 검증은 왕복을 줄이는 편의일 뿐이고, 우회해도 서버가 막는다.
+규칙을 바꿀 때는 반드시 양쪽을 함께 고친다.
+
+### UI 프레임워크·차트 라이브러리 없음
+
+필요한 건 표·카드·배지·폼과 막대 그래프뿐이다. 그것 때문에 수 MB 의존성과
+취약점·업그레이드 부담을 떠안지 않는다. 디자인 토큰은 `src/styles/base.css` 한곳에 모았고,
+그래프는 `TrafficChart.vue` 의 인라인 SVG 다.
+
+## 배포
+
+빌드 산출물은 정적 파일이므로 백엔드와 **같은 오리진**에 붙이는 것이 가장 간단하다
+(CORS·쿠키 문제가 사라진다). `base` 는 `/admin/` 으로 고정돼 있다.
+
+```bash
+cd admin && npm ci && npm run build   # → admin/dist
+```
+
+Caddy 예시:
+
+```caddy
+example.com {
+    handle_path /admin/* {
+        root * /srv/eduapp/admin/dist
+        try_files {path} /index.html      # SPA 히스토리 라우팅
+        file_server
+    }
+    handle /api/* {
+        reverse_proxy localhost:8080 {
+            flush_interval -1             # SSE 를 버퍼링하지 않는다
+        }
+    }
+}
+```
+
+`flush_interval -1` 이 빠지면 실시간 지표가 프록시에 고여 대시보드가 멈춘 것처럼 보인다.

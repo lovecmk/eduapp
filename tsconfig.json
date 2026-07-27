@@ -12,5 +12,13 @@
     "**/*.tsx",
     ".expo/types/**/*.ts",
     "expo-env.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    // 관리 콘솔(Vue)은 별도 프로젝트다 — 자체 tsconfig(admin/tsconfig.json)로
+    // 검사한다. 여기 포함시키면 Expo 설정(모듈 해석·JSX)이 맞지 않아 오류가 난다.
+    // 검사는 `cd admin && npm run typecheck` 로 따로 돈다.
+    "admin"
   ]
 }

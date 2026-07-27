@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"log"
 	"strconv"
 	"strings"
 	"time"
@@ -227,4 +228,75 @@ func (s *AuthService) EnsureDemoUser(ctx context.Context) error {
 		CreatedAt:    time.Now(),
 		StatusCd:     "A",
 	})
+}
+
+// EnsureAdmin 은 관리 콘솔에 들어갈 수 있는 계정이 최소 한 개 있도록 보장한다.
+//
+// 설계 원칙: **기본 관리자 비밀번호를 코드에 박지 않는다.**
+// 흔한 사고가 "기본 admin/admin1234 를 안 바꾸고 배포" 인데, 이 앱의 관리 콘솔은
+// 전체 사용자 데이터를 볼 수 있으므로 그 사고의 대가가 크다. 그래서 자격증명은
+// 반드시 환경변수로 주입받고, 없으면 계정을 만들지 않고 방법만 알린다.
+//
+// 동작:
+//   - loginID/password 가 비면 → 아무것도 만들지 않는다. 관리자가 하나도 없으면 안내 로그.
+//   - 해당 loginID 계정이 이미 있으면 → 비밀번호는 건드리지 않고 권한만 ADMIN 으로 승격.
+//     (운영 중 재시작마다 비밀번호가 되돌아가면 오히려 위험하다)
+//   - 없으면 → 새 관리자 계정을 만든다.
+func (s *AuthService) EnsureAdmin(ctx context.Context, loginID, password string) error {
+	loginID = strings.TrimSpace(loginID)
+
+	if loginID == "" || password == "" {
+		admins, _, err := s.users.List(ctx, ports.UserQuery{Role: string(domain.RoleAdmin), Status: "A", Limit: 1})
+		if err != nil {
+			return err
+		}
+		if len(admins) == 0 {
+			log.Printf("[admin] 관리자 계정이 없습니다 — ADMIN_LOGIN_ID / ADMIN_PASSWORD 를 주입하고 재기동하세요")
+		}
+		return nil
+	}
+
+	existing, err := s.users.FindByLoginID(ctx, loginID)
+	if err == nil {
+		if existing.Role().IsAdmin() && existing.Active() {
+			return nil // 이미 정상 관리자 — 손대지 않는다
+		}
+		existing.RoleCd = domain.RoleAdmin
+		existing.StatusCd = "A"
+		if err := s.users.Update(ctx, existing); err != nil {
+			return err
+		}
+		log.Printf("[admin] 기존 계정 %q 를 관리자로 승격했습니다(비밀번호는 유지)", loginID)
+		return nil
+	}
+	var notFound ports.ErrNotFound
+	if !errors.As(err, &notFound) {
+		return err
+	}
+
+	if len(password) < 8 {
+		return errors.New("ADMIN_PASSWORD 는 8자 이상이어야 합니다")
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+	if err := s.users.Create(ctx, &domain.User{
+		ID:           "u_admin_" + strconv.FormatInt(time.Now().UnixNano(), 36),
+		LoginID:      loginID,
+		UserNm:       "관리자",
+		Nickname:     "",
+		EmailAddr:    "",
+		OrgNm:        "",
+		JobTitle:     "시스템 관리자",
+		MembershipCd: domain.VIP,
+		RoleCd:       domain.RoleAdmin,
+		PasswordHash: string(hash),
+		CreatedAt:    time.Now(),
+		StatusCd:     "A",
+	}); err != nil {
+		return err
+	}
+	log.Printf("[admin] 관리자 계정 %q 를 생성했습니다", loginID)
+	return nil
 }
