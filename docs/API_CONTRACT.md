@@ -329,3 +329,103 @@ Idempotency-Key: attendance:2026-7-25
 - 응답에 `message` 가 없으면 앱이 종류별 기본 문구로 대체하므로, **내부 스택·SQL 을 message 에 넣지 말 것.**
 - 오프라인 큐는 항목당 최대 5회 재시도 후 폐기하며, 큐 길이는 100건으로 제한한다.
 - 재시도 가능한 실패가 반복되면 순서 보존을 위해 큐 전송을 그 자리에서 멈춘다(뒤 항목을 건너뛰지 않음).
+
+---
+
+## 8. 관리 콘솔 API (`/api/admin`) — Vue 웹 콘솔 전용
+
+Go 백엔드에 **구현 완료**된 관리 API. 프런트는 `admin/`(Vue 3)이다.
+
+### 접근 제어
+
+모든 `/api/admin/*` 은 두 관문을 통과해야 한다.
+
+1. `RequireAuth` — 유효한 액세스 토큰(없으면 `401`)
+2. `RequireAdmin` — 저장소에서 사용자를 조회해 `role_cd == "ADMIN"` 이고 계정이 활성인지 확인(아니면 `403`)
+
+> **역할을 JWT 에 담지 않는 이유**: 토큰에 박으면 권한을 회수해도 만료(액세스 15분,
+> 리프레시 30일)까지 관리자로 통한다. 관리 권한은 즉시 회수돼야 하므로 매 요청 조회한다.
+> 관리 API 는 호출량이 적어 이 비용이 문제되지 않는다.
+
+`users` 테이블에 `role_cd TEXT NOT NULL DEFAULT 'USER'` 가 추가됐다(기존 행은 마이그레이션에서 `'USER'`).
+빈 문자열·알 수 없는 값은 모두 `USER` 로 해석한다 — **권한은 명시적으로 부여된 것만 인정한다.**
+
+### 엔드포인트
+
+| 메서드 | 경로 | 설명 |
+|---|---|---|
+| `GET` | `/api/admin/dashboard` | 사용자·콘텐츠·학습·지표·서비스 상태를 한 번에 |
+| `GET` | `/api/admin/status` | 저장소 왕복까지 확인한 서비스 상태 |
+| `GET` | `/api/admin/metrics` | 실시간 지표 단발 조회 |
+| `GET` | `/api/admin/stream` | 실시간 지표 **SSE**(2초 주기, 20초 하트비트) |
+| `GET` | `/api/admin/users` | `?search=&role=&status=&membership=&offset=&limit=` |
+| `GET` | `/api/admin/users/:id` | 상세 + 학습 진행 |
+| `PATCH` | `/api/admin/users/:id/role` | `{ "role_cd": "USER" \| "ADMIN" }` |
+| `PATCH` | `/api/admin/users/:id/status` | `{ "status_cd": "A" \| "I" \| "D" }` |
+| `GET` | `/api/admin/cards` | `?search=&category=&type=&offset=&limit=` — 카드별 학습 현황 포함 |
+| `POST` | `/api/admin/cards` | 문제 생성(`201`). **ID 는 서버가 정한다** |
+| `GET` | `/api/admin/cards/:id` | 문제 조회 |
+| `PUT` | `/api/admin/cards/:id` | 문제 수정. 경로의 ID 가 우선(body 의 `id` 로 다른 카드를 덮어쓸 수 없다) |
+| `DELETE` | `/api/admin/cards/:id` | 문제 + 딸린 진행 기록 삭제(`204`) |
+| `GET` | `/api/admin/audit` | `?limit=` 최근 관리 이력 |
+
+카드 본문 형식은 `domain.Card`(2장 CardDTO 와 같은 snake_case)를 그대로 쓴다 —
+앱의 카드 시드 JSON 을 복붙해 등록할 수 있다.
+
+### 잠금 방지 규칙 (`409 Conflict`)
+
+관리 콘솔에서 스스로 잠기는 두 경로를 서버가 원천 차단한다.
+
+| 상황 | 응답 |
+|---|---|
+| 자기 자신의 권한·상태 변경 | `409` "자기 자신의 권한·상태는 변경할 수 없습니다" |
+| 마지막 **활성** 관리자의 강등·정지 | `409` "마지막 관리자의 권한은 해제할 수 없습니다" |
+
+정지된 관리자는 로그인할 수 없으므로 관리자 머릿수에 넣지 않는다 —
+넣으면 "관리자는 2명인데 아무도 못 들어오는" 상태가 만들어진다.
+
+### 감사 로그
+
+**변경만** 기록한다(조회는 남기지 않는다 — 노이즈에 진짜 변경이 묻힌다).
+값이 실제로 바뀌지 않은 요청도 기록하지 않는다.
+
+```
+action: user.role_change | user.status_change | card.create | card.update | card.delete
+```
+
+기록 실패가 이미 성공한 변경을 되돌리지는 않는다(그러면 "실패 응답 + 변경 반영"이라는
+더 나쁜 상태가 된다). 대신 서버 로그에 반드시 남긴다.
+
+### 실시간 지표 스트림
+
+```
+GET /api/admin/stream
+Authorization: Bearer <access-token>
+Accept: text/event-stream
+```
+
+```
+event: metrics
+data: {"uptime_seconds":420,"total_requests":35,"error_rate":0,"active_users":2,
+       "traffic":[{"minute":"02:04","requests":11,"errors":0,"avg_ms":27}],
+       "top_paths":[...],"recent":[...]}
+
+: ping        ← 20초마다. 조용한 연결을 끊는 프록시 대비
+```
+
+- **리버스 프록시는 이 응답을 버퍼링하면 안 된다.** Caddy `flush_interval -1`,
+  nginx `proxy_buffering off`. 서버는 `X-Accel-Buffering: no` 도 함께 보낸다.
+- 지표는 **프로세스 로컬**이다. 서버를 여러 대로 늘리면 인스턴스별 수치만 보이고,
+  재시작하면 초기화된다. 모든 자료구조에 상한이 있어(시계열 60분, 최근 요청 100건,
+  지연 표본 512개, 활성 사용자 1만) 관측이 서버를 죽이지 않는다.
+
+### 서버가 절대 내보내지 않는 것
+
+- `password_hash` — 관리 DTO(`AdminUser`)에 해당 필드가 **아예 없다**(구조로 차단).
+- JWT 시크릿·DB 비밀번호·봇 토큰 — `ServiceStatus` 는 저장소 종류와 연결 성공 여부만 담는다.
+
+### 관리자 계정 부트스트랩
+
+`ADMIN_LOGIN_ID` / `ADMIN_PASSWORD` 환경변수로만 만든다. 기본 비밀번호는 코드에 없다.
+계정이 이미 있으면 비밀번호는 건드리지 않고 권한만 승격한다(재시작마다 비밀번호가
+되돌아가면 오히려 위험하다). 둘 다 비고 관리자도 없으면 부팅 로그로 안내만 한다.

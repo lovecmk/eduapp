@@ -1,0 +1,447 @@
+/*
+ * 관리 콘솔 디자인 시스템.
+ *
+ * UI 프레임워크를 쓰지 않은 이유: 이 콘솔에 필요한 요소는 표·카드·배지·폼 정도이고,
+ * 그것 때문에 수 MB짜리 의존성과 그 취약점·업그레이드 부담을 떠안을 이유가 없다.
+ * 대신 토큰(색·간격·반경)을 한곳에 모아 화면들이 같은 규칙을 따르게 한다.
+ *
+ * 색은 앱(하루3분ON)의 파란색 계열을 이어받되, 관리 도구답게 채도를 낮추고
+ * 정보 밀도를 높였다.
+ */
+
+:root {
+  --blue: #2563eb;
+  --blue-weak: #eff4ff;
+  --blue-strong: #1d4ed8;
+
+  --green: #12a150;
+  --green-weak: #e8f7ee;
+  --amber: #b45309;
+  --amber-weak: #fef4e6;
+  --red: #dc2626;
+  --red-weak: #fdecec;
+  --violet: #7c3aed;
+  --violet-weak: #f3edff;
+
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --surface-alt: #f1f3f6;
+  --border: #e2e5ea;
+  --border-strong: #cbd1da;
+
+  --text: #16191f;
+  --text-muted: #626b7a;
+  --text-faint: #949cab;
+
+  --r-sm: 6px;
+  --r: 10px;
+  --r-lg: 14px;
+
+  --shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
+  --shadow-lg: 0 8px 24px rgba(16, 24, 40, 0.1);
+
+  --sidebar-w: 216px;
+  --header-h: 56px;
+
+  --mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  --sans: -apple-system, BlinkMacSystemFont, 'Pretendard', 'Apple SD Gothic Neo',
+    'Malgun Gothic', system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.5;
+  /* 한국어는 단어 중간에서 끊기면 읽기 힘들다 — 어절 단위로 넘긴다. */
+  word-break: keep-all;
+  overflow-wrap: break-word;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  margin: 0;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+a {
+  color: var(--blue);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+/* 키보드 사용자가 지금 어디에 있는지 항상 보이게 한다. */
+:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+}
+
+/* ── 레이아웃 ───────────────────────────────────────────────────────────── */
+
+.shell {
+  display: grid;
+  grid-template-columns: var(--sidebar-w) 1fr;
+  min-height: 100%;
+}
+
+.main {
+  min-width: 0; /* 그리드 자식의 기본 min-width:auto 가 표 오버플로를 밀어낸다 */
+  display: flex;
+  flex-direction: column;
+}
+
+.page {
+  padding: 20px 24px 48px;
+  max-width: 1440px;
+  width: 100%;
+}
+
+.page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+
+.page-title {
+  font-size: 20px;
+}
+
+.page-sub {
+  color: var(--text-muted);
+  font-size: 13px;
+  margin-top: 3px;
+}
+
+/* ── 카드 ───────────────────────────────────────────────────────────────── */
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow);
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.card-title {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.card-body {
+  padding: 16px;
+}
+
+.grid {
+  display: grid;
+  gap: 14px;
+}
+
+/* auto-fit + minmax 로 화면 폭에 따라 열 수가 자연히 줄어든다(미디어쿼리 불필요). */
+.grid-stats {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+.grid-2 {
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+}
+
+/* ── 배지 ───────────────────────────────────────────────────────────────── */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.badge-blue {
+  background: var(--blue-weak);
+  color: var(--blue-strong);
+}
+.badge-green {
+  background: var(--green-weak);
+  color: var(--green);
+}
+.badge-amber {
+  background: var(--amber-weak);
+  color: var(--amber);
+}
+.badge-red {
+  background: var(--red-weak);
+  color: var(--red);
+}
+.badge-violet {
+  background: var(--violet-weak);
+  color: var(--violet);
+}
+.badge-gray {
+  background: var(--surface-alt);
+  color: var(--text-muted);
+}
+
+/* ── 버튼 ───────────────────────────────────────────────────────────────── */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 14px;
+  border-radius: var(--r);
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+.btn:hover:not(:disabled) {
+  background: var(--surface-alt);
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.btn-primary {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: #fff;
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--blue-strong);
+}
+.btn-danger {
+  background: var(--surface);
+  border-color: var(--red);
+  color: var(--red);
+}
+.btn-danger:hover:not(:disabled) {
+  background: var(--red-weak);
+}
+.btn-sm {
+  height: 28px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+/* ── 폼 ─────────────────────────────────────────────────────────────────── */
+
+.field {
+  display: block;
+  margin-bottom: 14px;
+}
+
+.label {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 5px;
+}
+
+.input,
+.select,
+.textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 8px 11px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r);
+  background: var(--surface);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13.5px;
+}
+.input:focus,
+.select:focus,
+.textarea:focus {
+  border-color: var(--blue);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+.textarea {
+  resize: vertical;
+  min-height: 76px;
+  line-height: 1.55;
+}
+.input-error {
+  border-color: var(--red);
+}
+
+.hint {
+  font-size: 12px;
+  color: var(--text-faint);
+  margin-top: 4px;
+}
+.hint-error {
+  color: var(--red);
+}
+
+.row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* ── 표 ─────────────────────────────────────────────────────────────────── */
+
+/* 표는 넓어질 수 있다. 페이지 전체가 아니라 표만 가로 스크롤되게 감싼다. */
+.table-wrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.table th {
+  text-align: left;
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+  background: var(--surface-alt);
+}
+
+.table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.table tbody tr:hover {
+  background: var(--blue-weak);
+}
+
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.num {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.truncate {
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── 상태 표시 ───────────────────────────────────────────────────────────── */
+
+.empty {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--text-faint);
+  font-size: 13px;
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border-strong);
+  border-top-color: var(--blue);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.dot-live {
+  background: var(--green);
+  animation: pulse 1.8s ease-in-out infinite;
+}
+.dot-dead {
+  background: var(--text-faint);
+}
+@keyframes pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* 움직임에 민감한 사용자를 위해 애니메이션을 끈다. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* 화면에 보이지 않지만 스크린리더는 읽는 텍스트. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ── 좁은 화면 ───────────────────────────────────────────────────────────── */
+
+@media (max-width: 860px) {
+  .shell {
+    grid-template-columns: 1fr;
+  }
+  .page {
+    padding: 16px 14px 40px;
+  }
+}

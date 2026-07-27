@@ -12,9 +12,31 @@
 {$SITE_ADDRESS} {
 	encode gzip zstd
 
-	# 헬스체크는 프록시 그대로 통과(로드밸런서/업타임 모니터용).
-	reverse_proxy api:8080 {
-		health_uri /health
-		health_interval 10s
+	# ── 관리 콘솔(Vue) ────────────────────────────────────────────────────────
+	# 정적 SPA 를 API 와 **같은 오리진**에 붙인다. 그래야 CORS 설정도, 토큰을
+	# 다른 도메인으로 실어 보내는 문제도 생기지 않는다.
+	# ADMIN_DIST 가 비면 이 블록은 404 를 낼 뿐 API 동작에는 영향이 없다.
+	handle_path /admin/* {
+		root * {$ADMIN_DIST:/srv/admin}
+		# SPA 히스토리 라우팅 — 새로고침·딥링크가 index.html 로 떨어져야 한다.
+		try_files {path} /index.html
+		file_server
+	}
+
+	# ── API ───────────────────────────────────────────────────────────────────
+	handle /api/* {
+		reverse_proxy api:8080 {
+			# 관리 대시보드의 실시간 지표는 SSE(text/event-stream)로 흐른다.
+			# 기본 버퍼링을 끄지 않으면 응답이 프록시에 고여 화면이 멈춘 것처럼 보인다.
+			flush_interval -1
+		}
+	}
+
+	# 헬스체크 + 나머지는 프록시 그대로 통과(로드밸런서/업타임 모니터용).
+	handle {
+		reverse_proxy api:8080 {
+			health_uri /health
+			health_interval 10s
+		}
 	}
 }

@@ -1,0 +1,118 @@
+import { describe, it, expect } from 'vitest';
+import { num, pct, ms, uptime, dateTime, dateOnly, timeAgo, statusTone, statusLabel } from './format';
+
+/**
+ * 서식 함수는 화면 전체가 쓴다. 여기서 "-" 대신 NaN 이나 Invalid Date 가 새면
+ * 관리자가 그 숫자를 사실로 믿게 되므로, 잘못된 입력을 확실히 막아 둔다.
+ */
+
+describe('num', () => {
+  it('천 단위 구분자를 넣는다', () => {
+    expect(num(1234567)).toBe('1,234,567');
+    expect(num(0)).toBe('0');
+  });
+
+  it('숫자가 아니면 "-" (NaN 을 화면에 흘리지 않는다)', () => {
+    expect(num(null)).toBe('-');
+    expect(num(undefined)).toBe('-');
+    expect(num(NaN)).toBe('-');
+    expect(num(Infinity)).toBe('-');
+  });
+});
+
+describe('pct', () => {
+  it('소수 한 자리 백분율', () => {
+    expect(pct(12.345)).toBe('12.3%');
+    expect(pct(0)).toBe('0.0%');
+  });
+  it('잘못된 값은 "-"', () => {
+    expect(pct(undefined)).toBe('-');
+  });
+});
+
+describe('ms — 응답 시간', () => {
+  it('1초 미만은 ms, 이상은 초 단위', () => {
+    expect(ms(340)).toBe('340ms');
+    expect(ms(1250)).toBe('1.25초');
+    expect(ms(0)).toBe('0ms');
+  });
+  it('잘못된 값은 "-"', () => {
+    expect(ms(null)).toBe('-');
+  });
+});
+
+describe('uptime — 가동 시간', () => {
+  it('가장 큰 단위 두 개까지만 보여준다', () => {
+    expect(uptime(3 * 86400 + 4 * 3600 + 12 * 60)).toBe('3일 4시간');
+    expect(uptime(4 * 3600 + 12 * 60)).toBe('4시간 12분');
+    expect(uptime(12 * 60)).toBe('12분');
+  });
+
+  it('1분 미만은 초로', () => {
+    expect(uptime(45)).toBe('45초');
+    expect(uptime(0)).toBe('0초');
+  });
+
+  it('음수·잘못된 값은 "-"', () => {
+    expect(uptime(-1)).toBe('-');
+    expect(uptime(null)).toBe('-');
+  });
+});
+
+describe('날짜 서식', () => {
+  it('ISO 를 사람이 읽는 형태로', () => {
+    const iso = new Date(2026, 6, 27, 10, 32).toISOString();
+    expect(dateTime(iso)).toBe('2026-07-27 10:32');
+    expect(dateOnly(iso)).toBe('2026-07-27');
+  });
+
+  it('파싱 불가한 값은 "-" (Invalid Date 를 화면에 흘리지 않는다)', () => {
+    expect(dateTime('not-a-date')).toBe('-');
+    expect(dateTime('')).toBe('-');
+    expect(dateTime(null)).toBe('-');
+    expect(dateOnly(undefined)).toBe('-');
+  });
+});
+
+describe('timeAgo', () => {
+  const now = new Date('2026-07-27T12:00:00Z');
+
+  it('경과 시간에 맞는 단위를 고른다', () => {
+    expect(timeAgo('2026-07-27T11:59:30Z', now)).toBe('방금');
+    expect(timeAgo('2026-07-27T11:57:00Z', now)).toBe('3분 전');
+    expect(timeAgo('2026-07-27T10:00:00Z', now)).toBe('2시간 전');
+    expect(timeAgo('2026-07-25T12:00:00Z', now)).toBe('2일 전');
+  });
+
+  it('30일이 넘으면 날짜로 보여준다', () => {
+    expect(timeAgo('2026-01-01T12:00:00Z', now)).toBe('2026-01-01');
+  });
+
+  it('미래 시각(시계 어긋남)은 "방금"으로 흡수한다', () => {
+    // 서버·클라이언트 시계가 조금 어긋나 "-5분 전" 같은 값이 뜨면 안 된다.
+    expect(timeAgo('2026-07-27T12:00:30Z', now)).toBe('방금');
+  });
+
+  it('잘못된 값은 "-"', () => {
+    expect(timeAgo('nope', now)).toBe('-');
+  });
+});
+
+describe('statusTone — HTTP 상태를 색으로', () => {
+  it('2xx 초록, 4xx 주황, 5xx 빨강', () => {
+    expect(statusTone(200)).toBe('green');
+    expect(statusTone(204)).toBe('green');
+    expect(statusTone(404)).toBe('amber');
+    expect(statusTone(500)).toBe('red');
+    expect(statusTone(302)).toBe('gray');
+  });
+});
+
+describe('statusLabel — 계정 상태', () => {
+  it('빈 값은 활성으로 본다(기존 데이터 호환)', () => {
+    expect(statusLabel('')).toBe('활성');
+    expect(statusLabel('A')).toBe('활성');
+    expect(statusLabel('I')).toBe('정지');
+    expect(statusLabel('D')).toBe('삭제');
+  });
+});

@@ -1,0 +1,29 @@
+{
+  "name": "eduapp-admin",
+  "version": "1.0.0",
+  "private": true,
+  "description": "하루3분ON 관리 콘솔 — Vue 3 + Vite, Go 백엔드의 /api/admin 을 소비한다",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --noEmit && vite build",
+    "typecheck": "vue-tsc --noEmit",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "verify": "npm run typecheck && npm test"
+  },
+  "dependencies": {
+    "pinia": "^2.2.6",
+    "vue": "^3.5.13",
+    "vue-router": "^4.4.5"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.8",
+    "happy-dom": "^20.11.1",
+    "typescript": "~5.6.3",
+    "vite": "^7.3.6",
+    "vitest": "^4.1.10",
+    "vue-tsc": "^3.3.8"
+  }
+}
