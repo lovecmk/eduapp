@@ -11,7 +11,9 @@ import type {
   CardPage,
   CardQuery,
   Card,
+  AdminReport,
   AuditLog,
+  NotifyInput,
   RoleCd,
   StatusCd,
 } from './types';
@@ -279,6 +281,21 @@ class AdminApi {
 
   deleteCard(id: string): Promise<void> {
     return this.request<void>(`/api/admin/cards/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  }
+
+  /** 접수된 신고 목록. */
+  async reports(limit = 100): Promise<AdminReport[]> {
+    const res = await this.request<{ items: AdminReport[] }>(`/api/admin/reports?limit=${limit}`);
+    return res.items ?? [];
+  }
+
+  /** 공지를 발송하고 받은 인원 수를 돌려준다. */
+  async notify(input: NotifyInput): Promise<number> {
+    const res = await this.request<{ sent: number }>('/api/admin/notifications', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+    return res.sent ?? 0;
   }
 
   async audit(limit = 100): Promise<AuditLog[]> {

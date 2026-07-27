@@ -229,11 +229,13 @@ func (r *UserDataRepo) MarkAllNotificationsRead(_ context.Context, userID string
 	return nil
 }
 
-// AddNotification 은 서버가 알림을 만들어 넣을 때 쓴다(포트 밖의 편의 메서드).
-func (r *UserDataRepo) AddNotification(n domain.Notification) {
+func (r *UserDataRepo) AddNotifications(_ context.Context, list []domain.Notification) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.notifs[n.UserID] = append(r.notifs[n.UserID], n)
+	for _, n := range list {
+		r.notifs[n.UserID] = append(r.notifs[n.UserID], n)
+	}
+	return nil
 }
 
 func contains(list []string, s string) bool {

@@ -248,3 +248,24 @@ func (r *UserDataRepo) MarkAllNotificationsRead(ctx context.Context, userID stri
 }
 
 var _ ports.UserDataRepository = (*UserDataRepo)(nil)
+
+func (r *UserDataRepo) AddNotifications(ctx context.Context, list []domain.Notification) error {
+	if len(list) == 0 {
+		return nil
+	}
+	// 한 트랜잭션으로 넣는다 — 공지가 절반만 전달되면 "나만 못 받았다"가 된다.
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	for _, n := range list {
+		if _, err := tx.Exec(ctx,
+			`INSERT INTO notifications (id, user_id, type_cd, title_txt, desc_txt, category_nm, created_at, read_yn)
+			 VALUES ($1,$2,$3,$4,$5,$6,$7,FALSE) ON CONFLICT (id) DO NOTHING`,
+			n.ID, n.UserID, n.TypeCd, n.TitleTxt, n.DescTxt, n.CategoryNm, n.CreatedAt); err != nil {
+			return err
+		}
+	}
+	return tx.Commit(ctx)
+}

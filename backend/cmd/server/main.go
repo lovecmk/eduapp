@@ -111,7 +111,7 @@ func main() {
 	// 관리 콘솔(Vue) — 요청 지표 수집기와 관리 유스케이스.
 	syncSvc := service.NewSyncService(dataRepo, cardRepo)
 	metrics := service.NewMetrics()
-	adminSvc := service.NewAdminService(userRepo, cardRepo, auditRepo, metrics, cfg.Store)
+	adminSvc := service.NewAdminService(userRepo, cardRepo, auditRepo, dataRepo, metrics, cfg.Store)
 
 	tgSvc := service.NewTelegramService(service.TelegramConfig{
 		BotToken:     cfg.TelegramBotToken,

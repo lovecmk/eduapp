@@ -334,3 +334,40 @@ func queryInt(c *fiber.Ctx, key string, fallback int) int {
 	}
 	return n
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 신고 · 공지
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Reports 는 GET /api/admin/reports — 접수된 문제 신고.
+func (h *AdminHandler) Reports(c *fiber.Ctx) error {
+	list, err := h.svc.Reports(c.Context(), queryInt(c, "limit", 100))
+	if err != nil {
+		return adminError(err)
+	}
+	return c.JSON(fiber.Map{"items": list})
+}
+
+type notifyReq struct {
+	Title  string `json:"title_txt"`
+	Body   string `json:"desc_txt"`
+	TypeCd string `json:"type_cd"`
+	// UserID 가 비면 전체 발송.
+	UserID string `json:"user_id"`
+}
+
+// Notify 는 POST /api/admin/notifications — 공지 발송.
+func (h *AdminHandler) Notify(c *fiber.Ctx) error {
+	var req notifyReq
+	if err := c.BodyParser(&req); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "요청 형식이 올바르지 않습니다")
+	}
+	sent, err := h.svc.Notify(c.Context(), actorOf(c), service.NotifyInput{
+		Title: req.Title, Body: req.Body, TypeCd: req.TypeCd, UserID: req.UserID,
+	})
+	if err != nil {
+		return adminError(err)
+	}
+	// 몇 명에게 갔는지 돌려준다 — 전체 발송은 결과를 확인할 방법이 이것뿐이다.
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"sent": sent})
+}

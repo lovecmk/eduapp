@@ -3,6 +3,7 @@ package server_test
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 
 	"github.com/lovecmk/eduapp/backend/internal/config"
 	"github.com/lovecmk/eduapp/backend/internal/memory"
+	"github.com/lovecmk/eduapp/backend/internal/middleware"
 	"github.com/lovecmk/eduapp/backend/internal/seed"
 	"github.com/lovecmk/eduapp/backend/internal/server"
 	"github.com/lovecmk/eduapp/backend/internal/service"
@@ -37,6 +39,7 @@ func buildAdminApp(t *testing.T) *adminEnv {
 	users := memory.NewUserRepo()
 	cards := memory.NewCardRepo()
 	audit := memory.NewAuditRepo()
+	data := memory.NewUserDataRepo()
 
 	tm := token.NewManager(cfg.JWTSecret, cfg.AccessTTL, cfg.RefreshTTL)
 	authSvc := service.NewAuthService(users, tm)
@@ -56,13 +59,16 @@ func buildAdminApp(t *testing.T) *adminEnv {
 	pushSvc := service.NewPushService(memory.NewPushTokenRepo(), "")
 	app := server.New(server.Deps{
 		Cfg: cfg, Tokens: tm, Auth: authSvc, Cards: cardSvc,
-		Stats:     service.NewStatsService(cardSvc),
-		Community: service.NewCommunityService(cardSvc),
-		Push:      pushSvc,
-		Telegram:  service.NewTelegramService(service.TelegramConfig{}, pushSvc),
-		Admin:     service.NewAdminService(users, cards, audit, metrics, cfg.Store),
-		Metrics:   metrics,
-		Users:     users,
+		Stats:       service.NewStatsService(cardSvc),
+		Community:   service.NewCommunityService(cardSvc),
+		Push:        pushSvc,
+		Telegram:    service.NewTelegramService(service.TelegramConfig{}, pushSvc),
+		Admin:       service.NewAdminService(users, cards, audit, data, metrics, cfg.Store),
+		Sync:        service.NewSyncService(data, cards),
+		Idempotency: middleware.NewIdempotencyStore(),
+		Data:        data,
+		Metrics:     metrics,
+		Users:       users,
 	})
 
 	env := &adminEnv{app: app}
@@ -699,5 +705,166 @@ func TestCardUpdateDetectsConcurrentEdit(t *testing.T) {
 	_ = json.Unmarshal(body, &after)
 	if after["title_txt"] != "A 가 고침" {
 		t.Errorf("A 의 수정이 덮였다: %v", after["title_txt"])
+	}
+}
+
+// 접수된 신고는 관리 콘솔에서 보여야 한다.
+//
+// 신고 API 는 있는데 관리자가 볼 방법이 없으면 기능이 반쪽이다 —
+// 사용자는 "신고했다"고 생각하는데 아무도 읽지 않는다.
+func TestAdminSeesReports(t *testing.T) {
+	env := buildAdminApp(t)
+
+	// 일반 사용자가 문제를 신고한다.
+	userTok := loginToken(t, env.app, "demo", "demo1234")
+	cardID := firstCardID(t, env.app, userTok)
+	if res, b := doJSON(t, env.app, "POST", "/api/reports", userTok, map[string]any{
+		"card_id": cardID, "reason": "설명 오류", "detail": "해설이 사실과 다릅니다",
+	}); res.StatusCode != 201 {
+		t.Fatalf("신고 접수: %d %s", res.StatusCode, b)
+	}
+
+	res, body := doJSON(t, env.app, "GET", "/api/admin/reports", env.adminToken, nil)
+	if res.StatusCode != 200 {
+		t.Fatalf("신고 목록: %d %s", res.StatusCode, body)
+	}
+	var out struct {
+		Items []struct {
+			CardID       string `json:"card_id"`
+			Reason       string `json:"reason"`
+			CardTitle    string `json:"card_title"`
+			ReporterName string `json:"reporter_name"`
+			CardMissing  bool   `json:"card_missing"`
+		} `json:"items"`
+	}
+	decode(t, body, &out)
+	if len(out.Items) != 1 {
+		t.Fatalf("신고가 1건 보여야 하는데 %d건이다: %s", len(out.Items), body)
+	}
+	got := out.Items[0]
+	if got.CardID != cardID || got.Reason != "설명 오류" {
+		t.Errorf("신고 내용이 어긋난다: %+v", got)
+	}
+	// id 만 주면 관리자가 무슨 문제인지 확인하려고 다시 검색해야 한다.
+	if got.CardTitle == "" || got.ReporterName == "" {
+		t.Errorf("카드 제목·신고자 이름이 채워져야 한다: %+v", got)
+	}
+	if got.CardMissing {
+		t.Error("카드가 살아 있는데 삭제됨으로 표시됐다")
+	}
+
+	// 대시보드에도 건수가 잡혀야 한다.
+	_, dash := doJSON(t, env.app, "GET", "/api/admin/dashboard", env.adminToken, nil)
+	var d struct {
+		Content struct {
+			Reports int `json:"reports"`
+		} `json:"content"`
+	}
+	decode(t, dash, &d)
+	if d.Content.Reports != 1 {
+		t.Errorf("대시보드 신고 건수=%d, want 1", d.Content.Reports)
+	}
+}
+
+// 신고된 카드가 삭제되면 그 사실이 드러나야 한다 — 없는 카드를 계속 찾게 두면 안 된다.
+func TestAdminReportMarksDeletedCard(t *testing.T) {
+	env := buildAdminApp(t)
+	userTok := loginToken(t, env.app, "demo", "demo1234")
+	cardID := firstCardID(t, env.app, userTok)
+
+	doJSON(t, env.app, "POST", "/api/reports", userTok, map[string]any{
+		"card_id": cardID, "reason": "오탈자",
+	})
+	if res, _ := doJSON(t, env.app, "DELETE", "/api/admin/cards/"+cardID, env.adminToken, nil); res.StatusCode != 204 {
+		t.Fatalf("카드 삭제 실패: %d", res.StatusCode)
+	}
+
+	_, body := doJSON(t, env.app, "GET", "/api/admin/reports", env.adminToken, nil)
+	var out struct {
+		Items []struct {
+			CardMissing bool `json:"card_missing"`
+		} `json:"items"`
+	}
+	decode(t, body, &out)
+	if len(out.Items) != 1 || !out.Items[0].CardMissing {
+		t.Errorf("삭제된 카드의 신고는 card_missing 이어야 한다: %s", body)
+	}
+}
+
+// 관리자가 보낸 공지가 사용자 알림 목록에 도착해야 한다.
+//
+// 알림 테이블은 있는데 그것을 만드는 주체가 없어, 앱은 언제나 빈 배열만 받았다.
+func TestAdminNotifyReachesUser(t *testing.T) {
+	env := buildAdminApp(t)
+	userTok := loginToken(t, env.app, "demo", "demo1234")
+
+	res, body := doJSON(t, env.app, "POST", "/api/admin/notifications", env.adminToken, map[string]any{
+		"title_txt": "정기 안전점검 안내",
+		"desc_txt":  "이번 주 금요일 오후 2시에 실시합니다.",
+		"type_cd":   "SYSTEM",
+	})
+	if res.StatusCode != 201 {
+		t.Fatalf("공지 발송: %d %s", res.StatusCode, body)
+	}
+	var sent struct {
+		Sent int `json:"sent"`
+	}
+	decode(t, body, &sent)
+	if sent.Sent < 1 {
+		t.Fatalf("발송 인원이 0명이다: %s", body)
+	}
+
+	_, list := doJSON(t, env.app, "GET", "/api/notifications", userTok, nil)
+	var notifs []struct {
+		TitleTxt string `json:"title_txt"`
+		ReadYn   bool   `json:"read_yn"`
+	}
+	decode(t, list, &notifs)
+	if len(notifs) != 1 || notifs[0].TitleTxt != "정기 안전점검 안내" {
+		t.Fatalf("사용자에게 공지가 도착하지 않았다: %s", list)
+	}
+	if notifs[0].ReadYn {
+		t.Error("새 공지는 읽지 않은 상태여야 한다")
+	}
+
+	// 감사 로그에도 남아야 한다 — 전체 발송은 되돌릴 수 없는 행위다.
+	_, audit := doJSON(t, env.app, "GET", "/api/admin/audit", env.adminToken, nil)
+	if !strings.Contains(string(audit), "notification.send") {
+		t.Errorf("공지 발송이 감사 로그에 남지 않았다: %s", audit)
+	}
+}
+
+// 공지 입력 검증 — 제목 없음·너무 긴 내용·알 수 없는 종류는 400.
+func TestAdminNotifyValidation(t *testing.T) {
+	env := buildAdminApp(t)
+
+	cases := []struct {
+		name string
+		body map[string]any
+	}{
+		{"제목 없음", map[string]any{"desc_txt": "내용만 있음"}},
+		{"제목 공백만", map[string]any{"title_txt": "   "}},
+		{"제목 초과", map[string]any{"title_txt": strings.Repeat("가", 61)}},
+		{"내용 초과", map[string]any{"title_txt": "제목", "desc_txt": strings.Repeat("나", 501)}},
+		{"알 수 없는 종류", map[string]any{"title_txt": "제목", "type_cd": "WEIRD"}},
+	}
+	for _, tc := range cases {
+		if res, b := doJSON(t, env.app, "POST", "/api/admin/notifications", env.adminToken, tc.body); res.StatusCode != 400 {
+			t.Errorf("%s -> %d, want 400: %s", tc.name, res.StatusCode, b)
+		}
+	}
+}
+
+// 신고·공지도 관리자만 접근할 수 있어야 한다.
+func TestAdminReportsAndNotifyRequireAdmin(t *testing.T) {
+	env := buildAdminApp(t)
+	userTok := loginToken(t, env.app, "demo", "demo1234")
+
+	if res, _ := doJSON(t, env.app, "GET", "/api/admin/reports", userTok, nil); res.StatusCode != 403 {
+		t.Errorf("일반 사용자의 신고 조회 -> %d, want 403", res.StatusCode)
+	}
+	if res, _ := doJSON(t, env.app, "POST", "/api/admin/notifications", userTok,
+		map[string]any{"title_txt": "몰래 공지"}); res.StatusCode != 403 {
+		t.Errorf("일반 사용자의 공지 발송 -> %d, want 403", res.StatusCode)
 	}
 }

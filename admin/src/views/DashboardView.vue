@@ -32,6 +32,8 @@ const users = computed(() => dash.data.value?.users ?? null);
 const content = computed(() => dash.data.value?.content ?? null);
 const learning = computed(() => dash.data.value?.learning ?? null);
 const service = computed(() => dash.data.value?.service ?? null);
+/** 접수된 신고 건수 — 0이면 줄 자체를 감춘다. */
+const reportCount = computed(() => dash.data.value?.content.reports ?? 0);
 
 /** 지표에 색을 입히는 건 '주의가 필요할 때'뿐이다. */
 const errorTone = computed(() => {
@@ -113,6 +115,15 @@ function share(v: number): string {
           :tone="service && !service.store_healthy ? 'danger' : 'default'"
         />
       </section>
+
+      <!-- 신고는 '숫자'가 아니라 '처리할 일'이다.
+           타일 하나로 세어 두면 지나치기 쉬우므로, 눌러서 바로 갈 수 있는 줄로 만든다.
+           건수가 0이면 아무것도 표시하지 않는다 — 할 일이 없을 때의 빈 줄은 소음이다. -->
+      <RouterLink v-if="reportCount > 0" to="/reports" class="callout callout-warn alert-row action-row">
+        <AppIcon name="flag" :size="15" />
+        <span>처리되지 않은 신고가 {{ num(reportCount) }}건 있습니다.</span>
+        <span class="action-go">확인하기</span>
+      </RouterLink>
 
       <!-- 저장소가 죽었을 때만 나타나는 경고 -->
       <div v-if="service && !service.store_healthy" class="callout callout-danger alert-row">
@@ -278,6 +289,24 @@ function share(v: number): string {
 </template>
 
 <style scoped>
+/* 조치가 가능한 알림 줄 — 누를 수 있다는 것이 보여야 한다. */
+.action-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  cursor: pointer;
+}
+.action-row:hover {
+  text-decoration: none;
+  filter: brightness(0.98);
+}
+.action-go {
+  margin-left: auto;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 .block {
   margin-top: 12px;
 }
