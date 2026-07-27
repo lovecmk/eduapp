@@ -21,15 +21,6 @@ export function useTodayCards(difficulty?: CardDifficulty) {
   });
 }
 
-export function useCardEntities() {
-  const { data: allCards = [] } = useAllCards();
-  const entities: Record<string, LearningCard> = {};
-  for (const card of allCards) {
-    entities[card.id] = card;
-  }
-  return entities;
-}
-
 export function useCreateCards() {
   const queryClient = useQueryClient();
   return useMutation({

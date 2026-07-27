@@ -13,6 +13,7 @@ import (
 // Config 는 서버 구동에 필요한 모든 설정값의 집합이다.
 type Config struct {
 	Port            string        // HTTP 포트
+	Version         string        // 배포된 서버 빌드 식별자 — /health 응답에 실려 배포 확인에 쓰인다
 	Store           string        // 저장소 종류: "mongo"(기본) | "postgres" | "memory"(무DB 로컬/데모)
 	MongoURI        string        // MongoDB 연결 문자열
 	MongoDB         string        // 데이터베이스 이름
@@ -45,6 +46,7 @@ type Config struct {
 func Load() Config {
 	return Config{
 		Port:            getEnv("PORT", "8080"),
+		Version:         getEnv("APP_VERSION", "dev"),
 		Store:           getEnv("STORE", "mongo"),
 		MongoURI:        getEnv("MONGO_URI", "mongodb://localhost:27017"),
 		MongoDB:         getEnv("MONGO_DB", "eduapp"),

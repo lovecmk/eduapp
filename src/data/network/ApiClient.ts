@@ -14,6 +14,28 @@ const RETRY_BASE_MS = 400;
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
+/**
+ * 성공 응답의 본문을 읽는다. 본문이 없으면 빈 객체를 돌려준다.
+ *
+ * 모든 성공 응답에 JSON 본문이 있는 것은 아니다 — 삭제(DELETE)는 204 No Content 로,
+ * 일부 쓰기는 빈 200 으로 답한다. 그런 응답에 res.json() 을 걸면 SyntaxError 가
+ * 나면서 **성공한 요청이 실패로 둔갑한다**(게다가 ApiError 가 아니라 원시 예외라
+ * 화면의 에러 처리도 빗나간다). 본문이 없는 성공은 성공으로 다뤄야 한다.
+ */
+async function readJsonBody(res: Response): Promise<unknown> {
+  if (res.status === 204 || res.status === 205) return {};
+  const text = await res.text().catch(() => '');
+  if (text.trim().length === 0) return {};
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    // 본문은 있는데 JSON 이 아니다(프록시가 끼워 넣은 HTML 오류 페이지 등).
+    // 경로만 남기고 — 본문에는 토큰·개인정보가 섞일 수 있다 — 형식 오류로 알린다.
+    logger.warn('api_response_not_json', { status: res.status });
+    throw new ApiError(res.status, '서버 응답 형식이 올바르지 않습니다', 'server');
+  }
+}
+
 class ApiClient {
   // 동시에 여러 요청이 401을 받아도 refresh 는 한 번만 수행하고 결과를 공유한다(single-flight).
   // 이렇게 하지 않으면 refresh 쇄도(stampede)가 일어나, 서버가 refresh 토큰을 회전시킬 때
@@ -60,8 +82,7 @@ class ApiClient {
       logger.warn('api_request_failed', { path, status: res.status, method: init.method ?? 'GET' });
       throw new ApiError(res.status, body.message ?? '', kindOf(res.status));
     }
-    const body = await res.json();
-    return validateResponse<T>(body);
+    return validateResponse<T>(await readJsonBody(res));
   }
 
   /**
@@ -114,16 +135,21 @@ class ApiClient {
   /**
    * 읽기 요청 — 일시적 실패(연결 끊김·5xx·429)는 지수 백오프로 몇 번 더 시도한다.
    * GET 은 부수효과가 없어 재시도가 안전하다(멱등).
+   *
+   * `retries: 0` 은 "기다릴 수 없는 자리"를 위한 것이다. 화면이 사용자를 붙잡아 둔 채
+   * 응답을 기다리는 경로(앱 부팅의 세션 복구 등)에서 기본 재시도를 그대로 쓰면
+   * 오프라인일 때 타임아웃 3회 + 백오프까지 30초 넘게 멈춘 화면을 보여주게 된다.
    */
-  async get<T>(path: string): Promise<T> {
+  async get<T>(path: string, options: { retries?: number } = {}): Promise<T> {
+    const retries = options.retries ?? GET_RETRIES;
     let lastError: unknown;
-    for (let attempt = 0; attempt <= GET_RETRIES; attempt++) {
+    for (let attempt = 0; attempt <= retries; attempt++) {
       try {
         return await this.request<T>(path, { method: 'GET' });
       } catch (e) {
         lastError = e;
         const err = toApiError(e);
-        if (!err.retryable || attempt === GET_RETRIES) throw err;
+        if (!err.retryable || attempt === retries) throw err;
         // 400ms → 800ms … 재시도 간격을 늘려 서버 부담과 배터리 소모를 줄인다.
         await sleep(RETRY_BASE_MS * 2 ** attempt);
       }

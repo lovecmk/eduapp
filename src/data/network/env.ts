@@ -1,4 +1,5 @@
 import Constants from 'expo-constants';
+import { logger } from '../../utils/logger';
 
 /**
  * 빌드 타임 환경 변수 접근 레이어 — PART 5.1
@@ -133,10 +134,12 @@ export function collectConfigWarnings(): string[] {
   return w;
 }
 
-if (__DEV__) {
+{
   const warnings = collectConfigWarnings();
   if (warnings.length > 0) {
-    // 개발 중에만 노출 — 오설정을 빌드 전에 잡아낸다.
-    console.warn('[env] 환경설정 점검 필요:\n· ' + warnings.join('\n· '));
+    // 개발 중에는 물론 운영에서도 남긴다 — 오설정으로 배포된 빌드는
+    // 화면이 조용히 비어 보일 뿐이라, 이 로그가 유일한 단서가 된다.
+    // (경고 문구에는 주소·타임아웃만 담기고 비밀은 들어가지 않는다.)
+    logger.warn('env_config_warning', { warnings });
   }
 }

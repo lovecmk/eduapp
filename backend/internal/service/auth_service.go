@@ -18,6 +18,13 @@ import (
 // ErrInvalidCredentials 는 로그인 실패 오류.
 var ErrInvalidCredentials = errors.New("invalid credentials")
 
+// ErrAccountDisabled 는 정지(I)·삭제(D) 처리된 계정으로 접근했을 때의 오류.
+//
+// 자격증명 오류와 구분하는 이유: 비밀번호는 맞는데 들어갈 수 없는 상황이라
+// "비밀번호가 틀렸습니다" 로 안내하면 사용자가 비밀번호를 계속 바꿔 보게 된다.
+// (계정 존재 여부가 새는 것은 문제되지 않는다 — 이미 비밀번호를 통과한 뒤다.)
+var ErrAccountDisabled = errors.New("account disabled")
+
 // ErrUsernameTaken / ErrNicknameTaken 은 회원가입/정보수정 시 중복 오류.
 var (
 	ErrUsernameTaken = errors.New("username already taken")
@@ -63,6 +70,11 @@ func (s *AuthService) Login(ctx context.Context, loginID, password string) (*dom
 	if bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(password)) != nil {
 		return nil, "", "", ErrInvalidCredentials
 	}
+	// 관리 콘솔에서 정지(I)·삭제(D)한 계정은 여기서 막는다.
+	// 이 검사가 없으면 '정지' 버튼이 아무 효과도 내지 못한다(그대로 재로그인 가능).
+	if !u.Active() {
+		return nil, "", "", ErrAccountDisabled
+	}
 	access, err := s.tokens.Access(u.ID)
 	if err != nil {
 		return nil, "", "", err
@@ -75,20 +87,37 @@ func (s *AuthService) Login(ctx context.Context, loginID, password string) (*dom
 }
 
 // Refresh 는 유효한 리프레시 토큰으로 새 액세스 토큰을 발급한다.
+//
+// 계정 상태를 여기서 다시 확인하는 것이 '정지'를 실효화하는 핵심이다.
+// 액세스 토큰은 스테이트리스라 발급 후에는 회수할 수 없지만, 유효기간이 짧으므로
+// (ACCESS_TTL, 기본 15분) 갱신 길목을 막으면 정지 처분이 그 시간 안에 반영된다.
 func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (string, error) {
 	userID, typ, err := s.tokens.Parse(refreshToken)
 	if err != nil || typ != "refresh" {
 		return "", ErrInvalidCredentials
 	}
-	if _, err := s.users.FindByID(ctx, userID); err != nil {
+	u, err := s.users.FindByID(ctx, userID)
+	if err != nil {
 		return "", ErrInvalidCredentials
+	}
+	if !u.Active() {
+		return "", ErrAccountDisabled
 	}
 	return s.tokens.Access(userID)
 }
 
 // Me 는 userID 로 사용자를 조회한다.
+// 정지된 계정은 살아 있는 액세스 토큰을 들고 있어도 세션 복구를 막는다 —
+// 앱이 부팅할 때마다 호출하는 길목이라, 여기서 끊으면 다음 실행부터 로그인 화면으로 간다.
 func (s *AuthService) Me(ctx context.Context, userID string) (*domain.User, error) {
-	return s.users.FindByID(ctx, userID)
+	u, err := s.users.FindByID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if !u.Active() {
+		return nil, ErrAccountDisabled
+	}
+	return u, nil
 }
 
 // UsernameTaken 은 로그인 아이디 중복 여부를 반환한다.

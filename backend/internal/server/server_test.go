@@ -42,7 +42,10 @@ func buildApp(t *testing.T) *server.Deps {
 
 	pushSvc := service.NewPushService(memory.NewPushTokenRepo(), "")
 	return &server.Deps{
-		Cfg: cfg, Tokens: tm, Auth: authSvc, Cards: cardSvc,
+		// Users 는 테스트가 계정 상태를 직접 조작할 수 있도록 노출한다.
+		// (Admin 이 nil 이므로 관리 라우트는 여전히 등록되지 않는다.)
+		Users: users,
+		Cfg:   cfg, Tokens: tm, Auth: authSvc, Cards: cardSvc,
 		Stats:     service.NewStatsService(cardSvc),
 		Community: service.NewCommunityService(cardSvc),
 		Push:      pushSvc,

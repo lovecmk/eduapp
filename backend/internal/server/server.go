@@ -3,6 +3,7 @@ package server
 
 import (
 	"log"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -58,9 +59,23 @@ func New(d Deps) *fiber.App {
 	}
 
 	// 헬스체크(무인증) — 로드밸런서/이식 검증용.
-	app.Get("/health", func(c *fiber.Ctx) error {
-		return c.JSON(fiber.Map{"status": "ok"})
-	})
+	//
+	// 두 경로에 같은 핸들러를 단다.
+	//  · `/health`      — 로드밸런서·Docker healthcheck 의 관례적 경로.
+	//  · `/api/health`  — 앱(ApiClient.health)이 부르는 경로. 앱은 API 주소 하나만 알고
+	//    모든 요청에 `/api` 접두사를 붙이므로, 이 경로가 없으면 개발자 화면의
+	//    서버 점검이 배포가 멀쩡해도 404 로 실패한다.
+	started := time.Now()
+	health := func(c *fiber.Ctx) error {
+		return c.JSON(fiber.Map{
+			"status":         "ok",
+			"version":        d.Cfg.Version,
+			"store":          d.Cfg.Store,
+			"uptime_seconds": int64(time.Since(started).Seconds()),
+		})
+	}
+	app.Get("/health", health)
+	app.Get("/api/health", health)
 
 	authH := handler.NewAuthHandler(d.Auth)
 	cardH := handler.NewCardHandler(d.Cards)

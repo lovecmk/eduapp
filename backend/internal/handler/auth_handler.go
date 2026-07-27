@@ -27,8 +27,11 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 	}
 	u, access, refresh, err := h.svc.Login(c.Context(), req.ID, req.Password)
 	if err != nil {
-		if errors.Is(err, service.ErrInvalidCredentials) {
+		switch {
+		case errors.Is(err, service.ErrInvalidCredentials):
 			return fiber.NewError(fiber.StatusUnauthorized, "아이디 또는 비밀번호가 올바르지 않습니다")
+		case errors.Is(err, service.ErrAccountDisabled):
+			return fiber.NewError(fiber.StatusForbidden, "이용이 정지된 계정입니다. 관리자에게 문의해주세요")
 		}
 		return err
 	}
@@ -136,6 +139,11 @@ func (h *AuthHandler) Refresh(c *fiber.Ctx) error {
 	}
 	access, err := h.svc.Refresh(c.Context(), req.RefreshToken)
 	if err != nil {
+		if errors.Is(err, service.ErrAccountDisabled) {
+			// 401 로 답하면 앱이 '토큰 갱신'을 계속 시도한다. 403 은 재시도해도
+			// 소용없다는 뜻이라 ApiClient 가 곧바로 세션을 정리하고 로그인으로 보낸다.
+			return fiber.NewError(fiber.StatusForbidden, "이용이 정지된 계정입니다. 관리자에게 문의해주세요")
+		}
 		return fiber.NewError(fiber.StatusUnauthorized, "세션이 만료되었습니다")
 	}
 	return c.JSON(fiber.Map{"access_token": access})
@@ -146,6 +154,9 @@ func (h *AuthHandler) Me(c *fiber.Ctx) error {
 	userID := c.Locals("userID").(string)
 	u, err := h.svc.Me(c.Context(), userID)
 	if err != nil {
+		if errors.Is(err, service.ErrAccountDisabled) {
+			return fiber.NewError(fiber.StatusForbidden, "이용이 정지된 계정입니다. 관리자에게 문의해주세요")
+		}
 		return fiber.NewError(fiber.StatusUnauthorized, "인증이 필요합니다")
 	}
 	return c.JSON(toUserDTO(u))

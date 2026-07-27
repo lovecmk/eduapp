@@ -39,6 +39,17 @@ export const MAX_ATTEMPTS = 5;
 
 let memory: QueuedWrite[] = [];
 let loaded = false;
+/**
+ * 진행 중인 최초 로드. 여러 곳에서 동시에 큐를 건드려도 디스크 로드는 한 번만 하고,
+ * 나머지는 그 결과를 기다린다(single-flight).
+ *
+ * 이 공유가 없으면 다음 순서로 항목이 사라진다:
+ *   ① 배너가 pendingCount() 호출 → 디스크 읽기 시작(await)
+ *   ② 그 사이 사용자가 출석 체크 → enqueue() 가 아직 빈 memory 에 push
+ *   ③ ①의 읽기가 끝나며 memory 를 디스크 내용으로 통째 교체 → ②가 증발
+ * 유실을 막으려고 만든 큐가 유실을 만드는 자리라 반드시 직렬화해야 한다.
+ */
+let loading: Promise<void> | null = null;
 let flushing = false;
 
 function newId(): string {
@@ -55,14 +66,25 @@ async function persist(): Promise<void> {
 
 async function ensureLoaded(): Promise<void> {
   if (loaded) return;
-  loaded = true;
-  try {
-    const raw = await AsyncStorage.getItem(STORAGE_KEY);
-    const parsed: unknown = raw ? JSON.parse(raw) : [];
-    memory = Array.isArray(parsed) ? (parsed as QueuedWrite[]) : [];
-  } catch {
-    memory = []; // 손상된 큐는 버린다(앱 시작을 막지 않는다).
+  if (!loading) {
+    loading = (async () => {
+      let restored: QueuedWrite[] = [];
+      try {
+        const raw = await AsyncStorage.getItem(STORAGE_KEY);
+        const parsed: unknown = raw ? JSON.parse(raw) : [];
+        if (Array.isArray(parsed)) restored = parsed as QueuedWrite[];
+      } catch {
+        // 손상된 큐는 버린다(앱 시작을 막지 않는다).
+      }
+      // 읽는 동안 들어온 항목은 덮어쓰지 않고 디스크 내용 뒤에 붙인다.
+      // (디스크에 있던 것이 먼저 생긴 요청이므로 순서상 앞이다.)
+      memory = restored.concat(memory);
+      if (memory.length > MAX_QUEUE) memory = memory.slice(memory.length - MAX_QUEUE);
+      loaded = true;
+      loading = null;
+    })();
   }
+  await loading;
 }
 
 /** 대기 중인 쓰기 개수 — 화면에서 '전송 대기 n건' 표시에 쓸 수 있다. */
@@ -126,14 +148,14 @@ export async function flushQueue(): Promise<number> {
       const item = memory[0];
       try {
         await sender(item);
-        memory.shift();
+        removeById(item.id);
         sent += 1;
       } catch (e) {
         const err = toApiError(e);
         item.attempts += 1;
         if (!err.retryable || item.attempts >= MAX_ATTEMPTS) {
           // 다시 보내도 소용없거나 너무 많이 실패했다 → 버리고 다음으로 넘어간다.
-          memory.shift();
+          removeById(item.id);
           logger.warn('offline_write_dropped', {
             path: item.path,
             status: err.status,
@@ -153,10 +175,24 @@ export async function flushQueue(): Promise<number> {
   }
 }
 
+/**
+ * 처리한 항목을 id 로 지운다.
+ *
+ * shift() 로 맨 앞을 자르지 않는 이유: 전송을 기다리는(await) 사이에 로그아웃
+ * (clearQueue)이나 새 쓰기(enqueue)가 끼어들면 맨 앞이 더 이상 방금 보낸 항목이
+ * 아닐 수 있다. 그때 shift() 는 아직 보내지도 않은 남의 기록을 지운다.
+ * 이미 사라진 항목이면(clearQueue 후) 아무 일도 하지 않는다.
+ */
+function removeById(id: string): void {
+  const idx = memory.findIndex((q) => q.id === id);
+  if (idx >= 0) memory.splice(idx, 1);
+}
+
 /** 테스트용 — 모듈 상태를 초기화한다. */
 export function __resetQueueForTests(): void {
   memory = [];
   loaded = false;
+  loading = null;
   flushing = false;
   sender = null;
 }
