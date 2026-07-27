@@ -23,8 +23,20 @@ beforeAll(() => setLogSink(() => {}));
 afterAll(() => resetLogSink());
 beforeEach(async () => { await clearQueue(); });
 
-const ok = (body: unknown) => ({ ok: true, status: 200, json: async () => body });
-const fail = (status: number, body: unknown = {}) => ({ ok: false, status, json: async () => body });
+// 실제 fetch Response 와 같은 모양(json + text)을 갖춘다 — ApiClient 는 빈 본문(204)을
+// 성공으로 다루기 위해 text() 로 읽는다.
+const ok = (body: unknown) => ({
+  ok: true,
+  status: 200,
+  json: async () => body,
+  text: async () => JSON.stringify(body),
+});
+const fail = (status: number, body: unknown = {}) => ({
+  ok: false,
+  status,
+  json: async () => body,
+  text: async () => JSON.stringify(body),
+});
 
 describe('GET 재시도', () => {
   it('일시적 실패(503) 후 성공하면 결과를 돌려준다', async () => {

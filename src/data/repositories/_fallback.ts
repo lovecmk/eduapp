@@ -9,6 +9,7 @@
 //    (그쪽은 에러가 사용자에게 정직하게 드러나야 한다.) 여기서 감싸는 대상은
 //    index.ts 에서 명시한 보조 기능(weather/quota/directory)뿐이다.
 import { ApiError } from '../network/errors';
+import { logger } from '../../utils/logger';
 
 // '엔드포인트가 아직 서버에 없거나 붙지 않았음'으로 볼 수 있는 상태 코드.
 //  · 404 Not Found        — 라우트가 아직 배포되지 않음(부분 배포의 전형).
@@ -44,10 +45,9 @@ export function withMockFallback<T extends object>(live: T, mock: T, label: stri
   const degradeOnce = (label: string) => {
     if (liveUnavailable) return;
     liveUnavailable = true;
-    if (__DEV__) {
-      // 개발 중에만 한 번 알린다 — 부분 배포 상태를 눈으로 확인하기 위함.
-      console.info(`[fallback] ${label}: 서버 엔드포인트 미배포 → 목업으로 폴백`);
-    }
+    // 기능 하나가 실서버 대신 목업으로 도는 것은 운영에서도 알아야 하는 상태다
+    // ("왜 날씨가 늘 맑음이지?"의 답이 여기 있다). 폴백당 한 번만 남긴다.
+    logger.warn('repository_degraded_to_mock', { repository: label });
   };
 
   return new Proxy(live, {

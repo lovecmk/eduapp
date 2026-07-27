@@ -23,6 +23,7 @@ import { CenterModal } from '../src/components/ui/CenterModal';
 import { fontMono, fontCute, fontDisplay } from '../src/theme/tokens';
 import { INTEREST_FIELDS, INTEREST_COLOR, INTEREST_ICON } from '../src/constants/interests';
 import { env } from '../src/data/network/env';
+import { clearQueue } from '../src/data/network/offlineQueue';
 import { ROUTES } from '../src/constants/routes';
 import { downloadSystemLog } from '../src/utils/downloadLog';
 import { hapticSelection } from '../src/utils/haptics';
@@ -143,6 +144,9 @@ function SettingsBody({ scrollRef }: { scrollRef: React.RefObject<ScrollView> })
       try { await logout(); } catch { /* 서버 통지 실패해도 로컬은 비운다 */ }
       queryClient.clear();
       try { await AsyncStorage.clear(); } catch { /* 저장소 오류여도 메모리는 비운다 */ }
+      // AsyncStorage.clear() 는 디스크만 지운다. 오프라인 큐는 메모리에도 사본을 들고
+      // 있어서, 비우지 않으면 다음 전송 때 방금 지운 기록이 되살아나 서버로 나간다.
+      try { await clearQueue(); } catch { /* 큐를 못 비워도 나머지 초기화는 끝낸다 */ }
       resetAll();
       // 디스크(AsyncStorage)뿐 아니라 각 스토어의 '메모리' 상태까지 즉시 비워야
       // 앱을 다시 켜지 않아도 학습완료/출석/도감 등이 깨끗하게 초기화된다.

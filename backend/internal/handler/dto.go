@@ -85,8 +85,12 @@ type UserDTO struct {
 	OrgNm        string `json:"org_nm,omitempty"`
 	JobTitle     string `json:"job_title,omitempty"`
 	MembershipCd string `json:"membership_cd,omitempty"`
-	CreatedAt    string `json:"created_at"`
-	StatusCd     string `json:"status_cd"`
+	// RoleCd 는 앱이 관리자 전용 기능(문제 등록 등)을 보여줄지 판단하는 데 쓴다.
+	// 이 값은 표시 판단용일 뿐이고, 실제 차단은 언제나 서버가 한다 —
+	// 화면을 숨기는 것은 권한이 아니라 친절이다.
+	RoleCd    string `json:"role_cd"`
+	CreatedAt string `json:"created_at"`
+	StatusCd  string `json:"status_cd"`
 }
 
 // AuthResultDTO 는 로그인 응답(access/refresh/user).
@@ -107,6 +111,7 @@ func toUserDTO(u *domain.User) UserDTO {
 		OrgNm:        u.OrgNm,
 		JobTitle:     u.JobTitle,
 		MembershipCd: string(u.MembershipCd),
+		RoleCd:       string(u.Role()),
 		CreatedAt:    u.CreatedAt.UTC().Format(time.RFC3339),
 		StatusCd:     u.StatusCd,
 	}
@@ -169,12 +174,12 @@ type RankingEntryDTO struct {
 
 // CommunityDTO 는 CommunityRepository.ts 가 소비하는 /api/community/live 응답.
 type CommunityDTO struct {
-	OnlineNow         int            `json:"online_now"`
-	StudiedToday      int            `json:"studied_today"`
-	TotalMinutesToday int            `json:"total_minutes_today"`
-	DailyGoalMinutes  int            `json:"daily_goal_minutes"`
-	Companions        []CompanionDTO `json:"companions"`
-	Activities        []ActivityDTO  `json:"activities"`
+	OnlineNow         int              `json:"online_now"`
+	StudiedToday      int              `json:"studied_today"`
+	TotalMinutesToday int              `json:"total_minutes_today"`
+	DailyGoalMinutes  int              `json:"daily_goal_minutes"`
+	Companions        []CompanionDTO   `json:"companions"`
+	Activities        []ActivityDTO    `json:"activities"`
 	Challenge         *ChallengeDTO    `json:"challenge,omitempty"`
 	TotalCardsAllTime int              `json:"total_cards_all_time"`
 	Building          *BuildingDTO     `json:"building,omitempty"`

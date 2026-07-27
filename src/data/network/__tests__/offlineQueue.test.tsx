@@ -5,6 +5,7 @@ import {
   pendingCount,
   clearQueue,
   setQueueSender,
+  setQueueOwner,
   __resetQueueForTests,
   MAX_ATTEMPTS,
   type QueuedWrite,
@@ -18,6 +19,7 @@ afterAll(() => resetLogSink());
 beforeEach(async () => {
   __resetQueueForTests();
   await clearQueue();
+  setQueueOwner(null);
 });
 
 describe('오프라인 쓰기 큐', () => {
@@ -92,5 +94,95 @@ describe('오프라인 쓰기 큐', () => {
     await enqueue('POST', '/api/a', {});
     await clearQueue();
     expect(await pendingCount()).toBe(0);
+  });
+
+  // 현장 태블릿은 여러 명이 돌려 쓴다. 앞사람이 오프라인에서 남긴 기록이
+  // 뒷사람 토큰으로 나가면 안전교육 이력이 엉뚱한 계정에 붙는다.
+  describe('사용자 격리', () => {
+    it('앞사람이 남긴 쓰기를 뒷사람 세션에서 보내지 않는다', async () => {
+      const sent: string[] = [];
+      setQueueSender(async (i: QueuedWrite) => { sent.push(i.path); });
+
+      setQueueOwner('user-a');
+      await enqueue('POST', '/api/progress/attendance', { day: 'd' });
+
+      // A 로그아웃 → B 로그인
+      setQueueOwner(null);
+      setQueueOwner('user-b');
+      await enqueue('POST', '/api/reports', { card_id: 'c1' });
+
+      expect(await flushQueue()).toBe(1);
+      expect(sent).toEqual(['/api/reports']); // A 의 출석은 건드리지 않는다
+      expect(await pendingCount()).toBe(1);
+    });
+
+    it('본인이 다시 로그인하면 남겨 둔 쓰기가 그때 전송된다', async () => {
+      const sent: string[] = [];
+      setQueueSender(async (i: QueuedWrite) => { sent.push(i.path); });
+
+      setQueueOwner('user-a');
+      await enqueue('POST', '/api/progress/attendance', { day: 'd' });
+
+      setQueueOwner('user-b');
+      expect(await flushQueue()).toBe(0); // B 세션에서는 아무것도 안 나간다
+
+      setQueueOwner('user-a'); // A 가 돌아왔다
+      expect(await flushQueue()).toBe(1);
+      expect(sent).toEqual(['/api/progress/attendance']);
+    });
+
+    it('로그인 전에 쌓인 쓰기(주인 없음)는 누구 세션에서든 나간다', async () => {
+      const sent: string[] = [];
+      setQueueSender(async (i: QueuedWrite) => { sent.push(i.path); });
+
+      await enqueue('POST', '/api/anon', {}); // 주인 미지정
+      setQueueOwner('user-a');
+      expect(await flushQueue()).toBe(1);
+      expect(sent).toEqual(['/api/anon']);
+    });
+  });
+
+  describe('동시 접근 (유실 방지)', () => {
+    it('최초 로드 중에 들어온 쓰기를 잃지 않는다', async () => {
+      // 디스크에 이미 한 건이 있는 상태를 만든다.
+      await enqueue('POST', '/disk', {});
+      // 캐시를 비워 다음 접근이 '디스크에서 처음 읽는' 상황이 되게 한다.
+      __resetQueueForTests();
+
+      // 읽기(pendingCount)가 디스크를 읽는 **도중에** 쓰기(enqueue)가 들어온다.
+      // 로드가 직렬화되지 않으면, 뒤늦게 도착한 디스크 내용이 memory 를 통째로
+      // 덮어써 방금 넣은 항목이 사라진다(순서가 이쪽일 때만 드러나는 경쟁 조건).
+      const reading = pendingCount();
+      const writing = enqueue('POST', '/during-load', {});
+      await Promise.all([reading, writing]);
+      expect(await pendingCount()).toBe(2); // 디스크 1건 + 로드 중 1건
+    });
+
+    it('전송 중 로그아웃(clearQueue)이 끼어들어도 남의 기록을 지우지 않는다', async () => {
+      let release: (() => void) | null = null;
+      const inFlight = new Promise<void>((r) => { release = r; });
+      const sent: string[] = [];
+
+      setQueueSender(async (i: QueuedWrite) => {
+        sent.push(i.path);
+        if (i.path === '/slow') await inFlight; // 첫 항목 전송을 붙잡아 둔다
+      });
+
+      await enqueue('POST', '/slow', {});
+      const flushing = flushQueue();
+
+      // 전송을 기다리는 사이 로그아웃으로 큐가 비워지고, 새 사용자가 쓰기를 남긴다.
+      await clearQueue();
+      await enqueue('POST', '/new-user', {});
+
+      release!();
+      await flushing;
+
+      // 맨 앞(shift)을 잘라내는 방식이면, /slow 성공 처리가 맨 앞에 와 있던
+      // /new-user 를 **보내지도 않고** 지운다(sent=['/slow'], 대기 0건 → 유실).
+      // id 로 지우면 /new-user 는 제 차례에 정상 전송된다.
+      expect(sent).toContain('/new-user');
+      expect(await pendingCount()).toBe(0);
+    });
   });
 });

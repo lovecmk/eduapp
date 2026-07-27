@@ -57,9 +57,20 @@ func (r *UserRepo) FindByID(_ context.Context, id string) (*domain.User, error) 
 	return &u, nil
 }
 
+// Create 는 새 사용자를 저장한다. 아이디·닉네임이 이미 쓰이고 있으면 ErrConflict.
+//
+// 검사와 저장이 같은 잠금 안에서 일어나는 것이 핵심이다. 서비스 계층의
+// "중복인가 확인 → 만든다" 는 두 호출 사이에 틈이 있어 동시 가입을 막지 못했고,
+// 그 틈으로 같은 아이디의 계정이 여러 개 만들어져 마지막 하나만 로그인할 수 있었다.
 func (r *UserRepo) Create(_ context.Context, u *domain.User) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if _, exists := r.login[u.LoginID]; exists {
+		return ports.ErrConflict{Field: "login_id"}
+	}
+	if u.Nickname != "" && r.nicknameOwnerLocked(u.Nickname) != "" {
+		return ports.ErrConflict{Field: "nickname"}
+	}
 	r.byID[u.ID] = *u
 	r.login[u.LoginID] = u.ID
 	return nil
@@ -68,12 +79,37 @@ func (r *UserRepo) Create(_ context.Context, u *domain.User) error {
 func (r *UserRepo) Update(_ context.Context, u *domain.User) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if _, ok := r.byID[u.ID]; !ok {
+	old, ok := r.byID[u.ID]
+	if !ok {
 		return ports.ErrNotFound{Entity: "user"}
+	}
+	if owner := r.login[u.LoginID]; owner != "" && owner != u.ID {
+		return ports.ErrConflict{Field: "login_id"}
+	}
+	if u.Nickname != "" {
+		if owner := r.nicknameOwnerLocked(u.Nickname); owner != "" && owner != u.ID {
+			return ports.ErrConflict{Field: "nickname"}
+		}
+	}
+	// 아이디가 바뀌었다면 옛 색인을 지운다 — 남겨 두면 사라진 아이디로도 로그인된다.
+	if old.LoginID != u.LoginID {
+		delete(r.login, old.LoginID)
 	}
 	r.byID[u.ID] = *u
 	r.login[u.LoginID] = u.ID
 	return nil
+}
+
+// nicknameOwnerLocked 는 닉네임을 이미 쓰고 있는 사용자 ID 를 찾는다(없으면 "").
+// 대소문자를 무시하는 것은 FindByNickname·Postgres 유니크 인덱스와 같은 규칙이다.
+// 호출자가 이미 잠금을 잡고 있어야 한다.
+func (r *UserRepo) nicknameOwnerLocked(nickname string) string {
+	for id, u := range r.byID {
+		if u.Nickname != "" && strings.EqualFold(u.Nickname, nickname) {
+			return id
+		}
+	}
+	return ""
 }
 
 func (r *UserRepo) Count(_ context.Context) (int64, error) {

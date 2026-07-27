@@ -253,3 +253,50 @@ func TestMetricsConcurrentObserve(t *testing.T) {
 		t.Fatalf("총 요청=%d, want %d(동시 기록 유실)", s.TotalRequests, workers*perWorker)
 	}
 }
+
+// 분 경계에 걸쳐 오래 걸린 요청은, 다음 분의 짧은 요청들이 지나간 뒤에야 기록된다.
+// 그 지연이 엉뚱한 분의 최대값을 끌어올리면 대시보드에서 원인을 잘못 짚게 된다.
+func TestMetricsLateSampleLandsInItsOwnMinute(t *testing.T) {
+	m, clk := newTestMetrics()
+	slowAt := clk.t
+
+	// 10:00 에 시작해 오래 걸린 요청. 그 사이 10:01 요청들이 먼저 기록된다.
+	clk.add(time.Minute)
+	observe(m, clk.t, 200, 10, "u-1")
+	observe(m, clk.t, 200, 20, "u-1")
+	// 이제서야 10:00 요청이 끝나 기록된다.
+	observe(m, slowAt, 200, 5000, "u-1")
+
+	snap := m.Snapshot()
+	if len(snap.Traffic) != 2 {
+		t.Fatalf("버킷 %d개, want 2 (10:00, 10:01)", len(snap.Traffic))
+	}
+	first, second := snap.Traffic[0], snap.Traffic[1]
+	if first.Minute != "10:00" || second.Minute != "10:01" {
+		t.Fatalf("버킷 순서가 어긋났다: %s, %s", first.Minute, second.Minute)
+	}
+	if first.Requests != 1 || first.MaxMs != 5000 {
+		t.Fatalf("10:00 = %d건/max %dms, want 1건/5000ms", first.Requests, first.MaxMs)
+	}
+	if second.Requests != 2 || second.MaxMs != 20 {
+		t.Fatalf("10:01 = %d건/max %dms, want 2건/20ms — 늦게 온 샘플이 흘러들었다",
+			second.Requests, second.MaxMs)
+	}
+}
+
+// 창(1시간) 밖의 샘플이 들어와도 버킷 순서·개수가 무너지지 않아야 한다.
+func TestMetricsAncientSampleIsDropped(t *testing.T) {
+	m, clk := newTestMetrics()
+	observe(m, clk.t, 200, 10, "u-1")
+
+	// 두 시간 전 샘플 — 어차피 화면에 나오지 않는다.
+	observe(m, clk.t.Add(-2*time.Hour), 200, 9999, "u-1")
+
+	snap := m.Snapshot()
+	if len(snap.Traffic) != 1 || snap.Traffic[0].MaxMs != 10 {
+		t.Fatalf("창 밖 샘플이 통계를 오염시켰다: %+v", snap.Traffic)
+	}
+	if m.Snapshot().TotalRequests != 2 {
+		t.Fatal("누적 카운터에는 반영되어야 한다")
+	}
+}

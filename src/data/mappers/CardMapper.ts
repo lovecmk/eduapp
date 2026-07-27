@@ -1,6 +1,7 @@
 import type { CardDTO } from '../dto/CardDTO';
 import type { LearningCard, CardCategory, CardStatus } from '../../domain/models/LearningCard';
 import { parseDate } from './_date';
+import { logger } from '../../utils/logger';
 
 const CATEGORY_MAP: Record<string, CardCategory> = {
   ELEC: '전기 위험',
@@ -29,11 +30,12 @@ const CARD_TYPE_MAP: Record<string, 'explanation' | 'ox' | 'choice'> = {
 
 export class CardMapper {
   static toDomain(dto: CardDTO): LearningCard {
-    if (__DEV__ && !CATEGORY_MAP[dto.category_cd]) {
-      console.warn(`[CardMapper] 알 수 없는 category_cd: ${dto.category_cd} (id=${dto.id})`);
+    // 알 수 없는 코드는 폴백하되(화면은 계속 뜬다) 스키마 불일치를 구조화 로그로 남긴다.
+    if (!CATEGORY_MAP[dto.category_cd]) {
+      logger.warn('dto_unknown_code', { mapper: 'card', field: 'category_cd', value: dto.category_cd });
     }
-    if (__DEV__ && !STATUS_MAP[dto.status_cd]) {
-      console.warn(`[CardMapper] 알 수 없는 status_cd: ${dto.status_cd} (id=${dto.id})`);
+    if (!STATUS_MAP[dto.status_cd]) {
+      logger.warn('dto_unknown_code', { mapper: 'card', field: 'status_cd', value: dto.status_cd });
     }
     return {
       id: dto.id,

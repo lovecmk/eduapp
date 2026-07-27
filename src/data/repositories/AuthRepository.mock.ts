@@ -97,7 +97,7 @@ export class MockAuthRepository implements IAuthRepository {
         jobTitle: undefined,
         membership: 'premium',
         createdAt: new Date(),
-        isActive: true,
+        isActive: true, isAdmin: false,
       };
       await mockUserDb.create({ username: name, password: `social-${Math.random().toString(36).slice(2)}`, user });
       account = { username: name, password: '', user };
@@ -117,7 +117,7 @@ export class MockAuthRepository implements IAuthRepository {
       jobTitle: undefined,
       membership: 'basic',
       createdAt: new Date(),
-      isActive: true,
+      isActive: true, isAdmin: false,
     };
     await mockUserDb.create({ username: input.username.trim(), password: input.password, user });
     return this.persistSession(user);

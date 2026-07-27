@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"strconv"
+	"sync/atomic"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -17,7 +18,15 @@ import (
 )
 
 // AdminHandler 는 관리 콘솔용 HTTP 어댑터.
-type AdminHandler struct{ svc *service.AdminService }
+type AdminHandler struct {
+	svc *service.AdminService
+	// streams 는 지금 열려 있는 SSE 연결 수(상한 확인용).
+	streams atomic.Int64
+}
+
+// maxConcurrentStreams 는 동시에 허용하는 실시간 스트림 수.
+// 관리자는 많아야 수십 명이고 한 사람이 탭을 몇 개 열어도 이 값을 넘지 않는다.
+const maxConcurrentStreams = 64
 
 // NewAdminHandler 는 관리 핸들러를 만든다.
 func NewAdminHandler(svc *service.AdminService) *AdminHandler { return &AdminHandler{svc: svc} }
@@ -38,7 +47,8 @@ func adminError(err error) error {
 	switch {
 	case errors.As(err, &invalid):
 		return fiber.NewError(fiber.StatusBadRequest, invalid.Reason)
-	case errors.Is(err, service.ErrLastAdmin), errors.Is(err, service.ErrSelfLockout):
+	case errors.Is(err, service.ErrLastAdmin), errors.Is(err, service.ErrSelfLockout),
+		errors.Is(err, service.ErrStaleWrite):
 		// 규칙상 막힌 요청 — 재시도해도 같은 결과이므로 409(충돌)로 알린다.
 		return fiber.NewError(fiber.StatusConflict, err.Error())
 	case errors.As(err, &notFound):
@@ -85,6 +95,16 @@ const streamHeartbeat = 20 * time.Second
 //   - EventSource 는 브라우저가 끊김을 감지해 **자동 재연결**한다. 직접 만들 필요가 없다.
 //   - 일반 HTTP 라 리버스 프록시·인증 헤더가 그대로 통한다(업그레이드 협상 없음).
 func (h *AdminHandler) Stream(c *fiber.Ctx) error {
+	// 동시 연결 수에 상한을 둔다.
+	//
+	// 연결 하나마다 고루틴 + 2초 티커가 붙어 살아 있다. 관리자는 많아야 몇 명이지만
+	// 탭을 여러 개 열어 두거나 프록시가 끊긴 연결을 정리하지 못하면 조용히 쌓인다.
+	// 상한이 없으면 그 축적이 서버를 잠식하고, 원인도 잘 보이지 않는다.
+	if n := h.streams.Add(1); n > maxConcurrentStreams {
+		h.streams.Add(-1)
+		return fiber.NewError(fiber.StatusServiceUnavailable, "실시간 연결이 너무 많습니다. 잠시 후 다시 시도해주세요")
+	}
+
 	c.Set("Content-Type", "text/event-stream")
 	c.Set("Cache-Control", "no-cache")
 	c.Set("Connection", "keep-alive")
@@ -95,6 +115,9 @@ func (h *AdminHandler) Stream(c *fiber.Ctx) error {
 	snapshot := h.svc.MetricsSnapshot
 
 	c.Context().SetBodyStreamWriter(fasthttp.StreamWriter(func(w *bufio.Writer) {
+		// 스트림이 끝나면 반드시 자리를 반납한다 — 빠뜨리면 상한이 서서히 소진된다.
+		defer h.streams.Add(-1)
+
 		ticker := time.NewTicker(streamInterval)
 		defer ticker.Stop()
 		heartbeat := time.NewTicker(streamHeartbeat)
@@ -150,16 +173,16 @@ func writeSSE(w *bufio.Writer, event string, payload any) bool {
 // ListUsers 는 GET /api/admin/users — 검색·필터·페이지네이션.
 func (h *AdminHandler) ListUsers(c *fiber.Ctx) error {
 	page, err := h.svc.ListUsers(c.Context(), ports.UserQuery{
-		Search:     c.Query("search"),
-		Role:       c.Query("role"),
-		Status:     c.Query("status"),
-		Membership: c.Query("membership"),
+		Search:     query(c, "search"),
+		Role:       query(c, "role"),
+		Status:     query(c, "status"),
+		Membership: query(c, "membership"),
 		Offset:     queryInt(c, "offset", 0),
 		Limit:      queryInt(c, "limit", 50),
 		// 정렬은 저장소가 한다 — 화면에서 페이지만 정렬하면 관리자가
 		// '전체가 정렬된 것'으로 오해한다.
-		Sort: ports.ParseSortField(c.Query("sort")),
-		Desc: c.Query("dir") == "desc",
+		Sort: ports.ParseSortField(query(c, "sort")),
+		Desc: query(c, "dir") == "desc",
 	})
 	if err != nil {
 		return adminError(err)
@@ -169,7 +192,7 @@ func (h *AdminHandler) ListUsers(c *fiber.Ctx) error {
 
 // GetUser 는 GET /api/admin/users/:id — 상세 + 학습 진행.
 func (h *AdminHandler) GetUser(c *fiber.Ctx) error {
-	d, err := h.svc.GetUser(c.Context(), c.Params("id"))
+	d, err := h.svc.GetUser(c.Context(), param(c, "id"))
 	if err != nil {
 		return adminError(err)
 	}
@@ -186,7 +209,7 @@ func (h *AdminHandler) SetUserRole(c *fiber.Ctx) error {
 	if err := c.BodyParser(&req); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "요청 형식이 올바르지 않습니다")
 	}
-	u, err := h.svc.SetUserRole(c.Context(), actorOf(c), c.Params("id"), domain.Role(req.Role))
+	u, err := h.svc.SetUserRole(c.Context(), actorOf(c), param(c, "id"), domain.Role(req.Role))
 	if err != nil {
 		return adminError(err)
 	}
@@ -203,7 +226,7 @@ func (h *AdminHandler) SetUserStatus(c *fiber.Ctx) error {
 	if err := c.BodyParser(&req); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "요청 형식이 올바르지 않습니다")
 	}
-	u, err := h.svc.SetUserStatus(c.Context(), actorOf(c), c.Params("id"), req.Status)
+	u, err := h.svc.SetUserStatus(c.Context(), actorOf(c), param(c, "id"), req.Status)
 	if err != nil {
 		return adminError(err)
 	}
@@ -217,13 +240,13 @@ func (h *AdminHandler) SetUserStatus(c *fiber.Ctx) error {
 // ListCards 는 GET /api/admin/cards.
 func (h *AdminHandler) ListCards(c *fiber.Ctx) error {
 	page, err := h.svc.ListCards(c.Context(), service.CardQuery{
-		Search:   c.Query("search"),
-		Category: c.Query("category"),
-		Type:     c.Query("type"),
+		Search:   query(c, "search"),
+		Category: query(c, "category"),
+		Type:     query(c, "type"),
 		Offset:   queryInt(c, "offset", 0),
 		Limit:    queryInt(c, "limit", 50),
-		Sort:     c.Query("sort"),
-		Desc:     c.Query("dir") == "desc",
+		Sort:     query(c, "sort"),
+		Desc:     query(c, "dir") == "desc",
 	})
 	if err != nil {
 		return adminError(err)
@@ -233,7 +256,7 @@ func (h *AdminHandler) ListCards(c *fiber.Ctx) error {
 
 // GetCard 는 GET /api/admin/cards/:id.
 func (h *AdminHandler) GetCard(c *fiber.Ctx) error {
-	card, err := h.svc.GetCard(c.Context(), c.Params("id"))
+	card, err := h.svc.GetCard(c.Context(), param(c, "id"))
 	if err != nil {
 		return adminError(err)
 	}
@@ -259,7 +282,7 @@ func (h *AdminHandler) UpdateCard(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	updated, err := h.svc.UpdateCard(c.Context(), actorOf(c), c.Params("id"), card)
+	updated, err := h.svc.UpdateCard(c.Context(), actorOf(c), param(c, "id"), card)
 	if err != nil {
 		return adminError(err)
 	}
@@ -268,7 +291,7 @@ func (h *AdminHandler) UpdateCard(c *fiber.Ctx) error {
 
 // DeleteCard 는 DELETE /api/admin/cards/:id.
 func (h *AdminHandler) DeleteCard(c *fiber.Ctx) error {
-	if err := h.svc.DeleteCard(c.Context(), actorOf(c), c.Params("id")); err != nil {
+	if err := h.svc.DeleteCard(c.Context(), actorOf(c), param(c, "id")); err != nil {
 		return adminError(err)
 	}
 	return c.SendStatus(fiber.StatusNoContent)
@@ -301,7 +324,7 @@ func (h *AdminHandler) AuditLogs(c *fiber.Ctx) error {
 // queryInt 는 쿼리 파라미터를 정수로 읽는다. 잘못된 값은 기본값으로 —
 // 관리 화면의 목록이 오타 하나로 500 을 내서는 안 된다.
 func queryInt(c *fiber.Ctx, key string, fallback int) int {
-	raw := c.Query(key)
+	raw := c.Query(key) // 즉시 숫자로 변환하므로 복사 불필요
 	if raw == "" {
 		return fallback
 	}

@@ -46,6 +46,30 @@ describe('logger', () => {
     expect(f.userId).toBe('u-1'); // 민감하지 않은 값은 보존
   });
 
+  it('중첩된 객체·배열 안의 민감정보까지 마스킹한다', () => {
+    logger.error('login_failed', {
+      request: { body: { password: 'hunter2', userId: 'u-1' } },
+      attempts: [{ accessToken: 'a' }, { accessToken: 'b' }],
+    });
+    const f = records[0].fields as Record<string, any>;
+    // 한 겹만 감싸도 새어 나가면 로그 수집기에 평문이 영구 보존된다.
+    expect(f.request.body.password).toBe('***');
+    expect(f.request.body.userId).toBe('u-1');
+    expect(f.attempts.map((a: any) => a.accessToken)).toEqual(['***', '***']);
+  });
+
+  it('깊이가 과하면 잘라낸다(순환 참조·거대 객체로 로깅이 멈추지 않게)', () => {
+    const cyclic: Record<string, unknown> = {};
+    cyclic.self = cyclic;
+    expect(() => logger.info('cycle', { cyclic })).not.toThrow();
+  });
+
+  it('Date 같은 비평면 객체는 구조를 헤집지 않는다', () => {
+    const at = new Date('2026-01-01T00:00:00.000Z');
+    logger.info('scheduled', { at });
+    expect((records[0].fields as Record<string, unknown>).at).toBe(at);
+  });
+
   it('fields 없이 호출해도 안전하다', () => {
     logger.info('app_start');
     expect(records[0].fields).toEqual({});

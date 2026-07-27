@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/lovecmk/eduapp/backend/internal/domain"
@@ -55,8 +56,28 @@ func (r *UserRepo) Create(ctx context.Context, u *domain.User) error {
 		`INSERT INTO users (`+userCols+`) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
 		u.ID, u.LoginID, u.UserNm, u.Nickname, u.EmailAddr,
 		u.OrgNm, u.JobTitle, u.MembershipCd, u.Role(), u.PasswordHash, u.CreatedAt, u.StatusCd)
-	return err
+	return translateUserConflict(err)
 }
+
+// translateUserConflict 는 유니크 제약 위반을 도메인 오류로 옮긴다.
+//
+// 번역하지 않으면 드라이버 오류가 그대로 위로 올라가 500 "서버 오류가 발생했습니다"
+// 가 된다. 아이디 중복은 서버 장애가 아니라 사용자에게 알려 줘야 하는 정상적인
+// 결과이므로, 여기서 의미를 붙여 409 로 답할 수 있게 한다.
+func translateUserConflict(err error) error {
+	var pgErr *pgconn.PgError
+	if !errors.As(err, &pgErr) || pgErr.Code != uniqueViolationCode {
+		return err
+	}
+	// 어떤 제약이 깨졌는지에 따라 사용자에게 보여 줄 메시지가 달라진다.
+	if strings.Contains(pgErr.ConstraintName, "nickname") {
+		return ports.ErrConflict{Field: "nickname"}
+	}
+	return ports.ErrConflict{Field: "login_id"}
+}
+
+// uniqueViolationCode 는 PostgreSQL 의 unique_violation SQLSTATE.
+const uniqueViolationCode = "23505"
 
 func (r *UserRepo) Update(ctx context.Context, u *domain.User) error {
 	tag, err := r.pool.Exec(ctx,
@@ -65,7 +86,7 @@ func (r *UserRepo) Update(ctx context.Context, u *domain.User) error {
 		u.ID, u.LoginID, u.UserNm, u.Nickname, u.EmailAddr,
 		u.OrgNm, u.JobTitle, u.MembershipCd, u.Role(), u.PasswordHash, u.CreatedAt, u.StatusCd)
 	if err != nil {
-		return err
+		return translateUserConflict(err)
 	}
 	if tag.RowsAffected() == 0 {
 		return ports.ErrNotFound{Entity: "user"}

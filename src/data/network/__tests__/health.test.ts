@@ -23,10 +23,13 @@ import { setLogSink, resetLogSink } from '../../../utils/logger';
 beforeAll(() => setLogSink(() => {}));
 afterAll(() => resetLogSink());
 
+// 실제 fetch Response 와 같은 모양(json + text)을 갖춘다 — ApiClient 는 빈 본문을
+// 구분하기 위해 text() 로 읽는다.
 const resp = (status: number, body: unknown) => ({
   ok: status >= 200 && status < 300,
   status,
   json: async () => body,
+  text: async () => (body === undefined ? '' : JSON.stringify(body)),
 });
 
 describe('apiClient.health', () => {

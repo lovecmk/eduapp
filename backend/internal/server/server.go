@@ -3,9 +3,11 @@ package server
 
 import (
 	"log"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/gofiber/fiber/v2/middleware/limiter"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 
@@ -17,6 +19,10 @@ import (
 	"github.com/lovecmk/eduapp/backend/internal/token"
 )
 
+// loginAttemptsPerMinute 은 무인증 인증 경로에 허용하는 IP 당 분당 요청 수.
+// 사람이 로그인하다 오타를 내는 횟수보다 넉넉하고, 자동화 대입에는 턱없이 모자란 값.
+const loginAttemptsPerMinute = 20
+
 // Deps 는 서버가 라우팅에 필요로 하는 조립된 의존성 묶음.
 type Deps struct {
 	Cfg       config.Config
@@ -27,6 +33,12 @@ type Deps struct {
 	Community *service.CommunityService
 	Push      *service.PushService
 	Telegram  *service.TelegramService
+
+	// 개인 학습 데이터 동기화(SRS·출석·반응·신고·알림)와 재전송 방어.
+	Sync        *service.SyncService
+	Idempotency *middleware.IdempotencyStore
+	// Data 는 라우팅에 쓰이지 않지만, 테스트가 저장 결과를 직접 확인할 수 있게 둔다.
+	Data ports.UserDataRepository
 
 	// 관리 콘솔(Vue) 전용. Admin/Metrics/Users 가 모두 있어야 /api/admin/* 이 열린다 —
 	// 하나라도 비면 라우트를 아예 등록하지 않아, 배선 실수로 무방비 관리 API 가
@@ -58,9 +70,23 @@ func New(d Deps) *fiber.App {
 	}
 
 	// 헬스체크(무인증) — 로드밸런서/이식 검증용.
-	app.Get("/health", func(c *fiber.Ctx) error {
-		return c.JSON(fiber.Map{"status": "ok"})
-	})
+	//
+	// 두 경로에 같은 핸들러를 단다.
+	//  · `/health`      — 로드밸런서·Docker healthcheck 의 관례적 경로.
+	//  · `/api/health`  — 앱(ApiClient.health)이 부르는 경로. 앱은 API 주소 하나만 알고
+	//    모든 요청에 `/api` 접두사를 붙이므로, 이 경로가 없으면 개발자 화면의
+	//    서버 점검이 배포가 멀쩡해도 404 로 실패한다.
+	started := time.Now()
+	health := func(c *fiber.Ctx) error {
+		return c.JSON(fiber.Map{
+			"status":         "ok",
+			"version":        d.Cfg.Version,
+			"store":          d.Cfg.Store,
+			"uptime_seconds": int64(time.Since(started).Seconds()),
+		})
+	}
+	app.Get("/health", health)
+	app.Get("/api/health", health)
 
 	authH := handler.NewAuthHandler(d.Auth)
 	cardH := handler.NewCardHandler(d.Cards)
@@ -76,21 +102,59 @@ func New(d Deps) *fiber.App {
 
 	// 인증 (무인증 진입점 + 인증 필요 me)
 	auth := api.Group("/auth")
+
+	// 무인증 진입점에는 반드시 속도 제한을 건다.
+	//
+	// 이것이 없으면 비밀번호를 초당 수백 번 시도해도 서버가 순순히 답한다.
+	// 실제로 200회 연속 오답을 넣어도 아무 제동이 걸리지 않았고, 그 직후
+	// 정상 로그인도 그대로 됐다 — 계정 잠금도 지연도 없었다는 뜻이다.
+	//
+	// 아이디 존재 확인(username/nickname-available)도 같이 묶는다. 이 두 경로는
+	// 무인증으로 "이 아이디가 있는가"를 알려 주므로, 열어 두면 공격자가 먼저
+	// 유효한 아이디 목록을 만든 뒤 그 목록만 집중해서 두드릴 수 있다.
+	auth.Use(limiter.New(limiter.Config{
+		Max:        loginAttemptsPerMinute,
+		Expiration: time.Minute,
+		// 회원가입·아이디 확인처럼 정상 사용자도 연달아 부르는 경로가 섞여 있으므로
+		// IP 단위로 넉넉히 잡되, 자동화 도구는 확실히 걸리는 수준으로 둔다.
+		KeyGenerator: func(c *fiber.Ctx) string { return c.IP() },
+		LimitReached: func(c *fiber.Ctx) error {
+			return fiber.NewError(fiber.StatusTooManyRequests, "요청이 너무 잦습니다. 잠시 후 다시 시도해주세요")
+		},
+	}))
+
 	auth.Post("/login", authH.Login)
 	auth.Post("/register", authH.Register)
 	auth.Post("/refresh", authH.Refresh)
 	auth.Post("/logout", authH.Logout)
 	auth.Get("/username-available", authH.UsernameAvailable)
 	auth.Get("/nickname-available", authH.NicknameAvailable)
+	// 정지된 계정을 액세스 토큰 만료(ACCESS_TTL) 전에 끊기 위한 게이트.
+	// 짧은 TTL 캐시를 두어 요청마다 저장소를 왕복하지는 않는다.
+	accounts := middleware.NewAccountGate(d.Users)
+	if accounts == nil {
+		log.Printf("[auth] Users 미주입 — 계정 상태 검사는 로그인·갱신 시점에만 수행합니다")
+	}
+
 	auth.Get("/me", middleware.RequireAuth(d.Tokens), authH.Me)
 	auth.Patch("/me", middleware.RequireAuth(d.Tokens), authH.UpdateMe)
 
-	// 이하 모두 인증 필요.
-	protected := api.Group("", middleware.RequireAuth(d.Tokens))
+	// 이하 모두 인증 필요. 상태 검사를 그룹에 걸어 두면 나중에 추가되는 라우트도
+	// 자동으로 보호된다 — 라우트마다 감싸는 방식은 새 엔드포인트에서 빠뜨리기 쉽다.
+	protected := api.Group("",
+		middleware.RequireAuth(d.Tokens),
+		middleware.RequireActiveAccount(accounts),
+	)
 
 	protected.Get("/cards", cardH.All)
 	protected.Get("/cards/today", cardH.Today)
-	protected.Post("/cards", cardH.Create)
+	// 학습 콘텐츠 등록은 관리자만.
+	//
+	// 이 라우트는 문제 등록이 앱 안의 도구이던 시절에 만들어졌고, 그때는 "이 화면을
+	// 볼 수 있는 사람만 쓴다"가 사실상의 권한 규칙이었다. 그런데 화면은 권한이 아니다 —
+	// 토큰만 있으면 화면을 거치지 않고 직접 부를 수 있고, 그렇게 등록된 카드는
+	// 검증도 감사 기록도 없이 전 사용자의 학습 목록에 배포된다.
+	protected.Post("/cards", middleware.RequireAdmin(d.Users), cardH.Create)
 	protected.Patch("/cards/:id", cardH.Mark)
 	protected.Get("/stats", statsH.Get)
 	protected.Get("/community/live", commH.Live)
@@ -99,9 +163,46 @@ func New(d Deps) *fiber.App {
 	protected.Post("/push/register", pushH.Register)
 	protected.Post("/telegram/alert", tgH.Alert)
 
+	registerSyncRoutes(protected, d)
+
 	registerAdminRoutes(api, d)
 
 	return app
+}
+
+// registerSyncRoutes 는 개인 학습 데이터 동기화 API 를 붙인다.
+//
+// 이 경로들은 앱과 계약서에는 오래 전부터 있었는데 서버에는 없었다. 앱이 목업으로
+// 도는 동안에는 드러나지 않다가, 실서버로 전환하는 순간 출석·학습등급·신고·알림이
+// 전부 404 로 실패하게 되어 있었다(404 는 재시도 대상이 아니라 오프라인 큐에도
+// 담기지 않고 그대로 사라진다).
+//
+// 쓰기에는 모두 멱등 미들웨어를 건다. 앱은 이미 Idempotency-Key 를 실어 보내고
+// 있었지만 서버가 그 헤더를 읽지 않아, 오프라인 큐가 재전송하면 출석이 두 번
+// 찍히거나 신고가 중복 접수될 수 있었다.
+func registerSyncRoutes(r fiber.Router, d Deps) {
+	if d.Sync == nil {
+		log.Printf("[sync] 의존성 미주입 — 학습 동기화 API 를 등록하지 않습니다")
+		return
+	}
+	h := handler.NewSyncHandler(d.Sync)
+	writes := middleware.Idempotent(d.Idempotency)
+
+	r.Get("/progress", h.Pull)
+	r.Post("/progress/grade", writes, h.Grade)
+	r.Post("/progress/attendance", writes, h.Attend)
+
+	r.Get("/engagement", h.Engagement)
+	r.Post("/engagement/like", writes, h.Like)
+	r.Post("/engagement/bookmark", writes, h.Bookmark)
+
+	r.Post("/reports", writes, h.Report)
+	r.Get("/reports/mine", h.MyReports)
+
+	r.Get("/notifications", h.Notifications)
+	r.Post("/notifications/read-all", writes, h.ReadAllNotifications)
+	// :id 라우트는 read-all 뒤에 둔다 — 먼저 두면 "read-all" 이 id 로 잡힌다.
+	r.Post("/notifications/:id/read", writes, h.ReadNotification)
 }
 
 // registerAdminRoutes 는 관리 콘솔(Vue) 전용 API 를 붙인다.

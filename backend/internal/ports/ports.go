@@ -132,3 +132,51 @@ type PushTokenRepository interface {
 type ErrNotFound struct{ Entity string }
 
 func (e ErrNotFound) Error() string { return e.Entity + " not found" }
+
+// ErrConflict 는 저장소의 유일성 제약을 어겼을 때 반환하는 표준 오류.
+//
+// 왜 저장소가 이 오류를 만들어야 하는가 — 서비스의 "중복인가 확인 → 만든다" 는
+// 두 동작 사이에 틈이 있어 동시 요청을 막지 못한다. 유일성을 실제로 보장할 수 있는
+// 곳은 제약을 가진 저장소뿐이므로, 저장소가 제약 위반을 도메인 언어(ErrConflict)로
+// 번역해 돌려주고 서비스는 그것을 최종 판정으로 삼는다.
+type ErrConflict struct{ Field string }
+
+func (e ErrConflict) Error() string { return e.Field + " already exists" }
+
+// UserDataRepository 는 "기기가 바뀌어도 남아야 하는" 개인 데이터를 다룬다.
+//
+// 왜 하나의 포트로 묶었는가 — SRS·출석·반응·신고·알림은 모두 (사용자 1명 : 데이터 N건)
+// 형태이고 항상 같은 저장소에 함께 산다. 포트를 다섯 개로 쪼개면 어댑터 세 벌마다
+// 다섯 개씩, 열다섯 개의 구현이 생기는데 그중 어느 것도 따로 교체될 이유가 없다.
+// 하나로 두면 "이 사용자의 데이터"라는 경계가 코드에도 그대로 드러난다.
+type UserDataRepository interface {
+	// --- 학습 동기화 ---
+	// LoadSync 는 앱 복원에 필요한 전체 스냅샷을 한 번에 준다.
+	LoadSync(ctx context.Context, userID string) (domain.SyncSnapshot, error)
+	// SaveSrs 는 카드 한 장의 채점 결과를 기록한다(같은 카드면 덮어쓴다).
+	// day 는 학습 이력에 남길 날짜 키(YYYY-M-D). 빈 문자열이면 이력은 남기지 않는다.
+	SaveSrs(ctx context.Context, s domain.SrsState, day string) error
+	// MarkAttendance 는 출석을 기록한다. 이미 찍힌 날이면 아무 일도 하지 않는다
+	// (하루 1회라는 규칙이 저장소에서 지켜져야 재전송에도 안전하다).
+	MarkAttendance(ctx context.Context, userID, day string, at time.Time) error
+
+	// --- 카드 반응 ---
+	// Engagement 는 내가 추천·저장한 카드 목록을 준다.
+	Engagement(ctx context.Context, userID string) (domain.EngagementSnapshot, error)
+	// SetEngagement 는 '원하는 상태'를 그대로 반영한다(토글이 아니라 설정).
+	// 토글이면 재전송 시 원래대로 돌아가 버리므로 반드시 설정 의미여야 한다.
+	SetEngagement(ctx context.Context, userID, cardID string, kind domain.EngagementKind, on bool) error
+
+	// --- 신고 ---
+	// AddReport 는 신고를 접수한다.
+	AddReport(ctx context.Context, r domain.Report) error
+	// ReportedCardIDs 는 내가 신고한 카드 id 목록(화면에서 중복 신고를 막는 데 쓴다).
+	ReportedCardIDs(ctx context.Context, userID string) ([]string, error)
+	// ListReports 는 최근 신고를 관리 콘솔용으로 준다.
+	ListReports(ctx context.Context, limit int) ([]domain.Report, error)
+
+	// --- 알림 ---
+	Notifications(ctx context.Context, userID string) ([]domain.Notification, error)
+	MarkNotificationRead(ctx context.Context, userID, id string) error
+	MarkAllNotificationsRead(ctx context.Context, userID string) error
+}

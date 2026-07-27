@@ -51,13 +51,51 @@ func (r *UserRepo) findOne(ctx context.Context, filter bson.M) (*domain.User, er
 
 func (r *UserRepo) Create(ctx context.Context, u *domain.User) error {
 	_, err := r.col.InsertOne(ctx, u)
+	return translateUserConflict(err)
+}
+
+// EnsureIndexes 는 유일성 제약을 실제로 강제하는 인덱스를 만든다.
+//
+// 이 인덱스가 없던 동안 mongo 는 세 저장소 중 유일하게 아무 제약이 없었고,
+// 같은 아이디로 동시에 가입하면 계정이 여러 개 만들어져 마지막 하나만 로그인됐다.
+// 애플리케이션의 사전 검사는 동시 요청을 막지 못하므로, 저장소가 직접 막아야 한다.
+//
+// nickname 은 부분 인덱스로 둔다 — 닉네임을 정하지 않은 계정이 여럿이어도
+// 서로 충돌하면 안 되기 때문이다. collation strength 2 는 대소문자를 무시한다
+// (FindByNickname·Postgres 의 LOWER() 인덱스와 같은 규칙).
+func (r *UserRepo) EnsureIndexes(ctx context.Context) error {
+	_, err := r.col.Indexes().CreateMany(ctx, []mongo.IndexModel{
+		{
+			Keys:    bson.D{{Key: "login_id", Value: 1}},
+			Options: options.Index().SetName("login_id_unique").SetUnique(true),
+		},
+		{
+			Keys: bson.D{{Key: "nickname", Value: 1}},
+			Options: options.Index().SetName("nickname_unique_ci").SetUnique(true).
+				SetPartialFilterExpression(bson.M{"nickname": bson.M{"$gt": ""}}).
+				SetCollation(&options.Collation{Locale: "en", Strength: 2}),
+		},
+	})
 	return err
+}
+
+// translateUserConflict 는 중복 키 오류를 도메인 오류로 옮긴다.
+// 번역하지 않으면 드라이버 오류가 그대로 500 이 되어, 사용자는 아이디가 겹쳤다는
+// 사실 대신 "서버 오류"를 보게 된다.
+func translateUserConflict(err error) error {
+	if err == nil || !mongo.IsDuplicateKeyError(err) {
+		return err
+	}
+	if strings.Contains(err.Error(), "nickname") {
+		return ports.ErrConflict{Field: "nickname"}
+	}
+	return ports.ErrConflict{Field: "login_id"}
 }
 
 func (r *UserRepo) Update(ctx context.Context, u *domain.User) error {
 	res, err := r.col.ReplaceOne(ctx, bson.M{"_id": u.ID}, u)
 	if err != nil {
-		return err
+		return translateUserConflict(err)
 	}
 	if res.MatchedCount == 0 {
 		return ports.ErrNotFound{Entity: "user"}

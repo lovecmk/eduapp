@@ -3,6 +3,7 @@
 import type { UserDTO } from '../dto/UserDTO';
 import type { User, MembershipTier } from '../../domain/models/User';
 import { parseDateOr } from './_date';
+import { logger } from '../../utils/logger';
 
 const MEMBERSHIP_MAP: Record<NonNullable<UserDTO['membership_cd']>, MembershipTier> = {
   BASIC: 'basic',
@@ -12,8 +13,11 @@ const MEMBERSHIP_MAP: Record<NonNullable<UserDTO['membership_cd']>, MembershipTi
 
 export class UserMapper {
   static toDomain(dto: UserDTO): User {
-    if (__DEV__ && !['A', 'I', 'D'].includes(dto.status_cd)) {
-      console.warn(`[UserMapper] 알 수 없는 status_cd: ${dto.status_cd} (id=${dto.id})`);
+    // 서버가 모르는 코드를 보내면 앱은 조용히 폴백하지만, 그 사실 자체는 남겨야
+    // 스키마 불일치를 배포 후에 발견할 수 있다. 개발 중 콘솔이 아니라 구조화 로그로
+    // 남겨야 운영 수집기에서도 잡힌다(sink 만 갈아 끼우면 됨).
+    if (!['A', 'I', 'D'].includes(dto.status_cd)) {
+      logger.warn('dto_unknown_code', { mapper: 'user', field: 'status_cd', value: dto.status_cd });
     }
     return {
       id: String(dto.id),
@@ -25,6 +29,9 @@ export class UserMapper {
       org: dto.org_nm?.trim(),
       jobTitle: dto.job_title?.trim(),
       membership: dto.membership_cd ? MEMBERSHIP_MAP[dto.membership_cd] : 'basic',
+      // 서버가 role_cd 를 아직 안 주는 배포에서는 관리자가 아닌 것으로 본다
+      // (모를 때는 권한이 없는 쪽으로 기우는 편이 안전하다).
+      isAdmin: dto.role_cd === 'ADMIN',
       // 파싱 불가한 created_at 은 epoch(1970) 으로 폴백 — Invalid Date 가 화면·정렬을
       // NaN 으로 오염시키지 않게 한다(표시 전용 필드).
       createdAt: parseDateOr(dto.created_at, new Date(0)),

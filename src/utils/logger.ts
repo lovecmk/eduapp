@@ -16,11 +16,40 @@ export interface LogFields {
 /** 자동 마스킹 대상 키(부분 일치, 소문자 비교). */
 const SENSITIVE_KEYS = ['password', 'token', 'secret', 'authorization', 'apikey', 'api_key'];
 
+/** 중첩 객체를 따라 내려가는 깊이 한도 — 순환 참조·거대 객체로 로깅이 멈추지 않게 한다. */
+const MAX_REDACT_DEPTH = 4;
+
+function isSensitive(key: string): boolean {
+  const lower = key.toLowerCase();
+  return SENSITIVE_KEYS.some((s) => lower.includes(s));
+}
+
+/**
+ * 민감정보를 가린다. 중첩까지 훑는 이유는 `{ request: { password } }` 처럼
+ * 한 겹만 감싸도 최상위 키만 보는 마스킹은 그대로 통과시키기 때문이다.
+ */
+function redactValue(value: unknown, depth: number): unknown {
+  if (value === null || typeof value !== 'object') return value;
+  if (depth >= MAX_REDACT_DEPTH) return '[깊이 초과]';
+  if (Array.isArray(value)) return value.map((v) => redactValue(v, depth + 1));
+  // Date·Error 등은 구조를 헤집지 않고 그대로 둔다(sink 가 알아서 직렬화한다).
+  if (!isPlainObject(value)) return value;
+  const out: LogFields = {};
+  for (const [k, v] of Object.entries(value)) {
+    out[k] = isSensitive(k) ? '***' : redactValue(v, depth + 1);
+  }
+  return out;
+}
+
+function isPlainObject(v: object): v is Record<string, unknown> {
+  const proto = Object.getPrototypeOf(v);
+  return proto === Object.prototype || proto === null;
+}
+
 function redact(fields: LogFields): LogFields {
   const out: LogFields = {};
   for (const [k, v] of Object.entries(fields)) {
-    const lower = k.toLowerCase();
-    out[k] = SENSITIVE_KEYS.some((s) => lower.includes(s)) ? '***' : v;
+    out[k] = isSensitive(k) ? '***' : redactValue(v, 1);
   }
   return out;
 }

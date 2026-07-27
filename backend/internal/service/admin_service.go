@@ -47,6 +47,12 @@ func NewAdminService(
 	}
 }
 
+// maxAuditLimit 은 감사 이력 한 번에 가져갈 수 있는 최대 건수.
+const maxAuditLimit = 500
+
+// ErrStaleWrite 는 내가 본 뒤에 다른 사람이 먼저 고쳤을 때 반환된다.
+var ErrStaleWrite = errors.New("다른 관리자가 먼저 수정했습니다. 새로고침 후 다시 시도해주세요")
+
 // ErrLastAdmin 은 마지막 관리자의 권한을 떼려 할 때 반환된다.
 var ErrLastAdmin = errors.New("마지막 관리자의 권한은 해제할 수 없습니다")
 
@@ -432,13 +438,15 @@ func (s *AdminService) SetUserStatus(ctx context.Context, actor Actor, targetID,
 // 정지된 관리자는 로그인할 수 없으므로 머릿수에 넣지 않는다 —
 // 넣으면 "관리자는 2명인데 아무도 못 들어오는" 상태가 만들어진다.
 func (s *AdminService) guardLastAdmin(ctx context.Context) error {
-	admins, _, err := s.users.List(ctx, ports.UserQuery{
-		Role: string(domain.RoleAdmin), Status: "A", Limit: 200,
+	// 필요한 것은 "둘 이상인가"뿐이다. 전체를 세어 오면 관리자가 많은 조직에서
+	// 목록 상한(예전에는 200)에 걸려 판단이 어긋날 수 있고, 세는 비용도 낭비다.
+	admins, total, err := s.users.List(ctx, ports.UserQuery{
+		Role: string(domain.RoleAdmin), Status: "A", Limit: 2,
 	})
 	if err != nil {
 		return err
 	}
-	if len(admins) < 2 {
+	if total < 2 && len(admins) < 2 {
 		return ErrLastAdmin
 	}
 	return nil
@@ -576,7 +584,8 @@ func (s *AdminService) CreateCard(ctx context.Context, actor Actor, c domain.Car
 		return nil, err
 	}
 	c = normalizeCard(c)
-	c.ID = fmt.Sprintf("card-%d", s.now().UnixNano())
+	c.ID = newID("card_")
+	c.UpdatedAt = s.now()
 
 	if err := s.cards.InsertCards(ctx, []domain.Card{c}); err != nil {
 		return nil, err
@@ -588,14 +597,23 @@ func (s *AdminService) CreateCard(ctx context.Context, actor Actor, c domain.Car
 
 // UpdateCard 는 기존 문제를 고친다.
 func (s *AdminService) UpdateCard(ctx context.Context, actor Actor, id string, c domain.Card) (*domain.Card, error) {
-	if _, err := s.cards.FindCard(ctx, id); err != nil {
+	current, err := s.cards.FindCard(ctx, id)
+	if err != nil {
 		return nil, err
+	}
+	// 낙관적 동시성 — 요청이 "내가 본 시각"을 보냈는데 저장소의 시각이 그보다 뒤라면,
+	// 내가 화면을 연 뒤에 다른 사람이 먼저 고친 것이다. 그대로 저장하면 그 수정이
+	// 조용히 사라지므로 거부하고 새로고침을 요구한다.
+	// (시각을 보내지 않은 요청은 검사하지 않는다 — 기존 클라이언트가 깨지지 않게.)
+	if !c.UpdatedAt.IsZero() && current.UpdatedAt.After(c.UpdatedAt) {
+		return nil, ErrStaleWrite
 	}
 	if err := ValidateCard(c); err != nil {
 		return nil, err
 	}
 	c = normalizeCard(c)
 	c.ID = id // 경로의 ID 가 진실이다 — body 의 id 로 다른 카드를 덮어쓸 수 없게 한다
+	c.UpdatedAt = s.now()
 
 	if err := s.cards.UpdateCard(ctx, c); err != nil {
 		return nil, err
@@ -699,6 +717,10 @@ func (s *AdminService) MetricsSnapshot() MetricsSnapshot { return s.metrics.Snap
 
 // AuditLogs 는 최근 관리 행위 이력을 반환한다.
 func (s *AdminService) AuditLogs(ctx context.Context, limit int) ([]domain.AuditLog, error) {
+	// 상한을 두지 않으면 ?limit=99999999 한 방으로 전체 이력을 한 응답에 실어 보내게 된다.
+	if limit <= 0 || limit > maxAuditLimit {
+		limit = 100
+	}
 	return s.audit.List(ctx, limit)
 }
 

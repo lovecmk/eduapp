@@ -29,6 +29,11 @@ export interface QueuedWrite {
   idempotencyKey: string;
   createdAt: number;
   attempts: number;
+  /**
+   * 이 쓰기를 만든 사람. 현장 태블릿은 여러 명이 돌려 쓴다 —
+   * 소유자를 안 붙이면 A 가 오프라인에서 찍은 출석이 B 의 토큰으로 전송된다.
+   */
+  userId?: string;
 }
 
 const STORAGE_KEY = 'offline-write-queue';
@@ -39,7 +44,12 @@ export const MAX_ATTEMPTS = 5;
 
 let memory: QueuedWrite[] = [];
 let loaded = false;
+// 최초 디스크 로드는 single-flight 로 공유한다. 이게 없으면 로드가 끝나는 순간
+// memory 가 디스크 내용으로 통째 교체되면서, 그 사이에 들어온 쓰기가 증발한다.
+let loading: Promise<void> | null = null;
 let flushing = false;
+// 지금 로그인한 사람. authStore 가 세션이 바뀔 때마다 갱신한다.
+let ownerId: string | null = null;
 
 function newId(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
@@ -55,14 +65,25 @@ async function persist(): Promise<void> {
 
 async function ensureLoaded(): Promise<void> {
   if (loaded) return;
-  loaded = true;
-  try {
-    const raw = await AsyncStorage.getItem(STORAGE_KEY);
-    const parsed: unknown = raw ? JSON.parse(raw) : [];
-    memory = Array.isArray(parsed) ? (parsed as QueuedWrite[]) : [];
-  } catch {
-    memory = []; // 손상된 큐는 버린다(앱 시작을 막지 않는다).
+  if (!loading) {
+    loading = (async () => {
+      let restored: QueuedWrite[] = [];
+      try {
+        const raw = await AsyncStorage.getItem(STORAGE_KEY);
+        const parsed: unknown = raw ? JSON.parse(raw) : [];
+        if (Array.isArray(parsed)) restored = parsed as QueuedWrite[];
+      } catch {
+        // 손상된 큐는 버린다(앱 시작을 막지 않는다).
+      }
+      // 읽는 동안 들어온 항목은 덮어쓰지 않고 디스크 내용 뒤에 붙인다.
+      // (디스크에 있던 것이 먼저 생긴 요청이므로 순서상 앞이다.)
+      memory = restored.concat(memory);
+      if (memory.length > MAX_QUEUE) memory = memory.slice(memory.length - MAX_QUEUE);
+      loaded = true;
+      loading = null;
+    })();
   }
+  await loading;
 }
 
 /** 대기 중인 쓰기 개수 — 화면에서 '전송 대기 n건' 표시에 쓸 수 있다. */
@@ -76,6 +97,14 @@ export async function clearQueue(): Promise<void> {
   await ensureLoaded();
   memory = [];
   await persist();
+}
+
+/**
+ * 큐의 주인을 알려준다. 세션이 바뀌면(로그인·로그아웃·세션 복구) 반드시 호출해야
+ * 앞사람이 남긴 쓰기가 뒷사람 토큰으로 나가지 않는다.
+ */
+export function setQueueOwner(userId: string | null): void {
+  ownerId = userId;
 }
 
 /** 쓰기 요청을 큐에 넣는다. 넣은 항목의 멱등키를 돌려준다. */
@@ -95,6 +124,7 @@ export async function enqueue(
     idempotencyKey: key,
     createdAt: Date.now(),
     attempts: 0,
+    userId: ownerId ?? undefined,
   });
   // 오래된 것부터 버려 상한을 지킨다.
   if (memory.length > MAX_QUEUE) memory = memory.slice(memory.length - MAX_QUEUE);
@@ -122,18 +152,19 @@ export async function flushQueue(): Promise<number> {
   flushing = true;
   let sent = 0;
   try {
-    while (memory.length > 0) {
-      const item = memory[0];
+    for (;;) {
+      const item = nextSendable();
+      if (!item) break;
       try {
         await sender(item);
-        memory.shift();
+        removeById(item.id);
         sent += 1;
       } catch (e) {
         const err = toApiError(e);
         item.attempts += 1;
         if (!err.retryable || item.attempts >= MAX_ATTEMPTS) {
           // 다시 보내도 소용없거나 너무 많이 실패했다 → 버리고 다음으로 넘어간다.
-          memory.shift();
+          removeById(item.id);
           logger.warn('offline_write_dropped', {
             path: item.path,
             status: err.status,
@@ -153,10 +184,33 @@ export async function flushQueue(): Promise<number> {
   }
 }
 
+/**
+ * 지금 보낼 수 있는 가장 오래된 항목. 다른 사람이 남긴 쓰기는 건너뛴다 —
+ * 지금 붙어 있는 토큰은 그 사람 것이 아니라, 보내면 기록이 엉뚱한 계정에 붙는다.
+ * 지우지 않고 남겨 두는 이유는 본인이 다시 로그인하면 그때 정상 전송되기 때문이다
+ * (영영 안 돌아와도 MAX_QUEUE 상한에 밀려 결국 빠진다).
+ */
+function nextSendable(): QueuedWrite | undefined {
+  return memory.find((q) => !q.userId || q.userId === ownerId);
+}
+
+/**
+ * 처리한 항목을 id 로 지운다.
+ *
+ * shift() 로 맨 앞을 자르지 않는 이유: 전송을 기다리는(await) 사이에 로그아웃
+ * (clearQueue)이나 새 쓰기(enqueue)가 끼어들면 맨 앞이 더 이상 방금 보낸 항목이
+ * 아닐 수 있다. 그때 shift() 는 아직 보내지도 않은 남의 기록을 지운다.
+ */
+function removeById(id: string): void {
+  const idx = memory.findIndex((q) => q.id === id);
+  if (idx >= 0) memory.splice(idx, 1);
+}
+
 /** 테스트용 — 모듈 상태를 초기화한다. */
 export function __resetQueueForTests(): void {
   memory = [];
   loaded = false;
+  loading = null;
   flushing = false;
   sender = null;
 }

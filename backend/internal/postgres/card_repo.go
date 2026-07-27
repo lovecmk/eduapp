@@ -20,14 +20,14 @@ func NewCardRepo(pool *pgxpool.Pool) *CardRepo { return &CardRepo{pool: pool} }
 
 const cardCols = `id, category_cd, sub_category_nm, topic_nm, keywords, title_txt, study_seconds,
 	situation_txt, question_txt, image_url, principle_txt, process_txt, fire_triangle_txt,
-	conclusion_txt, answer_image_url, source_txt, difficulty_cd, card_type_cd, choices, answer_index`
+	conclusion_txt, answer_image_url, source_txt, difficulty_cd, card_type_cd, choices, answer_index, updated_at`
 
 func scanCard(rows pgx.Rows) (domain.Card, error) {
 	var c domain.Card
 	err := rows.Scan(&c.ID, &c.CategoryCd, &c.SubCategoryNm, &c.TopicNm, &c.Keywords, &c.TitleTxt,
 		&c.StudySeconds, &c.SituationTxt, &c.QuestionTxt, &c.ImageURL, &c.PrincipleTxt, &c.ProcessTxt,
 		&c.FireTriangle, &c.ConclusionTxt, &c.AnswerImageURL, &c.SourceTxt, &c.DifficultyCd,
-		&c.CardTypeCd, &c.Choices, &c.AnswerIndex)
+		&c.CardTypeCd, &c.Choices, &c.AnswerIndex, &c.UpdatedAt)
 	return c, err
 }
 
@@ -66,7 +66,7 @@ func (r *CardRepo) InsertCards(ctx context.Context, cards []domain.Card) error {
 			 ON CONFLICT (id) DO NOTHING`,
 			c.ID, c.CategoryCd, c.SubCategoryNm, c.TopicNm, c.Keywords, c.TitleTxt, c.StudySeconds,
 			c.SituationTxt, c.QuestionTxt, c.ImageURL, c.PrincipleTxt, c.ProcessTxt, c.FireTriangle,
-			c.ConclusionTxt, c.AnswerImageURL, c.SourceTxt, c.DifficultyCd, c.CardTypeCd, c.Choices, c.AnswerIndex)
+			c.ConclusionTxt, c.AnswerImageURL, c.SourceTxt, c.DifficultyCd, c.CardTypeCd, c.Choices, c.AnswerIndex, c.UpdatedAt)
 	}
 	br := r.pool.SendBatch(ctx, batch)
 	defer br.Close()
@@ -131,11 +131,12 @@ func (r *CardRepo) UpdateCard(ctx context.Context, c domain.Card) error {
 		`UPDATE cards SET category_cd=$2, sub_category_nm=$3, topic_nm=$4, keywords=$5, title_txt=$6,
 		 study_seconds=$7, situation_txt=$8, question_txt=$9, image_url=$10, principle_txt=$11,
 		 process_txt=$12, fire_triangle_txt=$13, conclusion_txt=$14, answer_image_url=$15,
-		 source_txt=$16, difficulty_cd=$17, card_type_cd=$18, choices=$19, answer_index=$20
+		 source_txt=$16, difficulty_cd=$17, card_type_cd=$18, choices=$19, answer_index=$20,
+		 updated_at=$21
 		 WHERE id=$1`,
 		c.ID, c.CategoryCd, c.SubCategoryNm, c.TopicNm, c.Keywords, c.TitleTxt, c.StudySeconds,
 		c.SituationTxt, c.QuestionTxt, c.ImageURL, c.PrincipleTxt, c.ProcessTxt, c.FireTriangle,
-		c.ConclusionTxt, c.AnswerImageURL, c.SourceTxt, c.DifficultyCd, c.CardTypeCd, c.Choices, c.AnswerIndex)
+		c.ConclusionTxt, c.AnswerImageURL, c.SourceTxt, c.DifficultyCd, c.CardTypeCd, c.Choices, c.AnswerIndex, c.UpdatedAt)
 	if err != nil {
 		return err
 	}

@@ -169,15 +169,15 @@ func (m *Metrics) Observe(s RequestSample) {
 }
 
 // recordBucket 은 분 단위 버킷에 누적한다. 호출자가 락을 쥐고 있어야 한다.
+//
+// 샘플의 시각은 요청이 '시작된' 때라 도착 순서가 뒤집힐 수 있다. 분 경계에 걸쳐
+// 오래 걸린 요청은 다음 분에 짧은 요청들이 지나간 뒤에야 기록되기 때문이다.
+// 무조건 마지막 버킷에 넣으면 그 지연이 엉뚱한 분의 평균·최대값을 끌어올린다.
 func (m *Metrics) recordBucket(s RequestSample, ms int64) {
-	minute := s.At.Truncate(time.Minute)
-	if n := len(m.buckets); n == 0 || m.buckets[n-1].minute.Before(minute) {
-		m.buckets = append(m.buckets, minuteBucket{minute: minute})
-		if len(m.buckets) > metricsWindowMinutes {
-			m.buckets = m.buckets[len(m.buckets)-metricsWindowMinutes:]
-		}
+	b := m.bucketFor(s.At.Truncate(time.Minute))
+	if b == nil {
+		return // 창 밖으로 밀려난 오래된 샘플 — 어차피 화면에 나오지 않는다
 	}
-	b := &m.buckets[len(m.buckets)-1]
 	b.requests++
 	if s.Status >= 500 {
 		b.errors++
@@ -188,6 +188,43 @@ func (m *Metrics) recordBucket(s RequestSample, ms int64) {
 	if ms > b.maxMs {
 		b.maxMs = ms
 	}
+}
+
+// bucketFor 는 해당 분의 버킷을 찾거나 만든다. 버킷은 항상 시간순으로 정렬돼 있다.
+func (m *Metrics) bucketFor(minute time.Time) *minuteBucket {
+	// 대부분의 요청은 가장 최근 분에 속한다 — 뒤에서부터 훑는다.
+	for i := len(m.buckets) - 1; i >= 0; i-- {
+		if m.buckets[i].minute.Equal(minute) {
+			return &m.buckets[i]
+		}
+		if m.buckets[i].minute.Before(minute) {
+			// 새 분이 시작됐다. 정렬을 유지하며 이 뒤에 끼워 넣는다.
+			return m.insertBucket(i+1, minute)
+		}
+	}
+	if len(m.buckets) == 0 {
+		return m.insertBucket(0, minute)
+	}
+	// 보관 중인 가장 오래된 분보다도 이전이다. 창이 꽉 찼다면 어차피 잘려 나가므로 버린다.
+	if len(m.buckets) >= metricsWindowMinutes {
+		return nil
+	}
+	return m.insertBucket(0, minute)
+}
+
+func (m *Metrics) insertBucket(at int, minute time.Time) *minuteBucket {
+	m.buckets = append(m.buckets, minuteBucket{})
+	copy(m.buckets[at+1:], m.buckets[at:])
+	m.buckets[at] = minuteBucket{minute: minute}
+	if len(m.buckets) > metricsWindowMinutes {
+		trimmed := len(m.buckets) - metricsWindowMinutes
+		m.buckets = m.buckets[trimmed:]
+		at -= trimmed
+		if at < 0 {
+			return nil // 방금 만든 버킷이 잘려 나갔다
+		}
+	}
+	return &m.buckets[at]
 }
 
 // recordPath 는 경로별 집계를 갱신한다. 경로 종류는 라우트 수만큼으로 유한하다

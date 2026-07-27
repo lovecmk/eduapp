@@ -95,10 +95,11 @@ EXISTS`) — 신규 배포에 충분하다. 컬럼 변경/데이터 이관이 �
 
 ## API
 
-모두 `application/json`. `/health` 외에는 `Authorization: Bearer <access>` 필요.
+모두 `application/json`. 헬스체크 외에는 `Authorization: Bearer <access>` 필요.
 
 | Method | Path | 설명 |
 |--------|------|------|
+| GET | `/health`, `/api/health` | 무인증. `{status,version,store,uptime_seconds}` |
 | POST | `/api/auth/login` | `{id,password}` → `{access_token,refresh_token,user}` |
 | POST | `/api/auth/refresh` | `{refresh_token}` → `{access_token}` |
 | POST | `/api/auth/logout` | 스테이트리스(200) |
@@ -111,6 +112,35 @@ EXISTS`) — 신규 배포에 충분하다. 컬럼 변경/데이터 이관이 �
 | POST | `/api/push/register` | `{token,platform}` — 기기 Expo 푸시 토큰 등록 |
 | POST | `/api/telegram/alert` | `{version:"1"\|"2"\|"3"}` — 3버전 알림 브로드캐스트(앱발) |
 | POST | `/api/telegram/webhook` | 텔레그램 웹훅 수신(무인증, secret 헤더 검증) |
+
+### 헬스체크 두 경로
+
+같은 응답을 `/health` 와 `/api/health` 두 곳에 낸다. 앞은 로드밸런서·Docker
+healthcheck 의 관례적 경로이고, 뒤는 **앱이 부르는 경로**다 — 앱은 API 주소 하나만
+알고 모든 요청에 `/api` 접두사를 붙이므로, 이 경로가 없으면 개발자 화면의 서버
+점검이 배포가 멀쩡해도 404 로 실패한다. `version` 은 `APP_VERSION` 환경변수로
+주입한다(미설정 시 `dev`) — "지금 붙은 서버가 어느 빌드인가"를 앱에서 확인할 수 있다.
+
+### 계정 상태(A/I/D) 집행
+
+관리 콘솔의 **정지(I)·삭제(D)** 는 저장만으로는 아무 효과가 없다. 세 길목에서 막는다.
+
+| 길목 | 동작 |
+|------|------|
+| `POST /api/auth/login` | 비밀번호가 맞아도 **403** — 재로그인 불가 |
+| `POST /api/auth/refresh` | **403** — 세션 연장 불가 |
+| `GET /api/auth/me` | **403** — 앱 부팅 시 세션 복구 불가 |
+| `/api/*` (인증 필요 전체) | **403** — 살아 있는 액세스 토큰도 통과 못 함 |
+
+마지막 줄이 `middleware.AccountGate` 다. 액세스 토큰은 스테이트리스라 발급된 것을
+회수할 수 없어서, 갱신만 막으면 정지된 사람이 토큰 만료(`ACCESS_TTL`, 기본 15분)까지
+학습을 계속한다. 그렇다고 요청마다 저장소를 왕복하면 학습 화면처럼 호출이 잦은 경로가
+느려진다. 그래서 계정 상태만 **15초 TTL 로 캐시**해 두고 본다 — 조회 비용은 거의 그대로,
+반영 지연은 분에서 초로 줄어든다.
+
+정지 반영이 늦어지는 최대 시간 = `accountCacheTTL`(15초). 저장소 조회가 실패하면
+**통과시킨다**(fail-open) — DB 가 잠깐 흔들렸다고 로그인한 사용자 전원을 쫓아내는 쪽이
+정지 반영이 몇 초 늦는 것보다 훨씬 나쁘다.
 
 ### 원격 푸시(Expo Push) — "실제 모바일 알림"
 

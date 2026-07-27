@@ -28,10 +28,13 @@ beforeAll(() => setLogSink(() => {}));
 afterAll(() => resetLogSink());
 
 type Init = { headers?: Record<string, string> };
+// 실제 fetch Response 는 json() 과 text() 를 모두 제공한다.
+// ApiClient 는 빈 본문(204 등)을 구분하려고 text() 로 읽으므로 목업도 같은 모양이어야 한다.
 const resp = (status: number, body: unknown) => ({
   ok: status >= 200 && status < 300,
   status,
   json: async () => body,
+  text: async () => (body === undefined ? '' : JSON.stringify(body)),
 });
 
 async function seedTokens(access: string, refresh: string) {
@@ -138,5 +141,44 @@ describe('401 → refresh 재시도', () => {
     ]);
     expect(results).toEqual([{ ok: true }, { ok: true }, { ok: true }]);
     expect(refreshCalls).toBe(1); // 쇄도(stampede) 방지
+  });
+});
+
+describe('본문 없는 성공 응답', () => {
+  // 삭제(DELETE)는 204 No Content 로, 일부 쓰기는 빈 200 으로 답한다.
+  // 이런 응답에 res.json() 을 걸면 SyntaxError 가 나면서 성공한 요청이 실패로 둔갑한다.
+  const emptyResp = (status: number) => ({
+    ok: status >= 200 && status < 300,
+    status,
+    json: async () => { throw new SyntaxError('Unexpected end of JSON input'); },
+    text: async () => '',
+  });
+
+  it('204 No Content 를 성공으로 다룬다', async () => {
+    global.fetch = jest.fn(async () => emptyResp(204)) as unknown as typeof fetch;
+    await expect(apiClient.delete('/api/admin/cards/c1')).resolves.toEqual({});
+  });
+
+  it('본문이 빈 200 도 성공으로 다룬다', async () => {
+    global.fetch = jest.fn(async () => emptyResp(200)) as unknown as typeof fetch;
+    await expect(apiClient.post('/api/auth/logout', {})).resolves.toEqual({});
+  });
+
+  it('JSON 이 아닌 본문(프록시 HTML 오류 페이지)은 형식 오류로 알린다', async () => {
+    global.fetch = jest.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => { throw new SyntaxError('bad'); },
+      text: async () => '<html>502 Bad Gateway</html>',
+    })) as unknown as typeof fetch;
+    // 원시 SyntaxError 가 아니라 화면이 다룰 수 있는 ApiError 로 정규화되어야 한다.
+    await expect(apiClient.get('/api/thing', { retries: 0 })).rejects.toBeInstanceOf(ApiError);
+  });
+
+  it('retries:0 이면 일시적 실패에도 다시 시도하지 않는다(부팅 경로용)', async () => {
+    const fetchMock = jest.fn(async () => resp(503, {}));
+    global.fetch = fetchMock as unknown as typeof fetch;
+    await expect(apiClient.get('/api/auth/me', { retries: 0 })).rejects.toMatchObject({ status: 503 });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

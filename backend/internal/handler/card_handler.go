@@ -35,13 +35,13 @@ func (h *CardHandler) Today(c *fiber.Ctx) error {
 	userID := c.Locals("userID").(string)
 
 	opt := service.SessionOptions{}
-	if d := strings.ToUpper(strings.TrimSpace(c.Query("difficulty"))); d != "" {
+	if d := strings.ToUpper(strings.TrimSpace(query(c, "difficulty"))); d != "" {
 		switch domain.Difficulty(d) {
 		case domain.Easy, domain.Medium, domain.Hard:
 			opt.Difficulty = domain.Difficulty(d)
 		}
 	}
-	if m := strings.TrimSpace(c.Query("minutes")); m != "" {
+	if m := strings.TrimSpace(query(c, "minutes")); m != "" {
 		if n, err := strconv.Atoi(m); err == nil && n > 0 {
 			opt.TargetSec = n * 60
 		}
@@ -122,7 +122,7 @@ type markReq struct {
 // Mark PATCH /api/cards/:id
 func (h *CardHandler) Mark(c *fiber.Ctx) error {
 	userID := c.Locals("userID").(string)
-	id := c.Params("id")
+	id := param(c, "id")
 
 	var req markReq
 	if err := c.BodyParser(&req); err != nil {
