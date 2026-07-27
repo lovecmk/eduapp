@@ -575,13 +575,13 @@ function SettingsBody({ scrollRef }: { scrollRef: React.RefObject<ScrollView> })
                 <React.Fragment key={idx}>
                   {idx === 1 && <Text style={{ color: c.textSecondary, fontSize: 28, fontWeight: '800' }}>:</Text>}
                   <View style={{ alignItems: 'center' }}>
-                    <Pressable onPress={() => { hapticSelection(); wheel.set(wheel.val + 1); }} hitSlop={8} style={{ padding: 6 }}>
+                    <Pressable onPress={() => { hapticSelection(); wheel.set(wheel.val + 1); }} hitSlop={8} style={{ padding: 6 }} accessibilityRole="button" accessibilityLabel="값 올리기">
                       <Ionicons name="chevron-up" size={20} color={c.textPrimary} />
                     </Pressable>
                     <Text style={{ color: c.textPrimary, fontSize: 36, fontWeight: '800', fontFamily: fontMono, paddingVertical: 6 }}>
                       {String(wheel.val).padStart(2, '0')}
                     </Text>
-                    <Pressable onPress={() => { hapticSelection(); wheel.set(wheel.val - 1); }} hitSlop={8} style={{ padding: 6 }}>
+                    <Pressable onPress={() => { hapticSelection(); wheel.set(wheel.val - 1); }} hitSlop={8} style={{ padding: 6 }} accessibilityRole="button" accessibilityLabel="값 내리기">
                       <Ionicons name="chevron-down" size={20} color={c.textPrimary} />
                     </Pressable>
                   </View>

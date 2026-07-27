@@ -78,6 +78,10 @@ export const env = {
     version: appVersion,
     buildNumber: bakedBuildNumber,
     commit: readString(process.env.EXPO_PUBLIC_COMMIT_SHA, 'local'),
+    // 이 번들이 만들어진 시각(ISO). 배포 스크립트가 매번 새로 찍어 넣는다.
+    // 화면의 '업데이트 날짜'는 이 값에서 나와야 한다 — 손으로 적어 두면
+    // 배포를 아무리 해도 날짜가 그 자리에 멈춘 것처럼 보인다.
+    buildTime: readString(process.env.EXPO_PUBLIC_BUILD_TIME),
   },
 } as const;
 

@@ -630,7 +630,7 @@ export default function CardsScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       {keepScreenOn && (
-        <Pressable onPress={toggleKeepScreenOn} style={{ position: 'absolute', top: 10, right: 20, zIndex: 20, padding: 4 }}>
+        <Pressable onPress={toggleKeepScreenOn} accessibilityRole="button" accessibilityLabel="화면 꺼짐 방지 해제" style={{ position: 'absolute', top: 10, right: 20, zIndex: 20, padding: 4 }}>
           <Ionicons name="lock-closed" size={16} color={c.textSecondary} />
         </Pressable>
       )}

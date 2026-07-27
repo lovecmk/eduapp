@@ -143,7 +143,7 @@ export default function ContentsScreen() {
                   <Text style={{ color: c.textSecondary, fontSize: 12.5 * fs, flex: 1, fontFamily: fontBody }}>
                     <Text style={{ fontFamily: fontDisplay, color: c.textPrimary }}>{lockedHint}</Text> 과정은 준비 중이에요. 곧 만나요!
                   </Text>
-                  <Pressable onPress={() => setLockedHint(null)} hitSlop={6}><Ionicons name="close" size={16} color={c.textSecondary} /></Pressable>
+                  <Pressable onPress={() => setLockedHint(null)} hitSlop={6} accessibilityRole="button" accessibilityLabel="안내 닫기"><Ionicons name="close" size={16} color={c.textSecondary} /></Pressable>
                 </Animated.View>
               )}
 

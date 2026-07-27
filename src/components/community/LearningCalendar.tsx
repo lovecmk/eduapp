@@ -130,11 +130,11 @@ export function LearningCalendar() {
     <View style={[styles.container, { backgroundColor: c.surface, borderColor: c.border }]}>
       {/* 월 네비게이션 */}
       <View style={styles.header}>
-        <Pressable onPress={prev} hitSlop={8} style={styles.arrow}><Ionicons name="chevron-back" size={20} color={c.primary} /></Pressable>
+        <Pressable onPress={prev} hitSlop={8} accessibilityRole="button" accessibilityLabel="이전 달" style={styles.arrow}><Ionicons name="chevron-back" size={20} color={c.primary} /></Pressable>
         <Pressable onPress={() => { setPickYear(year); setPickMonth(month); setPickerOpen(true); }}>
           <Text style={{ color: c.textPrimary, fontSize: 16, fontFamily: fontDisplay }}>{year}년 {month + 1}월</Text>
         </Pressable>
-        <Pressable onPress={next} hitSlop={8} style={styles.arrow}><Ionicons name="chevron-forward" size={20} color={c.primary} /></Pressable>
+        <Pressable onPress={next} hitSlop={8} accessibilityRole="button" accessibilityLabel="다음 달" style={styles.arrow}><Ionicons name="chevron-forward" size={20} color={c.primary} /></Pressable>
       </View>
 
       {/* 월간 요약 — 학습일 / 출석일 / 연속 */}
@@ -296,7 +296,7 @@ function DayDetailSheet({
         <View style={{ paddingHorizontal: 20, paddingBottom: 14 }}>
           <View style={styles.sheetHeader}>
             <Text style={{ color: c.textPrimary, fontSize: 17, fontFamily: fontDisplay }}>{title}</Text>
-            <Pressable onPress={onClose} hitSlop={10} style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: c.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}>
+            <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel="닫기" style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: c.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}>
               <Ionicons name="close" size={17} color={c.textSecondary} />
             </Pressable>
           </View>

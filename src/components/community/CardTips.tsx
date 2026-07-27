@@ -59,6 +59,7 @@ export function CardTips({ cardId }: { cardId: string }) {
           maxLength={INPUT_LIMITS.tip + 20}
         />
         <Pressable onPress={submit} disabled={!canSubmit}
+          accessibilityRole="button" accessibilityLabel="꿀팁 등록"
           style={[styles.sendBtn, { backgroundColor: !canSubmit ? c.disabled : c.primary }]}>
           <Ionicons name="arrow-up" size={16} color="#fff" />
         </Pressable>
@@ -96,7 +97,7 @@ export function CardTips({ cardId }: { cardId: string }) {
                   <Text style={{ color: tip.likedByMe ? c.error : c.textSecondary, fontSize: 10.5, fontFamily: fontMono }}>{tip.likes}</Text>
                 </Pressable>
                 {tip.mine && (
-                  <Pressable onPress={() => removeTip(tip.id)} hitSlop={6}>
+                  <Pressable onPress={() => removeTip(tip.id)} hitSlop={6} accessibilityRole="button" accessibilityLabel="내 꿀팁 삭제">
                     <Ionicons name="trash-outline" size={13} color={c.textSecondary} />
                   </Pressable>
                 )}

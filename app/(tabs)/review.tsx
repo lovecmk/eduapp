@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, Text, Pressable, ScrollView } from 'react-native';
+import { View, Text, Pressable, ScrollView, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -9,6 +9,7 @@ import { ErrorState } from '../../src/components/ui/ErrorState';
 import { fontDisplay, fontBody, fontMono } from '../../src/theme/tokens';
 import { getCategoryIcon, getCategoryColor } from '../../src/constants/categories';
 import { ROUTES } from '../../src/constants/routes';
+import { usePullToRefresh } from '../../src/hooks/usePullToRefresh';
 import { useAllCards } from '../../src/hooks/useCards';
 import { useReview } from '../../src/hooks/useReview';
 import { useBookmarkStore } from '../../src/store/bookmarkStore';
@@ -32,6 +33,8 @@ export default function ReviewScreen() {
   const router = useRouter();
 
   const { data: allCards = [], isLoading, error, refetch } = useAllCards();
+  // 목록 화면에서 아래로 당기는 것은 학습된 기대다. 없으면 '멈춘 화면'처럼 느껴진다.
+  const { refreshing, onRefresh } = usePullToRefresh(refetch);
   const savedCount = useBookmarkStore((s) => s.ids.length);
   const likedCount = useLikeStore((s) => s.ids.length);
   const reportedCount = useReportStore((s) => new Set(s.reports.map((r) => r.cardId)).size);
@@ -89,7 +92,14 @@ export default function ReviewScreen() {
   }
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: 'transparent' }} contentContainerStyle={{ padding: 20, ...contentColumn }} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      style={{ flex: 1, backgroundColor: 'transparent' }}
+      contentContainerStyle={{ padding: 20, ...contentColumn }}
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.primary} colors={[c.primary]} />
+      }
+    >
       {/* ── 오늘의 복습 (효율 우선 추천) ─────────────────────────────────
           복습은 '무엇을' 다시 볼지가 중요하다. 두 개의 검증된 방식을 크게 제시한다:
            · 당일 복습(방금 배운 것 회상) — 초기 망각 구간 방어(테스트 효과)

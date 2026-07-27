@@ -76,7 +76,7 @@ export default function ProfileScreen() {
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 48, ...contentColumn }} showsVerticalScrollIndicator={false}>
         {/* 프로필 헤더 — 큰 아바타 + 이름 + 성취 뱃지 */}
         <View style={{ alignItems: 'center', marginTop: 8, marginBottom: 20 }}>
-          <Pressable onPress={pickImage} style={{ marginBottom: 14 }}>
+          <Pressable onPress={pickImage} style={{ marginBottom: 14 }} accessibilityRole="button" accessibilityLabel="프로필 사진 변경">
             <Avatar uri={profileImage} size={96} ring={3} ringColor={c.primary} />
             <View style={{ position: 'absolute', right: -2, bottom: -2, width: 30, height: 30, borderRadius: 15, backgroundColor: c.primary, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: c.bg }}>
               <Ionicons name="camera" size={15} color="#fff" />

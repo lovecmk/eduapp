@@ -1,8 +1,18 @@
 // 업데이트 내역(Changelog) — OTA 업데이트 안내 모달과 연동되는 릴리스 노트.
+//
+// 아래 목록은 **사람이 쓴 요약**이다. 날짜는 여기에 적지 않는다 —
+// 손으로 적어 두면 배포를 아무리 해도 화면의 날짜가 그 자리에 멈춘다.
+// 실제 날짜는 번들에 구워진 빌드 시각(env.build.buildTime)에서 가져온다.
+//
+// 이 파일은 env 를 import 하지 않는다 — 상수 목록이 실행 환경에 의존하기 시작하면
+// 순수 로직 테스트에서도 React Native 전체가 딸려 들어온다. 빌드 정보는 인자로 받는다.
+
 export interface ChangelogEntry {
   version: string;
   date: string;
   highlights: string[];
+  /** 손으로 쓴 요약 없이 자동으로 만들어진 항목인가. */
+  auto?: boolean;
 }
 
 export const CHANGELOG: ChangelogEntry[] = [
@@ -148,3 +158,49 @@ export const CHANGELOG: ChangelogEntry[] = [
     highlights: ['생체인증 로그인 지원', '다크/딤 테마 추가'],
   },
 ];
+
+/**
+ * 화면에 보여 줄 업데이트 내역을 만든다.
+ *
+ * 왜 그냥 CHANGELOG 를 쓰지 않는가 — 두 가지가 어긋나기 때문이다.
+ *
+ *  1. **날짜.** 위 목록의 date 는 사람이 적은 값이라 배포와 무관하게 고정된다.
+ *     지금 돌고 있는 버전의 날짜만큼은 실제 빌드 시각이어야 한다.
+ *  2. **버전.** 배포할 때마다 patch 가 오르므로(1.11.1, 1.11.2 …) 대부분의 배포에는
+ *     손으로 쓴 항목이 없다. 그때 목록에 현재 버전이 아예 없으면 사용자는
+ *     "업데이트했는데 내역이 안 보인다"를 겪는다.
+ */
+export function resolveChangelog(
+  entries: ChangelogEntry[],
+  current: { version: string; buildTime?: string },
+): ChangelogEntry[] {
+  const buildDate = toDateOnly(current.buildTime);
+  const matched = entries.find((e) => e.version === current.version);
+
+  if (matched) {
+    // 현재 버전의 날짜만 실제 빌드 시각으로 바꿔 준다(과거 항목은 그대로 둔다).
+    return entries.map((e) =>
+      e.version === current.version && buildDate ? { ...e, date: buildDate } : e,
+    );
+  }
+
+  // 손으로 쓴 항목이 없는 배포 — 최소한 "무엇이 올라갔는지"는 알려 준다.
+  return [
+    {
+      version: current.version,
+      date: buildDate ?? entries[0]?.date ?? '',
+      highlights: ['안정성 개선과 사용성 다듬기'],
+      auto: true,
+    },
+    ...entries,
+  ];
+}
+
+/** ISO 시각 → 'YYYY-MM-DD'. 읽을 수 없으면 null(호출부가 대체값을 쓴다). */
+function toDateOnly(iso: string | undefined): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}

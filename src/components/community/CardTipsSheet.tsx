@@ -14,7 +14,7 @@ export function CardTipsSheet({ visible, cardId, onClose }: { visible: boolean; 
     <AnimatedSheet visible={visible} onClose={onClose}>
       <View style={styles.header}>
         <Text style={{ color: c.textPrimary, fontSize: 16, fontFamily: fontDisplay }}>현장 팁</Text>
-        <Pressable onPress={onClose} hitSlop={10} style={[styles.close, { backgroundColor: c.surfaceAlt }]}>
+        <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel="닫기" style={[styles.close, { backgroundColor: c.surfaceAlt }]}>
           <Ionicons name="close" size={17} color={c.textSecondary} />
         </Pressable>
       </View>

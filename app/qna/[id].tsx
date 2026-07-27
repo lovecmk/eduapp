@@ -86,7 +86,7 @@ export default function QnaDetailScreen() {
               style={{ flex: 1, color: c.textPrimary, fontSize: 13.5, fontFamily: fontBody, paddingVertical: 4, maxHeight: 90 }}
               multiline maxLength={1050}
             />
-            <Pressable onPress={submit} disabled={!canSend} style={[styles.sendBtn, { backgroundColor: canSend ? c.primary : c.disabled }]}>
+            <Pressable onPress={submit} disabled={!canSend} accessibilityRole="button" accessibilityLabel="답변 보내기" style={[styles.sendBtn, { backgroundColor: canSend ? c.primary : c.disabled }]}>
               <Ionicons name="arrow-up" size={17} color="#fff" />
             </Pressable>
           </View>
