@@ -646,3 +646,58 @@ func TestAdminRoutesAbsentWithoutDeps(t *testing.T) {
 		}
 	}
 }
+
+// 두 관리자가 같은 문제를 동시에 편집하면 나중 저장이 앞의 수정을 덮으면 안 된다.
+//
+// 고치기 전: PUT 은 전체 교체라 나중 저장이 앞의 수정을 통째로 지웠고,
+// 감사 로그에는 '문제 수정' 두 건만 남아 무엇이 사라졌는지 알 수 없었다.
+func TestCardUpdateDetectsConcurrentEdit(t *testing.T) {
+	env := buildAdminApp(t)
+
+	res, body := doJSON(t, env.app, "POST", "/api/admin/cards", env.adminToken, map[string]any{
+		"category_cd":   "공통",
+		"question_txt":  "동시 편집 검사용 문제",
+		"title_txt":     "원본",
+		"card_type_cd":  "EXPLANATION",
+		"difficulty_cd": "EASY",
+		"principle_txt": "동시 편집을 감지하는지 확인한다.",
+	})
+	if res.StatusCode != 201 {
+		t.Fatalf("문제 등록: %d %s", res.StatusCode, body)
+	}
+	var created map[string]any
+	if err := json.Unmarshal(body, &created); err != nil {
+		t.Fatalf("등록 응답 파싱: %v", err)
+	}
+	id, _ := created["id"].(string)
+	seenAt, _ := created["updated_at"].(string)
+
+	// 관리자 A 가 먼저 저장한다.
+	first := map[string]any{
+		"category_cd": "공통", "question_txt": "동시 편집 검사용 문제",
+		"title_txt": "A 가 고침", "card_type_cd": "EXPLANATION", "difficulty_cd": "EASY", "updated_at": seenAt,
+		"principle_txt": "동시 편집을 감지하는지 확인한다.",
+	}
+	if res, b := doJSON(t, env.app, "PUT", "/api/admin/cards/"+id, env.adminToken, first); res.StatusCode != 200 {
+		t.Fatalf("A 저장: %d %s", res.StatusCode, b)
+	}
+
+	// 관리자 B 는 A 가 저장하기 전 화면을 열어 뒀다 — 같은(옛) 시각을 들고 저장한다.
+	second := map[string]any{
+		"category_cd": "공통", "question_txt": "동시 편집 검사용 문제",
+		"title_txt": "B 가 고침", "card_type_cd": "EXPLANATION", "difficulty_cd": "EASY", "updated_at": seenAt,
+		"principle_txt": "동시 편집을 감지하는지 확인한다.",
+	}
+	res, body = doJSON(t, env.app, "PUT", "/api/admin/cards/"+id, env.adminToken, second)
+	if res.StatusCode != 409 {
+		t.Fatalf("뒤늦은 저장은 409 여야 하는데 %d 였다: %s", res.StatusCode, body)
+	}
+
+	// A 의 수정이 살아 있어야 한다.
+	_, body = doJSON(t, env.app, "GET", "/api/admin/cards/"+id, env.adminToken, nil)
+	var after map[string]any
+	_ = json.Unmarshal(body, &after)
+	if after["title_txt"] != "A 가 고침" {
+		t.Errorf("A 의 수정이 덮였다: %v", after["title_txt"])
+	}
+}

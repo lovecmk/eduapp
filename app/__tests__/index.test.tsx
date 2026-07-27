@@ -19,7 +19,7 @@ const someUser: User = {
   email: 'won@example.com',
   membership: 'basic',
   createdAt: new Date(),
-  isActive: true,
+  isActive: true, isAdmin: false,
 };
 
 const setAuth = (patch: Partial<{ bootstrapped: boolean; user: User | null }>) => {

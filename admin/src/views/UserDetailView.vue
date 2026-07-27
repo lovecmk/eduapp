@@ -62,7 +62,7 @@ function askStatus(next: StatusCd): void {
     message:
       next === 'A'
         ? `${u.user_nm}님의 계정을 다시 활성화합니다.`
-        : `${u.user_nm}님의 계정을 '${statusLabel(next)}' 상태로 바꿉니다. 해당 계정은 로그인할 수 없게 됩니다.`,
+        : `${u.user_nm}님의 계정을 '${statusLabel(next)}' 상태로 바꿉니다. 새 로그인은 즉시 막히고, 이미 접속 중인 기기는 최대 15초 뒤에 끊깁니다.`,
   };
 }
 
@@ -194,7 +194,10 @@ onMounted(() => void detail.run());
         <section class="panel">
           <div class="panel-head"><h2 class="panel-title">계정 상태</h2></div>
           <div class="panel-body">
-            <p class="desc">정지·삭제 상태의 계정은 로그인할 수 없습니다.</p>
+            <p class="desc">
+              정지·삭제 상태의 계정은 로그인할 수 없습니다.
+              이미 접속 중인 기기에서는 최대 15초 뒤에 끊깁니다.
+            </p>
             <div class="row">
               <button
                 class="btn btn-sm"

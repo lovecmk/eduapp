@@ -26,7 +26,7 @@ function account(id: string, username: string) {
     email: `${username}@example.com`,
     membership: 'basic',
     createdAt: new Date('2026-01-01'),
-    isActive: true,
+    isActive: true, isAdmin: false,
   };
   return { username, password: 'pw', user };
 }

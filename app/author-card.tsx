@@ -15,6 +15,7 @@ import { useCreateCards } from '../src/hooks/useCards';
 import { errorMessage } from '../src/data/network/errors';
 import { useSafeTimeout } from '../src/hooks/useSafeTimeout';
 import { useGoBack } from '../src/hooks/useGoBack';
+import { useAuthStore } from '../src/store/authStore';
 import { fontCute, fontBody, fontMono, fontDisplay } from '../src/theme/tokens';
 
 const TYPES: CardType[] = ['explanation', 'ox', 'choice'];
@@ -44,8 +45,32 @@ export default function AuthorCardScreen() {
   const createCards = useCreateCards();
   // 딥링크로 바로 열렸을 때도 등록 후 갈 곳이 있도록 홈 폴백을 둔다.
   const goBack = useGoBack();
+  const isAdmin = useAuthStore((s) => s.user?.isAdmin === true);
 
   const [mode, setMode] = useState(0); // 0=폼, 1=JSON
+
+  // 문제 등록은 관리자만 할 수 있다.
+  //
+  // 실제 차단은 서버가 한다(관리자가 아니면 403). 여기서 화면을 바꾸는 것은
+  // 권한 검사가 아니라, 눌러 봐야 실패할 폼을 한참 채우게 두지 않기 위한 안내다.
+  if (!isAdmin) {
+    return (
+      <View style={{ flex: 1, backgroundColor: c.bg }}>
+        <ScreenHeader title="문제 등록" />
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 10 }}>
+          <Ionicons name="lock-closed-outline" size={30 * fs} color={c.textSecondary} />
+          <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontFamily: fontDisplay, textAlign: 'center' }}>
+            관리자만 문제를 등록할 수 있어요
+          </Text>
+          <Text style={{ color: c.textSecondary, fontSize: 12.5 * fs, fontFamily: fontBody, textAlign: 'center', lineHeight: 19 }}>
+            학습 콘텐츠는 모든 사용자에게 배포되기 때문에 등록 권한을 관리자로 제한하고 있어요.
+            등록이 필요하면 관리자에게 문의해주세요.
+          </Text>
+          <Button label="돌아가기" variant="outline" onPress={goBack} />
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>

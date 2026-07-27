@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"strconv"
+	"sync/atomic"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -17,7 +18,15 @@ import (
 )
 
 // AdminHandler 는 관리 콘솔용 HTTP 어댑터.
-type AdminHandler struct{ svc *service.AdminService }
+type AdminHandler struct {
+	svc *service.AdminService
+	// streams 는 지금 열려 있는 SSE 연결 수(상한 확인용).
+	streams atomic.Int64
+}
+
+// maxConcurrentStreams 는 동시에 허용하는 실시간 스트림 수.
+// 관리자는 많아야 수십 명이고 한 사람이 탭을 몇 개 열어도 이 값을 넘지 않는다.
+const maxConcurrentStreams = 64
 
 // NewAdminHandler 는 관리 핸들러를 만든다.
 func NewAdminHandler(svc *service.AdminService) *AdminHandler { return &AdminHandler{svc: svc} }
@@ -38,7 +47,8 @@ func adminError(err error) error {
 	switch {
 	case errors.As(err, &invalid):
 		return fiber.NewError(fiber.StatusBadRequest, invalid.Reason)
-	case errors.Is(err, service.ErrLastAdmin), errors.Is(err, service.ErrSelfLockout):
+	case errors.Is(err, service.ErrLastAdmin), errors.Is(err, service.ErrSelfLockout),
+		errors.Is(err, service.ErrStaleWrite):
 		// 규칙상 막힌 요청 — 재시도해도 같은 결과이므로 409(충돌)로 알린다.
 		return fiber.NewError(fiber.StatusConflict, err.Error())
 	case errors.As(err, &notFound):
@@ -85,6 +95,16 @@ const streamHeartbeat = 20 * time.Second
 //   - EventSource 는 브라우저가 끊김을 감지해 **자동 재연결**한다. 직접 만들 필요가 없다.
 //   - 일반 HTTP 라 리버스 프록시·인증 헤더가 그대로 통한다(업그레이드 협상 없음).
 func (h *AdminHandler) Stream(c *fiber.Ctx) error {
+	// 동시 연결 수에 상한을 둔다.
+	//
+	// 연결 하나마다 고루틴 + 2초 티커가 붙어 살아 있다. 관리자는 많아야 몇 명이지만
+	// 탭을 여러 개 열어 두거나 프록시가 끊긴 연결을 정리하지 못하면 조용히 쌓인다.
+	// 상한이 없으면 그 축적이 서버를 잠식하고, 원인도 잘 보이지 않는다.
+	if n := h.streams.Add(1); n > maxConcurrentStreams {
+		h.streams.Add(-1)
+		return fiber.NewError(fiber.StatusServiceUnavailable, "실시간 연결이 너무 많습니다. 잠시 후 다시 시도해주세요")
+	}
+
 	c.Set("Content-Type", "text/event-stream")
 	c.Set("Cache-Control", "no-cache")
 	c.Set("Connection", "keep-alive")
@@ -95,6 +115,9 @@ func (h *AdminHandler) Stream(c *fiber.Ctx) error {
 	snapshot := h.svc.MetricsSnapshot
 
 	c.Context().SetBodyStreamWriter(fasthttp.StreamWriter(func(w *bufio.Writer) {
+		// 스트림이 끝나면 반드시 자리를 반납한다 — 빠뜨리면 상한이 서서히 소진된다.
+		defer h.streams.Add(-1)
+
 		ticker := time.NewTicker(streamInterval)
 		defer ticker.Stop()
 		heartbeat := time.NewTicker(streamHeartbeat)

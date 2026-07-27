@@ -29,6 +29,9 @@ export class UserMapper {
       org: dto.org_nm?.trim(),
       jobTitle: dto.job_title?.trim(),
       membership: dto.membership_cd ? MEMBERSHIP_MAP[dto.membership_cd] : 'basic',
+      // 서버가 role_cd 를 아직 안 주는 배포에서는 관리자가 아닌 것으로 본다
+      // (모를 때는 권한이 없는 쪽으로 기우는 편이 안전하다).
+      isAdmin: dto.role_cd === 'ADMIN',
       // 파싱 불가한 created_at 은 epoch(1970) 으로 폴백 — Invalid Date 가 화면·정렬을
       // NaN 으로 오염시키지 않게 한다(표시 전용 필드).
       createdAt: parseDateOr(dto.created_at, new Date(0)),

@@ -13,6 +13,7 @@ import (
 
 	"github.com/lovecmk/eduapp/backend/internal/config"
 	"github.com/lovecmk/eduapp/backend/internal/memory"
+	"github.com/lovecmk/eduapp/backend/internal/middleware"
 	"github.com/lovecmk/eduapp/backend/internal/seed"
 	"github.com/lovecmk/eduapp/backend/internal/server"
 	"github.com/lovecmk/eduapp/backend/internal/service"
@@ -41,7 +42,12 @@ func buildApp(t *testing.T) *server.Deps {
 	}
 
 	pushSvc := service.NewPushService(memory.NewPushTokenRepo(), "")
+	data := memory.NewUserDataRepo()
 	return &server.Deps{
+		// Data 는 테스트가 저장 결과를 직접 확인할 수 있도록 노출한다.
+		Data:        data,
+		Sync:        service.NewSyncService(data, cards),
+		Idempotency: middleware.NewIdempotencyStore(),
 		// Users 는 테스트가 계정 상태를 직접 조작할 수 있도록 노출한다.
 		// (Admin 이 nil 이므로 관리 라우트는 여전히 등록되지 않는다.)
 		Users: users,

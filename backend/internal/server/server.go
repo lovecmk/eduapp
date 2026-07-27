@@ -34,6 +34,12 @@ type Deps struct {
 	Push      *service.PushService
 	Telegram  *service.TelegramService
 
+	// 개인 학습 데이터 동기화(SRS·출석·반응·신고·알림)와 재전송 방어.
+	Sync        *service.SyncService
+	Idempotency *middleware.IdempotencyStore
+	// Data 는 라우팅에 쓰이지 않지만, 테스트가 저장 결과를 직접 확인할 수 있게 둔다.
+	Data ports.UserDataRepository
+
 	// 관리 콘솔(Vue) 전용. Admin/Metrics/Users 가 모두 있어야 /api/admin/* 이 열린다 —
 	// 하나라도 비면 라우트를 아예 등록하지 않아, 배선 실수로 무방비 관리 API 가
 	// 노출되는 일이 없게 한다.
@@ -157,9 +163,46 @@ func New(d Deps) *fiber.App {
 	protected.Post("/push/register", pushH.Register)
 	protected.Post("/telegram/alert", tgH.Alert)
 
+	registerSyncRoutes(protected, d)
+
 	registerAdminRoutes(api, d)
 
 	return app
+}
+
+// registerSyncRoutes 는 개인 학습 데이터 동기화 API 를 붙인다.
+//
+// 이 경로들은 앱과 계약서에는 오래 전부터 있었는데 서버에는 없었다. 앱이 목업으로
+// 도는 동안에는 드러나지 않다가, 실서버로 전환하는 순간 출석·학습등급·신고·알림이
+// 전부 404 로 실패하게 되어 있었다(404 는 재시도 대상이 아니라 오프라인 큐에도
+// 담기지 않고 그대로 사라진다).
+//
+// 쓰기에는 모두 멱등 미들웨어를 건다. 앱은 이미 Idempotency-Key 를 실어 보내고
+// 있었지만 서버가 그 헤더를 읽지 않아, 오프라인 큐가 재전송하면 출석이 두 번
+// 찍히거나 신고가 중복 접수될 수 있었다.
+func registerSyncRoutes(r fiber.Router, d Deps) {
+	if d.Sync == nil {
+		log.Printf("[sync] 의존성 미주입 — 학습 동기화 API 를 등록하지 않습니다")
+		return
+	}
+	h := handler.NewSyncHandler(d.Sync)
+	writes := middleware.Idempotent(d.Idempotency)
+
+	r.Get("/progress", h.Pull)
+	r.Post("/progress/grade", writes, h.Grade)
+	r.Post("/progress/attendance", writes, h.Attend)
+
+	r.Get("/engagement", h.Engagement)
+	r.Post("/engagement/like", writes, h.Like)
+	r.Post("/engagement/bookmark", writes, h.Bookmark)
+
+	r.Post("/reports", writes, h.Report)
+	r.Get("/reports/mine", h.MyReports)
+
+	r.Get("/notifications", h.Notifications)
+	r.Post("/notifications/read-all", writes, h.ReadAllNotifications)
+	// :id 라우트는 read-all 뒤에 둔다 — 먼저 두면 "read-all" 이 id 로 잡힌다.
+	r.Post("/notifications/:id/read", writes, h.ReadNotification)
 }
 
 // registerAdminRoutes 는 관리 콘솔(Vue) 전용 API 를 붙인다.

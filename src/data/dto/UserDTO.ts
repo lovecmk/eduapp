@@ -10,6 +10,8 @@ export interface UserDTO {
   org_nm?: string;
   job_title?: string;
   membership_cd?: 'BASIC' | 'PREMIUM' | 'VIP';
+  /** 계정 권한. 관리자 전용 기능을 보여줄지 판단하는 데 쓴다. */
+  role_cd?: string;
   created_at: string;
   status_cd: 'A' | 'I' | 'D';
 }

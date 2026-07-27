@@ -26,7 +26,7 @@ const SEED: MockAccount[] = [
       jobTitle: '현장 안전관리자',
       membership: 'premium',
       createdAt: new Date('2025-01-01'),
-      isActive: true,
+      isActive: true, isAdmin: false,
     },
   },
   {
@@ -41,7 +41,7 @@ const SEED: MockAccount[] = [
       jobTitle: '현장 안전관리자',
       membership: 'premium',
       createdAt: new Date('2025-01-01'),
-      isActive: true,
+      isActive: true, isAdmin: false,
     },
   },
 ];

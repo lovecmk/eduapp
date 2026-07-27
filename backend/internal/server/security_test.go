@@ -1,9 +1,12 @@
 package server_test
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"strings"
 	"sync"
 	"testing"
@@ -258,4 +261,32 @@ func TestProgressSurvivesLaterRequests(t *testing.T) {
 		}
 	}
 	t.Fatalf("%s 카드가 목록에서 사라졌다", cardID)
+}
+
+// doJSONWithHeaders 는 추가 헤더를 얹어 요청한다(멱등 키 검증용).
+func doJSONWithHeaders(t *testing.T, app *fiber.App, method, path, tokenStr string,
+	body any, headers map[string]string) (*http.Response, []byte) {
+	t.Helper()
+	var rdr io.Reader
+	if body != nil {
+		b, _ := json.Marshal(body)
+		rdr = bytes.NewReader(b)
+	}
+	req, _ := http.NewRequest(method, path, rdr)
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	if tokenStr != "" {
+		req.Header.Set("Authorization", "Bearer "+tokenStr)
+	}
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
+	res, err := app.Test(req, -1)
+	if err != nil {
+		t.Fatalf("요청 실패: %v", err)
+	}
+	defer res.Body.Close()
+	out, _ := io.ReadAll(res.Body)
+	return res, out
 }

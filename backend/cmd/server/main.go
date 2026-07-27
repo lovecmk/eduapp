@@ -15,6 +15,7 @@ import (
 
 	"github.com/lovecmk/eduapp/backend/internal/config"
 	"github.com/lovecmk/eduapp/backend/internal/memory"
+	"github.com/lovecmk/eduapp/backend/internal/middleware"
 	mongoadapter "github.com/lovecmk/eduapp/backend/internal/mongo"
 	"github.com/lovecmk/eduapp/backend/internal/ports"
 	postgresadapter "github.com/lovecmk/eduapp/backend/internal/postgres"
@@ -52,12 +53,14 @@ func main() {
 		pushRepo  ports.PushTokenRepository
 		auditRepo ports.AuditRepository
 	)
+	var dataRepo ports.UserDataRepository
 	switch cfg.Store {
 	case "memory":
 		userRepo = memory.NewUserRepo()
 		cardRepo = memory.NewCardRepo()
 		pushRepo = memory.NewPushTokenRepo()
 		auditRepo = memory.NewAuditRepo()
+		dataRepo = memory.NewUserDataRepo()
 		log.Printf("[store] 인메모리 모드(무 DB)")
 	case "postgres":
 		pool, err := postgresadapter.Connect(ctx, cfg.DatabaseURL)
@@ -73,6 +76,7 @@ func main() {
 		cardRepo = postgresadapter.NewCardRepo(pool)
 		pushRepo = postgresadapter.NewPushTokenRepo(pool)
 		auditRepo = postgresadapter.NewAuditRepo(pool)
+		dataRepo = postgresadapter.NewUserDataRepo(pool)
 	default: // "mongo"
 		db, disconnect, err := mongoadapter.Connect(ctx, cfg.MongoURI, cfg.MongoDB)
 		if err != nil {
@@ -89,6 +93,12 @@ func main() {
 		cardRepo = mongoadapter.NewCardRepo(db)
 		pushRepo = mongoadapter.NewPushTokenRepo(db)
 		auditRepo = mongoadapter.NewAuditRepo(db)
+		mongoData := mongoadapter.NewUserDataRepo(db)
+		// "하루 1회 출석", "같은 신고는 한 건" 같은 규칙은 인덱스가 강제해야 한다.
+		if err := mongoData.EnsureIndexes(ctx); err != nil {
+			log.Fatalf("[mongo] 개인 데이터 인덱스 생성 실패: %v", err)
+		}
+		dataRepo = mongoData
 	}
 
 	tm := token.NewManager(cfg.JWTSecret, cfg.AccessTTL, cfg.RefreshTTL)
@@ -99,6 +109,7 @@ func main() {
 	commSvc := service.NewCommunityService(cardSvc)
 	pushSvc := service.NewPushService(pushRepo, cfg.ExpoPushURL)
 	// 관리 콘솔(Vue) — 요청 지표 수집기와 관리 유스케이스.
+	syncSvc := service.NewSyncService(dataRepo, cardRepo)
 	metrics := service.NewMetrics()
 	adminSvc := service.NewAdminService(userRepo, cardRepo, auditRepo, metrics, cfg.Store)
 
@@ -126,17 +137,19 @@ func main() {
 	}
 
 	app := server.New(server.Deps{
-		Cfg:       cfg,
-		Tokens:    tm,
-		Auth:      authSvc,
-		Cards:     cardSvc,
-		Stats:     statsSvc,
-		Community: commSvc,
-		Push:      pushSvc,
-		Telegram:  tgSvc,
-		Admin:     adminSvc,
-		Metrics:   metrics,
-		Users:     userRepo,
+		Cfg:         cfg,
+		Tokens:      tm,
+		Auth:        authSvc,
+		Cards:       cardSvc,
+		Stats:       statsSvc,
+		Community:   commSvc,
+		Push:        pushSvc,
+		Telegram:    tgSvc,
+		Sync:        syncSvc,
+		Idempotency: middleware.NewIdempotencyStore(),
+		Admin:       adminSvc,
+		Metrics:     metrics,
+		Users:       userRepo,
 	})
 
 	// 텔레그램 long-polling — 봇 토큰이 설정돼 있고 폴링이 켜져 있으면 백그라운드로 수신 대기.
