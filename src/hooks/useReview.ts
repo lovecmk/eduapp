@@ -1,18 +1,18 @@
 import { useCallback, useEffect, useMemo } from 'react';
 import { useAllCards, useMarkCard } from './useCards';
 import { useSrsStore } from '../store/srsStore';
-import { initialState, isDue, type Grade } from '../domain/srs';
-import { dayDiff } from '../utils/dateKey';
+import { type Grade } from '../domain/srs';
+import { buildReviewPlan, REVIEW_SESSION_CAP, type UpcomingDay } from '../domain/reviewPlan';
 import type { LearningCard } from '../domain/models/LearningCard';
 
-/** 한 번의 복습 세션 최대 카드 수 — 마이크로러닝 부담 최소화. */
-export const SESSION_CAP = 20;
+/**
+ * 한 번의 복습 세션 최대 카드 수 — 마이크로러닝 부담 최소화.
+ * 값은 도메인이 갖고 있고 여기서는 이름만 잇는다(두 곳에 적으면 갈라진다).
+ */
+export const SESSION_CAP = REVIEW_SESSION_CAP;
 
-export interface UpcomingDay {
-  date: Date;
-  count: number;
-  isToday: boolean;
-}
+// UpcomingDay 는 도메인(reviewPlan)으로 옮겼다. 기존 호출부를 위해 재수출한다.
+export type { UpcomingDay };
 
 export function useReview() {
   const { data: allCards = [], isLoading, error, refetch } = useAllCards();
@@ -28,23 +28,19 @@ export function useReview() {
   const now = Date.now();
 
   /**
-   * 지금 복습 예정(due)인 카드 — 자동 우선순위 정렬.
-   * 오래 방치된(예정일이 오래된) 카드 우선, 같으면 반복 오답(lapses 많은) 카드 우선.
+   * 오늘의 복습 계획 — 무엇을 어떤 순서로 볼지는 도메인(reviewPlan)이 정한다.
+   *
+   * 여기서 다시 계산하지 않는 것이 중요하다. 복습 화면은 "지금 복습할 12장"이라고
+   * 약속하는데, 세션이 그와 다른 순서·개수로 카드를 내놓으면 그 약속이 깨진다.
+   * 같은 규칙을 두 곳에 적어 두면 반드시 한쪽만 바뀌어 어긋난다.
    */
-  const dueCards = useMemo(() => {
-    return allCards
-      .filter((card) => {
-        const st = cardsState[card.id];
-        return st ? isDue(st, now) : false;
-      })
-      .sort((a, b) => {
-        const sa = cardsState[a.id];
-        const sb = cardsState[b.id];
-        return (sa?.dueAt ?? 0) - (sb?.dueAt ?? 0) || (sb?.lapses ?? 0) - (sa?.lapses ?? 0);
-      })
-      .slice(0, SESSION_CAP);
+  const plan = useMemo(
+    () => buildReviewPlan(allCards, cardsState, now),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allCards, cardsState]);
+    [allCards, cardsState],
+  );
+
+  const dueCards = plan.queue;
 
   /**
    * 약점 카드 — 기억 강도가 낮거나(박스 0~1) 자주 잊은(lapses≥1) 카드.
@@ -65,30 +61,10 @@ export function useReview() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allCards, cardsState]);
 
-  const dueTodayCount = useMemo(
-    () => allCards.filter((c) => { const s = cardsState[c.id]; return s && isDue(s, now); }).length,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [allCards, cardsState],
-  );
+  const dueTodayCount = plan.overdue + plan.dueToday;
 
-  /** 향후 7일 복습 예정 분포. */
-  const upcoming = useMemo<UpcomingDay[]>(() => {
-    const today = new Date();
-    const days: UpcomingDay[] = Array.from({ length: 7 }).map((_, i) => ({
-      date: new Date(today.getFullYear(), today.getMonth(), today.getDate() + i),
-      count: 0,
-      isToday: i === 0,
-    }));
-    for (const card of allCards) {
-      const st = cardsState[card.id];
-      if (!st) continue;
-      const diff = dayDiff(new Date(st.dueAt), today);
-      if (diff <= 0) days[0].count += 1; // 오늘/지연분은 오늘로
-      else if (diff < 7) days[diff].count += 1;
-    }
-    return days;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allCards, cardsState]);
+  /** 향후 7일 복습 예정 분포(계획이 이미 계산해 둔 값). */
+  const upcoming = plan.upcoming;
 
   /** 채점 → SRS 갱신 + 백엔드 상태 동기화. */
   const gradeCard = useCallback((card: LearningCard, grade: Grade) => {
@@ -104,14 +80,7 @@ export function useReview() {
     if (card.status !== status) markCard.mutate({ id: card.id, status });
   }, [gradeInStore, markCard]);
 
-  const nextDueAt = useMemo(() => {
-    const future = allCards
-      .map((c) => cardsState[c.id]?.dueAt ?? initialState().dueAt)
-      .filter((t) => t > now)
-      .sort((a, b) => a - b);
-    return future[0] ?? null;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allCards, cardsState]);
+  const nextDueAt = plan.nextDueAt;
 
-  return { allCards, dueCards, weakCards, dueTodayCount, upcoming, nextDueAt, gradeCard, isLoading, error, refetch };
+  return { allCards, plan, dueCards, weakCards, dueTodayCount, upcoming, nextDueAt, gradeCard, isLoading, error, refetch };
 }

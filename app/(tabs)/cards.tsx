@@ -107,12 +107,15 @@ export default function CardsScreen() {
   // 복습 탭에서 카테고리를 눌러 진입하면 category 파라미터로 해당 카테고리만 학습한다.
   // content 상세의 "이 카드 학습하기"로 진입하면 focusId(그 카드 1장)만 학습하고,
   // 끝나면 returnTo 경로(원래 보던 컨텐츠)로 되돌아간다.
-  const { category, focusId, returnTo: rawReturnTo } = useLocalSearchParams<{ category?: string; focusId?: string; returnTo?: string }>();
+  const { category, focusId, mode, returnTo: rawReturnTo } = useLocalSearchParams<{ category?: string; focusId?: string; mode?: string; returnTo?: string }>();
   // returnTo 는 주소창·딥링크로 아무 값이나 들어올 수 있다. 앱 내부 경로가 아니면 버린다
   // (웹에서 외부 주소로 사용자를 그대로 내보내는 열린 리다이렉트 방지).
   const returnTo = safeInternalPath(rawReturnTo);
   const isCategoryMode = !!category;
   const isFocusMode = !!focusId;
+  // 복습 큐 모드 — 간격반복이 "지금 봐야 한다"고 판단한 카드만, 그 순서 그대로 푼다.
+  // 오늘의 학습(신규 위주)과 목적이 다르다: 새로 배우는 게 아니라 무너지려는 기억을 붙잡는다.
+  const isDueMode = mode === 'due';
 
   // 모든 모드가 전체 카드 풀(allQuery)에서 덱을 구성한다.
   //  · 카테고리/단일카드: 해당 조건으로 필터
@@ -153,6 +156,10 @@ export default function CardsScreen() {
     // 단일 카드(focus) 모드는 순서 옵션과 무관(1장).
     if (isFocusMode) return (allQuery.data ?? []).filter((x) => x.id === focusId);
 
+    // 복습 큐 — 계획이 정한 순서를 그대로 쓴다.
+    // 여기서 섞거나 다시 정렬하면 '가장 급한 카드부터'라는 계획의 의도가 사라진다.
+    if (isDueMode) return dueCards;
+
     if (isCategoryMode) {
       const base = (allQuery.data ?? []).filter((x) => x.category === category);
       // 카테고리 복습에서만 약점 우선/섞기 옵션을 적용한다.
@@ -178,7 +185,7 @@ export default function CardsScreen() {
       .filter((x) => !newIds.has(x.id))
       .slice(0, Math.max(0, DAILY_TOTAL_LIMIT - newBase.length));
     return [...newBase, ...reviewFill];
-  }, [isFocusMode, focusId, isCategoryMode, category, allQuery.data, prioritizeWeakSpots, shuffleCards, srsCards, quota.remaining, dueCards]);
+  }, [isFocusMode, focusId, isDueMode, isCategoryMode, category, allQuery.data, prioritizeWeakSpots, shuffleCards, srsCards, quota.remaining, dueCards]);
 
   // 덱은 세션 시작 시 한 번만 확정한다.
   // 카드를 마킹하면 cards 쿼리가 무효화되어 목록이 새로 내려오는데, 그때마다 덱을 다시 계산하면
@@ -186,7 +193,7 @@ export default function CardsScreen() {
   // (2) 'learning' 으로 바뀐 신규 카드는 복습 구간에 다시 편입되어 같은 문제가 두 번 나온다.
   // 진행 중인 세션의 덱은 데이터 갱신과 무관하게 고정되어야 한다.
   const [sessionDeck, setSessionDeck] = useState<LearningCard[] | null>(null);
-  const sessionKey = isFocusMode ? `focus:${focusId}` : isCategoryMode ? `category:${category}` : 'today';
+  const sessionKey = isFocusMode ? `focus:${focusId}` : isDueMode ? 'due' : isCategoryMode ? `category:${category}` : 'today';
 
   useEffect(() => {
     // 세션 대상(오늘 학습 / 카테고리 복습 / 단일 카드)이 바뀌면 덱뿐 아니라 진행 상태를
@@ -499,7 +506,7 @@ export default function CardsScreen() {
 
   // 오늘의 신규 상한을 다 채우고 복습 도래 카드도 없는 상태로 진입 — '오늘 학습 완료' 안내.
   // (복습이 남아 있으면 아래 세션에서 자동으로 이어 제시하므로 이 화면을 띄우지 않는다.)
-  if (!isCategoryMode && !isFocusMode && !finished && quota.remaining === 0 && deck.length === 0) {
+  if (!isCategoryMode && !isFocusMode && !isDueMode && !finished && quota.remaining === 0 && deck.length === 0) {
     return (
       <View style={{ flex: 1, backgroundColor: c.bg, alignItems: 'center', justifyContent: 'center', padding: 28 }}>
         <View style={{ width: 84, height: 84, borderRadius: 42, backgroundColor: c.success + '1A', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
@@ -528,12 +535,21 @@ export default function CardsScreen() {
   // (한 장도 넘기지 않았는데 아래의 '학습 완료!' 축하 화면이 뜨던 버그 방지:
   //  finished 는 카드를 한 장이라도 마쳐야 true 가 되므로, 그 전의 빈 덱은 '완료'가 아니다.)
   if (!card && !finished) {
-    const emptyTitle = isFocusMode ? '카드를 찾을 수 없어요' : isCategoryMode ? '복습할 카드가 없어요' : '지금 학습할 카드가 없어요';
+    const emptyTitle = isFocusMode
+      ? '카드를 찾을 수 없어요'
+      : isDueMode
+        ? '지금 복습할 카드가 없어요'
+        : isCategoryMode
+          ? '복습할 카드가 없어요'
+          : '지금 학습할 카드가 없어요';
     const emptyBody = isFocusMode
       ? '이 카드를 불러올 수 없어요. 이전 화면으로 돌아가 주세요.'
-      : isCategoryMode
-        ? '이 카테고리에는 아직 학습할 카드가 없어요.'
-        : '새로 학습할 카드를 모두 마쳤어요. 복습에서 배운 내용을 다져보세요.';
+      : isDueMode
+        ? // 복습이 비어 있는 것은 잘한 상태다 — 실패처럼 말하지 않는다.
+          '지금은 다시 볼 때가 된 카드가 없어요. 때가 되면 복습 탭에서 알려드릴게요.'
+        : isCategoryMode
+          ? '이 카테고리에는 아직 학습할 카드가 없어요.'
+          : '새로 학습할 카드를 모두 마쳤어요. 복습에서 배운 내용을 다져보세요.';
     return (
       <View style={{ flex: 1, backgroundColor: c.bg, alignItems: 'center', justifyContent: 'center', padding: 28 }}>
         <View style={{ width: 84, height: 84, borderRadius: 42, backgroundColor: c.primary + '14', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
@@ -557,9 +573,15 @@ export default function CardsScreen() {
     return (
       <View style={{ flex: 1, backgroundColor: c.bg, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
         <Text style={{ fontSize: 52, marginBottom: 12 }}>🎉</Text>
-        <Text style={{ color: c.textPrimary, fontSize: 22 * fs, fontWeight: '800', fontFamily: fontCute }}>{isCategoryMode ? '복습 완료!' : '학습 완료!'}</Text>
+        <Text style={{ color: c.textPrimary, fontSize: 22 * fs, fontWeight: '800', fontFamily: fontCute }}>{isCategoryMode || isDueMode ? '복습 완료!' : '학습 완료!'}</Text>
         <Text style={{ color: c.textSecondary, marginTop: 6, marginBottom: 28, fontFamily: fontCute }}>
-          {isFocusMode ? '이 카드 학습을 마쳤어요' : isCategoryMode ? `${category} · ${doneCount}장 복습 완료 · 잘하셨어요!` : `오늘 ${doneCount}장 학습 완료 · 3분이면 충분해요`}
+          {isFocusMode
+            ? '이 카드 학습을 마쳤어요'
+            : isDueMode
+              ? `${doneCount}장 복습 완료 · 잊기 직전에 딱 붙잡았어요`
+              : isCategoryMode
+                ? `${category} · ${doneCount}장 복습 완료 · 잘하셨어요!`
+                : `오늘 ${doneCount}장 학습 완료 · 3분이면 충분해요`}
         </Text>
 
         {/* 단일 카드(focus) 학습만 원래 화면으로 자동 복귀(짧은 진행바). 그 외에는 자동 이동/로딩바 없이 대기. */}
