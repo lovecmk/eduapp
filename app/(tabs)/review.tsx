@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { View, Text, Pressable, ScrollView, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,10 +11,12 @@ import { getCategoryIcon, getCategoryColor } from '../../src/constants/categorie
 import { ROUTES } from '../../src/constants/routes';
 import { usePullToRefresh } from '../../src/hooks/usePullToRefresh';
 import { useAllCards } from '../../src/hooks/useCards';
-import { useReview } from '../../src/hooks/useReview';
 import { useBookmarkStore } from '../../src/store/bookmarkStore';
 import { useLikeStore } from '../../src/store/likeStore';
 import { useReportStore } from '../../src/store/reportStore';
+import { buildReviewPlan } from '../../src/domain/reviewPlan';
+import { ReviewPlanCard } from '../../src/components/review/ReviewPlanCard';
+import { UpcomingStrip } from '../../src/components/review/UpcomingStrip';
 import { useSrsStore } from '../../src/store/srsStore';
 import { dateKey } from '../../src/utils/dateKey';
 import { contentColumn } from '../../src/theme/layout';
@@ -56,17 +58,14 @@ export default function ReviewScreen() {
 
   const masteredCount = useMemo(() => allCards.filter((x) => x.status === 'mastered').length, [allCards]);
   const learningCount = useMemo(() => allCards.filter((x) => x.status === 'learning').length, [allCards]);
-  const { dueTodayCount } = useReview();
+  // 복습 계획 — 무엇을 시킬지는 화면이 아니라 도메인이 정한다.
+  const srsCards = useSrsStore((st) => st.cards);
+  const plan = useMemo(() => buildReviewPlan(allCards, srsCards), [allCards, srsCards]);
 
-  // 약점 집중 복습 대상 — '한번 더 학습(learning)' 카드가 가장 많은 분야(자주 잊는 곳부터).
-  const weakestCategory = useMemo(() => {
-    let best: { category: string; learning: number } | null = null;
-    for (const s of studiedCategories) {
-      const learning = s.studied - s.mastered;
-      if (learning > 0 && (!best || learning > best.learning)) best = { category: s.category, learning };
-    }
-    return best;
-  }, [studiedCategories]);
+  // 복습 큐 세션으로 들어간다. 계획이 정한 순서 그대로 푼다.
+  const startReview = useCallback(() => {
+    router.push({ pathname: ROUTES.cards, params: { mode: 'due' } });
+  }, [router]);
 
   // 복습 진행률(마스터/전체) — 요약 게이지.
   const overallPct = allCards.length > 0 ? Math.round((masteredCount / allCards.length) * 100) : 0;
@@ -100,64 +99,41 @@ export default function ReviewScreen() {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.primary} colors={[c.primary]} />
       }
     >
-      {/* ── 오늘의 복습 (효율 우선 추천) ─────────────────────────────────
-          복습은 '무엇을' 다시 볼지가 중요하다. 두 개의 검증된 방식을 크게 제시한다:
-           · 당일 복습(방금 배운 것 회상) — 초기 망각 구간 방어(테스트 효과)
-           · 약점 집중 복습(자주 잊는 분야부터) — 취약 지점 반복이 효율이 가장 높다 */}
+      {/* ── 오늘의 복습 — 고르는 화면이 아니라 '지시'하는 화면 ────────────────
+          간격반복 엔진은 어떤 카드를 지금 봐야 하는지 이미 알고 있다. 그런데 예전에는
+          그 답을 쓰지 않고 '오늘 배운 것/약점 분야'처럼 고를 거리만 늘어놓았다.
+          앱이 아는 답을 두고 사용자에게 매번 결정을 떠넘긴 셈이라 복습에 의도가 없었다.
+          이제는 계획(reviewPlan)이 정한 한 가지를 크게 제시한다. */}
       <View style={{ marginBottom: 22 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 }}>
           <Ionicons name="flash" size={16} color={c.primary} />
           <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontFamily: fontDisplay }}>오늘의 복습</Text>
         </View>
-        <Text style={{ color: c.textSecondary, fontSize: 12.5 * fs, marginBottom: 12, fontFamily: fontBody }}>
-          가장 효율적인 순서로 골라뒀어요 · 마스터 {masteredCount}/{allCards.length} ({overallPct}%)
-        </Text>
-        {/* 마스터 진행 게이지 */}
-        <View style={{ height: 6, backgroundColor: c.surfaceAlt, borderRadius: 3, overflow: 'hidden', marginBottom: 14 }}>
-          <View style={{ width: `${overallPct}%`, height: '100%', backgroundColor: c.success, borderRadius: 3 }} />
-        </View>
 
-        <View style={{ gap: 10 }}>
-          {/* 1) 당일 복습 — 오늘 배운 카드를 바로 다시 보기 */}
-          <Pressable
-            onPress={() => router.push(ROUTES.collection('today') as never)}
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.primary, borderRadius: 16, padding: 16, boxShadow: '0 6px 16px rgba(37,99,235,0.24)' }}
-          >
-            <View style={{ width: 42, height: 42, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name="today" size={22} color="#fff" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: '#fff', fontSize: 15 * fs, fontFamily: fontDisplay }}>오늘 학습 복습</Text>
-              <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 12 * fs, marginTop: 2, fontFamily: fontBody }}>
-                {todayCount > 0 ? `방금 배운 ${todayCount}장을 한 번 더 (오래 기억돼요)` : '오늘 학습하면 여기서 바로 복습해요'}
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#fff" />
-          </Pressable>
+        <ReviewPlanCard plan={plan} onStart={startReview} />
 
-          {/* 2) 약점 집중 복습 — 자주 잊는 분야부터 */}
-          <Pressable
-            onPress={() => weakestCategory
-              ? router.push({ pathname: ROUTES.cards, params: { category: weakestCategory.category } })
-              : router.push(ROUTES.cards)}
-            style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.surface, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: c.border }}
-          >
-            <View style={{ width: 42, height: 42, borderRadius: 12, backgroundColor: c.warning + '18', alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name="barbell" size={22} color={c.warning} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontFamily: fontDisplay }}>약점 집중 복습</Text>
-              <Text style={{ color: c.textSecondary, fontSize: 12 * fs, marginTop: 2, fontFamily: fontBody }}>
-                {weakestCategory ? `${weakestCategory.category} · 다시 볼 ${weakestCategory.learning}장부터` : '자주 잊는 카드부터 · 학습을 시작해보세요'}
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={c.textSecondary} />
-          </Pressable>
+        {/* 7일 예고 — 오늘 끝내도 '내일 또 올 이유'가 보여야 한다. */}
+        <UpcomingStrip days={plan.upcoming} />
+
+        {/* 마스터 진행 게이지 — 전체 여정에서 지금 어디쯤인지. */}
+        <View style={{ marginTop: 16 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+            <Text style={{ color: c.textSecondary, fontSize: 11.5 * fs, fontFamily: fontBody }}>전체 진행</Text>
+            <Text style={{ color: c.textSecondary, fontSize: 11.5 * fs, fontFamily: fontMono }}>
+              마스터 {masteredCount}/{allCards.length} ({overallPct}%)
+            </Text>
+          </View>
+          <View style={{ height: 6, backgroundColor: c.surfaceAlt, borderRadius: 3, overflow: 'hidden' }}>
+            <View style={{ width: `${overallPct}%`, height: '100%', backgroundColor: c.success, borderRadius: 3 }} />
+          </View>
         </View>
       </View>
 
-      {/* 모아 보기 — 종류별로 원할 때 골라 보기 */}
-      <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontFamily: fontDisplay, marginBottom: 12 }}>모아 보기</Text>
+      {/* 직접 골라 보기 — 계획 밖에서 스스로 찾아볼 때만 쓴다.
+          제목을 '모아 보기'에서 바꾼 이유: 위가 '해야 할 것', 아래가 '보고 싶은 것'임을
+          이름만으로도 구분되게 하기 위해서다. */}
+
+      <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontFamily: fontDisplay, marginBottom: 12 }}>직접 골라 보기</Text>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
         {collections.map((col) => (
           <Pressable key={col.type} onPress={() => router.push(ROUTES.collection(col.type) as never)}
