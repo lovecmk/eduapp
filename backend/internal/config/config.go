@@ -42,6 +42,13 @@ type Config struct {
 	TelegramPoll         bool    // long-polling 자동 시작 여부(기본 true)
 }
 
+// InsecureJWTSecret 은 무설정 로컬 실행용 기본 서명키다.
+//
+// 이 값은 저장소에 공개돼 있어 서명 위조를 막지 못한다. 상수로 빼 둔 이유는
+// 기동 시점에 "이 값이면 뜨지 않는다"를 확실히 비교하기 위해서다 —
+// 문자열을 두 곳에 따로 적어 두면 한쪽만 바뀌어 검사가 조용히 무력해진다.
+const InsecureJWTSecret = "dev-insecure-secret-change-me"
+
 // Load 는 환경변수(및 합리적 기본값)로부터 Config 를 구성한다.
 func Load() Config {
 	return Config{
@@ -51,7 +58,7 @@ func Load() Config {
 		MongoURI:        getEnv("MONGO_URI", "mongodb://localhost:27017"),
 		MongoDB:         getEnv("MONGO_DB", "eduapp"),
 		DatabaseURL:     getEnv("DATABASE_URL", "postgres://eduapp:eduapp@localhost:5432/eduapp?sslmode=disable"),
-		JWTSecret:       []byte(getEnv("JWT_SECRET", "dev-insecure-secret-change-me")),
+		JWTSecret:       []byte(getEnv("JWT_SECRET", InsecureJWTSecret)),
 		AccessTTL:       getDuration("ACCESS_TTL", 15*time.Minute),
 		RefreshTTL:      getDuration("REFRESH_TTL", 30*24*time.Hour),
 		CORSOrigins:     getEnv("CORS_ORIGINS", "*"),

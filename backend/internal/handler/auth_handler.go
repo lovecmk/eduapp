@@ -5,6 +5,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 
+	"github.com/lovecmk/eduapp/backend/internal/ports"
 	"github.com/lovecmk/eduapp/backend/internal/service"
 )
 
@@ -70,7 +71,11 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 		Nickname: req.Nickname, Email: req.Email, Org: req.Org,
 	})
 	if err != nil {
+		var invalid service.ErrInvalidInput
 		switch {
+		case errors.As(err, &invalid):
+			// 비밀번호 정책 위반 등 — 사용자가 고칠 수 있는 문제이므로 이유를 그대로 알린다.
+			return fiber.NewError(fiber.StatusBadRequest, invalid.Reason)
 		case errors.Is(err, service.ErrUsernameTaken):
 			return fiber.NewError(fiber.StatusConflict, "이미 사용 중인 아이디입니다")
 		case errors.Is(err, service.ErrNicknameTaken):
@@ -84,7 +89,7 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 
 // UsernameAvailable GET /api/auth/username-available?username=...
 func (h *AuthHandler) UsernameAvailable(c *fiber.Ctx) error {
-	taken, err := h.svc.UsernameTaken(c.Context(), c.Query("username"))
+	taken, err := h.svc.UsernameTaken(c.Context(), query(c, "username"))
 	if err != nil {
 		return err
 	}
@@ -93,7 +98,7 @@ func (h *AuthHandler) UsernameAvailable(c *fiber.Ctx) error {
 
 // NicknameAvailable GET /api/auth/nickname-available?nickname=...&exclude=...
 func (h *AuthHandler) NicknameAvailable(c *fiber.Ctx) error {
-	taken, err := h.svc.NicknameTaken(c.Context(), c.Query("nickname"), c.Query("exclude"))
+	taken, err := h.svc.NicknameTaken(c.Context(), query(c, "nickname"), query(c, "exclude"))
 	if err != nil {
 		return err
 	}
@@ -119,7 +124,9 @@ func (h *AuthHandler) UpdateMe(c *fiber.Ctx) error {
 		Name: req.Name, Nickname: req.Nickname, Email: req.Email, Org: req.Org, JobTitle: req.JobTitle,
 	})
 	if err != nil {
-		if errors.Is(err, service.ErrNicknameTaken) {
+		// 저장소가 뒤늦게 알린 닉네임 충돌(동시 수정)도 같은 409 로 답한다.
+		var conflict ports.ErrConflict
+		if errors.Is(err, service.ErrNicknameTaken) || errors.As(err, &conflict) {
 			return fiber.NewError(fiber.StatusConflict, "이미 사용 중인 닉네임입니다")
 		}
 		return err

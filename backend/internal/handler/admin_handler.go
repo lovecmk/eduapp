@@ -150,16 +150,16 @@ func writeSSE(w *bufio.Writer, event string, payload any) bool {
 // ListUsers 는 GET /api/admin/users — 검색·필터·페이지네이션.
 func (h *AdminHandler) ListUsers(c *fiber.Ctx) error {
 	page, err := h.svc.ListUsers(c.Context(), ports.UserQuery{
-		Search:     c.Query("search"),
-		Role:       c.Query("role"),
-		Status:     c.Query("status"),
-		Membership: c.Query("membership"),
+		Search:     query(c, "search"),
+		Role:       query(c, "role"),
+		Status:     query(c, "status"),
+		Membership: query(c, "membership"),
 		Offset:     queryInt(c, "offset", 0),
 		Limit:      queryInt(c, "limit", 50),
 		// 정렬은 저장소가 한다 — 화면에서 페이지만 정렬하면 관리자가
 		// '전체가 정렬된 것'으로 오해한다.
-		Sort: ports.ParseSortField(c.Query("sort")),
-		Desc: c.Query("dir") == "desc",
+		Sort: ports.ParseSortField(query(c, "sort")),
+		Desc: query(c, "dir") == "desc",
 	})
 	if err != nil {
 		return adminError(err)
@@ -169,7 +169,7 @@ func (h *AdminHandler) ListUsers(c *fiber.Ctx) error {
 
 // GetUser 는 GET /api/admin/users/:id — 상세 + 학습 진행.
 func (h *AdminHandler) GetUser(c *fiber.Ctx) error {
-	d, err := h.svc.GetUser(c.Context(), c.Params("id"))
+	d, err := h.svc.GetUser(c.Context(), param(c, "id"))
 	if err != nil {
 		return adminError(err)
 	}
@@ -186,7 +186,7 @@ func (h *AdminHandler) SetUserRole(c *fiber.Ctx) error {
 	if err := c.BodyParser(&req); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "요청 형식이 올바르지 않습니다")
 	}
-	u, err := h.svc.SetUserRole(c.Context(), actorOf(c), c.Params("id"), domain.Role(req.Role))
+	u, err := h.svc.SetUserRole(c.Context(), actorOf(c), param(c, "id"), domain.Role(req.Role))
 	if err != nil {
 		return adminError(err)
 	}
@@ -203,7 +203,7 @@ func (h *AdminHandler) SetUserStatus(c *fiber.Ctx) error {
 	if err := c.BodyParser(&req); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "요청 형식이 올바르지 않습니다")
 	}
-	u, err := h.svc.SetUserStatus(c.Context(), actorOf(c), c.Params("id"), req.Status)
+	u, err := h.svc.SetUserStatus(c.Context(), actorOf(c), param(c, "id"), req.Status)
 	if err != nil {
 		return adminError(err)
 	}
@@ -217,13 +217,13 @@ func (h *AdminHandler) SetUserStatus(c *fiber.Ctx) error {
 // ListCards 는 GET /api/admin/cards.
 func (h *AdminHandler) ListCards(c *fiber.Ctx) error {
 	page, err := h.svc.ListCards(c.Context(), service.CardQuery{
-		Search:   c.Query("search"),
-		Category: c.Query("category"),
-		Type:     c.Query("type"),
+		Search:   query(c, "search"),
+		Category: query(c, "category"),
+		Type:     query(c, "type"),
 		Offset:   queryInt(c, "offset", 0),
 		Limit:    queryInt(c, "limit", 50),
-		Sort:     c.Query("sort"),
-		Desc:     c.Query("dir") == "desc",
+		Sort:     query(c, "sort"),
+		Desc:     query(c, "dir") == "desc",
 	})
 	if err != nil {
 		return adminError(err)
@@ -233,7 +233,7 @@ func (h *AdminHandler) ListCards(c *fiber.Ctx) error {
 
 // GetCard 는 GET /api/admin/cards/:id.
 func (h *AdminHandler) GetCard(c *fiber.Ctx) error {
-	card, err := h.svc.GetCard(c.Context(), c.Params("id"))
+	card, err := h.svc.GetCard(c.Context(), param(c, "id"))
 	if err != nil {
 		return adminError(err)
 	}
@@ -259,7 +259,7 @@ func (h *AdminHandler) UpdateCard(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	updated, err := h.svc.UpdateCard(c.Context(), actorOf(c), c.Params("id"), card)
+	updated, err := h.svc.UpdateCard(c.Context(), actorOf(c), param(c, "id"), card)
 	if err != nil {
 		return adminError(err)
 	}
@@ -268,7 +268,7 @@ func (h *AdminHandler) UpdateCard(c *fiber.Ctx) error {
 
 // DeleteCard 는 DELETE /api/admin/cards/:id.
 func (h *AdminHandler) DeleteCard(c *fiber.Ctx) error {
-	if err := h.svc.DeleteCard(c.Context(), actorOf(c), c.Params("id")); err != nil {
+	if err := h.svc.DeleteCard(c.Context(), actorOf(c), param(c, "id")); err != nil {
 		return adminError(err)
 	}
 	return c.SendStatus(fiber.StatusNoContent)
@@ -301,7 +301,7 @@ func (h *AdminHandler) AuditLogs(c *fiber.Ctx) error {
 // queryInt 는 쿼리 파라미터를 정수로 읽는다. 잘못된 값은 기본값으로 —
 // 관리 화면의 목록이 오타 하나로 500 을 내서는 안 된다.
 func queryInt(c *fiber.Ctx, key string, fallback int) int {
-	raw := c.Query(key)
+	raw := c.Query(key) // 즉시 숫자로 변환하므로 복사 불필요
 	if raw == "" {
 		return fallback
 	}

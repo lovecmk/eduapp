@@ -172,7 +172,13 @@ func TestEndToEnd(t *testing.T) {
 	}
 
 	// 9-b) 카드 등록 → 새 카드가 전체 목록에 추가되고 NEW 로 보인다(문제 등록 도구 연결).
-	res, data = doJSON(t, app, "POST", "/api/cards", tok, map[string]any{
+	// 먼저 일반 사용자로는 막히는지 확인한다(승격 뒤에는 같은 계정이 관리자가 되므로 지금 해야 한다).
+	if res, _ := doJSON(t, app, "POST", "/api/cards", tok, map[string]any{"question_txt": "x", "category_cd": "공통"}); res.StatusCode != 403 {
+		t.Fatalf("비관리자 카드 등록 status=%d, want 403", res.StatusCode)
+	}
+	// 콘텐츠 등록은 관리자 전용이므로 데모 계정을 관리자로 올리고 토큰을 새로 받는다.
+	adminTok := promoteToAdmin(t, deps, app, "demo", "demo1234")
+	res, data = doJSON(t, app, "POST", "/api/cards", adminTok, map[string]any{
 		"category_cd":     "전기 위험",
 		"sub_category_nm": "감전",
 		"topic_nm":        "누전",
@@ -345,7 +351,7 @@ func TestAuthLifecycle(t *testing.T) {
 
 	// 2) 회원가입
 	res, data := doJSON(t, app, "POST", "/api/auth/register", "", map[string]string{
-		"username": "newbie", "password": "pw1234", "name": "새내기", "nickname": "안전지킴이", "email": "new@x.com", "org": "현장1팀",
+		"username": "newbie", "password": "pw12345678", "name": "새내기", "nickname": "안전지킴이", "email": "new@x.com", "org": "현장1팀",
 	})
 	if res.StatusCode != 200 {
 		t.Fatalf("register status=%d body=%s", res.StatusCode, data)
@@ -365,7 +371,9 @@ func TestAuthLifecycle(t *testing.T) {
 	}
 
 	// 3) 같은 아이디 재가입 → 409
-	if res, _ := doJSON(t, app, "POST", "/api/auth/register", "", map[string]string{"username": "newbie", "password": "x"}); res.StatusCode != 409 {
+	// 비밀번호는 정책을 통과하는 값으로 준다 — 그래야 409 가 '중복' 때문임이 분명해진다
+	// (정책 위반이면 중복 검사에 닿기 전에 400 으로 끝난다).
+	if res, _ := doJSON(t, app, "POST", "/api/auth/register", "", map[string]string{"username": "newbie", "password": "pw12345678"}); res.StatusCode != 409 {
 		t.Fatalf("duplicate register status=%d, want 409", res.StatusCode)
 	}
 

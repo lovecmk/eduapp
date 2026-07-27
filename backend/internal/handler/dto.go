@@ -169,12 +169,12 @@ type RankingEntryDTO struct {
 
 // CommunityDTO 는 CommunityRepository.ts 가 소비하는 /api/community/live 응답.
 type CommunityDTO struct {
-	OnlineNow         int            `json:"online_now"`
-	StudiedToday      int            `json:"studied_today"`
-	TotalMinutesToday int            `json:"total_minutes_today"`
-	DailyGoalMinutes  int            `json:"daily_goal_minutes"`
-	Companions        []CompanionDTO `json:"companions"`
-	Activities        []ActivityDTO  `json:"activities"`
+	OnlineNow         int              `json:"online_now"`
+	StudiedToday      int              `json:"studied_today"`
+	TotalMinutesToday int              `json:"total_minutes_today"`
+	DailyGoalMinutes  int              `json:"daily_goal_minutes"`
+	Companions        []CompanionDTO   `json:"companions"`
+	Activities        []ActivityDTO    `json:"activities"`
 	Challenge         *ChallengeDTO    `json:"challenge,omitempty"`
 	TotalCardsAllTime int              `json:"total_cards_all_time"`
 	Building          *BuildingDTO     `json:"building,omitempty"`

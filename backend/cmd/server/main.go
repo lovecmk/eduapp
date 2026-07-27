@@ -30,10 +30,19 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	// 운영 저장소인데 JWT 시크릿이 기본(취약)값이면 경고 — 무설정 테스트는 허용하되
-	// 영속 DB 를 켠 배포에서는 반드시 교체하도록 유도한다(외부 노출 시 계정 위조 위험).
-	if cfg.Store != "memory" && string(cfg.JWTSecret) == "dev-insecure-secret-change-me" {
-		log.Printf("[warn] JWT_SECRET 이 기본 취약값입니다 — 운영 배포 전 `make secret` 으로 교체하세요")
+	// 영속 저장소를 쓰는 배포에서 기본 JWT 시크릿이면 기동을 거부한다.
+	//
+	// 예전에는 경고만 찍고 그대로 떴는데, 로그의 경고는 아무도 읽지 않는다.
+	// 이 기본값은 저장소에 공개돼 있으므로, 그대로 뜬 서버는 누구나 원하는 사용자의
+	// 토큰을 위조할 수 있다 — 관리자 ID 로 서명하면 전체 사용자 데이터가 열린다.
+	// 관리자 비밀번호를 코드에 박지 않는 것과 같은 이유이며, 시크릿 유출의 대가가 더 크다.
+	// (STORE=memory 는 데이터가 남지 않는 로컬/테스트 실행이라 예외로 둔다.)
+	if cfg.Store != "memory" && string(cfg.JWTSecret) == config.InsecureJWTSecret {
+		log.Fatalf("[fatal] JWT_SECRET 이 기본 취약값입니다 — `make secret` 으로 교체 후 재기동하세요")
+	}
+	// CORS 를 전면 개방한 채로 뜬 것도 알린다(기본값이 아니라 명시적 선택이어야 한다).
+	if cfg.Store != "memory" && cfg.CORSOrigins == "*" {
+		log.Printf("[warn] CORS_ORIGINS 가 '*' 입니다 — 관리 콘솔 주소로 좁히는 것을 권장합니다")
 	}
 
 	// 저장소 선택 — 포트-어댑터 구조 덕에 구현만 교체된다(서비스 코드는 동일).
@@ -71,7 +80,12 @@ func main() {
 		}
 		defer func() { _ = disconnect(context.Background()) }()
 		log.Printf("[mongo] 연결됨 db=%s", cfg.MongoDB)
-		userRepo = mongoadapter.NewUserRepo(db)
+		mongoUsers := mongoadapter.NewUserRepo(db)
+		// 유일성 인덱스가 있어야 동시 가입이 실제로 막힌다(애플리케이션 검사만으로는 부족).
+		if err := mongoUsers.EnsureIndexes(ctx); err != nil {
+			log.Fatalf("[mongo] 유일성 인덱스 생성 실패: %v", err)
+		}
+		userRepo = mongoUsers
 		cardRepo = mongoadapter.NewCardRepo(db)
 		pushRepo = mongoadapter.NewPushTokenRepo(db)
 		auditRepo = mongoadapter.NewAuditRepo(db)

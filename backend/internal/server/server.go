@@ -7,6 +7,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/gofiber/fiber/v2/middleware/limiter"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 
@@ -17,6 +18,10 @@ import (
 	"github.com/lovecmk/eduapp/backend/internal/service"
 	"github.com/lovecmk/eduapp/backend/internal/token"
 )
+
+// loginAttemptsPerMinute 은 무인증 인증 경로에 허용하는 IP 당 분당 요청 수.
+// 사람이 로그인하다 오타를 내는 횟수보다 넉넉하고, 자동화 대입에는 턱없이 모자란 값.
+const loginAttemptsPerMinute = 20
 
 // Deps 는 서버가 라우팅에 필요로 하는 조립된 의존성 묶음.
 type Deps struct {
@@ -91,6 +96,27 @@ func New(d Deps) *fiber.App {
 
 	// 인증 (무인증 진입점 + 인증 필요 me)
 	auth := api.Group("/auth")
+
+	// 무인증 진입점에는 반드시 속도 제한을 건다.
+	//
+	// 이것이 없으면 비밀번호를 초당 수백 번 시도해도 서버가 순순히 답한다.
+	// 실제로 200회 연속 오답을 넣어도 아무 제동이 걸리지 않았고, 그 직후
+	// 정상 로그인도 그대로 됐다 — 계정 잠금도 지연도 없었다는 뜻이다.
+	//
+	// 아이디 존재 확인(username/nickname-available)도 같이 묶는다. 이 두 경로는
+	// 무인증으로 "이 아이디가 있는가"를 알려 주므로, 열어 두면 공격자가 먼저
+	// 유효한 아이디 목록을 만든 뒤 그 목록만 집중해서 두드릴 수 있다.
+	auth.Use(limiter.New(limiter.Config{
+		Max:        loginAttemptsPerMinute,
+		Expiration: time.Minute,
+		// 회원가입·아이디 확인처럼 정상 사용자도 연달아 부르는 경로가 섞여 있으므로
+		// IP 단위로 넉넉히 잡되, 자동화 도구는 확실히 걸리는 수준으로 둔다.
+		KeyGenerator: func(c *fiber.Ctx) string { return c.IP() },
+		LimitReached: func(c *fiber.Ctx) error {
+			return fiber.NewError(fiber.StatusTooManyRequests, "요청이 너무 잦습니다. 잠시 후 다시 시도해주세요")
+		},
+	}))
+
 	auth.Post("/login", authH.Login)
 	auth.Post("/register", authH.Register)
 	auth.Post("/refresh", authH.Refresh)
@@ -116,7 +142,13 @@ func New(d Deps) *fiber.App {
 
 	protected.Get("/cards", cardH.All)
 	protected.Get("/cards/today", cardH.Today)
-	protected.Post("/cards", cardH.Create)
+	// 학습 콘텐츠 등록은 관리자만.
+	//
+	// 이 라우트는 문제 등록이 앱 안의 도구이던 시절에 만들어졌고, 그때는 "이 화면을
+	// 볼 수 있는 사람만 쓴다"가 사실상의 권한 규칙이었다. 그런데 화면은 권한이 아니다 —
+	// 토큰만 있으면 화면을 거치지 않고 직접 부를 수 있고, 그렇게 등록된 카드는
+	// 검증도 감사 기록도 없이 전 사용자의 학습 목록에 배포된다.
+	protected.Post("/cards", middleware.RequireAdmin(d.Users), cardH.Create)
 	protected.Patch("/cards/:id", cardH.Mark)
 	protected.Get("/stats", statsH.Get)
 	protected.Get("/community/live", commH.Live)

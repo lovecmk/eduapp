@@ -132,3 +132,13 @@ type PushTokenRepository interface {
 type ErrNotFound struct{ Entity string }
 
 func (e ErrNotFound) Error() string { return e.Entity + " not found" }
+
+// ErrConflict 는 저장소의 유일성 제약을 어겼을 때 반환하는 표준 오류.
+//
+// 왜 저장소가 이 오류를 만들어야 하는가 — 서비스의 "중복인가 확인 → 만든다" 는
+// 두 동작 사이에 틈이 있어 동시 요청을 막지 못한다. 유일성을 실제로 보장할 수 있는
+// 곳은 제약을 가진 저장소뿐이므로, 저장소가 제약 위반을 도메인 언어(ErrConflict)로
+// 번역해 돌려주고 서비스는 그것을 최종 판정으로 삼는다.
+type ErrConflict struct{ Field string }
+
+func (e ErrConflict) Error() string { return e.Field + " already exists" }

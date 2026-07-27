@@ -2,11 +2,14 @@ package service
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"log"
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"golang.org/x/crypto/bcrypt"
 
@@ -30,6 +33,59 @@ var (
 	ErrUsernameTaken = errors.New("username already taken")
 	ErrNicknameTaken = errors.New("nickname already taken")
 )
+
+// 비밀번호 정책 — 숫자는 "왜 이 값인가"를 설명할 수 있어야 한다.
+const (
+	// minPasswordRunes 는 최소 길이(공백 제외). 8자는 무차별 대입 방어의 실용적 하한선이다.
+	minPasswordRunes = 8
+	// maxPasswordBytes 는 bcrypt 가 처리할 수 있는 물리적 상한이다.
+	// 이 값을 넘기면 bcrypt 가 오류를 내는데, 그것은 서버 장애가 아니라 입력 오류다.
+	// 라이브러리의 한계를 도메인 규칙으로 끌어올려야 500 이 아니라 400 으로 답할 수 있다.
+	maxPasswordBytes = 72
+)
+
+// ValidatePassword 는 비밀번호가 정책에 맞는지 확인한다.
+//
+// 카드에 ValidateCard 가 있듯 인증에도 검증 계층이 필요하다. 이것이 없던 동안
+// 한 자리 비밀번호와 공백만 있는 비밀번호로 계정이 만들어졌고,
+// 72바이트를 넘는 입력은 500 으로 새어 나갔다.
+func ValidatePassword(pw string) error {
+	if len([]byte(pw)) > maxPasswordBytes {
+		return ErrInvalidInput{Reason: "비밀번호는 72바이트를 넘을 수 없습니다"}
+	}
+	// 공백을 벗겨 내고 센다 — "        " 는 8자처럼 보이지만 아무 비밀도 아니다.
+	if utf8.RuneCountInString(strings.TrimSpace(pw)) < minPasswordRunes {
+		return ErrInvalidInput{Reason: "비밀번호는 공백을 제외하고 8자 이상이어야 합니다"}
+	}
+	return nil
+}
+
+// dummyHash 는 존재하지 않는 계정에 대해서도 비교 연산을 수행하기 위한 미끼 해시다.
+//
+// 없는 아이디는 즉시 반환하고 있는 아이디만 bcrypt 를 돌리면, 응답 시간 차이만으로
+// "이 아이디는 존재한다"가 새어 나간다(bcrypt 는 의도적으로 느리므로 차이가 크다).
+// 없는 계정에도 같은 비용을 치르게 해 두 경로의 시간을 맞춘다.
+var dummyHash = func() []byte {
+	h, err := bcrypt.GenerateFromPassword([]byte("timing-equalizer"), bcrypt.DefaultCost)
+	if err != nil {
+		return []byte("$2a$10$invalidinvalidinvalidinvalidinvalidinvalidinvalidinvalidinva")
+	}
+	return h
+}()
+
+// newID 는 추측할 수 없는 식별자를 만든다.
+//
+// 이전에는 나노초 타임스탬프를 36진수로 적었는데 두 가지가 문제였다.
+// (1) 가입 시각을 알면 ID 를 좁힐 수 있다. (2) 같은 나노초에 두 건이 들어오면 겹친다.
+// 난수 8바이트면 두 문제가 함께 사라진다.
+func newID(prefix string) string {
+	var b [8]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		// 난수원이 죽는 일은 사실상 없지만, 그때도 ID 는 나와야 한다.
+		return prefix + strconv.FormatInt(time.Now().UnixNano(), 36)
+	}
+	return prefix + hex.EncodeToString(b[:])
+}
 
 // RegisterInput 은 회원가입 입력(프런트 SignupInput 과 일치).
 type RegisterInput struct {
@@ -65,6 +121,8 @@ func NewAuthService(users ports.UserRepository, tokens *token.Manager) *AuthServ
 func (s *AuthService) Login(ctx context.Context, loginID, password string) (*domain.User, string, string, error) {
 	u, err := s.users.FindByLoginID(ctx, strings.TrimSpace(loginID))
 	if err != nil {
+		// 계정이 없어도 있을 때와 같은 비용을 치른다(타이밍으로 존재 여부가 새지 않게).
+		_ = bcrypt.CompareHashAndPassword(dummyHash, []byte(password))
 		return nil, "", "", ErrInvalidCredentials
 	}
 	if bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(password)) != nil {
@@ -150,6 +208,12 @@ func (s *AuthService) NicknameTaken(ctx context.Context, nickname, excludeID str
 // Register 는 신규 계정을 만들고 (user, access, refresh) 를 반환한다.
 func (s *AuthService) Register(ctx context.Context, in RegisterInput) (*domain.User, string, string, error) {
 	loginID := strings.TrimSpace(in.Username)
+	if err := ValidatePassword(in.Password); err != nil {
+		return nil, "", "", err
+	}
+	// 아래 두 검사는 '친절한 사전 안내'다 — 대부분의 중복은 여기서 걸러 좋은 메시지를 준다.
+	// 하지만 이 검사와 Create 사이에는 틈이 있어 동시 요청을 막지 못한다.
+	// 실제 유일성은 저장소 제약이 보장하고, 그 위반은 아래에서 ErrConflict 로 받는다.
 	if taken, err := s.UsernameTaken(ctx, loginID); err != nil {
 		return nil, "", "", err
 	} else if taken {
@@ -168,7 +232,7 @@ func (s *AuthService) Register(ctx context.Context, in RegisterInput) (*domain.U
 		return nil, "", "", err
 	}
 	u := &domain.User{
-		ID:           "u_" + strconv.FormatInt(time.Now().UnixNano(), 36),
+		ID:           newID("u_"),
 		LoginID:      loginID,
 		UserNm:       strings.TrimSpace(in.Name),
 		Nickname:     nickname,
@@ -180,6 +244,15 @@ func (s *AuthService) Register(ctx context.Context, in RegisterInput) (*domain.U
 		StatusCd:     "A",
 	}
 	if err := s.users.Create(ctx, u); err != nil {
+		// 사전 검사를 통과했는데도 저장소가 충돌을 알렸다면, 그 틈으로 동시 요청이
+		// 들어온 것이다. 저장소의 판정이 최종이므로 그대로 중복 오류로 옮긴다.
+		var conflict ports.ErrConflict
+		if errors.As(err, &conflict) {
+			if conflict.Field == "nickname" {
+				return nil, "", "", ErrNicknameTaken
+			}
+			return nil, "", "", ErrUsernameTaken
+		}
 		return nil, "", "", err
 	}
 	access, err := s.tokens.Access(u.ID)
@@ -311,7 +384,7 @@ func (s *AuthService) EnsureAdmin(ctx context.Context, loginID, password string)
 		return err
 	}
 	if err := s.users.Create(ctx, &domain.User{
-		ID:           "u_admin_" + strconv.FormatInt(time.Now().UnixNano(), 36),
+		ID:           newID("u_admin_"),
 		LoginID:      loginID,
 		UserNm:       "관리자",
 		Nickname:     "",
