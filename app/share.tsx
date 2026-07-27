@@ -15,6 +15,7 @@ import { getRarity } from '../src/utils/rarity';
 import { useShareFeedStore } from '../src/store/shareFeedStore';
 import { fontCute, fontBody, fontMono } from '../src/theme/tokens';
 import { ROUTES } from '../src/constants/routes';
+import { endFlow } from '../src/navigation/flow';
 import { contentColumn } from '../src/theme/layout';
 import { useSafeTimeout, useIsMounted } from '../src/hooks/useSafeTimeout';
 
@@ -60,7 +61,7 @@ export default function ShareScreen() {
     if (!alive()) return;
     setPhase('done');
     // 자동 이동도 언마운트되면 취소된다(뒤로 간 사용자를 커뮤니티로 끌고 가지 않는다).
-    run(() => router.replace(ROUTES.community), 900);
+    run(() => endFlow(router, ROUTES.community), 900);
   };
 
   return (

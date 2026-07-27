@@ -18,6 +18,8 @@ import { ErrorBoundary } from '../src/components/ui/ErrorBoundary';
 import { UpdatePrompt } from '../src/components/ui/UpdatePrompt';
 import { useAppUpdate } from '../src/hooks/useAppUpdate';
 import { useAppResume } from '../src/hooks/useAppResume';
+import { useAppBackHandler } from '../src/hooks/useAppBackHandler';
+import { ToastHost } from '../src/components/ui/ToastHost';
 import { applyWebTypography } from '../src/theme/webTypography';
 import { APP_FONTS } from '../src/theme/tokens';
 import { applyGlobalFont } from '../src/theme/applyGlobalFont';
@@ -75,6 +77,11 @@ function RootContent() {
     if (ready) SplashScreen.hideAsync().catch(() => {});
   }, [ready]);
 
+  // 앱 전체 뒤로가기 안전망. 화면별 처리(학습 중 이탈 확인 등)가 우선하고,
+  // 아무도 처리하지 않은 뒤로가기만 여기서 받아 앱이 갑자기 종료되는 것을 막는다.
+  // 루트에서 먼저 등록해야 화면별 핸들러가 나중에 등록되어 우선순위를 갖는다.
+  useAppBackHandler();
+
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.bg }}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
@@ -115,6 +122,7 @@ function RootContent() {
         <Stack.Screen name="privacy" />
         <Stack.Screen name="legal" />
       </Stack>
+      <ToastHost />
       <UpdatePrompt
         visible={ready && updateAvailable}
         remote={remote}
