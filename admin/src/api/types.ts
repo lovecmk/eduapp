@@ -291,3 +291,134 @@ export function emptyCard(): Card {
     answer_index: null,
   };
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 분석(insight) — 서버의 service.Insight 와 짝을 이룬다.
+// 필드 이름이 어긋나면 화면이 조용히 빈칸을 그리므로 JSON 태그와 1:1로 맞춘다.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** 이 분석을 얼마나 믿어도 되는가 — 어떤 수치보다 먼저 읽어야 한다. */
+export interface Coverage {
+  users: number;
+  learners_with_data: number;
+  cards: number;
+  cards_with_data: number;
+  activity_days: number;
+  verdict: string;
+  trustworthy: boolean;
+}
+
+export type Severity = 'critical' | 'warn' | 'info' | 'good';
+
+/** "지금 무엇을 해야 하는가" 한 줄. */
+export interface Headline {
+  severity: Severity;
+  title: string;
+  detail: string;
+  metric: string;
+  link?: string;
+}
+
+/** 선언 난이도 vs 실제 실패율. */
+export interface CardCalibration {
+  card_id: string;
+  title: string;
+  category: string;
+  declared: string;
+  learners: number;
+  reps: number;
+  lapse_rate: number;
+  expected: number;
+  gap: number;
+  verdict: 'harder' | 'easier' | 'ok';
+  suggested: string;
+}
+
+export interface CategoryInsight {
+  category: string;
+  cards: number;
+  learners: number;
+  reps: number;
+  lapse_rate: number;
+  mastery_rate: number;
+  reports: number;
+  ratio: number;
+}
+
+export interface OrgInsight {
+  org: string;
+  members: number;
+  started: number;
+  habitual: number;
+  at_risk: number;
+  avg_cards: number;
+  mastery_rate: number;
+  adoption_rate: number;
+}
+
+export interface ChurnEntry {
+  user_id: string;
+  name: string;
+  org: string;
+  cards: number;
+  days_away: number;
+  tier: 'cooling' | 'at_risk' | 'dormant';
+  worth: number;
+}
+
+export interface ChurnBreakdown {
+  active: number;
+  cooling: number;
+  at_risk: number;
+  dormant: number;
+  top: ChurnEntry[];
+}
+
+export interface FunnelStage {
+  stage: string;
+  count: number;
+  rate: number;
+  drop: number;
+}
+
+export interface RetentionCohort {
+  cohort: string;
+  size: number;
+  weekly: number[];
+}
+
+export interface ActivityPoint {
+  day: string;
+  users: number;
+  weekday: number;
+}
+
+export interface Anomaly {
+  day: string;
+  users: number;
+  expected: number;
+  deviation: number;
+  direction: 'spike' | 'drop';
+}
+
+export interface DeadCard {
+  card_id: string;
+  title: string;
+  category: string;
+  learners: number;
+}
+
+export interface Insight {
+  generated_at: string;
+  coverage: Coverage;
+  headlines: Headline[];
+  calibration: CardCalibration[];
+  categories: CategoryInsight[];
+  orgs: OrgInsight[];
+  churn: ChurnBreakdown;
+  funnel: FunnelStage[];
+  retention: RetentionCohort[];
+  activity: ActivityPoint[];
+  anomalies: Anomaly[];
+  dead_content: DeadCard[];
+}

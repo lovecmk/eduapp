@@ -24,6 +24,10 @@ type adminEnv struct {
 	adminToken  string // 관리자 액세스 토큰
 	memberToken string // 일반 사용자 액세스 토큰
 	adminID     string
+	// data/cards 는 테스트가 저장소에 직접 데이터를 심을 수 있게 노출한다.
+	// (분석처럼 '저장된 것이 화면까지 흘러오는가'를 보려면 원본을 만질 수 있어야 한다)
+	data  *memory.UserDataRepo
+	cards *memory.CardRepo
 }
 
 // buildAdminApp 은 관리 콘솔 의존성까지 배선한 서버를 만든다.
@@ -69,9 +73,10 @@ func buildAdminApp(t *testing.T) *adminEnv {
 		Data:        data,
 		Metrics:     metrics,
 		Users:       users,
+		Insight:     service.NewInsightService(users, cards, data, data),
 	})
 
-	env := &adminEnv{app: app}
+	env := &adminEnv{app: app, data: data, cards: cards}
 	env.adminToken, env.adminID = loginAs(t, app, "admin", "adminpw1234")
 	env.memberToken, _ = loginAs(t, app, "demo", "demo1234")
 	return env

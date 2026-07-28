@@ -113,6 +113,14 @@ func main() {
 	metrics := service.NewMetrics()
 	adminSvc := service.NewAdminService(userRepo, cardRepo, auditRepo, dataRepo, metrics, cfg.Store)
 
+	// 분석 읽기는 개인 데이터 저장소가 함께 제공한다(같은 데이터를 다른 각도로 읽을 뿐이라
+	// 사본을 따로 두면 두 벌이 어긋난다). 지원하지 않는 저장소면 분석 API 만 빠진다.
+	insightRepo, _ := dataRepo.(ports.InsightRepository)
+	if insightRepo == nil {
+		log.Printf("[insight] 저장소가 집계 읽기를 지원하지 않습니다 — 분석 기능 비활성")
+	}
+	insightSvc := service.NewInsightService(userRepo, cardRepo, dataRepo, insightRepo)
+
 	tgSvc := service.NewTelegramService(service.TelegramConfig{
 		BotToken:     cfg.TelegramBotToken,
 		APIBase:      cfg.TelegramAPIBase,
@@ -148,6 +156,7 @@ func main() {
 		Sync:        syncSvc,
 		Idempotency: middleware.NewIdempotencyStore(),
 		Admin:       adminSvc,
+		Insight:     insightSvc,
 		Metrics:     metrics,
 		Users:       userRepo,
 	})

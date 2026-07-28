@@ -23,6 +23,7 @@ const helpOpen = ref(false);
 
 const NAV: { to: string; label: string; icon: IconName; goKey: string }[] = [
   { to: '/', label: '대시보드', icon: 'grid', goKey: 'd' },
+  { to: '/insight', label: '분석', icon: 'pulse', goKey: 'i' },
   { to: '/users', label: '사용자', icon: 'users', goKey: 'u' },
   { to: '/cards', label: '문제 관리', icon: 'cards', goKey: 'c' },
   { to: '/reports', label: '신고 관리', icon: 'flag', goKey: 'r' },

@@ -13,6 +13,7 @@ import type {
   Card,
   AdminReport,
   AuditLog,
+  Insight,
   NotifyInput,
   RoleCd,
   StatusCd,
@@ -233,6 +234,16 @@ class AdminApi {
 
   metrics(): Promise<MetricsSnapshot> {
     return this.request<MetricsSnapshot>('/api/admin/metrics');
+  }
+
+  /** 분석 — 서버가 짧게 캐시하므로 연속 호출해도 부담이 적다. */
+  insight(): Promise<Insight> {
+    return this.request<Insight>('/api/admin/insight');
+  }
+
+  /** 분석 캐시를 버리고 다시 계산한다(고친 것이 반영됐는지 확인할 때). */
+  refreshInsight(): Promise<Insight> {
+    return this.request<Insight>('/api/admin/insight/refresh', { method: 'POST' });
   }
 
   users(q: UserQuery = {}): Promise<UserPage> {
