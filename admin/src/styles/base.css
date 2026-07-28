@@ -550,6 +550,64 @@ textarea {
   flex-wrap: wrap;
 }
 
+/* ── 필터 칩 ───────────────────────────────────────────────────────────
+   목록을 좁히는 토글. 두 화면(분석·학습 진단)에서 쓰므로 여기 둔다 —
+   화면마다 따로 그리면 같은 뜻의 버튼이 화면마다 조금씩 달라진다.
+
+   알약 모양(999px)을 쓰지 않는다. 이 도구의 다른 컨트롤이 전부 작은
+   라운딩이라, 칩만 둥글면 그것만 다른 앱에서 온 것처럼 보인다. */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.chip {
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-1);
+  background: transparent;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.chip:hover {
+  border-color: var(--n-300);
+  color: var(--ink);
+}
+
+.chip:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+/* 고른 칩만 채운다 — 색은 '지금 이걸 보고 있다'는 신호로만 쓴다. */
+.chip.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--n-0);
+}
+
+:root[data-theme='dark'] .chip.on {
+  color: var(--n-25);
+}
+
+/* 칩 안의 개수 — 라벨보다 한 단계 옅게 둬서 라벨을 먼저 읽게 한다. */
+.chip-n {
+  margin-left: 5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-4);
+}
+
+.chip.on .chip-n {
+  color: currentColor;
+  opacity: 0.72;
+}
+
 /* 검색창 — 왼쪽에 돋보기 자리를 비우고 오른쪽에 단축키를 안내한다. */
 .search-wrap {
   position: relative;

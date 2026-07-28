@@ -4,13 +4,22 @@ import {
   anomalyMarks,
   applyCategoryFilter,
   churnLabel,
+  confidenceLabel,
+  confidenceNote,
   funnelWidth,
   heatIntensity,
+  isComparative,
+  kindLabel,
+  minutesLabel,
+  nowPrescriptions,
   pct,
+  priorityLabel,
   severityBadge,
   sparklinePoints,
+  strengthLabel,
+  totalMinutes,
 } from './insight';
-import type { ActivityPoint, Insight } from '../api/types';
+import type { ActivityPoint, Evidence, Insight, Prescription } from '../api/types';
 
 // 이 계산들은 눈으로 검증할 수 없다 — 히트맵 색이 한 칸 밀려도, 스파크라인이
 // 뒤집혀도 화면은 그럴듯하다. 그래서 표로 못 박는다.
@@ -168,5 +177,111 @@ describe('배지', () => {
     expect(churnLabel('dormant')).toBe('휴면');
     expect(churnLabel('at_risk')).toBe('이탈 위험');
     expect(churnLabel('cooling')).toBe('식는 중');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 교육 처방
+//
+// 이 화면의 값어치는 "이 교육을 왜 이 사람이 받아야 하는가"에 답하는 데 있다.
+// 그 답이 흐려지는 방향의 실수 — 근거의 한계를 숨기거나, 총 소요를 감추거나,
+// 사람 교육과 자료 수정을 같아 보이게 하는 것 — 을 여기서 막는다.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const rx = (over: Partial<Prescription> = {}): Prescription =>
+  ({
+    id: 'p',
+    rank: 1,
+    priority: 'soon',
+    kind: 'category',
+    title: '처방',
+    target: '',
+    why: '',
+    action: '',
+    expect: '',
+    minutes: 30,
+    score: 1,
+    confidence: 'medium',
+    evidence: [],
+    cards: [],
+    ...over,
+  }) as Prescription;
+
+describe('처방 표기', () => {
+  it('언제까지 할 일인지 기한으로 말한다', () => {
+    // 'now/soon/later' 를 그대로 두면 전부 급해 보이고, 그러면 우선순위가 없다.
+    expect(priorityLabel('now')).toBe('이번 주');
+    expect(priorityLabel('soon')).toBe('이번 달');
+    expect(priorityLabel('later')).toBe('여유 있을 때');
+  });
+
+  it('사람을 가르칠 일과 자료를 고칠 일을 다른 이름으로 부른다', () => {
+    // 이 둘이 같아 보이면 개인 코칭 시간이 콘텐츠 문제로 새어 나간다.
+    expect(kindLabel('cards')).toBe('개별 코칭');
+    expect(kindLabel('content')).toBe('자료 보완');
+    expect(kindLabel('category')).toBe('분야 교육');
+    expect(kindLabel('engagement')).toBe('복귀');
+    expect(kindLabel('onboarding')).toBe('진입');
+    expect(kindLabel('retention')).toBe('학습 방법');
+  });
+
+  it('확신도의 한계를 문장으로 밝힌다', () => {
+    // 'medium' 만 띄우면 "적당히 믿어도 됨"인지 "표본 부족"인지 알 수 없다.
+    expect(confidenceLabel('high')).toBe('확신 높음');
+    expect(confidenceNote('low')).toContain('직접 확인');
+    expect(confidenceNote('medium')).not.toBe(confidenceNote('high'));
+  });
+
+  it('근거의 세기를 우리말로 옮긴다', () => {
+    expect(strengthLabel('strong')).toBe('강함');
+    expect(strengthLabel('moderate')).toBe('보통');
+    expect(strengthLabel('weak')).toBe('약함');
+  });
+});
+
+describe('근거의 질', () => {
+  const ev = (over: Partial<Evidence>): Evidence =>
+    ({ fact: 'f', observed: 'o', rule: 'r', source: 's', strength: 'strong', ...over }) as Evidence;
+
+  it('비교 대상이 있는 근거를 가려낸다', () => {
+    // 비교 없는 관측은 아무 말도 하지 않는다 — 실패율 30%는 남들이 10%면
+    // 심각하고 35%면 평범하다. 화면에서 둘이 같아 보이면 근거의 질이 사라진다.
+    expect(isComparative(ev({ compared: '또래 10%' }))).toBe(true);
+    expect(isComparative(ev({}))).toBe(false);
+    expect(isComparative(ev({ compared: '   ' }))).toBe(false);
+  });
+});
+
+describe('소요 시간', () => {
+  it('한 시간이 넘으면 시간 단위로 읽어 준다', () => {
+    expect(minutesLabel(45)).toBe('45분');
+    expect(minutesLabel(60)).toBe('1시간');
+    expect(minutesLabel(95)).toBe('1시간 35분');
+  });
+
+  it('알 수 없는 값을 0분으로 위장하지 않는다', () => {
+    expect(minutesLabel(0)).toBe('—');
+    expect(minutesLabel(Number.NaN)).toBe('—');
+  });
+
+  it('전부 더한 총량을 준다', () => {
+    // 개별 처방이 타당해도 다 합쳐 세 시간이면 담당자는 시작조차 못 한다.
+    // 무엇을 자를지 정하려면 총량이 먼저 보여야 한다.
+    expect(totalMinutes([rx({ minutes: 30 }), rx({ minutes: 24 })])).toBe(54);
+    expect(totalMinutes([])).toBe(0);
+    expect(totalMinutes([rx({ minutes: Number.NaN })])).toBe(0);
+  });
+});
+
+describe('이번 주 할 일', () => {
+  it('급한 것만 따로 뽑는다', () => {
+    const ps = [rx({ id: 'a', priority: 'now' }), rx({ id: 'b', priority: 'later' })];
+    expect(nowPrescriptions(ps).map((p) => p.id)).toEqual(['a']);
+  });
+
+  it('서버가 정한 순서를 바꾸지 않는다', () => {
+    // 화면에서 다시 정렬하면 서버의 우선순위와 갈라지고, 갈라지면 한쪽만 고쳐진다.
+    const ps = [rx({ id: 'a', priority: 'now', score: 1 }), rx({ id: 'b', priority: 'now', score: 9 })];
+    expect(nowPrescriptions(ps).map((p) => p.id)).toEqual(['a', 'b']);
   });
 });

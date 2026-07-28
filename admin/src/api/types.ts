@@ -475,6 +475,75 @@ export interface MissedCard {
   signal: MissSignal;
 }
 
+// ── 교육 처방 ────────────────────────────────────────────────────────────────
+// 진단은 "무엇이 약한가"까지만 말한다. 처방은 "그래서 무엇을 가르칠 것인가"와
+// **왜 이 사람인가**를 함께 말한다. 근거(evidence)가 없는 처방은 서버가 내지
+// 않는다 — 그래서 화면도 근거를 감추지 않는다.
+
+/** 근거 한 줄의 세기. 표본과 비교 대상이 얼마나 받쳐 주는가. */
+export type EvidenceStrength = 'strong' | 'moderate' | 'weak';
+
+/**
+ * 처방을 뒷받침하는 관측 한 줄.
+ *
+ * 다섯 조각이 함께 있어야 담당자가 **반박할 수 있다**. 반박할 수 없는 추천은
+ * 결국 아무도 따르지 않는다.
+ */
+export interface Evidence {
+  /** 무엇을 관측했나. */
+  fact: string;
+  /** 이 사람의 값. */
+  observed: string;
+  /** 무엇과 견줬나 — 비교 대상이 없으면 숫자는 아무 말도 하지 않는다. */
+  compared?: string;
+  /** 그 비교의 표본. */
+  sample?: string;
+  /** 어떤 기준선을 넘었기에 처방이 됐나. */
+  rule: string;
+  /** 이 수치가 나온 기록 — 원본을 찾아갈 수 있어야 한다. */
+  source: string;
+  strength: EvidenceStrength;
+}
+
+/** 처방이 지목하는 문제 한 장. reason 이 없으면 목록에서 순서의 뜻이 사라진다. */
+export interface PrescribedCard {
+  card_id: string;
+  title: string;
+  category: string;
+  difficulty: string;
+  reason: string;
+}
+
+export type PrescriptionKind =
+  | 'onboarding'
+  | 'engagement'
+  | 'category'
+  | 'cards'
+  | 'retention'
+  | 'content';
+
+export interface Prescription {
+  id: string;
+  rank: number;
+  /** now(이번 주) | soon(이번 달) | later(여유 있을 때) */
+  priority: 'now' | 'soon' | 'later';
+  kind: PrescriptionKind;
+  title: string;
+  /** 교육의 범위를 한 마디로. */
+  target: string;
+  /** 왜 **이 사람이** 이 교육을 받아야 하는가. */
+  why: string;
+  /** 관리자가 실제로 할 일. */
+  action: string;
+  /** 이 교육으로 기대되는 변화 — 나중에 검증할 수 있는 형태로. */
+  expect: string;
+  minutes: number;
+  score: number;
+  confidence: 'high' | 'medium' | 'low';
+  evidence: Evidence[];
+  cards: PrescribedCard[];
+}
+
 export interface LearnerDiagnosis {
   user_id: string;
   name: string;
@@ -484,4 +553,8 @@ export interface LearnerDiagnosis {
   weakness: CategoryWeakness[];
   missed: MissedCard[];
   rhythm: ActivityPoint[];
+  /** 근거를 달고 나오는 교육 처방. 점수 내림차순. */
+  prescriptions: Prescription[];
+  /** 처방을 한 줄로 압축한 것(목록 화면용). */
+  needs: string;
 }

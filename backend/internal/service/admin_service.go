@@ -363,11 +363,63 @@ func (s *AdminService) GetUser(ctx context.Context, id string) (*UserDetail, err
 	if err != nil {
 		return nil, err
 	}
-	progress, err := s.cards.ProgressCountFor(ctx, id)
+
+	// 학습 진행은 **앱이 실제로 쓰는 곳**에서 읽는다.
+	//
+	// 예전에는 cards.ProgressCountFor(진행 상태 표)를 읽었다. 그런데 앱은
+	// 오래전부터 /api/progress/grade → 간격반복 상태(SRS)로만 기록한다.
+	// 그 표에는 아무도 쓰지 않으므로, 172회를 푼 사람에게도 관리 화면이
+	// "아직 학습 기록이 없는 계정입니다"를 띄웠다. 같은 화면 아래쪽 진단은
+	// 16장을 세고 있는데도 그랬다 — 한 화면이 서로 다른 말을 하면 담당자는
+	// 둘 다 믿지 않게 된다.
+	learning, err := s.learningOf(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-	return &UserDetail{User: toAdminUser(*u), Learning: learningSummary(progress)}, nil
+	return &UserDetail{User: toAdminUser(*u), Learning: learning}, nil
+}
+
+// learningOf 는 간격반복 기록에서 한 사람의 진행을 센다.
+//
+// 상자(box)로 상태를 가른다 — 진단·저장소 집계와 **같은 기준**(masteredBoxLevel)을
+// 써야 "숙달 6장"과 "완료 6장"이 어긋나지 않는다.
+func (s *AdminService) learningOf(ctx context.Context, userID string) (LearningSummary, error) {
+	if s.data == nil {
+		// 개인 데이터 저장소가 없는 구성에서는 진행을 셀 수 없다.
+		// 0 으로 채워 '기록 없음'이 아니라 '셀 수 없음'으로 읽히게 둔다.
+		return LearningSummary{}, nil
+	}
+
+	snap, err := s.data.LoadSync(ctx, userID)
+	if err != nil {
+		return LearningSummary{}, err
+	}
+	cards, err := s.cards.AllCards(ctx)
+	if err != nil {
+		return LearningSummary{}, err
+	}
+
+	var learning, mastered int64
+	for _, st := range snap.Cards {
+		if st.Box >= masteredBoxLevel {
+			mastered++
+		} else {
+			learning++
+		}
+	}
+	// 손대지 않은 문제 = 전체 − 기록이 있는 문제. 음수가 되지 않게 막는다
+	// (문제가 지워졌는데 학습 기록만 남아 있을 수 있다).
+	newCount := int64(len(cards)) - (learning + mastered)
+	if newCount < 0 {
+		newCount = 0
+	}
+
+	total := newCount + learning + mastered
+	rate := 0.0
+	if total > 0 {
+		rate = round2(float64(mastered) / float64(total) * 100)
+	}
+	return LearningSummary{New: newCount, Learning: learning, Mastered: mastered, Rate: rate}, nil
 }
 
 // Actor 는 변경을 수행하는 관리자(감사 기록용).
