@@ -18,7 +18,6 @@ import {
   funnelWidth,
   heatIntensity,
   pct,
-  severityBadge,
   severityLabel,
   sparklinePoints,
 } from '../lib/insight';
@@ -148,24 +147,26 @@ onMounted(() => {
               v-for="(h, i) in view.headlines"
               :key="i"
               class="headline"
-              :class="{ clickable: !!h.link }"
+              :class="[`sev-${h.severity}`, { clickable: !!h.link }]"
               :tabindex="h.link ? 0 : undefined"
               :role="h.link ? 'button' : undefined"
               @click="openLink(h.link)"
               @keydown.enter="openLink(h.link)"
               @keydown.space.prevent="openLink(h.link)"
             >
+              <!-- 수치를 왼쪽 홈통에 크게 둔다. 훑을 때 눈이 한 줄만 따라가면 되고,
+                   상자 없이도 항목이 갈린다. -->
               <div class="headline-metric num">{{ h.metric }}</div>
               <div class="headline-body">
-                <div class="headline-top">
-                  <span class="badge" :class="severityBadge(h.severity)">
-                    {{ severityLabel(h.severity) }}
-                  </span>
-                  <h3 class="headline-title">{{ h.title }}</h3>
-                </div>
+                <h3 class="headline-title">
+                  {{ h.title }}
+                  <!-- 심각도는 배지가 아니라 제목 뒤의 작은 글자로 둔다.
+                       배지를 네 줄 세우면 색만 남고 문장이 안 읽힌다. -->
+                  <span class="headline-sev">{{ severityLabel(h.severity) }}</span>
+                </h3>
                 <p class="headline-detail">{{ h.detail }}</p>
               </div>
-              <AppIcon v-if="h.link" name="search" :size="14" class="headline-go" />
+              <AppIcon v-if="h.link" name="search" :size="13" class="headline-go" />
             </article>
           </div>
         </section>
@@ -503,39 +504,70 @@ onMounted(() => {
   font-size: 12px;
 }
 
-/* ── 헤드라인 ─────────────────────────────────────────────────────────────── */
+/* ── 헤드라인 ─────────────────────────────────────────────────────────────
+   상자로 감싸지 않는다. 네 항목을 전부 테두리로 두르면 무엇이 급한지
+   형태로는 알 수 없고, 화면은 카드 목록처럼 보인다. 구획은 실선 한 줄이
+   하고, 위계는 왼쪽 수치의 크기가 만든다. */
 .headlines {
   display: flex;
   flex-direction: column;
-  gap: 10px;
 }
 
 .headline {
   display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 12px 14px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--surface-2, transparent);
+  align-items: baseline;
+  gap: 16px;
+  padding: 13px 4px;
+  border-bottom: 1px solid var(--line);
+}
+
+.headline:first-child {
+  padding-top: 2px;
+}
+
+.headline:last-child {
+  border-bottom: 0;
+  padding-bottom: 2px;
 }
 
 .headline.clickable {
   cursor: pointer;
 }
 
-.headline.clickable:hover,
-.headline.clickable:focus-visible {
-  border-color: var(--accent);
+.headline.clickable:hover {
+  background: var(--surface-2);
 }
 
-/* 수치를 왼쪽에 크게 두어, 훑을 때 눈이 한 줄만 따라가면 되게 한다. */
+.headline.clickable:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+  border-radius: var(--r-1);
+}
+
+/* 수치를 왼쪽 홈통에 크게 두어, 훑을 때 눈이 한 줄만 따라가면 되게 한다. */
 .headline-metric {
-  flex: 0 0 auto;
-  min-width: 76px;
-  font-size: 20px;
+  flex: 0 0 84px;
+  font-size: 22px;
   font-weight: 700;
+  letter-spacing: -0.02em;
   text-align: right;
+}
+
+/* 색은 '지금 손대야 하는가'에만 쓴다. 급한 것 하나만 붉게 두면 그것이 보인다. */
+.sev-critical .headline-metric {
+  color: var(--danger);
+}
+
+.sev-warn .headline-metric {
+  color: var(--warn);
+}
+
+.sev-good .headline-metric {
+  color: var(--ok);
+}
+
+.sev-info .headline-metric {
+  color: var(--ink-3);
 }
 
 .headline-body {
@@ -543,29 +575,31 @@ onMounted(() => {
   min-width: 0;
 }
 
-.headline-top {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
 .headline-title {
   margin: 0;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.headline-sev {
+  margin-left: 7px;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--ink-4);
 }
 
 .headline-detail {
   margin: 3px 0 0;
   font-size: 12.5px;
-  color: var(--text-2);
-  line-height: 1.5;
+  color: var(--ink-2);
+  line-height: 1.55;
 }
 
 .headline-go {
   flex: 0 0 auto;
-  color: var(--text-3);
+  color: var(--ink-4);
+  align-self: center;
 }
 
 /* ── 퍼널 ────────────────────────────────────────────────────────────────── */
@@ -583,7 +617,7 @@ onMounted(() => {
 .funnel-track {
   height: 10px;
   border-radius: 5px;
-  background: var(--surface-2, rgba(127, 127, 127, 0.15));
+  background: var(--surface-3);
   overflow: hidden;
 }
 
@@ -631,41 +665,13 @@ onMounted(() => {
   font-size: 12.5px;
 }
 
-/* ── 조사 필터 ───────────────────────────────────────────────────────────── */
-.chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 12px;
-}
-
-.chip {
-  border: 1px solid var(--border);
-  background: transparent;
-  color: var(--text-2);
-  border-radius: 999px;
-  padding: 4px 11px;
-  font-size: 12.5px;
-  cursor: pointer;
-}
-
-.chip:hover {
-  border-color: var(--accent);
-}
-
-.chip.on {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
-}
-
 /* ── 표 ──────────────────────────────────────────────────────────────────── */
 .clickable {
   cursor: pointer;
 }
 
 tr.clickable:hover {
-  background: var(--surface-2, rgba(127, 127, 127, 0.08));
+  background: var(--surface-2);
 }
 
 /* 평균보다 나쁜 값에만 색을 준다 — 정상까지 칠하면 나쁜 값이 안 보인다. */
@@ -675,7 +681,7 @@ tr.clickable:hover {
 }
 
 .under {
-  color: var(--text-3);
+  color: var(--ink-3);
 }
 
 /* ── 리텐션 히트맵 ───────────────────────────────────────────────────────── */
@@ -707,15 +713,15 @@ tr.clickable:hover {
 }
 
 .dead-list li:hover {
-  background: var(--surface-2, rgba(127, 127, 127, 0.08));
+  background: var(--surface-2);
 }
 
 .tiles {
   display: flex;
   gap: 0;
   margin-bottom: 14px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-2);
   overflow: hidden;
 }
 

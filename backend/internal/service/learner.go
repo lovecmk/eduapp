@@ -53,6 +53,12 @@ type LearnerDiagnosis struct {
 	Weakness []CategoryWeakness `json:"weakness"`
 	Missed   []MissedCard       `json:"missed"`
 	Rhythm   []ActivityPoint    `json:"rhythm"`
+
+	// Prescriptions 는 "그래서 무엇을 가르칠 것인가" — 근거를 달고 나오는 교육 처방.
+	// 진단만 있고 처방이 없으면 관리자는 표를 읽고 각자 다른 결론을 낸다.
+	Prescriptions []Prescription `json:"prescriptions"`
+	// Needs 는 처방을 한 줄로 압축한 것(목록 화면에서 상세를 열지 않고 보기 위해).
+	Needs string `json:"needs"`
 }
 
 // LearnerSummary 는 한눈에 보는 현황.
@@ -147,6 +153,11 @@ func BuildLearnerDiagnosis(in LearnerInput) LearnerDiagnosis {
 	out.Missed = buildMissedCards(in, cardByID)
 	out.Weakness = buildWeakness(in, cardByID)
 	out.Verdict = buildLearnerVerdict(out)
+
+	// 처방은 진단이 다 끝난 뒤에 만든다 — 위에서 계산한 것과 **같은 값**을 근거로
+	// 인용해야 화면의 표와 처방의 근거가 어긋나지 않는다.
+	out.Prescriptions = buildPrescriptions(out, in)
+	out.Needs = summarizeNeeds(out.Prescriptions)
 	return out
 }
 

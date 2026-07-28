@@ -295,7 +295,34 @@ type learnerBody struct {
 		Explain  string `json:"explain"`
 		Lapses   int64  `json:"lapses"`
 	} `json:"missed"`
-	Rhythm []map[string]any `json:"rhythm"`
+	Rhythm        []map[string]any `json:"rhythm"`
+	Needs         string           `json:"needs"`
+	Prescriptions []struct {
+		ID         string `json:"id"`
+		Rank       int    `json:"rank"`
+		Kind       string `json:"kind"`
+		Priority   string `json:"priority"`
+		Title      string `json:"title"`
+		Why        string `json:"why"`
+		Action     string `json:"action"`
+		Expect     string `json:"expect"`
+		Minutes    int    `json:"minutes"`
+		Confidence string `json:"confidence"`
+		Evidence   []struct {
+			Fact     string `json:"fact"`
+			Observed string `json:"observed"`
+			Compared string `json:"compared"`
+			Sample   string `json:"sample"`
+			Rule     string `json:"rule"`
+			Source   string `json:"source"`
+			Strength string `json:"strength"`
+		} `json:"evidence"`
+		Cards []struct {
+			CardID string `json:"card_id"`
+			Title  string `json:"title"`
+			Reason string `json:"reason"`
+		} `json:"cards"`
+	} `json:"prescriptions"`
 }
 
 func TestLearnerDiagnosisRequiresAdmin(t *testing.T) {
@@ -420,6 +447,62 @@ func TestLearnerDiagnosisSeparatesPersonalFromShared(t *testing.T) {
 	if len(got.Rhythm) != 30 {
 		t.Errorf("학습 리듬은 30일치: %d", len(got.Rhythm))
 	}
+
+	// ── 진단에서 멈추지 않고 처방까지 오는가 ────────────────────────────────
+	// 여기까지가 이 API 의 목적이다. "무엇이 약한가"만 오면 관리자는 표를 읽고
+	// 각자 다른 결론을 낸다. 무엇을 가르칠지와 그 근거가 함께 와야 한다.
+	if len(got.Prescriptions) == 0 {
+		t.Fatalf("가르칠 것이 분명한데 처방이 비었다: needs=%q", got.Needs)
+	}
+	if got.Needs == "" {
+		t.Error("목록 화면에서 상세를 열지 않고도 보이려면 한 줄 요약이 필요하다")
+	}
+
+	var coached, contentFix bool
+	for _, p := range got.Prescriptions {
+		if len(p.Evidence) == 0 {
+			t.Errorf("%s: 근거 없는 처방은 지시일 뿐이다", p.ID)
+		}
+		for i, e := range p.Evidence {
+			if e.Fact == "" || e.Observed == "" || e.Rule == "" || e.Source == "" {
+				t.Errorf("%s 근거[%d]: 따져 볼 수 없는 근거다 %+v", p.ID, i, e)
+			}
+		}
+		if p.Why == "" || p.Action == "" || p.Expect == "" {
+			t.Errorf("%s: 왜·무엇을·무엇이 달라지는가 중 빠진 것이 있다 %+v", p.ID, p)
+		}
+		if p.Confidence == "" {
+			t.Errorf("%s: 확신도가 없으면 근거의 무게를 알 수 없다", p.ID)
+		}
+
+		switch p.Kind {
+		case "cards", "category":
+			coached = true
+			// 개인 교육 목록에 '다들 틀리는 문제'가 섞이면 같은 설명을 사람 수만큼 반복하게 된다.
+			for _, c := range p.Cards {
+				if c.CardID == sharedCard.ID {
+					t.Errorf("%s: 공통 난제가 개인 교육 목록에 들어갔다", p.ID)
+				}
+			}
+		case "content":
+			contentFix = true
+			var listed bool
+			for _, c := range p.Cards {
+				if c.CardID == sharedCard.ID {
+					listed = true
+				}
+			}
+			if !listed {
+				t.Errorf("공통 난제가 콘텐츠 보완 목록에 있어야 한다: %+v", p.Cards)
+			}
+		}
+	}
+	if !coached {
+		t.Errorf("개인 약점에 대한 교육 처방이 있어야 한다: %+v", got.Prescriptions)
+	}
+	if !contentFix {
+		t.Errorf("공통 난제는 문제·자료 보완으로 갈라져야 한다: %+v", got.Prescriptions)
+	}
 }
 
 func TestLearnerDiagnosisForUntouchedAccount(t *testing.T) {
@@ -439,8 +522,13 @@ func TestLearnerDiagnosisForUntouchedAccount(t *testing.T) {
 	if len(got.Verdict) != 1 || got.Verdict[0].Severity != "info" {
 		t.Errorf("첫 학습을 안내해야 한다: %+v", got.Verdict)
 	}
-	if got.Missed == nil || got.Weakness == nil {
+	if got.Missed == nil || got.Weakness == nil || got.Prescriptions == nil {
 		t.Error("빈 배열이어야 하고 null 이면 안 된다")
+	}
+	// 측정된 적이 없는 것은 '약점 없음'이 아니다. 그렇다고 내용 교육을 배정하면
+	// 그게 바로 근거 없는 배정이다 — 진입 안내 하나만 나와야 한다.
+	if len(got.Prescriptions) != 1 || got.Prescriptions[0].Kind != "onboarding" {
+		t.Errorf("첫 학습 진입만 처방해야 한다: %+v", got.Prescriptions)
 	}
 }
 
@@ -476,4 +564,61 @@ func internalIDOf(t *testing.T, env *adminEnv, loginID string) string {
 	}
 	t.Fatalf("%q 를 찾지 못했다: %s", loginID, body)
 	return ""
+}
+
+// TestUserDetailCountsTheLearningTheAppActuallyRecords 는 관리 화면의 '학습 진행'이
+// 앱이 쓰는 것과 같은 곳을 보는지 확인한다.
+//
+// 예전에는 아무도 쓰지 않는 진행 상태 표를 읽었다. 그래서 172회를 푼 학습자에게도
+// "아직 학습 기록이 없는 계정입니다"가 떴다 — 바로 아래 진단 패널은 같은 사람의
+// 16장을 세고 있는데도. 한 화면이 서로 다른 말을 하면 담당자는 둘 다 믿지 않는다.
+func TestUserDetailCountsTheLearningTheAppActuallyRecords(t *testing.T) {
+	env := buildAdminApp(t)
+	ctx := context.Background()
+	target := internalIDOf(t, env, "admin")
+
+	cards, err := env.cards.AllCards(ctx)
+	if err != nil || len(cards) < 3 {
+		t.Fatalf("시드 카드 필요: %v", err)
+	}
+	now := time.Now()
+
+	// 앱과 같은 경로로 기록한다 — 숙달 2장, 학습 중 1장.
+	for i, box := range []int{5, 4, 1} {
+		reviewed := now
+		if err := env.data.SaveSrs(ctx, domain.SrsState{
+			UserID: target, CardID: cards[i].ID, Box: box, Ease: 2.4,
+			DueAt: now, Reps: 6, Lapses: 1, LastGrade: "good", LastReviewedAt: &reviewed,
+		}, dayKeyFor(now)); err != nil {
+			t.Fatalf("SRS 저장: %v", err)
+		}
+	}
+
+	res, body := doJSON(t, env.app, "GET", "/api/admin/users/"+target, env.adminToken, nil)
+	if res.StatusCode != 200 {
+		t.Fatalf("status=%d body=%s", res.StatusCode, body)
+	}
+	var got struct {
+		Learning struct {
+			New      int64   `json:"new"`
+			Learning int64   `json:"learning"`
+			Mastered int64   `json:"mastered"`
+			Rate     float64 `json:"rate"`
+		} `json:"learning"`
+	}
+	decode(t, body, &got)
+
+	if got.Learning.Mastered != 2 {
+		t.Errorf("상자 4 이상은 숙달로 세야 한다: %+v", got.Learning)
+	}
+	if got.Learning.Learning != 1 {
+		t.Errorf("아직 상자가 낮은 문제는 학습 중이다: %+v", got.Learning)
+	}
+	if got.Learning.New != int64(len(cards))-3 {
+		t.Errorf("손대지 않은 문제 수가 맞지 않는다: %+v (전체 %d장)", got.Learning, len(cards))
+	}
+	// 이 화면이 "기록 없음"으로 읽히면 안 된다.
+	if got.Learning.Rate <= 0 {
+		t.Errorf("숙달이 있는데 완료율이 0 이면 '학습 기록 없음'으로 읽힌다: %+v", got.Learning)
+	}
 }

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"time"
 )
 
 // 교육 처방 — "이 사람에게 무엇을, 왜 가르쳐야 하는가."
@@ -133,11 +132,18 @@ func buildPrescriptions(d LearnerDiagnosis, in LearnerInput) []Prescription {
 	if p, ok := prescribeEngagement(d); ok {
 		out = append(out, p)
 	}
-	out = append(out, prescribeCategories(d)...)
-	if p, ok := prescribePersonalCards(d); ok {
+	cats := prescribeCategories(d)
+	out = append(out, cats...)
+	// 분야 처방이 이미 데려간 문제는 낱장 코칭에서 뺀다.
+	// 겹치면 같은 여섯 장이 두 처방에 나란히 뜨고, 소요 시간도 두 번 더해진다.
+	// 담당자는 그걸 보고 "48분짜리 일"로 읽지만 실제로는 한 가지 일이다.
+	if p, ok := prescribePersonalCards(d, coveredCards(cats)); ok {
 		out = append(out, p)
 	}
-	if p, ok := prescribeRetention(d); ok {
+	// 복습 주기 처방은 '내용은 아는데 남지 않는다'고 주장한다. 약한 분야가
+	// 이미 잡혀 있으면 그 주장은 사실이 아니다 — 숙달률이 낮은 이유가 바로
+	// 그 분야를 계속 틀려서이기 때문이다. 근거가 서지 않는 처방은 내지 않는다.
+	if p, ok := prescribeRetention(d, len(cats) > 0); ok {
 		out = append(out, p)
 	}
 	if p, ok := prescribeContentFix(d); ok {
@@ -368,12 +374,27 @@ func cardsForCategory(missed []MissedCard, category string) []PrescribedCard {
 // 3. 개별 문제 코칭 — 분야로 묶이지 않는 낱장 약점
 // ─────────────────────────────────────────────────────────────────────────────
 
-func prescribePersonalCards(d LearnerDiagnosis) (Prescription, bool) {
+// coveredCards 는 이미 분야 처방에 실린 문제 id 를 모은다.
+func coveredCards(ps []Prescription) map[string]struct{} {
+	out := map[string]struct{}{}
+	for _, p := range ps {
+		for _, c := range p.Cards {
+			out[c.CardID] = struct{}{}
+		}
+	}
+	return out
+}
+
+func prescribePersonalCards(d LearnerDiagnosis, covered map[string]struct{}) (Prescription, bool) {
 	cards := []PrescribedCard{}
 	var worstGap float64
 	var totalReps int64
 	for _, m := range d.Missed {
 		if m.Signal != "personal" {
+			continue
+		}
+		// 분야 재교육이 이미 다루는 문제는 여기서 또 세지 않는다.
+		if _, dup := covered[m.CardID]; dup {
 			continue
 		}
 		totalReps += m.Reps
@@ -429,8 +450,18 @@ func prescribePersonalCards(d LearnerDiagnosis) (Prescription, bool) {
 // 4. 복습 주기 — 배우긴 했는데 남지 않는 경우
 // ─────────────────────────────────────────────────────────────────────────────
 
-func prescribeRetention(d LearnerDiagnosis) (Prescription, bool) {
+// prescribeRetention 은 '배우긴 했는데 남지 않는' 패턴을 처방한다.
+//
+// contentGapFound 가 참이면 내지 않는다. 이 처방의 근거는 "내용은 아는데
+// 복습 시점을 놓쳐 되돌아간다"인데, 약한 분야가 이미 잡혔다면 숙달률이 낮은
+// 이유는 복습 주기가 아니라 그 분야를 계속 틀리기 때문이다. 두 처방을 함께
+// 내면 담당자는 "새 문제 배정을 줄이라"는 말을 "이 분야를 가르치라"보다
+// 먼저 읽게 되고, 그건 순서가 거꾸로다.
+func prescribeRetention(d LearnerDiagnosis, contentGapFound bool) (Prescription, bool) {
 	s := d.Summary
+	if contentGapFound {
+		return Prescription{}, false
+	}
 	// 표본이 없으면 판단하지 않는다.
 	if s.Cards < 10 || s.PeerMastery <= 0 {
 		return Prescription{}, false
@@ -631,7 +662,3 @@ func summarizeNeeds(ps []Prescription) string {
 	}
 	return s
 }
-
-// 컴파일 시점에 time 이 쓰이는지 확인하기 위한 참조가 아니라,
-// 온보딩 근거에서 가입 경과일을 계산할 때 실제로 쓴다.
-var _ = time.Time{}

@@ -1,4 +1,13 @@
-import type { ActivityPoint, Anomaly, CardCalibration, Insight, Severity } from '../api/types';
+import type {
+  ActivityPoint,
+  Anomaly,
+  CardCalibration,
+  Evidence,
+  EvidenceStrength,
+  Insight,
+  Prescription,
+  Severity,
+} from '../api/types';
 
 /**
  * 분석 화면의 순수 계산.
@@ -159,4 +168,118 @@ export function funnelWidth(count: number, first: number): number {
 
 function round(v: number): number {
   return Math.round(v * 10) / 10;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 교육 처방
+//
+// 여기 함수들은 전부 '번역'만 한다. 처방을 낼지 말지, 어느 것이 먼저인지는
+// 서버가 이미 정했다. 화면에서 한 번 더 판단하면 두 규칙이 갈라지고, 갈라지면
+// 반드시 한쪽만 고쳐진다.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** 언제까지 할 일인가. 전부 '급함'이면 우선순위가 없는 것과 같다. */
+export function priorityLabel(p: Prescription['priority']): string {
+  switch (p) {
+    case 'now':
+      return '이번 주';
+    case 'soon':
+      return '이번 달';
+    default:
+      return '여유 있을 때';
+  }
+}
+
+/** 교육의 성격 — 사람을 가르칠 일인지, 자료를 고칠 일인지가 한눈에 갈려야 한다. */
+export function kindLabel(k: Prescription['kind']): string {
+  switch (k) {
+    case 'onboarding':
+      return '진입';
+    case 'engagement':
+      return '복귀';
+    case 'category':
+      return '분야 교육';
+    case 'cards':
+      return '개별 코칭';
+    case 'retention':
+      return '학습 방법';
+    default:
+      return '자료 보완';
+  }
+}
+
+/**
+ * 확신도를 **말로** 풀어 준다.
+ *
+ * 'medium' 만 띄우면 담당자는 그것이 "적당히 믿어도 된다"인지
+ * "표본이 모자라다"인지 알 수 없다. 근거의 한계를 숨기면 처방 전체가 과신된다.
+ */
+export function confidenceNote(c: Prescription['confidence']): string {
+  switch (c) {
+    case 'high':
+      return '서로 다른 근거 둘 이상이 같은 결론을 가리킵니다';
+    case 'medium':
+      return '근거는 분명하나 표본이나 비교 대상이 아쉽습니다';
+    default:
+      return '정황 수준입니다 — 실행 전에 직접 확인해 보세요';
+  }
+}
+
+export function confidenceLabel(c: Prescription['confidence']): string {
+  switch (c) {
+    case 'high':
+      return '확신 높음';
+    case 'medium':
+      return '확신 보통';
+    default:
+      return '확신 낮음';
+  }
+}
+
+/** 근거 한 줄의 세기. */
+export function strengthLabel(s: EvidenceStrength): string {
+  switch (s) {
+    case 'strong':
+      return '강함';
+    case 'moderate':
+      return '보통';
+    default:
+      return '약함';
+  }
+}
+
+/**
+ * 근거가 '비교까지 마친' 것인지 알려 준다.
+ *
+ * 비교 대상 없는 관측은 그 자체로 아무 말도 하지 않는다(실패율 30% 는 남들이
+ * 10% 면 심각하고 35% 면 평범하다). 화면에서 이 둘을 같아 보이게 두면
+ * 담당자는 근거의 질을 구별할 수 없다.
+ */
+export function isComparative(e: Evidence): boolean {
+  return Boolean(e.compared && e.compared.trim());
+}
+
+/** 분 단위 소요 시간을 사람이 읽는 단위로. */
+export function minutesLabel(m: number): string {
+  if (!Number.isFinite(m) || m <= 0) return '—';
+  if (m < 60) return `${Math.round(m)}분`;
+  const h = Math.floor(m / 60);
+  const rest = Math.round(m % 60);
+  return rest === 0 ? `${h}시간` : `${h}시간 ${rest}분`;
+}
+
+/**
+ * 처방 전체에 드는 시간.
+ *
+ * 총량을 보여 주는 이유: 개별 처방이 아무리 타당해도 다 합쳐 세 시간이면
+ * 담당자는 아무것도 시작하지 못한다. 무엇을 이번 주에 자를지 정하려면
+ * 총량이 먼저 보여야 한다.
+ */
+export function totalMinutes(ps: Prescription[]): number {
+  return ps.reduce((sum, p) => sum + (Number.isFinite(p.minutes) ? p.minutes : 0), 0);
+}
+
+/** '이번 주에 할 일'만 따로 — 목록 전체를 훑지 않아도 오늘 할 일이 보이게. */
+export function nowPrescriptions(ps: Prescription[]): Prescription[] {
+  return ps.filter((p) => p.priority === 'now');
 }
