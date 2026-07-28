@@ -9,6 +9,7 @@ import { toast } from '../lib/toast';
 import AsyncSection from '../components/AsyncSection.vue';
 import AppDialog from '../components/AppDialog.vue';
 import AppIcon from '../components/AppIcon.vue';
+import LearnerDiagnosisPanel from '../components/LearnerDiagnosisPanel.vue';
 
 /**
  * 사용자 상세 — 프로필 + 학습 진행 + 권한·상태 변경.
@@ -162,6 +163,11 @@ onMounted(() => void detail.run());
             <p v-if="learnTotal === 0" class="hint">아직 학습 기록이 없는 계정입니다.</p>
           </div>
         </section>
+
+        <!-- 진단은 계정 정보·진행 바로 다음에 온다.
+             권한·상태 변경보다 먼저 봐야 하는 정보다 — 관리자가 이 화면에 오는
+             이유는 대개 '이 사람을 어떻게 도울까'이지 권한 조정이 아니다. -->
+        <LearnerDiagnosisPanel v-if="user" :user-id="user.id" />
 
         <section class="panel">
           <div class="panel-head"><h2 class="panel-title">권한</h2></div>

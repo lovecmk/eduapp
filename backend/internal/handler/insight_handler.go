@@ -39,3 +39,15 @@ func (h *InsightHandler) Refresh(c *fiber.Ctx) error {
 	}
 	return c.JSON(out)
 }
+
+// Learner 는 GET /api/admin/insight/learner/:id — 학습자 한 명의 코칭 진단.
+//
+// 오답에 문제·정답·해설을 함께 실어 보낸다. 목록만 주면 관리자가 문제를 다시
+// 찾아 열어야 하고, 그 수고 때문에 결국 코칭을 안 하게 된다.
+func (h *InsightHandler) Learner(c *fiber.Ctx) error {
+	out, err := h.svc.Learner(c.Context(), param(c, "id"))
+	if err != nil {
+		return adminError(err)
+	}
+	return c.JSON(out)
+}

@@ -14,6 +14,7 @@ import type {
   AdminReport,
   AuditLog,
   Insight,
+  LearnerDiagnosis,
   NotifyInput,
   RoleCd,
   StatusCd,
@@ -244,6 +245,13 @@ class AdminApi {
   /** 분석 캐시를 버리고 다시 계산한다(고친 것이 반영됐는지 확인할 때). */
   refreshInsight(): Promise<Insight> {
     return this.request<Insight>('/api/admin/insight/refresh', { method: 'POST' });
+  }
+
+  /** 학습자 한 명의 코칭 진단(오답·약점·또래 비교). 캐시하지 않는다. */
+  learnerDiagnosis(id: string): Promise<LearnerDiagnosis> {
+    return this.request<LearnerDiagnosis>(
+      `/api/admin/insight/learner/${encodeURIComponent(id)}`,
+    );
   }
 
   users(q: UserQuery = {}): Promise<UserPage> {

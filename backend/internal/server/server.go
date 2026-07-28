@@ -253,6 +253,7 @@ func registerAdminRoutes(api fiber.Router, d Deps) {
 	if d.Insight.Available() {
 		admin.Get("/insight", ih.Insight)
 		admin.Post("/insight/refresh", ih.Refresh)
+		admin.Get("/insight/learner/:id", ih.Learner)
 	} else {
 		log.Printf("[admin] 저장소가 분석 읽기를 지원하지 않아 /insight 를 등록하지 않습니다")
 	}

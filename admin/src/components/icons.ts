@@ -41,6 +41,9 @@ export const ICON_PATHS = {
   x: 'M6 6l12 12M18 6L6 18',
   'arrow-left': 'M19 12H5M11 6l-6 6 6 6',
   keyboard: 'M3 6h18v12H3zM7 10h.01M11 10h.01M15 10h.01M17 10h.01M7 14h10',
+  // 접었다 펴는 표시 — 오답 카드에서 해설을 펼칠 때 쓴다.
+  'chevron-down': 'M6 9l6 6 6-6',
+  'chevron-up': 'M6 15l6-6 6 6',
 } as const;
 
 export type IconName = keyof typeof ICON_PATHS;

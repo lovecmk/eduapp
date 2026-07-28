@@ -422,3 +422,66 @@ export interface Insight {
   anomalies: Anomaly[];
   dead_content: DeadCard[];
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 학습자 진단(코칭용) — service.LearnerDiagnosis 와 짝을 이룬다.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** 오답이 이 사람의 약점인지, 원래 어려운 문제인지. */
+export type MissSignal = 'personal' | 'shared' | 'unknown';
+
+export interface LearnerSummary {
+  cards: number;
+  mastered: number;
+  reps: number;
+  lapses: number;
+  lapse_rate: number;
+  peer_lapse_rate: number;
+  mastery_rate: number;
+  peer_mastery_rate: number;
+  active_days: number;
+  days_away: number;
+  habitual: boolean;
+  last_seen?: string;
+}
+
+export interface CategoryWeakness {
+  category: string;
+  cards: number;
+  reps: number;
+  lapse_rate: number;
+  peer_rate: number;
+  gap: number;
+  verdict: 'weak' | 'shared' | 'ok';
+}
+
+/** 틀린 문제 — 정답·해설을 함께 실어 이 화면 하나로 가르칠 수 있게 한다. */
+export interface MissedCard {
+  card_id: string;
+  title: string;
+  category: string;
+  difficulty: string;
+  question: string;
+  answer: string;
+  explain: string;
+  reps: number;
+  lapses: number;
+  box: number;
+  last_grade: string;
+  last_reviewed_at?: string;
+  lapse_rate: number;
+  peer_rate: number;
+  peer_count: number;
+  signal: MissSignal;
+}
+
+export interface LearnerDiagnosis {
+  user_id: string;
+  name: string;
+  org: string;
+  summary: LearnerSummary;
+  verdict: Headline[];
+  weakness: CategoryWeakness[];
+  missed: MissedCard[];
+  rhythm: ActivityPoint[];
+}
