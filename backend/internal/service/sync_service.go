@@ -78,26 +78,19 @@ func (s *SyncService) Grade(ctx context.Context, userID string, in GradeInput) e
 	if state.DueAt.IsZero() {
 		state.DueAt = s.now()
 	}
-	return s.data.SaveSrs(ctx, state, s.dayKey(s.now()))
+	return s.data.SaveSrs(ctx, state, DayKey(s.now()))
 }
 
 // Attend 는 출석 도장을 찍는다.
 func (s *SyncService) Attend(ctx context.Context, userID, day string) error {
 	day = strings.TrimSpace(day)
 	if day == "" {
-		day = s.dayKey(s.now())
+		day = DayKey(s.now())
 	}
 	if len(day) > maxDayKeyLen {
 		return ErrInvalidInput{Reason: "날짜 키가 올바르지 않습니다"}
 	}
 	return s.data.MarkAttendance(ctx, userID, day, s.now())
-}
-
-// dayKey 는 앱과 같은 형식(YYYY-M-D)의 날짜 키를 만든다.
-// 형식이 어긋나면 같은 날이 두 칸으로 나뉘어 출석 달력이 깨진다.
-func (s *SyncService) dayKey(t time.Time) string {
-	y, m, d := t.Date()
-	return itoa(y) + "-" + itoa(int(m)) + "-" + itoa(d)
 }
 
 // Engagement 는 내 반응 목록을 준다.

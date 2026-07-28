@@ -25,6 +25,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '대시보드' },
   },
   {
+    path: '/insight',
+    name: 'insight',
+    component: () => import('../views/InsightView.vue'),
+    meta: { title: '분석' },
+  },
+  {
     path: '/users',
     name: 'users',
     component: () => import('../views/UsersView.vue'),

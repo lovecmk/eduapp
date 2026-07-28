@@ -46,6 +46,10 @@ type Deps struct {
 	Admin   *service.AdminService
 	Metrics *service.Metrics
 	Users   ports.UserRepository
+
+	// Insight 는 데이터 분석(난이도 보정·이탈·코호트). 없으면 /insight 만 빠지고
+	// 나머지 관리 API 는 그대로 동작한다 — 분석은 부가 기능이지 전제가 아니다.
+	Insight *service.InsightService
 }
 
 // New 는 라우트가 모두 등록된 Fiber 앱을 만든다.
@@ -216,6 +220,7 @@ func registerAdminRoutes(api fiber.Router, d Deps) {
 		return
 	}
 	h := handler.NewAdminHandler(d.Admin)
+	ih := handler.NewInsightHandler(d.Insight)
 
 	admin := api.Group("/admin",
 		middleware.RequireAuth(d.Tokens),
@@ -242,6 +247,15 @@ func registerAdminRoutes(api fiber.Router, d Deps) {
 	admin.Post("/notifications", h.Notify)
 
 	admin.Get("/audit", h.AuditLogs)
+
+	// 분석은 저장소가 집계 읽기를 지원할 때만 연다. 없는 기능을 열어 두고
+	// 500 을 돌려주면 화면은 '고장'으로 보인다 — 아예 없는 편이 정직하다.
+	if d.Insight.Available() {
+		admin.Get("/insight", ih.Insight)
+		admin.Post("/insight/refresh", ih.Refresh)
+	} else {
+		log.Printf("[admin] 저장소가 분석 읽기를 지원하지 않아 /insight 를 등록하지 않습니다")
+	}
 }
 
 // errorHandler 는 fiber.Error 를 { "message": ... } 형태로 정규화한다.

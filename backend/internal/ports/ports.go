@@ -184,3 +184,65 @@ type UserDataRepository interface {
 	MarkNotificationRead(ctx context.Context, userID, id string) error
 	MarkAllNotificationsRead(ctx context.Context, userID string) error
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 분석(insight) 읽기
+// ─────────────────────────────────────────────────────────────────────────────
+
+// InsightRepository 는 학습 데이터를 **전체에 걸쳐** 읽는다.
+//
+// 왜 UserDataRepository 와 따로 두는가 —
+// 그쪽은 전부 "사용자 1명" 단위다. 앱이 필요로 하는 읽기는 항상 내 것뿐이고,
+// 그 경계가 코드에 드러나는 것이 안전하기 때문이다(남의 데이터를 실수로 읽기 어렵다).
+// 분석은 정반대로 '전부를 가로질러' 봐야 한다. 두 성격을 한 포트에 섞으면
+// 앱 경로에서 전체 조회를 부를 수 있게 되어 그 안전장치가 사라진다.
+//
+// 반환 모양이 원본 행이 아니라 **집계된 값**인 것도 의도적이다. 원본을 끌어와
+// 서비스에서 합치면 저장소가 잘하는 일(GROUP BY)을 애플리케이션이 대신하게 되고,
+// 데이터가 늘수록 네트워크로 전부 실어 나르게 된다.
+type InsightRepository interface {
+	// CardLearning 은 카드별 학습 집계를 준다(학습자 수·시도·실패·평균 난이도).
+	CardLearning(ctx context.Context) ([]CardLearningStat, error)
+	// LearnerLearning 은 사용자별 학습 집계를 준다.
+	LearnerLearning(ctx context.Context) ([]LearnerStat, error)
+	// ActiveUserDays 는 (사용자, 날짜) 활동 쌍을 준다.
+	//
+	// 여기만 집계가 아니라 원재료를 그대로 주는 이유: 리텐션·코호트·연속 학습일은
+	// '며칠인가'가 아니라 '어느 날들인가'를 알아야 계산할 수 있다. 개수로 줄이면
+	// 7일 중 4일 학습 같은 습관 판정이 불가능해진다.
+	// 행 수는 (사용자 수 × 활동한 날 수)로 묶여 있고, 저장소 구현이 상한을 건다.
+	ActiveUserDays(ctx context.Context) ([]UserDay, error)
+}
+
+// CardLearningStat 은 카드 한 장에 대한 전체 사용자 학습 집계.
+type CardLearningStat struct {
+	CardID string
+	// Learners 는 이 카드를 한 번이라도 학습한 사람 수.
+	Learners int64
+	// Reps 는 총 시도 횟수, Lapses 는 그중 잊어서 되돌아간 횟수.
+	Reps   int64
+	Lapses int64
+	// AvgEase 는 평균 난이도 계수(낮을수록 어렵게 느낀다는 뜻).
+	AvgEase float64
+	// AvgBox 는 평균 기억 상자(높을수록 오래 기억한다).
+	AvgBox float64
+	// Mastered 는 충분히 익힌(상자 4 이상) 사람 수.
+	Mastered int64
+}
+
+// LearnerStat 은 사용자 한 명에 대한 학습 집계.
+type LearnerStat struct {
+	UserID   string
+	Cards    int64
+	Reps     int64
+	Lapses   int64
+	AvgBox   float64
+	LastSeen time.Time
+}
+
+// UserDay 는 "이 사람이 이 날 학습했다"는 사실 하나.
+// DayKey 는 앱이 쓰는 로컬 날짜 키(YYYY-M-D, month 0-based)를 그대로 쓴다.
+type UserDay struct {
+	UserID string
+	DayKey string
+}
