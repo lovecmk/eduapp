@@ -1,0 +1,637 @@
+package service
+
+import (
+	"fmt"
+	"sort"
+	"strings"
+	"time"
+)
+
+// 교육 처방 — "이 사람에게 무엇을, 왜 가르쳐야 하는가."
+//
+// ── 이 파일의 존재 이유 ────────────────────────────────────────────────────
+// 진단(learner.go)은 "무엇이 약한가"까지 답한다. 거기서 멈추면 교육은 시작되지
+// 않는다. 관리자가 실제로 움직이려면 세 가지가 **한 덩어리로** 붙어 있어야 한다:
+//
+//   ① 무엇을   — 구체적인 교육 단위(이 분야, 이 문제 여덟 장)
+//   ② 왜 이 사람인가 — 근거. 관측값 · 비교 대상 · 표본 · 적용한 규칙까지.
+//   ③ 무엇이 달라지는가 — 이 교육을 하면 기대되는 변화
+//
+// 셋 중 ②가 빠지면 처방은 지시가 된다. 현장의 안전교육에서 지시는 거부되거나,
+// 더 나쁘게는 형식적으로 소화된다. "왜 나만 이걸 또 들어야 하느냐"에 답할 수
+// 없는 교육은 시간만 쓴다. 그래서 여기서는 **근거 없는 처방을 만들지 않는다** —
+// 근거가 모자라면 처방 자체를 내지 않고 빠진다. 빈칸이 틀린 처방보다 낫다.
+//
+// 규칙은 전부 순수 함수다. 저장소도 시계도 보지 않고 진단 결과만 본다.
+// 그래서 "이 처방이 왜 나왔는가"를 표로 재현할 수 있다.
+
+const (
+	// prescriptionMinReps 는 분야 처방을 내기 위한 최소 시도 횟수.
+	// 세 번 풀어 본 분야의 실패율은 그날 컨디션이지 실력이 아니다.
+	prescriptionMinReps = 6
+
+	// prescriptionMinCards 는 분야 처방을 내기 위한 최소 문제 수.
+	// 한두 장으로 '이 분야가 약하다'고 말하면 그 분야 전체를 오해하게 된다.
+	prescriptionMinCards = 3
+
+	// coachMinutesPerCard 는 오답 한 장을 설명하는 데 잡는 시간(분).
+	// 현장 코칭 경험치다. 이 값이 있어야 관리자가 "오늘 이만큼은 할 수 있다"를
+	// 판단한다 — 소요 시간을 모르면 목록이 아무리 정확해도 미뤄진다.
+	coachMinutesPerCard = 3
+
+	// maxPrescriptions 는 한 사람에게 동시에 내는 처방의 상한.
+	// 여섯 개를 넘기면 우선순위가 사라지고, 우선순위가 없는 목록은 안 읽힌다.
+	maxPrescriptions = 6
+
+	// maxCardsPerPrescription 은 처방 하나가 지목하는 문제 수.
+	// 한 자리에서 다룰 수 있는 양을 넘기면 "다음에 하자"가 된다.
+	maxCardsPerPrescription = 8
+)
+
+// EvidenceStrength 는 근거 하나의 세기.
+//
+//	strong   — 표본이 충분하고 또래 비교까지 된 관측
+//	moderate — 관측은 분명하나 비교 대상이나 표본이 아쉬움
+//	weak     — 정황. 단독으로는 처방의 근거가 되지 못한다
+type EvidenceStrength = string
+
+// Evidence 는 처방 하나를 뒷받침하는 근거 한 줄.
+//
+// 근거는 "실패율이 높다" 같은 인상이 아니라 **재현 가능한 관측**이어야 한다.
+// 그래서 다섯 가지를 함께 싣는다:
+//
+//	Fact     무엇을 관측했나
+//	Observed 이 사람의 값
+//	Compared 무엇과 견줬나 — 비교 대상이 없으면 숫자는 아무 말도 하지 않는다
+//	Sample   그 비교의 표본 — 표본이 작으면 결론을 내리면 안 된다
+//	Rule     어떤 기준선을 넘었기에 처방이 됐나
+//
+// 이 다섯이 있으면 관리자는 처방을 **검증**할 수 있고, 필요하면 반박할 수도 있다.
+// 검증할 수 없는 추천은 결국 아무도 따르지 않는다.
+type Evidence struct {
+	Fact     string `json:"fact"`
+	Observed string `json:"observed"`
+	Compared string `json:"compared,omitempty"`
+	Sample   string `json:"sample,omitempty"`
+	Rule     string `json:"rule"`
+	// Source 는 이 수치가 어느 기록에서 나왔는지 — 관리자가 원본을 찾아갈 수 있어야 한다.
+	Source   string           `json:"source"`
+	Strength EvidenceStrength `json:"strength"`
+}
+
+// PrescribedCard 는 처방이 지목하는 문제 한 장.
+// 왜 이 문제가 뽑혔는지(Reason)를 함께 싣는다 — 목록만 주면 순서의 뜻이 사라진다.
+type PrescribedCard struct {
+	CardID     string `json:"card_id"`
+	Title      string `json:"title"`
+	Category   string `json:"category"`
+	Difficulty string `json:"difficulty"`
+	Reason     string `json:"reason"`
+}
+
+// Prescription 은 교육 처방 하나.
+type Prescription struct {
+	// ID 는 처방의 안정 키(화면에서 접기·완료 표시를 기억하는 데 쓴다).
+	ID   string `json:"id"`
+	Rank int    `json:"rank"`
+	// Priority: now(이번 주) | soon(이번 달) | later(여유 있을 때)
+	Priority string `json:"priority"`
+	// Kind: onboarding | engagement | category | cards | retention | content
+	Kind  string `json:"kind"`
+	Title string `json:"title"`
+	// Target 은 교육의 범위를 한 마디로("'전기' 분야 오답 6장").
+	Target string `json:"target"`
+	// Why 는 **왜 이 사람이** 이 교육을 받아야 하는가. 근거를 문장으로 압축한 것.
+	Why string `json:"why"`
+	// Action 은 관리자가 실제로 할 일. 동사로 끝난다.
+	Action string `json:"action"`
+	// Expect 는 이 교육으로 기대되는 변화 — 나중에 검증할 수 있는 형태로.
+	Expect string `json:"expect"`
+	// Minutes 는 예상 소요 시간(분).
+	Minutes int `json:"minutes"`
+	// Score 는 우선순위 점수(영향 × 확신). 정렬에만 쓴다.
+	Score float64 `json:"score"`
+	// Confidence: high | medium | low — 근거들의 세기를 종합한 값.
+	Confidence string           `json:"confidence"`
+	Evidence   []Evidence       `json:"evidence"`
+	Cards      []PrescribedCard `json:"cards"`
+}
+
+// buildPrescriptions 는 진단 결과에서 교육 처방을 뽑는다.
+//
+// 입력으로 진단(d)을 받는 이유: 화면에 보이는 표와 처방이 **같은 계산**에서
+// 나와야 한다. 처방만 따로 계산하면 "표에는 약점이 없다는데 처방은 있다"는
+// 상태가 생기고, 그 순간 관리자는 둘 다 믿지 않게 된다.
+func buildPrescriptions(d LearnerDiagnosis, in LearnerInput) []Prescription {
+	out := []Prescription{}
+
+	// 순서에 의미가 있다. 아래 규칙들은 '교육이 성립하기 위한 선행 조건'부터
+	// 검사한다 — 오지 않는 사람에게 무엇을 가르칠지 정하는 것은 순서가 틀렸다.
+	if p, ok := prescribeOnboarding(d, in); ok {
+		out = append(out, p)
+	}
+	if p, ok := prescribeEngagement(d); ok {
+		out = append(out, p)
+	}
+	out = append(out, prescribeCategories(d)...)
+	if p, ok := prescribePersonalCards(d); ok {
+		out = append(out, p)
+	}
+	if p, ok := prescribeRetention(d); ok {
+		out = append(out, p)
+	}
+	if p, ok := prescribeContentFix(d); ok {
+		out = append(out, p)
+	}
+
+	// 점수 내림차순. 같으면 제목순으로 고정해 같은 입력이 같은 순서를 낸다.
+	sort.SliceStable(out, func(i, j int) bool {
+		if out[i].Score != out[j].Score {
+			return out[i].Score > out[j].Score
+		}
+		return out[i].Title < out[j].Title
+	})
+	if len(out) > maxPrescriptions {
+		out = out[:maxPrescriptions]
+	}
+	for i := range out {
+		out[i].Rank = i + 1
+		out[i].Confidence = foldConfidence(out[i].Evidence)
+	}
+	return out
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 0. 시작하지 않은 사람 — 내용 이전에 진입이 문제다
+// ─────────────────────────────────────────────────────────────────────────────
+
+func prescribeOnboarding(d LearnerDiagnosis, in LearnerInput) (Prescription, bool) {
+	if d.Summary.Cards > 0 {
+		return Prescription{}, false
+	}
+
+	since := ""
+	strength := EvidenceStrength("moderate")
+	if !in.User.CreatedAt.IsZero() {
+		days := daysAway(in.Now, in.User.CreatedAt)
+		since = fmt.Sprintf("가입 후 %d일", days)
+		// 가입한 지 얼마 안 됐으면 아직 '안 하는 사람'이라고 부를 수 없다.
+		if days >= 7 {
+			strength = "strong"
+		}
+	}
+
+	ev := []Evidence{{
+		Fact:     "가입 이후 학습 기록이 한 건도 없습니다",
+		Observed: "푼 문제 0장 · 학습한 날 0일",
+		Compared: since,
+		Rule:     "학습 기록이 0건이면 내용 진단 자체가 불가능하다 — 진입부터 해결한다",
+		Source:   "학습 동기화 기록(카드별 채점 이력)",
+		Strength: strength,
+	}}
+
+	return Prescription{
+		ID: "onboarding", Priority: "now", Kind: "onboarding",
+		Title:  "첫 학습 진입 안내",
+		Target: "앱 설치·로그인·첫 문제 1장",
+		Why: "무엇이 부족한지 판단할 근거가 아직 없습니다. 약점이 없어서가 아니라 " +
+			"측정된 적이 없어서입니다. 이 상태에서 내용 교육을 배정하면 근거 없는 배정이 됩니다.",
+		Action:  "설치·로그인 상태를 확인하고, 옆에서 첫 문제 한 장을 함께 풀어 주세요.",
+		Expect:  "첫 학습 기록이 남으면 다음 진단부터 분야별 약점을 근거와 함께 지목할 수 있습니다.",
+		Minutes: 10,
+		Score:   90,
+		// 점수 90 — 미측정은 '약점 없음'이 아니다. 다른 모든 처방의 선행 조건이라 높게 둔다.
+		Evidence: ev,
+		Cards:    []PrescribedCard{},
+	}, true
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 1. 끊긴 사람 — 무엇을 가르치든 오지 않으면 소용없다
+// ─────────────────────────────────────────────────────────────────────────────
+
+func prescribeEngagement(d LearnerDiagnosis) (Prescription, bool) {
+	away := d.Summary.DaysAway
+	if d.Summary.Cards == 0 || away < churnWarnDays {
+		return Prescription{}, false
+	}
+
+	priority, score := "soon", 60.0
+	if away >= churnRiskDays {
+		priority, score = "now", 85.0
+	}
+
+	awayTxt := fmt.Sprintf("%d일째 학습 없음", away)
+	if away >= 9999 {
+		awayTxt = "마지막 학습 시점 기록 없음"
+	}
+
+	ev := []Evidence{
+		{
+			Fact:     "마지막 학습 이후 경과일이 습관 이탈 구간에 들어갔습니다",
+			Observed: awayTxt,
+			Rule: fmt.Sprintf("%d일이면 습관이 끊기기 시작하고, %d일을 넘기면 대부분 돌아오지 않는다",
+				churnWarnDays, churnRiskDays),
+			Source:   "학습 이력의 마지막 채점 시각",
+			Strength: "strong",
+		},
+		{
+			Fact:     "그동안 쌓아 둔 학습량이 있어 되돌릴 값어치가 큽니다",
+			Observed: fmt.Sprintf("누적 %d장 · 학습한 날 %d일", d.Summary.Cards, d.Summary.ActiveDays),
+			Rule:     "쌓인 학습량이 많을수록 복귀 시 회복 속도가 빠르다 — 신규 유치보다 비용이 낮다",
+			Source:   "학습 동기화 기록",
+			Strength: evidenceStrengthBySample(d.Summary.Cards, 10, 30),
+		},
+	}
+	if !d.Summary.Habitual {
+		ev = append(ev, Evidence{
+			Fact:     "중단 이전에도 학습이 규칙적이지 않았습니다",
+			Observed: fmt.Sprintf("최근 %d일 중 학습일이 %d일 미만", habitWindowDays, habitActiveDays),
+			Rule:     fmt.Sprintf("%d일 중 %d일 이상이면 습관 형성으로 본다", habitWindowDays, habitActiveDays),
+			Source:   "일자별 학습 이력",
+			Strength: "moderate",
+		})
+	}
+
+	return Prescription{
+		ID: "engagement", Priority: priority, Kind: "engagement",
+		Title:  "학습 복귀 유도",
+		Target: "내용 교육 이전의 복귀 접촉",
+		Why: "약점을 아무리 정확히 짚어도 학습 화면에 오지 않으면 전달되지 않습니다. " +
+			"이 사람은 이미 쌓아 둔 학습량이 있어, 새로 가르치는 것보다 되돌리는 편이 비용이 낮습니다.",
+		Action:  "복귀 알림을 보내고, 짧은 분량(3장)으로 재시작 목표를 낮춰 잡아 주세요.",
+		Expect:  "7일 안에 학습일이 한 번이라도 생기면 이후 분야 처방을 정상 배정할 수 있습니다.",
+		Minutes: 5,
+		Score:   score,
+		// 이 처방은 다른 처방의 전달 조건이다. 그래서 분야 처방보다 위에 온다.
+		Evidence: ev,
+		Cards:    []PrescribedCard{},
+	}, true
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 2. 분야 재교육 — 낱장 코칭보다 묶어 가르치는 편이 빠른 경우
+// ─────────────────────────────────────────────────────────────────────────────
+
+func prescribeCategories(d LearnerDiagnosis) []Prescription {
+	out := []Prescription{}
+	for _, w := range d.Weakness {
+		// 이 분야가 '이 사람의 약점'이라고 판정된 것만 처방한다.
+		// shared(다들 어려움)는 사람이 아니라 콘텐츠 쪽 일이다.
+		if w.Verdict != "weak" {
+			continue
+		}
+		// 표본이 모자라면 처방하지 않는다. 근거가 약한 처방은 내지 않는 편이 낫다.
+		if w.Reps < prescriptionMinReps || w.Cards < prescriptionMinCards {
+			continue
+		}
+
+		cards := cardsForCategory(d.Missed, w.Category)
+
+		ev := []Evidence{
+			{
+				Fact:     fmt.Sprintf("'%s' 분야에서만 또래보다 뚜렷하게 더 틀립니다", w.Category),
+				Observed: fmt.Sprintf("본인 실패율 %s", pctText(w.LapseRate)),
+				Compared: fmt.Sprintf("같은 문제를 푼 또래 %s", pctText(w.PeerRate)),
+				Sample: fmt.Sprintf("이 분야에서 본인이 푼 문제 %d장 · 시도 %d회",
+					w.Cards, w.Reps),
+				Rule: fmt.Sprintf("또래와의 격차가 %.0f%%p 이상이면 개인 약점으로 판정(현재 %+.0f%%p)",
+					personalGapThreshold*100, w.Gap*100),
+				Source:   "카드별 채점 이력 + 같은 카드를 푼 전체 학습자 집계",
+				Strength: evidenceStrengthBySample(w.Reps, prescriptionMinReps, 20),
+			},
+			{
+				Fact:     "이 분야가 어려운 문제만 모여서 생긴 결과는 아닙니다",
+				Observed: fmt.Sprintf("같은 문제에서 또래 실패율은 %s", pctText(w.PeerRate)),
+				Rule: fmt.Sprintf("또래 실패율이 %.0f%% 이상이면 '모두 어려워함'으로 분류해 개인 처방에서 제외한다",
+					sharedDifficultyRate*100),
+				Source:   "카드별 전체 학습자 집계",
+				Strength: "strong",
+			},
+		}
+		if len(cards) > 0 {
+			ev = append(ev, Evidence{
+				Fact:     "실제로 반복해서 틀린 문제가 이 분야에 몰려 있습니다",
+				Observed: fmt.Sprintf("이 분야 오답 %d장", len(cards)),
+				Rule:     "낱장이 아니라 같은 분야에 몰려 있으면 원리 이해의 공백으로 본다",
+				Source:   "카드별 채점 이력",
+				Strength: evidenceStrengthBySample(int64(len(cards)), 2, 5),
+			})
+		}
+
+		// 영향 점수 = 격차의 크기 × 이 분야에 들인 학습량.
+		// 격차가 커도 두 장짜리 분야면 교육 효과가 작다.
+		score := w.Gap*100 + float64(w.Cards)
+
+		out = append(out, Prescription{
+			ID:       "category:" + w.Category,
+			Priority: priorityByGap(w.Gap),
+			Kind:     "category",
+			Title:    fmt.Sprintf("'%s' 분야 재교육", w.Category),
+			Target:   fmt.Sprintf("'%s' 분야 · 오답 %d장 포함 %d장", w.Category, len(cards), w.Cards),
+			Why: fmt.Sprintf(
+				"같은 문제를 푼 또래는 %s만 틀리는데 이 사람은 %s를 틀립니다(%+.0f%%p). "+
+					"문제가 어려워서가 아니라 이 분야의 원리를 다르게 이해하고 있을 가능성이 큽니다.",
+				pctText(w.PeerRate), pctText(w.LapseRate), w.Gap*100),
+			Action: fmt.Sprintf(
+				"'%s' 분야를 낱장이 아니라 원리 단위로 30분 재교육하고, 끝난 뒤 이 분야 오답을 다시 풀리세요.",
+				w.Category),
+			Expect: fmt.Sprintf(
+				"이 분야 실패율이 또래 수준(%s)에 가까워지는지 2주 뒤 같은 표에서 확인할 수 있습니다.",
+				pctText(w.PeerRate)),
+			Minutes:  30,
+			Score:    score,
+			Evidence: ev,
+			Cards:    cards,
+		})
+	}
+	return out
+}
+
+// cardsForCategory 는 그 분야에서 **이 사람만 어려워하는** 오답을 고른다.
+// shared(다들 틀리는 문제)를 섞으면 개인 코칭 시간이 콘텐츠 문제로 새어 나간다.
+func cardsForCategory(missed []MissedCard, category string) []PrescribedCard {
+	out := []PrescribedCard{}
+	for _, m := range missed {
+		if m.Category != category || m.Signal == "shared" {
+			continue
+		}
+		out = append(out, toPrescribedCard(m))
+		if len(out) >= maxCardsPerPrescription {
+			break
+		}
+	}
+	return out
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 3. 개별 문제 코칭 — 분야로 묶이지 않는 낱장 약점
+// ─────────────────────────────────────────────────────────────────────────────
+
+func prescribePersonalCards(d LearnerDiagnosis) (Prescription, bool) {
+	cards := []PrescribedCard{}
+	var worstGap float64
+	var totalReps int64
+	for _, m := range d.Missed {
+		if m.Signal != "personal" {
+			continue
+		}
+		totalReps += m.Reps
+		if gap := m.LapseRate - m.PeerRate; gap > worstGap {
+			worstGap = gap
+		}
+		if len(cards) < maxCardsPerPrescription {
+			cards = append(cards, toPrescribedCard(m))
+		}
+	}
+	if len(cards) == 0 {
+		return Prescription{}, false
+	}
+
+	first := cards[0]
+	ev := []Evidence{
+		{
+			Fact:     "또래는 대체로 맞히는 문제를 반복해서 틀립니다",
+			Observed: fmt.Sprintf("해당 문제 %d장 · 최대 격차 %+.0f%%p", len(cards), worstGap*100),
+			Compared: "같은 문제를 푼 다른 학습자들의 실패율",
+			Sample:   fmt.Sprintf("비교에 쓴 최소 인원 %d명 이상 · 본인 시도 %d회", minPeersForComparison, totalReps),
+			Rule: fmt.Sprintf("또래 실패율이 %.0f%% 미만인데 본인이 %.0f%%p 이상 더 틀리면 개인 약점으로 본다",
+				sharedDifficultyRate*100, personalGapThreshold*100),
+			Source:   "카드별 채점 이력 + 같은 카드를 푼 전체 학습자 집계",
+			Strength: "strong",
+		},
+		{
+			Fact:     "정답과 해설이 이미 있으므로 즉시 코칭할 수 있습니다",
+			Observed: fmt.Sprintf("예: %s", first.Title),
+			Rule:     "문제·정답·원리를 한 화면에서 볼 수 있으면 준비 시간 때문에 코칭이 미뤄지지 않는다",
+			Source:   "학습 콘텐츠(문제 본문·정답·원리)",
+			Strength: "moderate",
+		},
+	}
+
+	return Prescription{
+		ID: "cards:personal", Priority: "now", Kind: "cards",
+		Title:  fmt.Sprintf("개별 오답 코칭 %d장", len(cards)),
+		Target: "또래는 맞히는데 이 사람만 틀리는 문제",
+		Why: "이 문제들은 난이도 때문이 아닙니다. 같은 문제에서 또래는 대체로 맞힙니다. " +
+			"특정 개념이나 절차를 잘못 기억하고 있을 가능성이 높아, 설명 한 번으로 교정되는 경우가 많습니다.",
+		Action:  "아래 문제를 하나씩 열어 정답과 원리를 설명하고, 그 자리에서 다시 풀리세요.",
+		Expect:  "다음 복습에서 이 문제들의 재실패가 사라지면 교정된 것입니다. 남으면 분야 재교육으로 올리세요.",
+		Minutes: len(cards) * coachMinutesPerCard,
+		// 개인 약점은 교육 효과가 가장 확실한 자리다 — 기본 점수를 높게 둔다.
+		Score:    70 + float64(len(cards))*2,
+		Evidence: ev,
+		Cards:    cards,
+	}, true
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 4. 복습 주기 — 배우긴 했는데 남지 않는 경우
+// ─────────────────────────────────────────────────────────────────────────────
+
+func prescribeRetention(d LearnerDiagnosis) (Prescription, bool) {
+	s := d.Summary
+	// 표본이 없으면 판단하지 않는다.
+	if s.Cards < 10 || s.PeerMastery <= 0 {
+		return Prescription{}, false
+	}
+	gap := s.PeerMastery - s.MasteryRate
+	// 숙달률이 또래보다 이만큼 낮아야 '남지 않는다'고 말할 수 있다.
+	// 0.15 는 분야 판정(0.25)보다 좁다 — 숙달률은 실패율보다 천천히 움직여
+	// 같은 기준을 쓰면 아무것도 걸리지 않는다.
+	const masteryGapThreshold = 0.15
+	if gap < masteryGapThreshold {
+		return Prescription{}, false
+	}
+
+	ev := []Evidence{
+		{
+			Fact:     "문제를 푸는 양에 비해 오래 남는 비율이 낮습니다",
+			Observed: fmt.Sprintf("숙달률 %s (푼 문제 %d장 중 %d장)", pctText(s.MasteryRate), s.Cards, s.Mastered),
+			Compared: fmt.Sprintf("같은 문제를 푼 또래 숙달률 %s", pctText(s.PeerMastery)),
+			Sample:   fmt.Sprintf("본인 시도 %d회 · 실패 %d회", s.Reps, s.Lapses),
+			Rule: fmt.Sprintf("또래보다 숙달률이 %.0f%%p 이상 낮으면 복습 주기 문제로 본다(현재 %.0f%%p 낮음)",
+				masteryGapThreshold*100, gap*100),
+			Source:   "카드별 기억 상자(간격반복 상태) 집계",
+			Strength: evidenceStrengthBySample(s.Cards, 10, 40),
+		},
+		{
+			Fact:     "학습 빈도가 간격반복이 요구하는 주기를 채우지 못하고 있습니다",
+			Observed: fmt.Sprintf("학습한 날 %d일 · %s", s.ActiveDays, habitText(s.Habitual)),
+			Rule:     fmt.Sprintf("간격반복은 복습 시점을 놓치면 상자가 되돌아간다 — 최근 %d일 중 %d일 이상 접속이 전제", habitWindowDays, habitActiveDays),
+			Source:   "일자별 학습 이력",
+			Strength: boolStrength(!s.Habitual, "strong", "weak"),
+		},
+	}
+
+	return Prescription{
+		ID: "retention", Priority: "soon", Kind: "retention",
+		Title:  "복습 주기 교정",
+		Target: "학습 방법 · 복습 간격",
+		Why: fmt.Sprintf(
+			"새 문제는 풀고 있는데 남는 비율이 또래보다 %.0f%%p 낮습니다. "+
+				"내용을 몰라서가 아니라 복습 시점을 놓쳐 되돌아가는 패턴입니다. "+
+				"이 상태에서 새 분야를 더 배정하면 쌓이지 않고 흘러갑니다.", gap*100),
+		Action:  "새 문제 배정을 잠시 줄이고, 복습 알림 시간을 본인 근무 패턴에 맞춰 다시 잡아 주세요.",
+		Expect:  fmt.Sprintf("숙달률이 또래 수준(%s)으로 올라오면 새 분야 배정을 재개하면 됩니다.", pctText(s.PeerMastery)),
+		Minutes: 15,
+		Score:   40 + gap*100,
+		// 복습 문제는 급하지 않지만 방치하면 다른 모든 교육의 효과를 깎는다.
+		Evidence: ev,
+		Cards:    []PrescribedCard{},
+	}, true
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 5. 콘텐츠 손보기 — 이 사람 문제가 아닌 것을 개인 교육으로 처리하지 않기 위해
+// ─────────────────────────────────────────────────────────────────────────────
+
+func prescribeContentFix(d LearnerDiagnosis) (Prescription, bool) {
+	cards := []PrescribedCard{}
+	cats := map[string]struct{}{}
+	for _, m := range d.Missed {
+		if m.Signal != "shared" {
+			continue
+		}
+		cats[m.Category] = struct{}{}
+		if len(cards) < maxCardsPerPrescription {
+			cards = append(cards, toPrescribedCard(m))
+		}
+	}
+	if len(cards) == 0 {
+		return Prescription{}, false
+	}
+
+	ev := []Evidence{{
+		Fact:     "이 문제들은 이 사람만이 아니라 대부분의 학습자가 틀립니다",
+		Observed: fmt.Sprintf("해당 오답 %d장 · 관련 분야 %d개", len(cards), len(cats)),
+		Compared: "같은 문제를 푼 전체 학습자의 실패율",
+		Sample:   fmt.Sprintf("비교에 쓴 최소 인원 %d명 이상", minPeersForComparison),
+		Rule: fmt.Sprintf("또래 실패율이 %.0f%% 이상이면 개인 약점이 아니라 문제·자료 쪽 원인으로 본다",
+			sharedDifficultyRate*100),
+		Source:   "카드별 전체 학습자 집계",
+		Strength: "strong",
+	}}
+
+	return Prescription{
+		ID: "content", Priority: "later", Kind: "content",
+		Title:  fmt.Sprintf("문제·자료 보완 %d장", len(cards)),
+		Target: "학습 콘텐츠(개인 교육 대상 아님)",
+		Why: "이 오답은 이 사람의 약점 근거가 되지 못합니다. 같은 문제에서 다른 학습자도 대부분 틀립니다. " +
+			"여기에 개인 코칭 시간을 쓰면 같은 설명을 사람 수만큼 반복하게 됩니다.",
+		Action:  "문제 문장이 모호한지, 해설이 원리를 설명하는지 확인하고 문제를 고치세요. 난이도 표기도 함께 점검합니다.",
+		Expect:  "문제를 고치면 이 오답은 다음 진단부터 개인 처방 목록에서 빠집니다.",
+		Minutes: len(cards) * 5,
+		// 개인 처방보다 낮게 둔다 — 급하지만 '이 사람'의 일은 아니다.
+		Score:    20 + float64(len(cards)),
+		Evidence: ev,
+		Cards:    cards,
+	}, true
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 도우미
+// ─────────────────────────────────────────────────────────────────────────────
+
+func toPrescribedCard(m MissedCard) PrescribedCard {
+	reason := fmt.Sprintf("%d회 중 %d회 실패(%s)", m.Reps, m.Lapses, pctText(m.LapseRate))
+	if m.PeerCount >= minPeersForComparison {
+		reason += fmt.Sprintf(" · 또래 %s(%d명)", pctText(m.PeerRate), m.PeerCount)
+	} else {
+		reason += " · 또래 비교 표본 부족"
+	}
+	return PrescribedCard{
+		CardID: m.CardID, Title: firstNonEmpty(m.Title, "(제목 없음)"),
+		Category: m.Category, Difficulty: m.Difficulty, Reason: reason,
+	}
+}
+
+// priorityByGap 은 격차의 크기로 급한 정도를 정한다.
+// 임계(0.25)를 갓 넘긴 것과 두 배로 넘긴 것을 같은 급으로 두면 순서가 사라진다.
+func priorityByGap(gap float64) string {
+	if gap >= personalGapThreshold*2 {
+		return "now"
+	}
+	return "soon"
+}
+
+// evidenceStrengthBySample 은 표본 크기만으로 근거의 세기를 정한다.
+// 같은 관측이라도 6회짜리와 60회짜리를 같은 무게로 두면 안 된다.
+func evidenceStrengthBySample(n, moderateAt, strongAt int64) EvidenceStrength {
+	switch {
+	case n >= strongAt:
+		return "strong"
+	case n >= moderateAt:
+		return "moderate"
+	default:
+		return "weak"
+	}
+}
+
+func boolStrength(cond bool, yes, no EvidenceStrength) EvidenceStrength {
+	if cond {
+		return yes
+	}
+	return no
+}
+
+// foldConfidence 는 근거들의 세기를 처방 하나의 확신도로 접는다.
+//
+// 강한 근거 하나보다 강한 근거 둘이 낫다 — 서로 다른 각도의 관측이 같은 결론을
+// 가리킬 때 비로소 우연이 아니라고 말할 수 있다.
+func foldConfidence(ev []Evidence) string {
+	strong, moderate := 0, 0
+	for _, e := range ev {
+		switch e.Strength {
+		case "strong":
+			strong++
+		case "moderate":
+			moderate++
+		}
+	}
+	switch {
+	case strong >= 2:
+		return "high"
+	case strong >= 1 || moderate >= 2:
+		return "medium"
+	default:
+		return "low"
+	}
+}
+
+// pctText 는 비율을 화면과 같은 규칙(정수 %)으로 문자열화한다.
+// 서버와 화면이 각자 반올림하면 근거 문장과 표의 숫자가 1% 어긋난다.
+func pctText(v float64) string {
+	return fmt.Sprintf("%.0f%%", v*100)
+}
+
+func habitText(habitual bool) string {
+	if habitual {
+		return "습관 형성됨"
+	}
+	return "아직 불규칙"
+}
+
+// summarizeNeeds 는 처방 목록을 한 줄로 압축한다(목록 화면에서 쓴다).
+// 상세를 열지 않고도 "이 사람에게 뭐가 필요한지"가 보여야 목록이 쓸모 있다.
+func summarizeNeeds(ps []Prescription) string {
+	if len(ps) == 0 {
+		return "지금 배정할 교육 없음"
+	}
+	titles := make([]string, 0, 2)
+	for _, p := range ps {
+		if len(titles) == 2 {
+			break
+		}
+		titles = append(titles, p.Title)
+	}
+	s := strings.Join(titles, " · ")
+	if len(ps) > len(titles) {
+		s += fmt.Sprintf(" 외 %d건", len(ps)-len(titles))
+	}
+	return s
+}
+
+// 컴파일 시점에 time 이 쓰이는지 확인하기 위한 참조가 아니라,
+// 온보딩 근거에서 가입 경과일을 계산할 때 실제로 쓴다.
+var _ = time.Time{}
