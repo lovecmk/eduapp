@@ -66,7 +66,7 @@ export function CardReportModal({ visible, card, onClose }: { visible: boolean; 
             {REASONS.map((r) => {
               const active = r === reason;
               return (
-                <Pressable key={r} onPress={() => setReason(r)}
+                <Pressable accessibilityRole="button" key={r} onPress={() => setReason(r)}
                   style={[styles.chip, { backgroundColor: active ? c.primary : c.surfaceAlt, borderColor: active ? c.primary : c.border }]}>
                   <Text style={{ color: active ? c.textOnPrimary : c.textSecondary, fontSize: 12, fontFamily: fontDisplay }}>{REPORT_REASON_LABEL[r]}</Text>
                 </Pressable>

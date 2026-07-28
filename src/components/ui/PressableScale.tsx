@@ -20,7 +20,7 @@ export function PressableScale({ children, activeScale = 0.9, haptic = false, st
 
   return (
     <Animated.View style={animatedStyle}>
-      <Pressable
+      <Pressable accessibilityRole="button"
         {...rest}
         onPressIn={(e) => {
           scale.value = withTiming(activeScale, { duration: 90 });

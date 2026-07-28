@@ -66,7 +66,7 @@ export function MomentModal({
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
       <Animated.View style={[styles.overlay, overlayStyle]}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="닫기" />
+        <Pressable accessibilityRole="button" style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="닫기" />
         <Animated.View style={[styles.card, cardStyle, { backgroundColor: c.surface, borderColor: c.border }]}>
           {/* 상단 컬러 글로우 */}
           <View style={[styles.glow, { backgroundColor: accent + '22' }]} />

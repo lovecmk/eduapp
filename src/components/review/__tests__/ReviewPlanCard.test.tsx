@@ -20,6 +20,7 @@ function plan(over: Partial<ReviewPlan> = {}): ReviewPlan {
     fragile: 0,
     nextDueAt: null,
     upcoming: [],
+    now: Date.now(),
     ...over,
   };
 }

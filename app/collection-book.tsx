@@ -197,7 +197,7 @@ export default function CollectionBookScreen() {
                 const ownT = byRarity[tier].filter((x) => owned[x.id]).length;
                 const active = rarityFilter === tier;
                 return (
-                  <Pressable key={tier} onPress={() => { hapticTap(); setRarityFilter(active ? 'all' : tier); }}
+                  <Pressable accessibilityRole="button" key={tier} onPress={() => { hapticTap(); setRarityFilter(active ? 'all' : tier); }}
                     style={{ flex: 1, alignItems: 'center', backgroundColor: active ? JEWEL_META[tier].glow + '22' : c.surfaceAlt, borderRadius: 12, paddingVertical: 8, borderWidth: 1, borderColor: active ? JEWEL_META[tier].glow : 'transparent' }}>
                     <Text style={{ color: JEWEL_META[tier].glow, fontSize: 10.5, fontFamily: fontDisplay, fontWeight: '800' }}>{label(tier)}</Text>
                     <Text style={{ color: c.textPrimary, fontSize: 12.5, fontFamily: fontMono, fontWeight: '800', marginTop: 2 }}>{ownT}/{totalT}</Text>
@@ -208,13 +208,13 @@ export default function CollectionBookScreen() {
 
             {/* 팩 열기 / 일일 무료팩 */}
             <View style={{ flexDirection: 'row', gap: 10, marginTop: 16 }}>
-              <Pressable onPress={onOpen} disabled={packs <= 0}
+              <Pressable accessibilityRole="button" onPress={onOpen} disabled={packs <= 0}
                 style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, backgroundColor: packs > 0 ? c.primary : c.disabled, borderRadius: 14, height: 48 }}>
                 <Ionicons name="gift" size={18} color="#fff" />
                 <Text style={{ color: '#fff', fontSize: 14 * fs, fontFamily: fontCute, fontWeight: '800' }}>{packs > 0 ? `카드팩 열기 (${packs})` : '보유한 팩 없음'}</Text>
               </Pressable>
               {canClaimDaily && (
-                <Pressable onPress={onClaimDaily}
+                <Pressable accessibilityRole="button" onPress={onClaimDaily}
                   style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.warning, borderRadius: 14, height: 48, paddingHorizontal: 16 }}>
                   <Ionicons name="calendar" size={16} color="#fff" />
                   <Text style={{ color: '#fff', fontSize: 13 * fs, fontFamily: fontCute, fontWeight: '800' }}>오늘의 무료팩</Text>
@@ -237,7 +237,7 @@ export default function CollectionBookScreen() {
 
           {/* 카드팩 획득 방법 — 기본은 접어두고(도감이 커진 만큼 목록을 먼저), 탭하면 펼침 */}
           <View style={{ backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 20, paddingHorizontal: 18, paddingVertical: 14, marginTop: 14 }}>
-            <Pressable onPress={() => { hapticTap(); setHowtoOpen((v) => !v); }}
+            <Pressable accessibilityRole="button" onPress={() => { hapticTap(); setHowtoOpen((v) => !v); }}
               style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Ionicons name="sparkles" size={16} color={c.primary} />
               <Text style={{ color: c.textPrimary, fontSize: 14 * fs, fontFamily: fontCute, fontWeight: '800', flex: 1 }}>카드팩 얻는 방법</Text>
@@ -280,7 +280,7 @@ export default function CollectionBookScreen() {
             {CATEGORIES.map((cat) => {
               const active = categoryFilter === cat.key;
               return (
-                <Pressable key={cat.key} onPress={() => { hapticTap(); setCategoryFilter(cat.key); }}
+                <Pressable accessibilityRole="button" key={cat.key} onPress={() => { hapticTap(); setCategoryFilter(cat.key); }}
                   style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, height: 34, borderRadius: 999, backgroundColor: active ? c.primary : c.surfaceAlt, borderWidth: 1, borderColor: active ? c.primary : c.border }}>
                   <Text style={{ fontSize: 12 }}>{cat.emoji}</Text>
                   <Text style={{ color: active ? '#fff' : c.textSecondary, fontSize: 12.5 * fs, fontFamily: fontCute, fontWeight: '700' }}>{cat.label}</Text>
@@ -295,7 +295,7 @@ export default function CollectionBookScreen() {
               {([['all', '전체'], ['owned', '보유'], ['missing', '미보유']] as [StatusFilter, string][]).map(([key, lbl]) => {
                 const active = statusFilter === key;
                 return (
-                  <Pressable key={key} onPress={() => { hapticTap(); setStatusFilter(key); }}
+                  <Pressable accessibilityRole="button" key={key} onPress={() => { hapticTap(); setStatusFilter(key); }}
                     style={{ paddingHorizontal: 14, paddingVertical: 6, borderRadius: 999, backgroundColor: active ? c.primary : 'transparent' }}>
                     <Text style={{ color: active ? '#fff' : c.textSecondary, fontSize: 12.5 * fs, fontFamily: fontCute, fontWeight: '700' }}>{lbl}</Text>
                   </Pressable>
@@ -305,7 +305,7 @@ export default function CollectionBookScreen() {
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <Text style={{ color: c.textSecondary, fontSize: 12 * fs, fontFamily: fontMono }}>{filtered.length}장</Text>
               {filterActive && (
-                <Pressable onPress={() => { hapticTap(); resetFilters(); }} hitSlop={6} style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                <Pressable accessibilityRole="button" onPress={() => { hapticTap(); resetFilters(); }} hitSlop={6} style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
                   <Ionicons name="close-circle" size={15} color={c.textSecondary} />
                   <Text style={{ color: c.textSecondary, fontSize: 12 * fs, fontFamily: fontCute }}>초기화</Text>
                 </Pressable>
@@ -321,7 +321,7 @@ export default function CollectionBookScreen() {
               <Text style={{ fontSize: 40 }}>🔍</Text>
               <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontFamily: fontCute, fontWeight: '800', marginTop: 12 }}>조건에 맞는 카드가 없어요</Text>
               <Text style={{ color: c.textSecondary, fontSize: 12.5 * fs, fontFamily: fontBody, marginTop: 4 }}>검색어나 필터를 바꿔보세요</Text>
-              <Pressable onPress={resetFilters} style={{ marginTop: 14, backgroundColor: c.primary, borderRadius: 12, paddingHorizontal: 18, paddingVertical: 9 }}>
+              <Pressable accessibilityRole="button" onPress={resetFilters} style={{ marginTop: 14, backgroundColor: c.primary, borderRadius: 12, paddingHorizontal: 18, paddingVertical: 9 }}>
                 <Text style={{ color: '#fff', fontSize: 13 * fs, fontFamily: fontCute, fontWeight: '800' }}>필터 초기화</Text>
               </Pressable>
             </View>
@@ -337,7 +337,7 @@ export default function CollectionBookScreen() {
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: GAP }}>
                     {items.map((col, i) => (
                       <Animated.View key={col.id} entering={FadeInDown.delay(Math.min(i, 6) * 24).duration(240)}>
-                        <Pressable onPress={() => onDetail(col.id)}>
+                        <Pressable accessibilityRole="button" onPress={() => onDetail(col.id)}>
                           <CollectibleCard id={col.id} owned={!!owned[col.id]} count={owned[col.id] ?? 0} isNew={newIds.includes(col.id)} width={colW} />
                         </Pressable>
                       </Animated.View>
@@ -376,9 +376,9 @@ function CollectibleDetailModal({ id, count, onClose }: { id: string | null; cou
 
   return (
     <Modal visible={!!id} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
-      <Pressable onPress={onClose} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <Pressable accessibilityRole="button" onPress={onClose} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
         {col && meta && (
-          <Pressable onPress={() => {}} style={{ alignItems: 'center' }}>
+          <Pressable accessibilityRole="button" onPress={() => {}} style={{ alignItems: 'center' }}>
             <View style={{ borderRadius: 20, boxShadow: `0 18px 48px ${meta.glow === 'transparent' ? 'rgba(255,255,255,0.2)' : meta.glow + '88'}` }}>
               <CollectibleCard id={col.id} width={bigW} count={count} tilt={tilt} />
             </View>

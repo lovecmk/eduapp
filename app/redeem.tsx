@@ -48,7 +48,7 @@ export default function RedeemScreen() {
               <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 12 * fs, fontFamily: fontCute }}>내 쿠폰 지갑 · 보유 카드팩</Text>
               <Text style={{ color: '#fff', fontSize: 24 * fs, fontWeight: '900', fontFamily: fontMono }}>{packs}개</Text>
             </View>
-            <Pressable
+            <Pressable accessibilityRole="button"
               onPress={() => router.push('/collection-book' as never)}
               style={{ flexDirection: 'row', alignItems: 'center', gap: 2, backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 999, paddingVertical: 7, paddingHorizontal: 12 }}
             >
@@ -88,7 +88,7 @@ export default function RedeemScreen() {
                         <Text style={{ color: c.success, fontSize: 12 * fs, fontFamily: fontCute, fontWeight: '700' }}>사용 완료</Text>
                       </View>
                     ) : (
-                      <Pressable onPress={() => doRedeem(ev.code)} style={{ backgroundColor: c.primary, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 9 }}>
+                      <Pressable accessibilityRole="button" onPress={() => doRedeem(ev.code)} style={{ backgroundColor: c.primary, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 9 }}>
                         <Text style={{ color: '#fff', fontSize: 12.5 * fs, fontFamily: fontDisplay }}>받기</Text>
                       </Pressable>
                     )}
@@ -108,6 +108,7 @@ export default function RedeemScreen() {
           </Text>
 
           <TextInput
+            accessibilityLabel="교환 코드 입력"
             value={code}
             onChangeText={(t) => { setCode(t); if (result) setResult(null); }}
             placeholder="쿠폰 코드를 입력하세요"
@@ -142,7 +143,7 @@ export default function RedeemScreen() {
           <Button label="쿠폰 교환하기" variant="filled" onPress={() => doRedeem(code)} disabled={!code.trim()} />
 
           {result?.ok ? (
-            <Pressable
+            <Pressable accessibilityRole="button"
               onPress={() => router.push('/collection-book' as never)}
               style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 16, padding: 12 }}
             >

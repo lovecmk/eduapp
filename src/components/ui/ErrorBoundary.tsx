@@ -39,7 +39,7 @@ export class ErrorBoundary extends Component<Props, State> {
           <Text style={{ fontSize: 13, color: '#8E95A2', marginTop: 6, textAlign: 'center', lineHeight: 20 }}>
             {this.state.error.message}
           </Text>
-          <Pressable
+          <Pressable accessibilityRole="button"
             onPress={() => this.setState({ error: null })}
             style={{ marginTop: 20, paddingVertical: 12, paddingHorizontal: 24, backgroundColor: '#2563EB', borderRadius: 999 }}
           >

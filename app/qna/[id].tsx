@@ -57,7 +57,7 @@ export default function QnaDetailScreen() {
           </View>
           <Text style={{ color: c.textPrimary, fontSize: 18 * fs, lineHeight: 26, fontFamily: fontDisplay }}>{question.title}</Text>
           <Text style={{ color: c.textPrimary, fontSize: 14 * fs, lineHeight: 22, marginTop: 10, fontFamily: fontBody }}>{question.body}</Text>
-          <Pressable onPress={() => toggleQLike(question.id)} style={[styles.likeBtn, { borderColor: question.likedByMe ? c.error : c.border, backgroundColor: question.likedByMe ? c.error + '12' : 'transparent' }]}>
+          <Pressable accessibilityRole="button" onPress={() => toggleQLike(question.id)} style={[styles.likeBtn, { borderColor: question.likedByMe ? c.error : c.border, backgroundColor: question.likedByMe ? c.error + '12' : 'transparent' }]}>
             <Ionicons name={question.likedByMe ? 'heart' : 'heart-outline'} size={15} color={question.likedByMe ? c.error : c.textSecondary} />
             <Text style={{ color: question.likedByMe ? c.error : c.textSecondary, fontSize: 12.5, fontFamily: fontDisplay }}>공감 {question.likes}</Text>
           </Pressable>
@@ -81,6 +81,7 @@ export default function QnaDetailScreen() {
         <View style={[styles.inputBar, { backgroundColor: c.surface, borderTopColor: c.border }]}>
           <View style={[styles.inputRow, { backgroundColor: c.surfaceAlt, borderColor: focused ? c.primary : c.border }]}>
             <TextInput
+              accessibilityLabel="답변 입력"
               value={draft} onChangeText={setDraft} onFocus={() => setFocused(true)}
               placeholder="답변을 입력하세요" placeholderTextColor={c.textSecondary}
               style={{ flex: 1, color: c.textPrimary, fontSize: 13.5, fontFamily: fontBody, paddingVertical: 4, maxHeight: 90 }}
@@ -114,7 +115,7 @@ function AnswerRow({ answer: a, onLike }: { answer: Answer; onLike: () => void }
         <Text style={{ color: c.textSecondary, fontSize: 10.5, fontFamily: fontMono }}>{timeAgoLabel(a.minutesAgo)}</Text>
       </View>
       <Text style={{ color: c.textPrimary, fontSize: 13.5, lineHeight: 20, fontFamily: fontBody }}>{a.body}</Text>
-      <Pressable onPress={onLike} hitSlop={6} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8, alignSelf: 'flex-start' }}>
+      <Pressable accessibilityRole="button" onPress={onLike} hitSlop={6} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8, alignSelf: 'flex-start' }}>
         <Ionicons name={a.likedByMe ? 'heart' : 'heart-outline'} size={14} color={a.likedByMe ? c.error : c.textSecondary} />
         <Text style={{ color: a.likedByMe ? c.error : c.textSecondary, fontSize: 11.5, fontFamily: fontMono }}>{a.likes}</Text>
       </Pressable>

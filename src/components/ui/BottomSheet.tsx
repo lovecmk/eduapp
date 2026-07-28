@@ -29,7 +29,7 @@ export function BottomSheet({
 
   return (
     <View style={styles.overlay}>
-      <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+      <Pressable accessibilityRole="button" style={StyleSheet.absoluteFill} onPress={onClose} />
       <Animated.View
         style={[
           styles.wrap,

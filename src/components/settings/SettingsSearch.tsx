@@ -91,7 +91,7 @@ export function SettingsSearchBar({
           ]}
         />
         {search.query.length > 0 && (
-          <Pressable onPress={() => search.setQuery('')} hitSlop={8} accessibilityLabel="검색어 지우기">
+          <Pressable accessibilityRole="button" onPress={() => search.setQuery('')} hitSlop={8} accessibilityLabel="검색어 지우기">
             <Ionicons name="close-circle" size={18} color={c.textSecondary} />
           </Pressable>
         )}

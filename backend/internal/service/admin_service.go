@@ -903,13 +903,23 @@ func (s *AdminService) Reports(ctx context.Context, limit int) ([]AdminReport, e
 		}
 		if name, ok := names[r.UserID]; ok {
 			item.ReporterName = name
-		} else if u, err := s.users.FindByID(ctx, r.UserID); err == nil {
+			out = append(out, item)
+			continue
+		}
+
+		u, err := s.users.FindByID(ctx, r.UserID)
+		switch {
+		case err == nil:
 			item.ReporterName = displayName(*u)
 			names[r.UserID] = item.ReporterName
-		} else {
+		case isNotFound(err):
 			// 탈퇴했거나 지워진 계정 — 신고 자체는 유효하므로 버리지 않는다.
-			names[r.UserID] = "(알 수 없는 사용자)"
-			item.ReporterName = names[r.UserID]
+			item.ReporterName = unknownReporter
+			names[r.UserID] = item.ReporterName
+		default:
+			// 일시적인 조회 실패(연결 끊김 등)다. 여기서 캐시에 넣으면 이번 응답
+			// 내내 '탈퇴한 사용자'로 굳어, 멀쩡한 계정이 사라진 것처럼 보인다.
+			item.ReporterName = unknownReporter
 		}
 		out = append(out, item)
 	}
@@ -918,6 +928,9 @@ func (s *AdminService) Reports(ctx context.Context, limit int) ([]AdminReport, e
 
 // maxReportLimit 은 신고 목록 한 번에 가져갈 수 있는 최대 건수.
 const maxReportLimit = 500
+
+// unknownReporter 는 신고자 계정을 찾지 못했을 때 보여 줄 이름.
+const unknownReporter = "(알 수 없는 사용자)"
 
 // NotifyInput 은 관리자 공지 발송 요청.
 type NotifyInput struct {

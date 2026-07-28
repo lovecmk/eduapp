@@ -131,7 +131,7 @@ export function LearningCalendar() {
       {/* 월 네비게이션 */}
       <View style={styles.header}>
         <Pressable onPress={prev} hitSlop={8} accessibilityRole="button" accessibilityLabel="이전 달" style={styles.arrow}><Ionicons name="chevron-back" size={20} color={c.primary} /></Pressable>
-        <Pressable onPress={() => { setPickYear(year); setPickMonth(month); setPickerOpen(true); }}>
+        <Pressable accessibilityRole="button" onPress={() => { setPickYear(year); setPickMonth(month); setPickerOpen(true); }}>
           <Text style={{ color: c.textPrimary, fontSize: 16, fontFamily: fontDisplay }}>{year}년 {month + 1}월</Text>
         </Pressable>
         <Pressable onPress={next} hitSlop={8} accessibilityRole="button" accessibilityLabel="다음 달" style={styles.arrow}><Ionicons name="chevron-forward" size={20} color={c.primary} /></Pressable>
@@ -168,7 +168,7 @@ export function LearningCalendar() {
               const partial = workday && learned > 0 && !done;      // 1~2장 → 일부완료
               const attended = !!stamps[key];
               return (
-                <Pressable key={`${w}-${dow}`} style={styles.cell} onPress={() => setSelected(key)}>
+                <Pressable accessibilityRole="button" key={`${w}-${dow}`} style={styles.cell} onPress={() => setSelected(key)}>
                   <View style={[
                     styles.dayCell,
                     done && { backgroundColor: c.success },
@@ -214,7 +214,7 @@ export function LearningCalendar() {
           <Text style={{ color: c.success, fontSize: 14, fontFamily: fontCute, fontWeight: '800' }}>오늘 출석 완료!</Text>
         </CheckInSuccess>
       ) : (
-        <Pressable onPress={onCheckIn} style={[styles.checkIn, { backgroundColor: c.primary }]}>
+        <Pressable accessibilityRole="button" onPress={onCheckIn} style={[styles.checkIn, { backgroundColor: c.primary }]}>
           <Ionicons name="hand-left" size={17} color="#fff" />
           <Text style={{ color: '#fff', fontSize: 14, fontFamily: fontCute, fontWeight: '800' }}>오늘 출석 도장 찍기</Text>
         </Pressable>
@@ -222,15 +222,15 @@ export function LearningCalendar() {
 
       {/* 월 선택 */}
       <Modal visible={pickerOpen} transparent animationType="fade" onRequestClose={() => setPickerOpen(false)}>
-        <Pressable style={styles.modalOverlay} onPress={() => setPickerOpen(false)}>
-          <Pressable onPress={() => {}} style={[styles.modalCard, { backgroundColor: c.surface, borderColor: c.border }]}>
+        <Pressable accessibilityRole="button" style={styles.modalOverlay} onPress={() => setPickerOpen(false)}>
+          <Pressable accessibilityRole="button" onPress={() => {}} style={[styles.modalCard, { backgroundColor: c.surface, borderColor: c.border }]}>
             <Text style={{ color: c.textPrimary, fontSize: 16, marginBottom: 16, textAlign: 'center', fontFamily: fontDisplay }}>날짜 선택</Text>
             <View style={{ flexDirection: 'row', gap: 12, marginBottom: 16 }}>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.pickLbl, { color: c.textSecondary }]}>년도</Text>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
                   {Array.from({ length: 4 }, (_, i) => 2024 + i).map((y) => (
-                    <Pressable key={y} onPress={() => setPickYear(y)} style={{ paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, backgroundColor: pickYear === y ? c.primary : c.surfaceAlt }}>
+                    <Pressable accessibilityRole="button" key={y} onPress={() => setPickYear(y)} style={{ paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, backgroundColor: pickYear === y ? c.primary : c.surfaceAlt }}>
                       <Text style={{ color: pickYear === y ? c.textOnPrimary : c.textPrimary, fontSize: 13, fontFamily: fontBody }}>{y}</Text>
                     </Pressable>
                   ))}
@@ -240,7 +240,7 @@ export function LearningCalendar() {
                 <Text style={[styles.pickLbl, { color: c.textSecondary }]}>월</Text>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
                   {MONTHS.map((m, i) => (
-                    <Pressable key={m} onPress={() => setPickMonth(i)} style={{ paddingVertical: 8, paddingHorizontal: 10, borderRadius: 8, backgroundColor: pickMonth === i ? c.primary : c.surfaceAlt }}>
+                    <Pressable accessibilityRole="button" key={m} onPress={() => setPickMonth(i)} style={{ paddingVertical: 8, paddingHorizontal: 10, borderRadius: 8, backgroundColor: pickMonth === i ? c.primary : c.surfaceAlt }}>
                       <Text style={{ color: pickMonth === i ? c.textOnPrimary : c.textPrimary, fontSize: 13, fontFamily: fontBody }}>{m}</Text>
                     </Pressable>
                   ))}
@@ -336,7 +336,7 @@ function CardRow({ card, onPress }: { card: LearningCard; onPress?: () => void }
   const c = theme.colors;
   const accent = getCategoryColor(card.category) ?? c.primary;
   return (
-    <Pressable onPress={onPress} style={[styles.cardRow, { backgroundColor: c.surfaceAlt }]}>
+    <Pressable accessibilityRole="button" onPress={onPress} style={[styles.cardRow, { backgroundColor: c.surfaceAlt }]}>
       {resolveCardImage(card.imageUrl) ? (
         <Image source={resolveCardImage(card.imageUrl)!} style={styles.thumb} contentFit="cover" transition={200} />
       ) : (

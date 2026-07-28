@@ -30,7 +30,7 @@ export function ChangelogModal({ visible, onClose }: { visible: boolean; onClose
       {selected ? (
         // 상세 — 선택한 업데이트의 변경점 전체
         <View>
-          <Pressable onPress={() => setSelected(null)} hitSlop={8} style={styles.backRow}>
+          <Pressable accessibilityRole="button" onPress={() => setSelected(null)} hitSlop={8} style={styles.backRow}>
             <Ionicons name="chevron-back" size={18} color={c.primary} />
             <Text style={[styles.backText, { color: c.primary }]}>목록</Text>
           </Pressable>
@@ -60,7 +60,7 @@ export function ChangelogModal({ visible, onClose }: { visible: boolean; onClose
           {entries.map((entry, idx) => {
             const isCurrent = entry.version === env.build.version;
             return (
-              <Pressable
+              <Pressable accessibilityRole="button"
                 key={entry.version}
                 onPress={() => setSelected(entry)}
                 style={[

@@ -304,7 +304,7 @@ export default function HomeScreen() {
                 : { to: ROUTES.contents, bg: c.surfaceAlt, fg: c.textPrimary, sub: c.textSecondary, iconBg: c.surface, iconColor: c.primary, icon: 'sparkles' as const, bw: 1, border: c.border, chevron: true,
                     title: '새 카드를 다 배웠어요', desc: '지금은 학습할 카드가 없어요 · 곧 새 카드가 열려요' };
             return (
-              <Pressable onPress={() => router.push(cta.to as never)} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: cta.bg, borderRadius: 14, paddingVertical: 22, paddingHorizontal: 16, borderWidth: cta.bw, borderColor: cta.border }}>
+              <Pressable accessibilityRole="button" onPress={() => router.push(cta.to as never)} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: cta.bg, borderRadius: 14, paddingVertical: 22, paddingHorizontal: 16, borderWidth: cta.bw, borderColor: cta.border }}>
                 <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: cta.iconBg, alignItems: 'center', justifyContent: 'center' }}>
                   <Ionicons name={cta.icon} size={20} color={cta.iconColor} />
                 </View>
@@ -322,7 +322,7 @@ export default function HomeScreen() {
         <Card>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
             <Text style={{ color: c.textPrimary, fontSize: 14 * fs, fontFamily: fontDisplay }}>학습 현황</Text>
-            <Pressable onPress={() => router.push(ROUTES.stats)} hitSlop={6} style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+            <Pressable accessibilityRole="button" onPress={() => router.push(ROUTES.stats)} hitSlop={6} style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
               <Text style={{ color: c.primary, fontSize: 12.5 * fs, fontFamily: fontDisplay }}>더보기</Text>
               <Ionicons name="chevron-forward" size={14} color={c.primary} />
             </Pressable>
@@ -351,14 +351,14 @@ export default function HomeScreen() {
           <Text style={{ color: c.textSecondary, fontSize: 13.5 * fs, textAlign: 'center', lineHeight: 20, marginBottom: 20, fontFamily: fontBody }}>
             오늘 학습을 시작했어요.{'\n'}이어서 마저 학습할까요?
           </Text>
-          <Pressable
+          <Pressable accessibilityRole="button"
             onPress={() => { setResumeOpen(false); router.push(ROUTES.cards); }}
             style={{ width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.primary, borderRadius: 14, paddingVertical: 14 }}
           >
             <Ionicons name="play" size={18} color="#fff" />
             <Text style={{ color: '#fff', fontSize: 15 * fs, fontWeight: '800', fontFamily: fontCute }}>이어서 학습하기</Text>
           </Pressable>
-          <Pressable onPress={() => setResumeOpen(false)} style={{ paddingVertical: 14 }}>
+          <Pressable accessibilityRole="button" onPress={() => setResumeOpen(false)} style={{ paddingVertical: 14 }}>
             <Text style={{ color: c.textSecondary, fontSize: 14 * fs, fontFamily: fontDisplay }}>홈에 머물기</Text>
           </Pressable>
         </View>

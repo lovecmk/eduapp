@@ -140,7 +140,7 @@ export default function ReviewScreen() {
       <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontFamily: fontDisplay, marginBottom: 12 }}>직접 골라 보기</Text>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
         {collections.map((col) => (
-          <Pressable key={col.type} onPress={() => router.push(ROUTES.collection(col.type) as never)}
+          <Pressable accessibilityRole="button" key={col.type} onPress={() => router.push(ROUTES.collection(col.type) as never)}
             style={{ width: '47%', flexGrow: 1, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 16, padding: 16 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
               <View style={{ width: 38, height: 38, borderRadius: 11, backgroundColor: col.color + '18', alignItems: 'center', justifyContent: 'center' }}>
@@ -164,7 +164,7 @@ export default function ReviewScreen() {
           <Text style={{ color: c.textSecondary, fontSize: 12.5 * fs, marginTop: 6, textAlign: 'center', fontFamily: fontBody }}>
             학습 탭에서 카드를 학습하면{'\n'}여기에서 카테고리별로 복습할 수 있어요
           </Text>
-          <Pressable onPress={() => router.push(ROUTES.cards)} style={{ marginTop: 18, backgroundColor: c.primary, borderRadius: 12, paddingHorizontal: 20, paddingVertical: 12 }}>
+          <Pressable accessibilityRole="button" onPress={() => router.push(ROUTES.cards)} style={{ marginTop: 18, backgroundColor: c.primary, borderRadius: 12, paddingHorizontal: 20, paddingVertical: 12 }}>
             <Text style={{ color: '#fff', fontSize: 14 * fs, fontFamily: fontDisplay }}>학습 시작하기</Text>
           </Pressable>
         </View>
@@ -175,7 +175,7 @@ export default function ReviewScreen() {
             const pct = s.total > 0 ? Math.round((s.mastered / s.total) * 100) : 0;
             return (
               <Animated.View key={s.category} entering={FadeInDown.delay(i * 60).duration(280)}>
-                <Pressable
+                <Pressable accessibilityRole="button"
                   onPress={() => router.push({ pathname: ROUTES.cards, params: { category: s.category } })}
                   style={{ backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 16, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 14 }}
                 >

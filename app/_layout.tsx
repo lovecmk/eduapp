@@ -23,6 +23,7 @@ import { ToastHost } from '../src/components/ui/ToastHost';
 import { applyWebTypography } from '../src/theme/webTypography';
 import { APP_FONTS } from '../src/theme/tokens';
 import { applyGlobalFont } from '../src/theme/applyGlobalFont';
+import { startQueryLifecycleBridge } from '../src/data/network/queryLifecycle';
 
 applyGlobalFont();
 
@@ -49,6 +50,10 @@ function RootContent() {
   const { updateAvailable, remote, apply, dismiss } = useAppUpdate();
   // 백그라운드에 오래 있다 돌아오거나 자정을 넘겼을 때 '오늘' 데이터를 갱신한다.
   useAppResume();
+
+  // react-query 에 '지금 화면을 보고 있는가 / 온라인인가'를 알려 준다.
+  // 연결하지 않으면 주기 갱신(커뮤니티 15초)이 백그라운드에서도 계속 돈다.
+  useEffect(() => startQueryLifecycleBridge(), []);
 
   useEffect(() => {
     void restore();

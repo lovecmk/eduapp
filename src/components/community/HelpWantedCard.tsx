@@ -46,7 +46,7 @@ export function HelpWantedCard({
   const accent = getCategoryColor(target.category ?? '') ?? c.primary;
 
   return (
-    <Pressable
+    <Pressable accessibilityRole="button"
       onPress={() => onPress(target.id)}
       style={{
         backgroundColor: c.surface,

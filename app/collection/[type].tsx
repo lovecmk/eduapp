@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet, TextInput, FlatList, RefreshControl } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Image } from 'expo-image';
@@ -7,6 +7,8 @@ import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { useTheme } from '../../src/theme/ThemeProvider';
 import { ScreenHeader } from '../../src/components/ui/ScreenHeader';
+import { ErrorState } from '../../src/components/ui/ErrorState';
+import { CardListSkeleton } from '../../src/components/skeletons';
 import { CategoryTrail } from '../../src/components/ui/CategoryTrail';
 import { fontDisplay, fontBody } from '../../src/theme/tokens';
 import { getCategoryIcon, getCategoryColor } from '../../src/constants/categories';
@@ -41,7 +43,7 @@ export default function CollectionScreen() {
   const type = (TYPES.includes((params.type ?? '') as CollectionType) ? params.type : 'mastered') as CollectionType;
   const meta = META[type];
 
-  const { data: allCards = [], refetch } = useAllCards();
+  const { data: allCards = [], isLoading, error, refetch } = useAllCards();
   const { refreshing, onRefresh } = usePullToRefresh(refetch);
   const savedIds = useBookmarkStore((s) => s.ids);
   const likedIds = useLikeStore((s) => s.ids);
@@ -96,6 +98,44 @@ export default function CollectionScreen() {
 
   const isEmptyBase = baseCards.length === 0;
 
+  const openCard = useCallback((id: string) => router.push(ROUTES.content(id) as never), [router]);
+
+  const renderRow = useCallback(
+    ({ item }: { item: LearningCard }) => (
+      <CardRow
+        card={item}
+        report={latestReportByCard.get(item.id)}
+        showReport={type === 'reported'}
+        onPress={openCard}
+      />
+    ),
+    [latestReportByCard, type, openCard],
+  );
+
+  // 불러오지 못한 것과 '하나도 없는 것'은 다르다.
+  // 구분하지 않으면 통신이 끊긴 사용자에게 "저장한 카드가 없어요"라고 말하게 되고,
+  // 사용자는 자기 데이터가 사라진 줄 안다. 알림/딥링크로 이 화면부터 열면
+  // 캐시가 비어 있어 실제로 일어나는 일이다.
+  if (error && allCards.length === 0) {
+    return (
+      <View style={{ flex: 1, backgroundColor: c.bg }}>
+        <ScreenHeader title={meta.title} />
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <ErrorState message="카드를 불러오지 못했어요" onRetry={refetch} />
+        </View>
+      </View>
+    );
+  }
+
+  if (isLoading && allCards.length === 0) {
+    return (
+      <View style={{ flex: 1, backgroundColor: c.bg }}>
+        <ScreenHeader title={meta.title} />
+        <CardListSkeleton />
+      </View>
+    );
+  }
+
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <ScreenHeader title={`${meta.title}${baseCards.length ? ` (${baseCards.length})` : ''}`} />
@@ -106,6 +146,7 @@ export default function CollectionScreen() {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: c.surfaceAlt, borderRadius: 12, borderWidth: 1, borderColor: c.border, paddingHorizontal: 12, height: 42 }}>
             <Ionicons name="search" size={17} color={c.textSecondary} />
             <TextInput
+              accessibilityLabel="카드 검색"
               value={query}
               onChangeText={setQuery}
               placeholder="카드 검색 (질문·분야)"
@@ -126,7 +167,7 @@ export default function CollectionScreen() {
                 const active = cat === cc;
                 const color = cc ? (getCategoryColor(cc) ?? c.primary) : c.primary;
                 return (
-                  <Pressable key={cc ?? 'all'} onPress={() => setCat(cc)}
+                  <Pressable accessibilityRole="button" key={cc ?? 'all'} onPress={() => setCat(cc)}
                     style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, borderWidth: 1.5, backgroundColor: active ? color + '1A' : c.surface, borderColor: active ? color : c.border }}>
                     {cc && <Ionicons name={getCategoryIcon(cc)} size={13} color={active ? color : c.textSecondary} />}
                     <Text style={{ color: active ? color : c.textSecondary, fontSize: 12.5 * fs, fontFamily: fontDisplay }}>{cc ?? '전체'}</Text>
@@ -144,7 +185,7 @@ export default function CollectionScreen() {
             <Ionicons name={meta.icon} size={34} color={c.textSecondary} />
           </View>
           <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontFamily: fontDisplay }}>{meta.empty}</Text>
-          <Pressable onPress={() => router.push(ROUTES.cards)} style={{ marginTop: 18, backgroundColor: c.primary, borderRadius: 999, paddingHorizontal: 20, paddingVertical: 10 }}>
+          <Pressable accessibilityRole="button" onPress={() => router.push(ROUTES.cards)} style={{ marginTop: 18, backgroundColor: c.primary, borderRadius: 999, paddingHorizontal: 20, paddingVertical: 10 }}>
             <Text style={{ color: c.textOnPrimary, fontSize: 13, fontFamily: fontDisplay }}>학습하러 가기</Text>
           </Pressable>
         </Animated.View>
@@ -169,45 +210,74 @@ export default function CollectionScreen() {
               <Text style={{ color: c.textSecondary, fontSize: 14 * fs, fontFamily: fontBody }}>검색 결과가 없어요</Text>
             </Animated.View>
           }
-          renderItem={({ item: card }) => {
-            const accent = getCategoryColor(card.category) ?? c.primary;
-            const diff = getDifficultyMeta(theme, card.difficulty);
-            const report = latestReportByCard.get(card.id);
-            return (
-              <Pressable onPress={() => router.push(ROUTES.content(card.id) as never)} style={[styles.row, { backgroundColor: c.surface, borderColor: c.border }]}>
-                {resolveCardImage(card.imageUrl) ? (
-                  <Image source={resolveCardImage(card.imageUrl)!} style={styles.thumb} contentFit="cover" transition={200} />
-                ) : (
-                  <View style={[styles.thumb, { backgroundColor: accent + '18', alignItems: 'center', justifyContent: 'center' }]}>
-                    <Ionicons name={getCategoryIcon(card.category)} size={24} color={accent} />
-                  </View>
-                )}
-                <View style={{ flex: 1 }}>
-                  <CategoryTrail category={card.category} subCategory={card.subCategory} topic={card.topic} size="sm" />
-                  <Text numberOfLines={2} style={{ color: c.textPrimary, fontSize: 13.5 * fs, lineHeight: 19, marginTop: 5, fontFamily: fontDisplay }}>{card.question}</Text>
-                  {type === 'reported' && report ? (
-                    <View style={{ marginTop: 8, backgroundColor: c.warning + '14', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 7 }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                        <Ionicons name="flag" size={11} color={c.warning} />
-                        <Text style={{ color: c.warning, fontSize: 11 * fs, fontFamily: fontDisplay }}>신고 사항 · {REPORT_REASON_LABEL[report.reason]}</Text>
-                      </View>
-                      {!!report.detail && (
-                        <Text numberOfLines={2} style={{ color: c.textSecondary, fontSize: 11.5 * fs, lineHeight: 16, marginTop: 3, fontFamily: fontBody }}>{report.detail}</Text>
-                      )}
-                    </View>
-                  ) : (
-                    <Text style={{ color: diff.color, fontSize: 11, marginTop: 6, fontFamily: fontDisplay }}>{diff.label}</Text>
-                  )}
-                </View>
-                <Ionicons name="chevron-forward" size={16} color={c.textSecondary} />
-              </Pressable>
-            );
-          }}
+          renderItem={renderRow}
         />
       )}
     </View>
   );
 }
+
+/**
+ * 목록 한 줄.
+ *
+ * 별도 컴포넌트로 뺀 이유는 두 가지다.
+ *  · 인라인 renderItem 은 화면이 리렌더될 때마다 새 함수가 되어 FlatList 가
+ *    보이는 행을 전부 다시 그린다. 검색어를 한 글자 칠 때마다 그 일이 벌어진다.
+ *  · memo 로 감싸면 스크롤 중 이미 그려진 행은 건너뛴다.
+ */
+const CardRow = React.memo(function CardRow({
+  card,
+  report,
+  showReport,
+  onPress,
+}: {
+  card: LearningCard;
+  report?: CardReport;
+  showReport: boolean;
+  onPress: (id: string) => void;
+}) {
+  const { theme, fontScale: fs } = useTheme();
+  const c = theme.colors;
+  const accent = getCategoryColor(card.category) ?? c.primary;
+  const diff = getDifficultyMeta(theme, card.difficulty);
+  // 한 번만 구한다 — 예전에는 조건과 source 에서 각각 불러 행마다 두 번 돌았다.
+  const image = resolveCardImage(card.imageUrl);
+
+  return (
+    <Pressable
+      onPress={() => onPress(card.id)}
+      accessibilityRole="button"
+      accessibilityLabel={card.question}
+      style={[styles.row, { backgroundColor: c.surface, borderColor: c.border }]}
+    >
+      {image ? (
+        <Image source={image} style={styles.thumb} contentFit="cover" transition={200} />
+      ) : (
+        <View style={[styles.thumb, { backgroundColor: accent + '18', alignItems: 'center', justifyContent: 'center' }]}>
+          <Ionicons name={getCategoryIcon(card.category)} size={24} color={accent} />
+        </View>
+      )}
+      <View style={{ flex: 1 }}>
+        <CategoryTrail category={card.category} subCategory={card.subCategory} topic={card.topic} size="sm" />
+        <Text numberOfLines={2} style={{ color: c.textPrimary, fontSize: 13.5 * fs, lineHeight: 19, marginTop: 5, fontFamily: fontDisplay }}>{card.question}</Text>
+        {showReport && report ? (
+          <View style={{ marginTop: 8, backgroundColor: c.warning + '14', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 7 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Ionicons name="flag" size={11} color={c.warning} />
+              <Text style={{ color: c.warning, fontSize: 11 * fs, fontFamily: fontDisplay }}>신고 사항 · {REPORT_REASON_LABEL[report.reason]}</Text>
+            </View>
+            {!!report.detail && (
+              <Text numberOfLines={2} style={{ color: c.textSecondary, fontSize: 11.5 * fs, lineHeight: 16, marginTop: 3, fontFamily: fontBody }}>{report.detail}</Text>
+            )}
+          </View>
+        ) : (
+          <Text style={{ color: diff.color, fontSize: 11, marginTop: 6, fontFamily: fontDisplay }}>{diff.label}</Text>
+        )}
+      </View>
+      <Ionicons name="chevron-forward" size={16} color={c.textSecondary} />
+    </Pressable>
+  );
+});
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: 12, alignItems: 'center', borderRadius: 16, borderWidth: 1, padding: 12, marginBottom: 10 },

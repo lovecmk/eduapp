@@ -43,7 +43,7 @@ export default function SavedScreen() {
             <Text style={{ color: c.textSecondary, fontSize: 12.5 * fs, marginTop: 6, textAlign: 'center', lineHeight: 19, fontFamily: fontBody }}>
               카드 상세에서 북마크를 눌러{'\n'}나중에 볼 카드를 저장해보세요
             </Text>
-            <Pressable onPress={() => router.push(ROUTES.contents)} style={{ marginTop: 18, backgroundColor: c.primary, borderRadius: 999, paddingHorizontal: 20, paddingVertical: 10 }}>
+            <Pressable accessibilityRole="button" onPress={() => router.push(ROUTES.contents)} style={{ marginTop: 18, backgroundColor: c.primary, borderRadius: 999, paddingHorizontal: 20, paddingVertical: 10 }}>
               <Text style={{ color: c.textOnPrimary, fontSize: 13, fontFamily: fontDisplay }}>학습 목표 둘러보기</Text>
             </Pressable>
           </Animated.View>
@@ -53,7 +53,7 @@ export default function SavedScreen() {
             const diff = getDifficultyMeta(theme, card.difficulty);
             return (
               <Animated.View key={card.id} entering={FadeInDown.delay(Math.min(i, 8) * 35).duration(300)}>
-                <Pressable onPress={() => router.push(ROUTES.content(card.id) as never)} style={[styles.row, { backgroundColor: c.surface, borderColor: c.border }]}>
+                <Pressable accessibilityRole="button" onPress={() => router.push(ROUTES.content(card.id) as never)} style={[styles.row, { backgroundColor: c.surface, borderColor: c.border }]}>
                   {resolveCardImage(card.imageUrl) ? (
                     <Image source={resolveCardImage(card.imageUrl)!} style={styles.thumb} contentFit="cover" transition={200} />
                   ) : (

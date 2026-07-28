@@ -20,6 +20,7 @@ export function SearchBar({
       <TextInput
         value={value}
         onChangeText={onChange}
+        accessibilityLabel={placeholder}
         placeholder={placeholder}
         placeholderTextColor={c.disabled}
         style={{ flex: 1, minWidth: 0, color: c.textPrimary, fontSize: 14, fontFamily: fontCute, paddingVertical: 0 }}

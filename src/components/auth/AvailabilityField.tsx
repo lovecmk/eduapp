@@ -81,12 +81,14 @@ export function AvailabilityField({
       <View style={{ flexDirection: 'row', gap: 8, alignItems: 'stretch' }}>
         <TextInput
           {...inputProps}
+          // 보이는 라벨은 별개의 <Text> 라 스크린리더가 입력과 묶어 주지 않는다.
+          accessibilityLabel={inputProps.accessibilityLabel ?? label}
           value={value}
           onChangeText={handleChange}
           placeholderTextColor={c.textSecondary}
           style={[styles.input, { borderColor, backgroundColor: c.surface, color: c.textPrimary, fontSize: 15 * fs, fontFamily: fontBody }]}
         />
-        <Pressable
+        <Pressable accessibilityRole="button"
           onPress={onCheck}
           disabled={!canCheck}
           style={{

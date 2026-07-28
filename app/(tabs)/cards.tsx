@@ -520,7 +520,7 @@ export default function CardsScreen() {
           <Ionicons name="time-outline" size={15} color={c.textSecondary} />
           <Text style={{ color: c.textSecondary, fontSize: 12.5 * fs, fontFamily: fontCute }}>내일 자정에 새 학습이 열려요</Text>
         </View>
-        <Pressable
+        <Pressable accessibilityRole="button"
           onPress={() => endFlow(router, ROUTES.review)}
           style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.primary, borderRadius: 14, paddingVertical: 15, paddingHorizontal: 28, marginTop: 24, boxShadow: '0 6px 16px rgba(37,99,235,0.28)' }}
         >
@@ -557,7 +557,7 @@ export default function CardsScreen() {
         </View>
         <Text style={{ color: c.textPrimary, fontSize: 22 * fs, fontWeight: '800', fontFamily: fontCute }}>{emptyTitle}</Text>
         <Text style={{ color: c.textSecondary, marginTop: 8, textAlign: 'center', lineHeight: 21 * fs, fontFamily: fontCute }}>{emptyBody}</Text>
-        <Pressable
+        <Pressable accessibilityRole="button"
           onPress={() => endFlow(router, returnTo ?? (isFocusMode ? ROUTES.contents : ROUTES.review))}
           style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.primary, borderRadius: 14, paddingVertical: 15, paddingHorizontal: 28, marginTop: 24, boxShadow: '0 6px 16px rgba(37,99,235,0.28)' }}
         >
@@ -595,14 +595,14 @@ export default function CardsScreen() {
         ) : (
           <View style={{ width: '100%', gap: 10, marginTop: 4 }}>
             {/* '복습하러 가기' — 방금 학습한 카드를 복습 > 모아보기 > 오늘 학습한 카드에서 바로 다시 본다. */}
-            <Pressable
+            <Pressable accessibilityRole="button"
               onPress={() => endFlow(router, ROUTES.collection('today'))}
               style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.primary, borderRadius: 14, paddingVertical: 15, paddingHorizontal: 28, boxShadow: '0 6px 16px rgba(37,99,235,0.28)' }}
             >
               <Ionicons name="refresh" size={18} color="#fff" />
               <Text style={{ color: '#fff', fontSize: 15 * fs, fontWeight: '800', fontFamily: fontCute }}>복습하러 가기</Text>
             </Pressable>
-            <Pressable
+            <Pressable accessibilityRole="button"
               onPress={() => endFlow(router, ROUTES.home)}
               style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.surfaceAlt, borderRadius: 14, paddingVertical: 15, paddingHorizontal: 28, borderWidth: 1, borderColor: c.border }}
             >
@@ -676,7 +676,7 @@ export default function CardsScreen() {
           {...(isSwipeTrack ? panResponder.panHandlers : {})}
           style={{ flex: 1, transform: [{ translateX }, { translateY: cardTranslateY }, { scale: cardScale }], opacity: cardCombinedOpacity }}
         >
-         <Pressable onPress={onCardPress} disabled={exiting} style={{ flex: 1 }}>
+         <Pressable accessibilityRole="button" onPress={onCardPress} disabled={exiting} style={{ flex: 1 }}>
           {/* 앞면 */}
           <Animated.View
             // Android 는 backfaceVisibility 가 불안정해 숨겨진 뒷면이 터치를 가로챈다.
@@ -788,17 +788,17 @@ export default function CardsScreen() {
             </ScrollView>
             {/* 카드 내부 오른쪽 하단 — 추천 / 저장 / 신고. 학습자가 조작하는 하단 버튼과 구분되는 '카드에 대한 반응'. */}
             <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 8, paddingTop: 12, borderTopWidth: 1, borderTopColor: c.border }}>
-                <Pressable onPress={() => { haptic(); toggleLike(card.id); }} hitSlop={6}
+                <Pressable accessibilityRole="button" onPress={() => { haptic(); toggleLike(card.id); }} hitSlop={6}
                   style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: isLiked ? c.error + '18' : c.surfaceAlt, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8 }}>
                   <Ionicons name={isLiked ? 'heart' : 'heart-outline'} size={17} color={isLiked ? c.error : c.textSecondary} />
                   <Text style={{ color: isLiked ? c.error : c.textSecondary, fontSize: 13 * fs, fontFamily: fontCute }}>추천</Text>
                 </Pressable>
-                <Pressable onPress={() => { haptic(); toggleBookmark(card.id); }} hitSlop={6}
+                <Pressable accessibilityRole="button" onPress={() => { haptic(); toggleBookmark(card.id); }} hitSlop={6}
                   style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: isBookmarked ? c.primary + '18' : c.surfaceAlt, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8 }}>
                   <Ionicons name={isBookmarked ? 'bookmark' : 'bookmark-outline'} size={16} color={isBookmarked ? c.primary : c.textSecondary} />
                   <Text style={{ color: isBookmarked ? c.primary : c.textSecondary, fontSize: 13 * fs, fontFamily: fontCute }}>{isBookmarked ? '저장됨' : '저장'}</Text>
                 </Pressable>
-                <Pressable onPress={() => setReportOpen(true)} hitSlop={6}
+                <Pressable accessibilityRole="button" onPress={() => setReportOpen(true)} hitSlop={6}
                   style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: hasReported ? c.warning + '18' : c.surfaceAlt, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8 }}>
                   <Ionicons name={hasReported ? 'flag' : 'flag-outline'} size={16} color={hasReported ? c.warning : c.textSecondary} />
                   <Text style={{ color: hasReported ? c.warning : c.textSecondary, fontSize: 13 * fs, fontFamily: fontCute }}>{hasReported ? '신고됨' : '신고'}</Text>
@@ -841,12 +841,12 @@ export default function CardsScreen() {
           ) : (
             // 버튼 위치 교체 — 왼쪽: 다음에 한번 더 볼게요 / 오른쪽: 이해했어요
             <View style={{ flexDirection: 'row', gap: 10, height: 52 }}>
-              <Pressable onPress={againUp} disabled={exiting}
+              <Pressable accessibilityRole="button" onPress={againUp} disabled={exiting}
                 style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.warning, borderRadius: 14, height: 52, boxShadow: `0 3px 8px ${c.warning}3D` }}>
                 <Ionicons name="refresh-circle" size={19} color="#fff" />
                 <Text style={{ color: '#fff', fontSize: 14.5 * fs, fontWeight: '700', fontFamily: fontCute }}>다음에 한번 더 볼게요</Text>
               </Pressable>
-              <Pressable onPress={completeLeft} disabled={exiting}
+              <Pressable accessibilityRole="button" onPress={completeLeft} disabled={exiting}
                 style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.success, borderRadius: 14, height: 52, boxShadow: `0 3px 8px ${c.success}3D` }}>
                 <Ionicons name="checkmark-circle" size={19} color="#fff" />
                 <Text style={{ color: '#fff', fontSize: 14.5 * fs, fontWeight: '700', fontFamily: fontCute }}>이해했어요</Text>
@@ -856,19 +856,19 @@ export default function CardsScreen() {
         ) : (
           // 클래식 트랙(이용재) — 뒤집기 버튼을 전/후 동일 위치·크기로 고정.
           <>
-            <Pressable onPress={() => doFlip(!flipped)}
+            <Pressable accessibilityRole="button" onPress={() => doFlip(!flipped)}
               style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.surfaceAlt, borderWidth: 1, borderColor: c.border, borderRadius: 14, height: 50, marginBottom: 10 }}>
               <Ionicons name="sync-outline" size={18} color={c.primary} />
               <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontFamily: fontCute }}>카드 뒤집기</Text>
             </Pressable>
             {backControls ? (
               <View style={{ flexDirection: 'row', gap: 10, height: 52 }}>
-                <Pressable onPress={completeLeft} disabled={exiting}
+                <Pressable accessibilityRole="button" onPress={completeLeft} disabled={exiting}
                   style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.success, borderRadius: 14, height: 52, boxShadow: `0 3px 8px ${c.success}3D` }}>
                   <Ionicons name="checkmark-circle" size={19} color="#fff" />
                   <Text style={{ color: '#fff', fontSize: 14.5 * fs, fontWeight: '700', fontFamily: fontCute }}>이해했어요</Text>
                 </Pressable>
-                <Pressable onPress={againUp} disabled={exiting}
+                <Pressable accessibilityRole="button" onPress={againUp} disabled={exiting}
                   style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.warning, borderRadius: 14, height: 52, boxShadow: `0 3px 8px ${c.warning}3D` }}>
                   <Ionicons name="arrow-up-circle" size={19} color="#fff" />
                   <Text style={{ color: '#fff', fontSize: 14.5 * fs, fontWeight: '700', fontFamily: fontCute }}>다음에 한번 더 볼게요</Text>
@@ -889,7 +889,7 @@ export default function CardsScreen() {
       {/* 뒤로가기 시 이동 위치 확인 — '홈으로 튕기는' UX 방지 */}
       <Modal visible={exitConfirm} transparent animationType="fade" onRequestClose={() => setExitConfirm(false)} statusBarTranslucent>
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center', padding: 28 }}>
-          <Pressable style={{ position: 'absolute', inset: 0 }} onPress={() => setExitConfirm(false)} />
+          <Pressable accessibilityRole="button" style={{ position: 'absolute', inset: 0 }} onPress={() => setExitConfirm(false)} />
           <View style={{ width: '100%', maxWidth: 360, backgroundColor: c.surface, borderRadius: 22, borderWidth: 1, borderColor: c.border, padding: 22, boxShadow: '0 12px 40px rgba(0,0,0,0.35)', elevation: 16 }}>
             <View style={{ alignItems: 'center', marginBottom: 10 }}>
               <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: c.warning + '18', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
@@ -901,7 +901,7 @@ export default function CardsScreen() {
               </Text>
             </View>
 
-            <Pressable onPress={() => setExitConfirm(false)}
+            <Pressable accessibilityRole="button" onPress={() => setExitConfirm(false)}
               style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.primary, borderRadius: 14, paddingVertical: 14, marginTop: 8 }}>
               <Ionicons name="play" size={16} color="#fff" />
               <Text style={{ color: '#fff', fontSize: 15 * fs, fontWeight: '700', fontFamily: fontCute }}>{isCategoryMode ? '계속 복습하기' : '계속 학습하기'}</Text>
@@ -911,17 +911,17 @@ export default function CardsScreen() {
                 복습 중 나가면 홈으로 튕기던 UX 대신, 복습으로 되돌아가기를 기본 이탈 경로로 강조한다. */}
             {isCategoryMode ? (
               <>
-                <Pressable onPress={() => leaveSession(ROUTES.review)}
+                <Pressable accessibilityRole="button" onPress={() => leaveSession(ROUTES.review)}
                   style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.surfaceAlt, borderWidth: 1, borderColor: c.primary, borderRadius: 14, paddingVertical: 13, marginTop: 10 }}>
                   <Ionicons name="refresh-outline" size={16} color={c.primary} />
                   <Text style={{ color: c.primary, fontSize: 14 * fs, fontWeight: '700', fontFamily: fontCute }}>복습 목록으로 돌아가기</Text>
                 </Pressable>
-                <Pressable onPress={() => leaveSession(ROUTES.home)} hitSlop={6} style={{ alignItems: 'center', paddingVertical: 12, marginTop: 4 }}>
+                <Pressable accessibilityRole="button" onPress={() => leaveSession(ROUTES.home)} hitSlop={6} style={{ alignItems: 'center', paddingVertical: 12, marginTop: 4 }}>
                   <Text style={{ color: c.textSecondary, fontSize: 13 * fs, fontFamily: fontCute }}>홈으로 나가기</Text>
                 </Pressable>
               </>
             ) : (
-              <Pressable onPress={() => leaveSession(ROUTES.home)}
+              <Pressable accessibilityRole="button" onPress={() => leaveSession(ROUTES.home)}
                 style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.surfaceAlt, borderWidth: 1, borderColor: c.border, borderRadius: 14, paddingVertical: 13, marginTop: 10 }}>
                 <Ionicons name="home-outline" size={16} color={c.textPrimary} />
                 <Text style={{ color: c.textPrimary, fontSize: 14 * fs, fontFamily: fontCute }}>홈으로 나가기</Text>

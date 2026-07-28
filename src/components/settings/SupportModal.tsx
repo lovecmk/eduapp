@@ -82,7 +82,7 @@ export function SupportModal({
             {CATEGORIES.map((cat) => {
               const active = cat === category;
               return (
-                <Pressable
+                <Pressable accessibilityRole="button"
                   key={cat}
                   onPress={() => setCategory(cat)}
                   style={[

@@ -195,7 +195,7 @@ export default function SignupScreen() {
             </View>
           ) : (
             <View style={{ marginTop: -4, marginBottom: 12 }}>
-              <Pressable onPress={sendCode} disabled={codeBusy}
+              <Pressable accessibilityRole="button" onPress={sendCode} disabled={codeBusy}
                 style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: c.primary + '14', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, opacity: codeBusy ? 0.6 : 1 }}>
                 <Ionicons name="mail-outline" size={14} color={c.primary} />
                 <Text style={{ color: c.primary, fontSize: 12.5 * fs, fontFamily: fontDisplay }}>{codeSent ? '인증코드 재발송' : '인증코드 발송'}</Text>
@@ -217,7 +217,7 @@ export default function SignupScreen() {
                       <TextField label="인증코드" value={codeInput} onChangeText={(t) => { setCodeInput(t); setCodeError(null); }} placeholder="6자리 코드" keyboardType="number-pad"
                         status={codeError ? 'error' : 'default'} helperText={codeError ?? undefined} />
                     </View>
-                    <Pressable onPress={verifyCode} disabled={codeBusy}
+                    <Pressable accessibilityRole="button" onPress={verifyCode} disabled={codeBusy}
                       style={{ marginTop: 28, backgroundColor: c.primary, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 13, opacity: codeBusy ? 0.6 : 1 }}>
                       <Text style={{ color: '#fff', fontSize: 13 * fs, fontFamily: fontDisplay }}>확인</Text>
                     </Pressable>

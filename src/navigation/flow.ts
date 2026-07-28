@@ -30,18 +30,14 @@ export function endFlow(router: Router, target: string): void {
   router.push(target as never);
 }
 
-/**
- * 밀어 넣기(push)로 열되, 돌아갈 곳이 없으면 홈을 깔고 여는 이동.
+/*
+ * '돌아갈 곳이 없을 때 앱이 꺼지는' 문제는 여기서 다루지 않는다.
  *
- * 알림·딥링크로 앱이 곧바로 특정 화면에서 시작되는 경우가 있다. 그때 그 화면은
- * 스택의 바닥이라 뒤로가기를 누르면 앱이 꺼진다 — 사용자는 방금 열린 화면 하나만
- * 보고 나가게 되고, 앱을 둘러볼 기회조차 없다.
+ * 한때 openWithHomeBase(스택이 비어 있으면 홈을 깔고 push) 를 여기 뒀는데,
+ * 정작 아무 데서도 쓰지 않았다. 이유가 있었다 — 같은 규칙을 이미
+ * useAppBackHandler + decideBack 이 앱 전체에 걸어 두고 있다.
+ * 돌아갈 곳이 없고 홈도 아니면 종료 대신 홈으로 보낸다.
+ *
+ * 규칙이 두 곳에 있으면 반드시 한쪽만 바뀐다. 게다가 호출부마다 챙겨야 하는
+ * 방식은 화면이 새로 생길 때 또 빠진다. 마지막 방어선은 한 곳에 둔다.
  */
-export function openWithHomeBase(router: Router, target: string): void {
-  if (router.canGoBack()) {
-    router.push(target as never);
-    return;
-  }
-  router.replace(ROUTES.home as never);
-  router.push(target as never);
-}

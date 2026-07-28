@@ -90,7 +90,7 @@ export function HeaderMenuSheet({ visible, onClose }: { visible: boolean; onClos
         <View style={{ paddingHorizontal: 20 }}>
           {/* 프로필 */}
           {user && (
-            <Pressable onPress={() => go(ROUTES.profile)} style={[styles.profile, { backgroundColor: c.surface, borderColor: c.border }]}>
+            <Pressable accessibilityRole="button" onPress={() => go(ROUTES.profile)} style={[styles.profile, { backgroundColor: c.surface, borderColor: c.border }]}>
               <Avatar uri={profileImage} size={46} ring={2} ringColor={meta?.accent ?? c.primary} />
               <View style={{ flex: 1 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -112,7 +112,7 @@ export function HeaderMenuSheet({ visible, onClose }: { visible: boolean; onClos
           {/* 바로가기 */}
           <View style={styles.grid}>
             {SHORTCUTS.map((s) => (
-              <Pressable key={s.key} onPress={() => go(s.route)} style={[styles.tile, { backgroundColor: c.surface, borderColor: c.border }]}>
+              <Pressable accessibilityRole="button" key={s.key} onPress={() => go(s.route)} style={[styles.tile, { backgroundColor: c.surface, borderColor: c.border }]}>
                 <View style={[styles.tileIcon, { backgroundColor: c.primary + '14' }]}>
                   <Ionicons name={s.icon} size={20} color={c.primary} />
                   {s.key === 'notifications' && unread > 0 && (
@@ -132,7 +132,7 @@ export function HeaderMenuSheet({ visible, onClose }: { visible: boolean; onClos
             {THEMES.map((t) => {
               const active = themeMode === t.key;
               return (
-                <Pressable key={t.key} onPress={() => setThemeMode(t.key)}
+                <Pressable accessibilityRole="button" key={t.key} onPress={() => setThemeMode(t.key)}
                   style={[styles.themeChip, { backgroundColor: active ? c.primary : c.surface, borderColor: active ? c.primary : c.border }]}>
                   <Ionicons name={t.icon} size={14} color={active ? '#fff' : c.textSecondary} />
                   <Text style={{ color: active ? '#fff' : c.textSecondary, fontSize: 11.5, fontFamily: fontDisplay }}>{t.label}</Text>
@@ -143,7 +143,7 @@ export function HeaderMenuSheet({ visible, onClose }: { visible: boolean; onClos
 
           {/* 로그아웃 */}
           {user && (
-            <Pressable
+            <Pressable accessibilityRole="button"
               onPress={onLogout}
               style={[styles.logout, { backgroundColor: c.surface, borderColor: c.error + '55' }]}
             >

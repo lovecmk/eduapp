@@ -49,7 +49,7 @@ export default function SupportScreen() {
           <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 12.5 * fs, marginTop: 4, textAlign: 'center', lineHeight: 18, fontFamily: fontBody }}>
             궁금한 점이나 운영진에게 전할 내용을{'\n'}언제든 남겨주세요
           </Text>
-          <Pressable onPress={() => setSupportOpen(true)} style={{ backgroundColor: '#fff', borderRadius: 999, paddingHorizontal: 22, paddingVertical: 11, marginTop: 16 }}>
+          <Pressable accessibilityRole="button" onPress={() => setSupportOpen(true)} style={{ backgroundColor: '#fff', borderRadius: 999, paddingHorizontal: 22, paddingVertical: 11, marginTop: 16 }}>
             <Text style={{ color: c.primary, fontSize: 13.5 * fs, fontFamily: fontDisplay }}>운영진에게 문의하기</Text>
           </Pressable>
         </View>
@@ -71,7 +71,7 @@ export default function SupportScreen() {
           {FAQ.map((item, i) => (
             <View key={i}>
               {i > 0 && <Divider />}
-              <Pressable onPress={() => toggleFaq(i)} style={styles.faqHead}>
+              <Pressable accessibilityRole="button" onPress={() => toggleFaq(i)} style={styles.faqHead}>
                 <Text style={{ color: c.textPrimary, fontSize: 13.5 * fs, flex: 1, fontFamily: fontDisplay }}>{item.q}</Text>
                 <Ionicons name={openFaq === i ? 'chevron-up' : 'chevron-down'} size={16} color={c.textSecondary} />
               </Pressable>
@@ -97,7 +97,7 @@ function Row({ icon, label, desc, onPress }: { icon: keyof typeof Ionicons.glyph
   const { theme } = useTheme();
   const c = theme.colors;
   return (
-    <Pressable onPress={onPress} disabled={!onPress} style={styles.row}>
+    <Pressable accessibilityRole="button" onPress={onPress} disabled={!onPress} style={styles.row}>
       <View style={[styles.rowIcon, { backgroundColor: c.primary + '14' }]}><Ionicons name={icon} size={17} color={c.primary} /></View>
       <View style={{ flex: 1 }}>
         <Text style={{ color: c.textPrimary, fontSize: 14, fontFamily: fontDisplay }}>{label}</Text>

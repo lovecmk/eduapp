@@ -33,7 +33,7 @@ export function BragFeedCard() {
           <Ionicons name="sparkles" size={16} color={c.primary} />
           <Text style={{ color: c.textPrimary, fontSize: 15, fontFamily: fontDisplay }}>오늘의 플렉스</Text>
         </View>
-        <Pressable onPress={() => router.push(ROUTES.share as never)}
+        <Pressable accessibilityRole="button" onPress={() => router.push(ROUTES.share as never)}
           style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.primary + '14', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 }}>
           <Ionicons name="add" size={14} color={c.primary} />
           <Text style={{ color: c.primary, fontSize: 12.5, fontFamily: fontDisplay }}>나도 플렉스</Text>

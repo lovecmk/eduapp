@@ -87,7 +87,7 @@ export default function ContentDetailScreen() {
             >
               <Ionicons name={bookmarked ? 'bookmark' : 'bookmark-outline'} size={19} color={bookmarked ? c.primary : c.textSecondary} />
             </Pressable>
-            <Pressable onPress={() => setReportOpen(true)} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 4, paddingHorizontal: 6, borderRadius: 8 }}>
+            <Pressable accessibilityRole="button" onPress={() => setReportOpen(true)} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 4, paddingHorizontal: 6, borderRadius: 8 }}>
               <Ionicons name={reported ? 'flag' : 'flag-outline'} size={16} color={reported ? c.warning : c.textSecondary} />
               <Text style={{ color: reported ? c.warning : c.textSecondary, fontSize: 12, fontFamily: fontBody }}>{reported ? '요청됨' : '수정'}</Text>
             </Pressable>
@@ -151,12 +151,12 @@ export default function ContentDetailScreen() {
           </View>
         ) : (
           <View style={{ flexDirection: 'row', gap: 10 }}>
-            <Pressable onPress={() => handleReviewMark('learning')}
+            <Pressable accessibilityRole="button" onPress={() => handleReviewMark('learning')}
               style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.warning, borderRadius: 14, height: 52, boxShadow: `0 3px 8px ${c.warning}3D` }}>
               <Ionicons name="refresh-circle" size={19} color="#fff" />
               <Text style={{ color: '#fff', fontSize: 14.5 * fs, fontWeight: '700', fontFamily: fontCute }}>다음에 한번 더 볼게요</Text>
             </Pressable>
-            <Pressable onPress={() => handleReviewMark('mastered')}
+            <Pressable accessibilityRole="button" onPress={() => handleReviewMark('mastered')}
               style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.success, borderRadius: 14, height: 52, boxShadow: `0 3px 8px ${c.success}3D` }}>
               <Ionicons name="checkmark-circle" size={19} color="#fff" />
               <Text style={{ color: '#fff', fontSize: 14.5 * fs, fontWeight: '700', fontFamily: fontCute }}>이해했어요</Text>

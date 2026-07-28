@@ -19,11 +19,14 @@ export function QuestionImage({
   source,
   height = 190,
   expandable = true,
+  alt,
 }: {
   uri?: string;
   source?: ImageSourcePropType;
   height?: number;
   expandable?: boolean;
+  /** 그림 설명 — 이미지 문제는 그림이 문제의 일부라 못 보면 풀 수 없다. */
+  alt?: string;
 }) {
   const { theme } = useTheme();
   // 전체 화면 뷰어 크기는 리사이즈·회전에 따라가야 한다(모듈 상수로 굳히면 안 된다).
@@ -38,7 +41,7 @@ export function QuestionImage({
 
   return (
     <>
-      <Pressable
+      <Pressable accessibilityRole="button"
         disabled={!canExpand}
         // 카드 앞면 전체가 '탭하여 뒤집기' Pressable 로 감싸져 있어, 웹에서는 클릭이
         // 부모로 전파되어 이미지 확대와 카드 뒤집기가 동시에 일어난다.
@@ -49,6 +52,8 @@ export function QuestionImage({
         {!failed && imgSource && (
           <Image
             source={imgSource}
+            // 문제의 일부다 — 이 그림을 못 보면 문제를 풀 수 없다.
+            accessibilityLabel={alt ?? '문제 이미지'}
             style={StyleSheet.absoluteFill}
             contentFit="contain"
             transition={300}
@@ -92,6 +97,7 @@ export function QuestionImage({
             <Image
               source={imgSource}
               pointerEvents="none"
+              accessibilityLabel={alt ?? '문제 이미지 확대'}
               style={{ width: screenW, height: screenH }}
               contentFit="contain"
               transition={150}

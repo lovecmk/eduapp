@@ -153,7 +153,7 @@ function MyFactionCard() {
 
   if (!myFaction) {
     return (
-      <Pressable onPress={() => router.push(ROUTES.factionSelect as never)}
+      <Pressable accessibilityRole="button" onPress={() => router.push(ROUTES.factionSelect as never)}
         style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 16, padding: 16, marginBottom: 20 }}>
         <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: c.primary + '18', alignItems: 'center', justifyContent: 'center' }}>
           <Ionicons name="flag" size={20} color={c.primary} />
@@ -180,7 +180,7 @@ function MyFactionCard() {
   const rankLabel = myRank === 1 ? '🏆 선두' : myRank > 0 ? `${myRank}위` : '집계 중';
 
   return (
-    <Pressable onPress={() => router.push(ROUTES.community as never)}
+    <Pressable accessibilityRole="button" onPress={() => router.push(ROUTES.community as never)}
       style={{ backgroundColor: c.surface, borderWidth: 1, borderColor: myFaction.color + '55', borderRadius: 16, padding: 16, marginBottom: 20 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 }}>
         <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: myFaction.color + '1A', alignItems: 'center', justifyContent: 'center' }}>

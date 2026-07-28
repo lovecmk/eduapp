@@ -94,7 +94,7 @@ export default function PackRulesScreen() {
                   {p.claimedTimes > 0 ? ` · ${p.claimedTimes}회 수령` : ''}
                 </Text>
                 {p.claimable > 0 ? (
-                  <Pressable onPress={() => onClaim(p.rule.id, p.claimable, p.rule.reward)}
+                  <Pressable accessibilityRole="button" onPress={() => onClaim(p.rule.id, p.claimable, p.rule.reward)}
                     style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: p.rule.color, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 6 }}>
                     <Ionicons name="gift" size={13} color="#fff" />
                     <Text style={{ color: '#fff', fontSize: 12.5, fontFamily: fontCute, fontWeight: '800' }}>팩 {p.claimable}개 받기</Text>

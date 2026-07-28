@@ -128,7 +128,7 @@ export default function DeveloperScreen() {
           {/* 서버 헬스체크 — 배포 후 스모크 확인용(GET /api/health) */}
           <View style={{ marginTop: 14, borderTopWidth: 1, borderTopColor: c.surfaceAlt, paddingTop: 14 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-              <Pressable onPress={runHealthCheck} disabled={healthBusy}
+              <Pressable accessibilityRole="button" onPress={runHealthCheck} disabled={healthBusy}
                 style={{ flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: c.primary + '14', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, opacity: healthBusy ? 0.6 : 1 }}>
                 <Ionicons name="pulse-outline" size={14} color={c.primary} />
                 <Text style={{ color: c.primary, fontSize: 12.5 * fs, fontFamily: fontDisplay }}>
@@ -150,7 +150,7 @@ export default function DeveloperScreen() {
         </View>
 
         {/* 콘텐츠 관리 — 문제 등록(웹 등록 도구와 동일 메타데이터 계약) */}
-        <Pressable onPress={() => router.push(ROUTES.authorCard as never)}
+        <Pressable accessibilityRole="button" onPress={() => router.push(ROUTES.authorCard as never)}
           style={{ backgroundColor: c.surface, borderColor: c.border, borderWidth: 1, borderRadius: 16, padding: 18, marginBottom: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
           <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: c.primary + '18', alignItems: 'center', justifyContent: 'center' }}>
             <Ionicons name="create-outline" size={20} color={c.primary} />
