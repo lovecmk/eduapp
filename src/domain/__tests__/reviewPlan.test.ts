@@ -171,6 +171,16 @@ describe('describePlan — 권하되 재촉하지 않는다', () => {
     expect(detail).toContain('모레');
   });
 
+  it('날짜 표현이 계획을 세운 시계를 따른다 — 실제 시각을 몰래 읽지 않는다', () => {
+    // 예전에는 describePlan 이 Date.now() 를 따로 읽었다. 그래서 주입한 시계로
+    // '모레'라고 세운 계획이 실제 날짜에 따라 '내일'로 읽혔고, 자정을 넘기는
+    // 순간 테스트가 스스로 깨졌다. 계획과 문구는 같은 시계를 봐야 한다.
+    const past = new Date(2020, 0, 1, 9, 0).getTime();
+    const plan = buildReviewPlan([card('c1')], { c1: state({ dueAt: past + 2 * DAY }) }, past);
+    expect(plan.now).toBe(past);
+    expect(describePlan(plan).detail).toContain('모레');
+  });
+
   it('어떤 상태에서도 마감·부채의 말을 쓰지 않는다', () => {
     // 복습은 자유의지다. 안 했을 때 잃는 것을 들먹이면 안내가 아니라 협박이 된다.
     const forbidden = ['기한', '지남', '지났', '밀린', '미룰수록', '늦', '놓치', '남은 복습'];

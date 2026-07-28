@@ -18,15 +18,26 @@ const PAD = 3;
 /**
  * 세련된 커스텀 토글 스위치 — 네이티브 Switch 의 플랫폼 편차를 없애고
  * 부드러운 썸 이동 + 트랙 컬러 전환 애니메이션으로 마감 품질을 높인다.
+ *
+ * label 은 선택이 아니라 사실상 필수다. 이 스위치는 트랙과 썸만 그리므로
+ * 안에 읽을 글자가 없다. 옆에 붙은 설명 텍스트는 별개의 요소라 스크린리더가
+ * 묶어 주지 않고, 이름을 주지 않으면 그냥 "스위치, 켬"으로만 읽힌다 —
+ * 사용자는 **무엇을** 켜고 끄는지 모른 채 토글하게 된다.
  */
 export function Switch({
   value,
   onValueChange,
   disabled,
+  label,
+  hint,
 }: {
   value: boolean;
   onValueChange: (v: boolean) => void;
   disabled?: boolean;
+  /** 스크린리더가 읽을 이름 — 보통 옆에 보이는 설정 항목 제목을 그대로 준다. */
+  label?: string;
+  /** 켜면 무슨 일이 생기는지에 대한 부연(선택). */
+  hint?: string;
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
@@ -57,6 +68,8 @@ export function Switch({
       onPress={handlePress}
       disabled={disabled}
       accessibilityRole="switch"
+      accessibilityLabel={label}
+      accessibilityHint={hint}
       accessibilityState={{ checked: value, disabled }}
       hitSlop={8}
       style={{ opacity: disabled ? 0.5 : 1 }}

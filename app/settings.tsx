@@ -256,7 +256,7 @@ function SettingsBody({ scrollRef }: { scrollRef: React.RefObject<ScrollView> })
                 icon="finger-print-outline"
                 label="생체인증 로그인"
                 description="Face ID · 지문으로 빠른 로그인"
-                right={<Switch value={biometricLoginEnabled} onValueChange={setBiometricLogin} />}
+                right={<Switch label="생체인증 로그인" value={biometricLoginEnabled} onValueChange={setBiometricLogin} />}
               />
               <SettingsItem
                 anchorId="logout"
@@ -296,35 +296,35 @@ function SettingsBody({ scrollRef }: { scrollRef: React.RefObject<ScrollView> })
                 icon="shuffle-outline"
                 label="카드 순서 섞기"
                 description="학습할 때 무작위 순서로"
-                right={<Switch value={shuffleCards} onValueChange={toggleShuffleCards} />}
+                right={<Switch label="카드 순서 섞기" value={shuffleCards} onValueChange={toggleShuffleCards} />}
               />
               <SettingsItem
                 anchorId="weak-spots"
                 icon="barbell-outline"
                 label="약점 우선 복습"
                 description="자주 잊는 카드를 먼저 보여줘요"
-                right={<Switch value={prioritizeWeakSpots} onValueChange={togglePrioritizeWeakSpots} />}
+                right={<Switch label="약점 우선 복습" value={prioritizeWeakSpots} onValueChange={togglePrioritizeWeakSpots} />}
               />
               <SettingsItem
                 anchorId="keep-screen-on"
                 icon="sunny-outline"
                 label="화면 켜짐 유지"
                 description="학습 중 화면 꺼짐 방지"
-                right={<Switch value={keepScreenOn} onValueChange={toggleKeepScreenOn} />}
+                right={<Switch label="화면 켜짐 유지" value={keepScreenOn} onValueChange={toggleKeepScreenOn} />}
               />
               <SettingsItem
                 anchorId="dont-know-haptic"
                 icon="pulse-outline"
                 label="'모를 때' 진동"
                 description="빨간 버튼(다음에 한번 더)에만 미세한 진동"
-                right={<Switch value={dontKnowHaptic} onValueChange={toggleDontKnowHaptic} />}
+                right={<Switch label="'모를 때' 진동" value={dontKnowHaptic} onValueChange={toggleDontKnowHaptic} />}
               />
               <SettingsItem
                 anchorId="offline"
                 icon="cloud-offline-outline"
                 label="오프라인 · 데이터 절약"
                 description="Wi-Fi에서만 콘텐츠 다운로드"
-                right={<Switch value={offlineMode} onValueChange={toggleOfflineMode} />}
+                right={<Switch label="오프라인 · 데이터 절약" value={offlineMode} onValueChange={toggleOfflineMode} />}
               />
             </SettingsGroup>
 
@@ -338,7 +338,7 @@ function SettingsBody({ scrollRef }: { scrollRef: React.RefObject<ScrollView> })
                 icon="notifications-outline"
                 label="알림 받기"
                 description="학습 리마인더 · 성취 · 공지"
-                right={<Switch value={notifications.enabled} onValueChange={(v) => { void onToggleNotification(v); }} />}
+                right={<Switch label="알림 받기" value={notifications.enabled} onValueChange={(v) => { void onToggleNotification(v); }} />}
               />
               <SettingsItem
                 anchorId="notify-time"
@@ -397,7 +397,7 @@ function SettingsBody({ scrollRef }: { scrollRef: React.RefObject<ScrollView> })
                 icon="contrast-outline"
                 label="고대비 모드"
                 description="야외 · 저조도 가독성 강화"
-                right={<Switch value={highContrast} onValueChange={toggleHighContrast} />}
+                right={<Switch label="고대비 모드" value={highContrast} onValueChange={toggleHighContrast} />}
               />
             </SettingsGroup>
 
@@ -408,14 +408,14 @@ function SettingsBody({ scrollRef }: { scrollRef: React.RefObject<ScrollView> })
                 icon="sparkles-outline"
                 label="자랑(플렉스) 유도"
                 description="목표 달성 시 성취 카드 자랑을 제안"
-                right={<Switch value={flexPromptEnabled} onValueChange={toggleFlexPrompt} />}
+                right={<Switch label="자랑(플렉스) 유도" value={flexPromptEnabled} onValueChange={toggleFlexPrompt} />}
               />
               <SettingsItem
                 anchorId="achievement-badge"
                 icon="shield-checkmark-outline"
                 label="성취 뱃지 표시"
                 description="닉네임 옆에 최고 등급 뱃지 노출"
-                right={<Switch value={showAchievementBadge} onValueChange={toggleAchievementBadge} />}
+                right={<Switch label="성취 뱃지 표시" value={showAchievementBadge} onValueChange={toggleAchievementBadge} />}
               />
               <SettingsItem
                 anchorId="collection"
@@ -423,7 +423,7 @@ function SettingsBody({ scrollRef }: { scrollRef: React.RefObject<ScrollView> })
                 label="카드 수집 · 카드팩"
                 description="회의 확정 전까지 설정에서만 켤 수 있어요"
                 badge="베타"
-                right={<Switch value={collectionEnabled} onValueChange={toggleCollectionEnabled} />}
+                right={<Switch label="카드 수집 · 카드팩" value={collectionEnabled} onValueChange={toggleCollectionEnabled} />}
               />
               {collectionEnabled ? (
                 <SettingsItem

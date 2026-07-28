@@ -119,7 +119,7 @@ export default function LegalScreen() {
                               {marketing ? '동의함 — 언제든 끌 수 있어요' : '동의하지 않음'}
                             </Text>
                           </View>
-                          <Switch value={marketing} onValueChange={(v) => updateNotification('marketing', v)} />
+                          <Switch label="혜택 · 이벤트 정보 받기" value={marketing} onValueChange={(v) => updateNotification('marketing', v)} />
                         </View>
                       )}
                     </View>

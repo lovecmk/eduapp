@@ -1,4 +1,5 @@
 import { isDue, type SrsCardState } from './srs';
+import { startOfDay as startOfDayDate } from '../utils/dateKey';
 import type { LearningCard } from './models/LearningCard';
 
 /**
@@ -67,6 +68,14 @@ export interface ReviewPlan {
   nextDueAt: number | null;
   /** 앞으로 7일간 볼 카드 분포. */
   upcoming: UpcomingDay[];
+  /**
+   * 이 계획을 세운 시각.
+   *
+   * 계획과 문구가 **같은 시계**를 보게 하려고 함께 들고 다닌다.
+   * describePlan 이 Date.now() 를 따로 읽으면 시계가 둘이 되고, 자정을 걸치는
+   * 순간 '모레 준비돼요'라고 세운 계획이 '내일'로 읽히는 어긋남이 생긴다.
+   */
+  now: number;
 }
 
 /** 한 번에 제시하는 최대 장수 — 마이크로러닝 부담을 넘기지 않는다. */
@@ -118,6 +127,7 @@ export function buildReviewPlan(
     fragile,
     nextDueAt: findNextDue(withState, now),
     upcoming: buildUpcoming(withState, now),
+    now,
   };
 }
 
@@ -134,6 +144,8 @@ function decideState(dueCount: number, studiedCount: number): ReviewState {
  *  · 안 했을 때 잃는 것을 들먹이지 않는다. 손실을 앞세우면 그건 안내가 아니라 협박이다.
  *  · 볼 것이 없는 날은 '끝냈다'가 아니라 '쉬어도 된다'로 말한다.
  *    복습을 다 한 것이 의무를 마친 것처럼 들리면, 안 한 날은 빚이 된다.
+ *
+ * 날짜 표현은 반드시 plan.now 를 기준으로 한다 — 계획을 세운 시계와 같아야 한다.
  */
 export function describePlan(plan: ReviewPlan): { title: string; detail: string } {
   switch (plan.state) {
@@ -149,7 +161,7 @@ export function describePlan(plan: ReviewPlan): { title: string; detail: string 
       return {
         title: '지금은 쉬어도 좋아요',
         detail: plan.nextDueAt
-          ? `${formatDueLabel(plan.nextDueAt)}쯤 다시 볼 카드가 준비돼요`
+          ? `${formatDueLabel(plan.nextDueAt, plan.now)}쯤 다시 볼 카드가 준비돼요`
           : '새로 학습하면 다시 볼 시점이 잡혀요',
       };
     case 'empty':
@@ -197,7 +209,10 @@ function buildUpcoming(withState: { state: SrsCardState }[], now: number): Upcom
   return days;
 }
 
+/**
+ * ms 기준 자정 — 계산이 전부 타임스탬프라 여기서만 ms 로 감싼다.
+ * 자정의 정의 자체는 utils/dateKey 하나뿐이어야 한다(달력·스트릭과 어긋나면 안 된다).
+ */
 function startOfDay(ms: number): number {
-  const d = new Date(ms);
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  return startOfDayDate(new Date(ms)).getTime();
 }

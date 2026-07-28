@@ -226,7 +226,7 @@ function FlagRow({ label, desc, value, onToggle, last }: { label: string; desc: 
         <Text style={{ color: c.textPrimary, fontSize: 13.5, fontFamily: fontDisplay }}>{label}</Text>
         <Text style={{ color: c.textSecondary, fontSize: 11.5, fontFamily: fontBody }}>{desc}</Text>
       </View>
-      <Switch value={value} onValueChange={onToggle} />
+      <Switch label={label} value={value} onValueChange={onToggle} />
     </View>
   );
 }

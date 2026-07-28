@@ -39,7 +39,7 @@ export default function PrivacyScreen() {
                 icon="search-outline"
                 label="닉네임 검색 허용"
                 description="끄면 다른 사람이 나를 검색할 수 없어요"
-                right={<Switch value={visibility.searchable} onValueChange={() => toggle('searchable')} />}
+                right={<Switch label="닉네임 검색 허용" value={visibility.searchable} onValueChange={() => toggle('searchable')} />}
               />
             </SettingsGroup>
 
@@ -52,28 +52,28 @@ export default function PrivacyScreen() {
                 icon="book-outline"
                 label="누적 학습 · 완료율"
                 description="지금까지의 학습량과 완료율"
-                right={<Switch value={visibility.showProgress} onValueChange={() => toggle('showProgress')} />}
+                right={<Switch label="누적 학습 · 완료율" value={visibility.showProgress} onValueChange={() => toggle('showProgress')} />}
               />
               <SettingsItem
                 anchorId="privacy-streak"
                 icon="flame-outline"
                 label="연속 학습(스트릭)"
                 description="며칠 연속으로 학습했는지"
-                right={<Switch value={visibility.showStreak} onValueChange={() => toggle('showStreak')} />}
+                right={<Switch label="연속 학습(스트릭)" value={visibility.showStreak} onValueChange={() => toggle('showStreak')} />}
               />
               <SettingsItem
                 anchorId="privacy-emblems"
                 icon="ribbon-outline"
                 label="엠블럼"
                 description="분야별 실력 등급 뱃지"
-                right={<Switch value={visibility.showEmblems} onValueChange={() => toggle('showEmblems')} />}
+                right={<Switch label="엠블럼" value={visibility.showEmblems} onValueChange={() => toggle('showEmblems')} />}
               />
               <SettingsItem
                 anchorId="privacy-collection"
                 icon="albums-outline"
                 label="안전 카드 컬렉션 수"
                 description="모은 수집 카드 개수"
-                right={<Switch value={visibility.showCollection} onValueChange={() => toggle('showCollection')} />}
+                right={<Switch label="안전 카드 컬렉션 수" value={visibility.showCollection} onValueChange={() => toggle('showCollection')} />}
               />
             </SettingsGroup>
           </MeasureOffset>
