@@ -15,13 +15,35 @@ const RETRY_BASE_MS = 400;
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 /**
+ * 네트워크 단계의 원시 예외를 ApiError 로 정규화한다.
+ *
+ * 이걸 fetch 호출부에만 걸면 부족하다 — 타임아웃 타이머가 **본문을 읽는 도중**
+ * 터지면 `res.text()` 가 AbortError 로 거부되는데, 그 경로가 정규화되지 않으면
+ * `toApiError` 가 kind:'unknown'(= retryable:false)으로 만들어 버린다.
+ * 그러면 오프라인 큐가 "다시 보내도 소용없는 실패"로 오판해 사용자의 출석·채점
+ * 기록을 **버린다**. 유실 방지가 존재 이유인 큐에서 가장 나쁜 결과다.
+ */
+function toNetworkError(e: unknown): ApiError {
+  if (e instanceof ApiError) return e;
+  if ((e as { name?: string })?.name === 'AbortError') {
+    return new ApiError(0, `요청 시간이 초과되었습니다 (${env.apiTimeoutMs}ms)`, 'offline');
+  }
+  return new ApiError(0, '네트워크에 연결할 수 없어요. 연결 상태를 확인해주세요.', 'offline');
+}
+
+/**
  * 성공 응답의 본문을 읽는다. 삭제는 204, 일부 쓰기는 빈 200 으로 답하므로
  * 본문이 없는 경우를 성공으로 다뤄야 한다(res.json() 을 그냥 걸면 SyntaxError 가
  * 나면서 성공한 요청이 실패로 둔갑한다).
  */
 async function readJsonBody(res: Response): Promise<unknown> {
   if (res.status === 204 || res.status === 205) return {};
-  const text = await res.text().catch(() => '');
+  // 본문 읽기 실패를 삼키면 안 된다. `.catch(() => '')` 로 빈 문자열을 만들면
+  // **중간에 끊긴 응답이 '내용 없는 성공'으로 둔갑한다** — 카드 목록 GET 이
+  // 조용히 빈 배열이 되어 화면은 "학습할 카드가 없습니다"를 보여주고,
+  // 사용자는 서버가 그렇게 답한 줄 안다. 여기서 던져야 바깥이 offline 으로
+  // 정규화하고 GET 재시도·오프라인 배너가 정상 동작한다.
+  const text = await res.text();
   if (text.trim().length === 0) return {};
   try {
     return JSON.parse(text) as unknown;
@@ -42,11 +64,13 @@ class ApiClient {
   private async request<T>(path: string, init: RequestInit = {}, isRetry = false): Promise<T> {
     const token = await secureStorage.getItem(StorageKeys.accessToken);
     const controller = new AbortController();
+    // 타임아웃은 응답 헤더가 아니라 **본문을 다 읽을 때까지** 걸려 있어야 한다.
+    // 예전처럼 fetch 직후 clearTimeout 하면, 헤더만 보내고 본문을 흘리지 않는
+    // 프록시·중간 장비를 만났을 때 `res.text()` 에서 영원히 멈춘다(무한 대기).
     const timeout = setTimeout(() => controller.abort(), env.apiTimeoutMs);
 
-    let res: Response;
     try {
-      res = await fetch(`${env.apiBaseUrl}${path}`, {
+      const res = await fetch(`${env.apiBaseUrl}${path}`, {
         ...init,
         headers: {
           'Content-Type': 'application/json',
@@ -55,31 +79,59 @@ class ApiClient {
         },
         signal: controller.signal,
       });
-    } catch (e) {
-      // fetch 실패는 원시 에러(타임아웃 시 AbortError, 네트워크 단절 시 TypeError)로
-      // 던져진다. Repository/UI 레이어가 ApiError 로 일관되게 처리하도록 정규화한다.
-      // (status 0 = 응답을 받기 전 클라이언트/네트워크 단계 실패)
-      if ((e as { name?: string })?.name === 'AbortError') {
-        throw new ApiError(0, `요청 시간이 초과되었습니다 (${env.apiTimeoutMs}ms)`, 'offline');
+
+      if (res.status === 401 && !isRetry) {
+        clearTimeout(timeout); // 재시도는 자기 타이머를 새로 건다
+        return await this.handleUnauthorized<T>(path, init, token);
       }
-      throw new ApiError(0, '네트워크에 연결할 수 없어요. 연결 상태를 확인해주세요.', 'offline');
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { message?: string };
+        // 실패한 요청을 구조화 로그로 남긴다(경로·상태만 — 본문/토큰은 남기지 않는다).
+        logger.warn('api_request_failed', { path, status: res.status, method: init.method ?? 'GET' });
+        throw new ApiError(res.status, body.message ?? '', kindOf(res.status));
+      }
+      return validateResponse<T>(await readJsonBody(res));
+    } catch (e) {
+      // fetch 실패(타임아웃 AbortError·네트워크 단절 TypeError)와 본문 읽기 중단을
+      // 한 곳에서 ApiError 로 정규화한다 — status 0 = 응답을 완성하지 못한 실패.
+      throw toNetworkError(e);
     } finally {
       clearTimeout(timeout);
     }
+  }
 
-    if (res.status === 401 && !isRetry) {
-      const refreshed = await this.refreshOnce();
-      if (refreshed) return this.request<T>(path, init, true);
-      await this.clearTokens();
-      throw new ApiError(401, '인증이 만료되었습니다');
-    }
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}) as { message?: string });
-      // 실패한 요청을 구조화 로그로 남긴다(경로·상태만 — 본문/토큰은 남기지 않는다).
-      logger.warn('api_request_failed', { path, status: res.status, method: init.method ?? 'GET' });
-      throw new ApiError(res.status, body.message ?? '', kindOf(res.status));
-    }
-    return validateResponse<T>(await readJsonBody(res));
+  /**
+   * 401 처리 — refresh 쇄도(stampede)와 '멀쩡한 토큰을 지우는' 사고를 함께 막는다.
+   *
+   * single-flight 만으로는 부족하다. 겹치지 않고 **연달아** 도착한 401 이 문제다:
+   *   ① 요청 A·B 가 만료 토큰 T1 으로 나간다.
+   *   ② A 가 401 → refresh 성공(T1→T2, 회전형 서버는 refresh 토큰도 R1→R2).
+   *   ③ 그 직후 B 의 401 이 도착한다. 이때 A 의 refresh 는 이미 끝나 슬롯이 비어 있어
+   *      B 가 **두 번째 refresh** 를 R2… 가 아니라 자기가 아는 흐름대로 다시 돌린다.
+   *      서버가 이미 쓴 R1 을 거부하면 refresh 실패 → clearTokens() 가 방금 받은
+   *      **유효한 T2/R2 까지 지우고** 사용자를 로그인 화면으로 쫓아낸다.
+   *
+   * 그래서 refresh 를 돌리기 전에 저장소의 access 토큰을 다시 읽어, 내가 요청을
+   * 보낸 뒤에 누군가 이미 갱신했다면 refresh 없이 새 토큰으로 재시도만 한다.
+   */
+  private async handleUnauthorized<T>(
+    path: string,
+    init: RequestInit,
+    usedToken: string | null,
+  ): Promise<T> {
+    const current = await secureStorage.getItem(StorageKeys.accessToken);
+    if (current && current !== usedToken) return this.request<T>(path, init, true);
+
+    const refreshed = await this.refreshOnce();
+    if (refreshed) return this.request<T>(path, init, true);
+
+    // 여기서도 한 번 더 확인한다 — 내 refresh 가 실패로 끝나는 사이에 다른 흐름이
+    // 성공시켜 놓았을 수 있다. 그 경우 토큰을 지우면 남의 성공을 무효로 만든다.
+    const afterRefresh = await secureStorage.getItem(StorageKeys.accessToken);
+    if (afterRefresh && afterRefresh !== usedToken) return this.request<T>(path, init, true);
+
+    await this.clearTokens();
+    throw new ApiError(401, '인증이 만료되었습니다');
   }
 
   /**
@@ -98,11 +150,18 @@ class ApiClient {
   private async tryRefresh(): Promise<boolean> {
     const refreshToken = await secureStorage.getItem(StorageKeys.refreshToken);
     if (!refreshToken) return false;
+    // refresh 에는 타임아웃이 반드시 있어야 한다. 이 fetch 는 single-flight 라
+    // 여기가 멈추면 **뒤따르는 모든 401 이 같은 약속을 기다리며 영원히 멈춘다** —
+    // 화면·오프라인 큐(flushing 플래그가 안 풀린다)까지 통째로 얼어붙는다.
+    // 현장에서 흔한 '연결은 살아 있는데 응답이 없는' 반열림(half-open) 상태가 정확히 이 경우다.
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), env.apiTimeoutMs);
     try {
       const res = await fetch(`${env.apiBaseUrl}/api/auth/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refresh_token: refreshToken }),
+        signal: controller.signal,
       });
       if (!res.ok) return false;
       const data = (await res.json().catch(() => ({}))) as {
@@ -121,6 +180,8 @@ class ApiClient {
       return true;
     } catch {
       return false;
+    } finally {
+      clearTimeout(timeout);
     }
   }
 

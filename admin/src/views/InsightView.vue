@@ -9,6 +9,7 @@ import { num } from '../lib/format';
 import AsyncSection from '../components/AsyncSection.vue';
 import AppIcon from '../components/AppIcon.vue';
 import StatTile from '../components/StatTile.vue';
+import PeerCompare, { type PeerRow } from '../components/charts/PeerCompare.vue';
 import {
   anomalyMarks,
   applyCategoryFilter,
@@ -21,6 +22,7 @@ import {
   severityLabel,
   sparklinePoints,
 } from '../lib/insight';
+import { barWidth, niceMax } from '../lib/chart';
 
 /**
  * 분석 — 숫자에서 '무엇을 해야 하는가'까지.
@@ -64,6 +66,46 @@ const SPARK_H = 48;
 const spark = computed(() => sparklinePoints(view.value?.activity ?? [], SPARK_W, SPARK_H));
 const marks = computed(() =>
   anomalyMarks(view.value?.activity ?? [], view.value?.anomalies ?? [], SPARK_W, SPARK_H),
+);
+
+/**
+ * 분야별 실패율 막대.
+ *
+ * 표만 두면 '어느 분야가 문제인가'를 알려고 여섯 개 숫자를 눈으로 정렬해야 한다.
+ * 막대로 그리면 순서가 형태로 보인다. 축은 깔끔한 수에서 끊어 1등 막대가 늘
+ * 끝까지 닿는 착시를 막는다.
+ *
+ * 색을 값에 따라 진하게 바꾸지 않는다 — 그러면 막대 길이가 이미 말한 것을
+ * 색으로 한 번 더 말하는 셈이고, 정작 '평균보다 나쁨'을 표시할 채널이 사라진다.
+ */
+const categoryBars = computed(() => {
+  const rows = view.value?.categories ?? [];
+  const max = niceMax(rows.map((c) => c.lapse_rate * 100));
+  return rows.map((c) => ({
+    ...c,
+    width: barWidth(c.lapse_rate * 100, max),
+    // ratio 는 전체 평균 대비 배수. 1.3배 이상이면 손볼 분야다(표와 같은 기준).
+    over: c.ratio >= 1.3,
+    axisMax: max,
+  }));
+});
+
+const categoryAxisMax = computed(() => categoryBars.value[0]?.axisMax ?? 1);
+
+/**
+ * 난이도 보정 — 선언한 난이도가 기대하는 실패율 vs 실제 실패율.
+ *
+ * 표에 '기대 12% / 실제 80%' 를 나란히 적어 두면 읽는 사람이 매번 빼야 한다.
+ * 학습자 진단에서 쓰는 것과 **같은 아령형**을 재사용한다 — 두 화면이 같은
+ * 질문("기준과 얼마나 떨어져 있나")에 답하는데 다른 그림을 쓰면 매번 새로 읽어야 한다.
+ */
+const calibrationRows = computed<PeerRow[]>(() =>
+  (view.value?.calibration ?? []).slice(0, 6).map((c) => ({
+    label: c.title,
+    self: c.lapse_rate,
+    peer: c.expected,
+    higherIsWorse: true,
+  })),
 );
 
 const generatedAt = computed(() => {
@@ -260,6 +302,26 @@ onMounted(() => {
               </button>
             </div>
 
+            <!-- 막대가 먼저, 표가 뒤. 표는 정확한 값과 색 없이 읽는 경로로 남는다. -->
+            <div class="cbars">
+              <div v-for="c in categoryBars" :key="c.category" class="cbar-row">
+                <span class="cbar-label truncate">{{ c.category }}</span>
+                <span class="cbar-track">
+                  <i
+                    class="cbar"
+                    :class="{ over: c.over }"
+                    :style="{ width: `${c.width}%` }"
+                    :title="`${c.category} · 실패율 ${pct(c.lapse_rate)} · 문제 ${num(c.cards)}장`"
+                  />
+                </span>
+                <span class="cbar-value num" :class="{ bad: c.over }">{{ pct(c.lapse_rate) }}</span>
+              </div>
+              <p class="cbar-foot">
+                축 끝 {{ Math.round(categoryAxisMax) }}%.
+                진한 막대는 전체 평균의 1.3배 이상 틀리는 분야입니다.
+              </p>
+            </div>
+
             <div class="table-wrap">
               <table class="table">
                 <thead>
@@ -302,6 +364,21 @@ onMounted(() => {
               선언한 난이도와 실제 실패율이 크게 다르면, 초급자에게 어려운 문제가 먼저 나가거나
               그 반대가 됩니다. 표본이 모자란 문제는 아예 판정하지 않습니다.
             </p>
+            <div v-if="calibrationRows.length" class="calib">
+              <PeerCompare
+                :rows="calibrationRows"
+                self-label="실제 실패율"
+                peer-label="선언 난이도의 기대"
+                label-width="minmax(0, 200px)"
+              />
+              <p class="cbar-foot">
+                <!-- 색 이름으로 설명하지 않는다 — 다크 모드에서 '검은 점'은 흰 점이 된다.
+                     계열을 가리키는 일은 범례가 한다. -->
+                점 사이의 거리가 곧 오표기의 크기입니다. 표본이 5명 미만인 문제는
+                판정하지 않습니다.
+              </p>
+            </div>
+
             <div v-if="view.calibration.length" class="table-wrap">
               <table class="table">
                 <thead>
@@ -663,6 +740,74 @@ onMounted(() => {
   flex-direction: column;
   gap: 6px;
   font-size: 12.5px;
+}
+
+/* ── 분야별 실패율 막대 ──────────────────────────────────────────────────── */
+.cbars {
+  margin-bottom: 16px;
+}
+
+.cbar-row {
+  display: grid;
+  grid-template-columns: 96px 1fr 54px;
+  align-items: center;
+  gap: 12px;
+  padding: 3px 0;
+}
+
+.cbar-label {
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+.cbar-track {
+  position: relative;
+  height: 14px;
+  background: var(--viz-track);
+  border-radius: 3px;
+}
+
+.cbar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: 3px;
+  background: var(--viz-peer);
+}
+
+/* 평균보다 많이 틀리는 분야에만 색을 준다 — 전부 칠하면 순위만 남고 뜻이 사라진다. */
+.cbar.over {
+  background: var(--viz-worse);
+}
+
+.cbar-value {
+  font-size: 12px;
+  font-weight: 600;
+  text-align: right;
+  color: var(--ink-2);
+}
+
+.cbar-value.bad {
+  color: var(--viz-worse);
+}
+
+.cbar-foot {
+  margin: 9px 0 0;
+  font-size: 11px;
+  color: var(--ink-4);
+  line-height: 1.5;
+}
+
+.calib {
+  margin-bottom: 16px;
+}
+
+@media (max-width: 640px) {
+  .cbar-row {
+    grid-template-columns: 72px 1fr 44px;
+    gap: 8px;
+  }
 }
 
 /* ── 표 ──────────────────────────────────────────────────────────────────── */

@@ -1,4 +1,4 @@
-import { isEndpointUnavailable, withMockFallback } from '../_fallback';
+import { isEndpointUnavailable, withMockFallback, TRANSIENT_RETRY_MS } from '../_fallback';
 import { ApiError } from '../../network/errors';
 
 (globalThis as unknown as { __DEV__: boolean }).__DEV__ = false;
@@ -53,5 +53,64 @@ describe('withMockFallback', () => {
     const mock: Svc = { ping: async () => 'mock' };
     const proxied = withMockFallback(live, mock, 'test');
     await expect(proxied.ping()).rejects.toThrow(ApiError);
+  });
+});
+
+describe('withMockFallback — 일시적 단절과 영구 미배포의 구분', () => {
+  afterEach(() => jest.useRealTimers());
+
+  it('404(라우트 없음)는 영구 래치 — 다시 실서버에 묻지 않는다', async () => {
+    jest.useFakeTimers();
+    let liveCalls = 0;
+    const live: Svc = { ping: async () => { liveCalls++; throw new ApiError(404, 'no route'); } };
+    const mock: Svc = { ping: async () => 'mock' };
+    const proxied = withMockFallback(live, mock, 'test');
+
+    await proxied.ping();
+    jest.advanceTimersByTime(TRANSIENT_RETRY_MS * 10);
+    await proxied.ping();
+    expect(liveCalls).toBe(1);
+  });
+
+  it('연결 없음(status 0)은 재확인 창이 지나면 실서버를 다시 시도한다', async () => {
+    jest.useFakeTimers();
+    let liveCalls = 0;
+    const live: Svc = {
+      ping: async () => {
+        liveCalls++;
+        if (liveCalls === 1) throw new ApiError(0, '연결 없음');
+        return 'live';
+      },
+    };
+    const mock: Svc = { ping: async () => 'mock' };
+    const proxied = withMockFallback(live, mock, 'test');
+
+    // 지하에서 한 번 끊겼다 → 이번 호출과 그 직후는 목업.
+    expect(await proxied.ping()).toBe('mock');
+    expect(await proxied.ping()).toBe('mock');
+    expect(liveCalls).toBe(1);
+
+    // 지상으로 나왔다 → 창이 지나면 스스로 실서버를 다시 확인해야 한다.
+    // (이 재확인이 없으면 터널 한 번에 앱을 끌 때까지 가짜 데이터를 본다.)
+    jest.advanceTimersByTime(TRANSIENT_RETRY_MS + 1);
+    expect(await proxied.ping()).toBe('live');
+    expect(liveCalls).toBe(2);
+  });
+
+  it('503(일시 오류)도 재확인 대상이다', async () => {
+    jest.useFakeTimers();
+    let liveCalls = 0;
+    const live: Svc = {
+      ping: async () => {
+        liveCalls++;
+        if (liveCalls === 1) throw new ApiError(503, 'restarting');
+        return 'live';
+      },
+    };
+    const proxied = withMockFallback(live, { ping: async () => 'mock' }, 'test');
+
+    expect(await proxied.ping()).toBe('mock');
+    jest.advanceTimersByTime(TRANSIENT_RETRY_MS + 1);
+    expect(await proxied.ping()).toBe('live');
   });
 });

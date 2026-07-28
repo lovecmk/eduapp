@@ -622,3 +622,61 @@ func TestUserDetailCountsTheLearningTheAppActuallyRecords(t *testing.T) {
 		t.Errorf("숙달이 있는데 완료율이 0 이면 '학습 기록 없음'으로 읽힌다: %+v", got.Learning)
 	}
 }
+
+// TestDashboardCountsTheLearningTheAppActuallyRecords 는 대시보드의 '학습 진행'이
+// 사용자 상세와 **같은 곳**을 보는지 확인한다.
+//
+// 두 화면이 다른 저장소를 읽으면, 한쪽은 "완료 6"이고 다른 쪽은 "완료 0"이 된다.
+// 실제로 그런 상태였다 — 학습자가 열세 명 있어도 대시보드는 전부 0 이었다.
+func TestDashboardCountsTheLearningTheAppActuallyRecords(t *testing.T) {
+	env := buildAdminApp(t)
+	ctx := context.Background()
+	now := time.Now()
+
+	cards, err := env.cards.AllCards(ctx)
+	if err != nil || len(cards) < 3 {
+		t.Fatalf("시드 카드 필요: %v", err)
+	}
+
+	// 두 사람이 각각 세 장씩 — 그중 숙달은 사람마다 한 장.
+	for _, uid := range []string{"learnerA", "learnerB"} {
+		for i, box := range []int{5, 2, 1} {
+			reviewed := now
+			if err := env.data.SaveSrs(ctx, domain.SrsState{
+				UserID: uid, CardID: cards[i].ID, Box: box, Ease: 2.4,
+				DueAt: now, Reps: 5, Lapses: 1, LastGrade: "good", LastReviewedAt: &reviewed,
+			}, dayKeyFor(now)); err != nil {
+				t.Fatalf("SRS 저장: %v", err)
+			}
+		}
+	}
+
+	res, body := doJSON(t, env.app, "GET", "/api/admin/dashboard", env.adminToken, nil)
+	if res.StatusCode != 200 {
+		t.Fatalf("status=%d body=%s", res.StatusCode, body)
+	}
+	var got struct {
+		Learning struct {
+			New      int64   `json:"new"`
+			Learning int64   `json:"learning"`
+			Mastered int64   `json:"mastered"`
+			Rate     float64 `json:"rate"`
+		} `json:"learning"`
+	}
+	decode(t, body, &got)
+
+	// (사람, 문제) 조합으로 센다 — 두 사람 × 숙달 1장.
+	if got.Learning.Mastered != 2 {
+		t.Errorf("상자 4 이상을 숙달로 세야 한다: %+v", got.Learning)
+	}
+	if got.Learning.Learning != 4 {
+		t.Errorf("손댔지만 아직 낮은 상자가 학습 중이다: %+v", got.Learning)
+	}
+	// 학습자 2명 × 전체 문제 − 손댄 6칸.
+	if want := int64(2*len(cards)) - 6; got.Learning.New != want {
+		t.Errorf("미시작 칸 수가 맞지 않는다: %+v (기대 %d)", got.Learning, want)
+	}
+	if got.Learning.Rate <= 0 {
+		t.Errorf("숙달이 있는데 완료율이 0 이면 '기록 없음'으로 읽힌다: %+v", got.Learning)
+	}
+}

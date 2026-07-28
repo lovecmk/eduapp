@@ -21,6 +21,9 @@ import {
 } from '../lib/insight';
 import AsyncSection from './AsyncSection.vue';
 import AppIcon from './AppIcon.vue';
+import PeerCompare, { type PeerRow } from './charts/PeerCompare.vue';
+import GapBars, { type GapRow } from './charts/GapBars.vue';
+import DayStrip from './charts/DayStrip.vue';
 
 /**
  * 학습자 한 명의 교육 처방.
@@ -92,6 +95,32 @@ const counts = computed(() => {
 function worseThanPeers(mine: number, peer: number): boolean {
   return peer > 0 && mine - peer >= 0.1;
 }
+
+/**
+ * 그림으로 먼저 보여 줄 두 지표.
+ *
+ * 표에 '75%'와 '17%'를 나란히 적어 두면 읽는 사람이 매번 머릿속에서 빼야 하고,
+ * 그 수고 때문에 결국 안 읽는다. 아래 표(진단 근거 자료)는 그대로 두되 —
+ * 정확한 값과 색 없이 읽는 경로가 필요하다 — 훑을 때 걸리는 것은 그림이어야 한다.
+ *
+ * 방향이 지표마다 다르다: 실패율은 높을수록, 숙달률은 낮을수록 나쁘다.
+ * 한 규칙으로 칠하면 잘하는 쪽이 빨갛게 된다.
+ */
+const peerRows = computed<PeerRow[]>(() => {
+  const s = data.value?.summary;
+  if (!s) return [];
+  return [
+    { label: '실패율', self: s.lapse_rate, peer: s.peer_lapse_rate, higherIsWorse: true },
+    { label: '숙달률', self: s.mastery_rate, peer: s.peer_mastery_rate, higherIsWorse: false },
+  ];
+});
+
+/** 분야별 격차 — 표본이 없는 분야(또래 값 0)는 그리지 않는다. */
+const gapRows = computed<GapRow[]>(() =>
+  (data.value?.weakness ?? [])
+    .filter((w) => w.peer_rate > 0)
+    .map((w) => ({ label: w.category, gap: w.gap, verdict: w.verdict, cards: w.cards })),
+);
 
 /**
  * 접힘 상태를 토글한다.
@@ -185,6 +214,26 @@ watch(
             합계 {{ minutesLabel(plan.minutes) }}
             <template v-if="plan.thisWeek"> · 이번 주 {{ plan.thisWeek }}건</template>
           </p>
+        </div>
+
+        <!-- ── 한눈에 ──────────────────────────────────────────────────
+             처방을 읽기 전에 '이 사람이 어디에 서 있는가'가 먼저 보여야 한다.
+             아래 근거표와 같은 값이고, 표는 접힌 채로 그대로 남는다. -->
+        <div v-if="data.summary.cards > 0" class="glance">
+          <div class="glance-col">
+            <h4 class="section-title">또래 대비</h4>
+            <PeerCompare :rows="peerRows" />
+          </div>
+
+          <div v-if="gapRows.length" class="glance-col">
+            <h4 class="section-title">분야별 격차 — 어디를 가르칠 것인가</h4>
+            <GapBars :rows="gapRows" />
+          </div>
+
+          <div v-if="data.rhythm.length" class="glance-col">
+            <h4 class="section-title">학습 리듬</h4>
+            <DayStrip :points="data.rhythm" />
+          </div>
         </div>
 
         <ol v-if="plan.count" class="rx-list">
@@ -520,6 +569,21 @@ watch(
   font-size: 12px;
   color: var(--ink-4);
   font-variant-numeric: tabular-nums;
+}
+
+/* ── 한눈에 ─────────────────────────────────────────────────────────────
+   처방 위에 놓는 그림 묶음. 세 그림이 서로 다른 질문에 답한다 —
+   어디에 서 있는가 / 무엇을 가르칠 것인가 / 오기는 하는가. */
+.glance {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 16px 0 4px;
+  border-bottom: 1px solid var(--line);
+}
+
+.glance-col .section-title {
+  margin-bottom: 8px;
 }
 
 /* ── 처방 목록 ───────────────────────────────────────────────────────────

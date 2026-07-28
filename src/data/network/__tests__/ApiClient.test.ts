@@ -182,3 +182,68 @@ describe('본문 없는 성공 응답', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('토큰 갱신 경합 — 연달아 도착한 401', () => {
+  it('내가 보낸 사이 다른 요청이 이미 갱신했으면 refresh 를 다시 돌리지 않는다', async () => {
+    await seedTokens('tok-old', 'r-1');
+    let refreshCalls = 0;
+    global.fetch = jest.fn(async (url: string, init?: Init & { method?: string }) => {
+      if (String(url).endsWith('/api/auth/refresh')) {
+        refreshCalls += 1;
+        return resp(200, { access_token: 'tok-new', refresh_token: 'r-2' });
+      }
+      // 첫 요청은 낡은 토큰이라 401, 새 토큰이면 통과.
+      if (init?.headers?.Authorization === 'Bearer tok-new') return resp(200, { ok: true });
+      // 401 을 돌려주기 직전에, 다른 흐름이 이미 갱신을 끝낸 상황을 만든다.
+      await secureStorage.setItem(StorageKeys.accessToken, 'tok-new');
+      return resp(401, {});
+    }) as unknown as typeof fetch;
+
+    await expect(apiClient.get('/api/thing', { retries: 0 })).resolves.toEqual({ ok: true });
+    // 이미 새 토큰이 있으므로 refresh 는 한 번도 나가면 안 된다.
+    // (돌았다면 회전된 refresh 토큰이 거부되고 clearTokens 가 새 토큰을 지운다.)
+    expect(refreshCalls).toBe(0);
+    expect(await secureStorage.getItem(StorageKeys.accessToken)).toBe('tok-new');
+  });
+
+  it('refresh 가 실패해도 그 사이 남이 갱신해 두었다면 토큰을 지우지 않는다', async () => {
+    await seedTokens('tok-old', 'r-1');
+    global.fetch = jest.fn(async (url: string, init?: Init & { method?: string }) => {
+      if (String(url).endsWith('/api/auth/refresh')) {
+        // 내 refresh 는 실패하지만, 그 사이 다른 흐름이 갱신에 성공한 상태를 만든다.
+        await secureStorage.setItem(StorageKeys.accessToken, 'tok-new');
+        return resp(401, {});
+      }
+      if (init?.headers?.Authorization === 'Bearer tok-new') return resp(200, { ok: true });
+      return resp(401, {});
+    }) as unknown as typeof fetch;
+
+    await expect(apiClient.get('/api/thing', { retries: 0 })).resolves.toEqual({ ok: true });
+    expect(await secureStorage.getItem(StorageKeys.accessToken)).toBe('tok-new');
+    expect(await secureStorage.getItem(StorageKeys.refreshToken)).toBe('r-1');
+  });
+});
+
+describe('본문 읽기 중단', () => {
+  it('헤더만 오고 본문에서 끊긴 응답을 offline(재시도 가능)으로 정규화한다', async () => {
+    await seedTokens('tok-1', 'r-1');
+    // 헤더는 200 으로 왔지만 본문 스트림이 끊긴다(프록시가 흘리다 만 경우).
+    global.fetch = jest.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({}),
+      text: async () => {
+        const err = new Error('Aborted');
+        err.name = 'AbortError';
+        throw err;
+      },
+    })) as unknown as typeof fetch;
+
+    const err: unknown = await apiClient.get('/api/thing', { retries: 0 }).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ApiError);
+    // 여기서 kind 가 'unknown' 이면 retryable=false 가 되어
+    // 오프라인 큐가 사용자의 출석·채점 기록을 버린다.
+    expect((err as ApiError).kind).toBe('offline');
+    expect((err as ApiError).retryable).toBe(true);
+  });
+});
