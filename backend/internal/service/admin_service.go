@@ -202,10 +202,65 @@ func (s *AdminService) Dashboard(ctx context.Context) (*Dashboard, error) {
 			Suspended: suspendedTotal,
 		},
 		Content:  *content,
-		Learning: learningSummary(progress),
+		Learning: s.overallLearning(ctx, progress),
 		Metrics:  snapshot,
 		Service:  s.ServiceStatus(ctx),
 	}, nil
+}
+
+// overallLearning 은 전체 학습 진행을 센다.
+//
+// GetUser 와 같은 문제를 고친 것이다 — 예전에는 진행 상태 표(cards.ProgressCount)를
+// 읽었는데, 앱은 오래전부터 간격반복 기록으로만 남긴다. 그래서 학습자가 열세 명
+// 있어도 대시보드는 "완료 0 · 학습 중 0 · 미시작 0"을 보여 줬다.
+//
+// 세는 단위는 **(사람, 문제) 조합**이다. 학습자 11명 × 문제 61장이면 671칸이 있고,
+// 그중 몇 칸이 채워졌는가를 본다. '문제 기준'으로 세면 한 사람만 푼 문제와 열 명이
+// 푼 문제가 같아져, 콘텐츠가 실제로 얼마나 닿았는지 알 수 없다.
+//
+// 집계를 지원하지 않는 저장소에서는 예전 값을 그대로 쓴다(0 을 보여 주는 것보다 낫다).
+func (s *AdminService) overallLearning(ctx context.Context, legacy map[string]int64) LearningSummary {
+	repo, ok := s.data.(ports.InsightRepository)
+	if !ok {
+		return learningSummary(legacy)
+	}
+	cardStats, err := repo.CardLearning(ctx)
+	if err != nil {
+		return learningSummary(legacy)
+	}
+	learners, err := repo.LearnerLearning(ctx)
+	if err != nil {
+		return learningSummary(legacy)
+	}
+	cards, err := s.cards.AllCards(ctx)
+	if err != nil {
+		return learningSummary(legacy)
+	}
+
+	var touched, mastered int64
+	for _, c := range cardStats {
+		touched += c.Learners
+		mastered += c.Mastered
+	}
+
+	// 아직 아무도 손대지 않은 칸. 학습자가 없으면 0 이다 — 분모가 0 인데
+	// '미시작 61장'이라고 하면 없는 진행을 있는 것처럼 말하게 된다.
+	total := int64(len(learners)) * int64(len(cards))
+	untouched := total - touched
+	if untouched < 0 {
+		untouched = 0
+	}
+
+	rate := 0.0
+	if total > 0 {
+		rate = round2(float64(mastered) / float64(total) * 100)
+	}
+	return LearningSummary{
+		New:      untouched,
+		Learning: touched - mastered,
+		Mastered: mastered,
+		Rate:     rate,
+	}
 }
 
 // contentSummary 는 카드 분포와 '아무도 못 푸는 문제'를 뽑는다.

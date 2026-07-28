@@ -167,13 +167,14 @@ function share(v: number): string {
         <section class="panel">
           <div class="panel-head">
             <h2 class="panel-title">학습 진행</h2>
-            <span class="panel-note">전체 사용자 · 완료율 {{ pct(learning?.rate) }}</span>
+            <!-- 분모를 밝힌다. '완료 126'만 있으면 무엇 중 126인지 알 수 없다. -->
+            <span class="panel-note">학습자 × 문제 조합 · 완료율 {{ pct(learning?.rate) }}</span>
           </div>
           <div class="panel-body">
             <div
               class="stack"
               role="img"
-              :aria-label="`완료 ${learning?.mastered ?? 0}, 학습 중 ${learning?.learning ?? 0}, 미시작 ${learning?.new ?? 0}`"
+              :aria-label="`학습자 × 문제 조합 ${learnTotal}칸 중 완료 ${learning?.mastered ?? 0}, 학습 중 ${learning?.learning ?? 0}, 미시작 ${learning?.new ?? 0}`"
             >
               <span class="seg s-done" :style="{ width: share(learning?.mastered ?? 0) }" />
               <span class="seg s-doing" :style="{ width: share(learning?.learning ?? 0) }" />
@@ -377,24 +378,34 @@ function share(v: number): string {
 }
 
 /* 누적 막대 */
+/* 진행 막대 — 조각 사이를 **배경색 틈**으로 가른다.
+   테두리를 두르면 데이터가 아닌 잉크가 늘고, 붙여 두면 어디서 끊기는지 안 보인다. */
 .stack {
   display: flex;
-  height: 7px;
-  border-radius: 99px;
+  gap: 2px;
+  height: 8px;
+  border-radius: 3px;
   overflow: hidden;
   background: var(--surface-3);
 }
+
 .seg {
   min-width: 0;
 }
+
+/* 미시작 → 학습 중 → 완료는 순서가 있는 단계다. 초록·파랑처럼 다른 색을 쓰면
+   별개의 것으로 읽히지만 실제로는 같은 축 위의 앞뒤이므로, 한 색상의 밝기 단계로 그린다.
+   (초록·빨강 조합을 피하는 이유는 base.css 의 차트 토큰 주석에 있다.) */
 .s-done {
-  background: var(--ok);
+  background: var(--viz-step-2);
 }
 .s-doing {
-  background: var(--accent);
+  background: var(--viz-step-1);
 }
+/* 미시작은 '아직 아무 일도 없음'이다. 색상 단계를 주면 진행의 일부로 읽힌다.
+   트랙과 같은 색은 쓰지 않는다 — 범례의 색 조각이 보이지 않게 된다. */
 .s-todo {
-  background: var(--n-300);
+  background: var(--viz-peer);
 }
 
 .legend {
