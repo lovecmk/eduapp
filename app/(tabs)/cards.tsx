@@ -15,6 +15,7 @@ import { QuestionImage } from '../../src/components/ui/QuestionImage';
 import { CategoryTrail } from '../../src/components/ui/CategoryTrail';
 import { CardTimer } from '../../src/components/cards/CardTimer';
 import { CardBackBody } from '../../src/components/cards/CardBackBody';
+import { ScrollFadeEdge } from '../../src/components/ui/ScrollFadeEdge';
 import { CardQuiz } from '../../src/components/cards/CardQuiz';
 import { CardReportModal } from '../../src/components/cards/CardReportModal';
 import { fontCute } from '../../src/theme/tokens';
@@ -84,6 +85,28 @@ export default function CardsScreen() {
   const [doneCount, setDoneCount] = useState(0);
   const [finished, setFinished] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
+  /**
+   * 해설 스크롤이 아직 끝에 닿지 않았는가.
+   *
+   * 끝이 아니면 아래쪽을 옅게 가려 '더 있다'를 알린다. 이게 없으면 경계에 걸린
+   * 태그 칩이 반듯하게 잘려, 스크롤 중이 아니라 화면이 깨진 것처럼 보인다.
+   */
+  const [backHasMore, setBackHasMore] = useState(false);
+  /**
+   * 내용 높이와 보이는 높이 — 둘이 다 있어야 '더 있는지'를 판단할 수 있다.
+   *
+   * onContentSizeChange 와 onLayout 은 순서가 정해져 있지 않다. 내용 높이만 보고
+   * 판단하면(높이 > 0 이면 더 있다) 스크롤할 것이 없는데도 가림막이 떠서,
+   * 사용자는 있지도 않은 아랫부분을 계속 찾게 된다.
+   */
+  const backContentRef = useRef(0);
+  const backViewportRef = useRef(0);
+  const syncBackHasMore = useCallback(() => {
+    const content = backContentRef.current;
+    const viewport = backViewportRef.current;
+    // 둘 중 하나라도 아직 모르면 판단을 미룬다(가림막은 기본이 '없음').
+    setBackHasMore(viewport > 0 && content > viewport + 2);
+  }, []);
   const [exiting, setExiting] = useState(false);
   // 퀴즈형(ox/choice) 앞면 정답 선택 상태.
   const [quizPick, setQuizPick] = useState<number | null>(null);
@@ -783,9 +806,32 @@ export default function CardsScreen() {
             {/* 해설은 스크롤, 액션 행은 카드 하단에 고정.
                 (예전엔 액션 행도 ScrollView 안에 있어, 해설이 길면 카드 밖으로 밀려
                  '추천/저장/신고'가 잘려 보이지 않았다.) */}
-            <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator contentContainerStyle={{ paddingBottom: 8 }}>
-              <CardBackBody card={card} />
-            </ScrollView>
+            <View style={{ flex: 1 }}>
+              <ScrollView
+                style={{ flex: 1 }}
+                showsVerticalScrollIndicator
+                scrollEventThrottle={16}
+                // 마지막 줄이 구분선에 딱 붙지 않도록 넉넉히 띄운다.
+                // 8px 이던 시절에는 태그 줄이 액션 행과 맞닿아 잘린 것처럼 보였다.
+                contentContainerStyle={{ paddingBottom: 22 }}
+                onScroll={(e) => {
+                  const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
+                  // 2px 여유 — 소수점 오차로 '끝'을 영영 못 만나는 것을 막는다.
+                  setBackHasMore(contentOffset.y + layoutMeasurement.height < contentSize.height - 2);
+                }}
+                onContentSizeChange={(_w, h) => {
+                  backContentRef.current = h;
+                  syncBackHasMore();
+                }}
+                onLayout={(e) => {
+                  backViewportRef.current = e.nativeEvent.layout.height;
+                  syncBackHasMore();
+                }}
+              >
+                <CardBackBody card={card} />
+              </ScrollView>
+              <ScrollFadeEdge color={backTint} visible={backHasMore} />
+            </View>
             {/* 카드 내부 오른쪽 하단 — 추천 / 저장 / 신고. 학습자가 조작하는 하단 버튼과 구분되는 '카드에 대한 반응'. */}
             <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 8, paddingTop: 12, borderTopWidth: 1, borderTopColor: c.border }}>
                 <Pressable accessibilityRole="button" onPress={() => { haptic(); toggleLike(card.id); }} hitSlop={6}

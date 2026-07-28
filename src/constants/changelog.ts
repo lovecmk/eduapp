@@ -17,6 +17,14 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.13.0',
+    date: '2026-07-28',
+    highlights: [
+      '학습 카드 해설에서 키워드 태그가 잘려 보이던 문제 수정',
+      '해설이 길면 아래쪽이 옅게 흐려져 더 읽을 내용이 있음을 알려 줍니다',
+    ],
+  },
+  {
     version: '1.12.0',
     date: '2026-07-27',
     highlights: [
