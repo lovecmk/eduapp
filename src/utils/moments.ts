@@ -1,6 +1,7 @@
 // 격려·축하 "순간"(Moment) 계산 — 학습 성취/기념일/누적 몰입을 감지해
 // 앱을 켠 순간 인앱으로 전할 한 건의 메시지를 만든다. (알림 off 대비)
 import { daysSinceFirstOpen } from '../store/momentStore';
+import { dateKey } from './dateKey';
 import { APP_NAME } from '../constants/brand';
 
 export type MomentKind = 'welcome' | 'anniversary' | 'streak' | 'milestone' | 'comeback';
@@ -123,7 +124,10 @@ export function computeMoment(input: MomentInput): Moment | null {
   // 5) 오랜만의 복귀 — 마지막 실행 후 7일 이상 지났을 때(하루 1회, 날짜 키).
   if (lastOpenAt) {
     const gap = daysSinceFirstOpen(lastOpenAt, now); // 같은 계산식 재사용(경과 일수)
-    const dayKey = `comeback-${now.toISOString().slice(0, 10)}`;
+    // toISOString() 은 UTC 다. 그걸로 '하루'를 세면 한국(UTC+9)에서는 자정이 아니라
+    // 오전 9시에 날짜가 넘어가, 새벽에 앱을 연 사용자에게 어제 것과 같은 키가 나온다.
+    // 앱의 다른 모든 곳이 쓰는 로컬 기준 dateKey 로 통일한다.
+    const dayKey = `comeback-${dateKey(now)}`;
     if (gap >= 7 && !celebrated.includes(dayKey)) {
       return {
         key: dayKey,

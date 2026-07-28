@@ -32,6 +32,12 @@ export function TextField({
       {label && <Text style={[styles.label, { color: c.textPrimary, fontSize: 13 * fontScale, fontFamily: fontDisplay }]}>{label}</Text>}
       <TextInput
         {...inputProps}
+        // 보이는 라벨을 입력에도 이름으로 준다. 라벨은 별개의 <Text> 라
+        // 스크린리더가 묶어 주지 않아, 그냥 두면 "텍스트 입력"으로만 읽힌다.
+        // 호출부가 직접 준 accessibilityLabel 이 있으면 그쪽을 존중한다.
+        accessibilityLabel={inputProps.accessibilityLabel ?? label}
+        // 오류 문구는 왜 막혔는지를 설명하므로 힌트로 함께 읽어 준다.
+        accessibilityHint={inputProps.accessibilityHint ?? (status === 'error' ? helperText : undefined)}
         editable={status !== 'disabled'}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}

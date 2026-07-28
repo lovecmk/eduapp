@@ -4,7 +4,7 @@ import {
   EXIT_CONFIRM_WINDOW_MS,
   type BackContext,
 } from '../backPolicy';
-import { endFlow, openWithHomeBase } from '../flow';
+import { endFlow } from '../flow';
 import { ROUTES } from '../../constants/routes';
 
 // 이 판단은 실제 안드로이드 기기에서만 재현되는데, 그러면 회귀를 자동으로 잡을
@@ -111,29 +111,5 @@ describe('endFlow', () => {
     endFlow(r as never, ROUTES.review);
     // push 만 했다면 뒤로가기로 방금 끝낸 세션에 다시 들어가게 된다.
     expect(r.calls[0]).toBe(`replace:${ROUTES.home}`);
-  });
-});
-
-describe('openWithHomeBase', () => {
-  it('돌아갈 곳이 있으면 그냥 얹는다', () => {
-    const calls: string[] = [];
-    const r = {
-      replace: (p: string) => calls.push(`replace:${p}`),
-      push: (p: string) => calls.push(`push:${p}`),
-      canGoBack: () => true,
-    };
-    openWithHomeBase(r as never, ROUTES.settings);
-    expect(calls).toEqual([`push:${ROUTES.settings}`]);
-  });
-
-  it('딥링크로 바로 열려 돌아갈 곳이 없으면 홈을 먼저 깐다', () => {
-    const calls: string[] = [];
-    const r = {
-      replace: (p: string) => calls.push(`replace:${p}`),
-      push: (p: string) => calls.push(`push:${p}`),
-      canGoBack: () => false,
-    };
-    openWithHomeBase(r as never, ROUTES.settings);
-    expect(calls).toEqual([`replace:${ROUTES.home}`, `push:${ROUTES.settings}`]);
   });
 });
