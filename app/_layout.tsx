@@ -6,7 +6,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { useFonts } from 'expo-font';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -24,6 +24,7 @@ import { applyWebTypography } from '../src/theme/webTypography';
 import { APP_FONTS } from '../src/theme/tokens';
 import { applyGlobalFont } from '../src/theme/applyGlobalFont';
 import { startQueryLifecycleBridge } from '../src/data/network/queryLifecycle';
+import { queryClient } from '../src/data/network/queryClient';
 
 applyGlobalFont();
 
@@ -34,9 +35,9 @@ applyGlobalFont();
 SplashScreen.preventAutoHideAsync().catch(() => {});
 SplashScreen.setOptions({ fade: true, duration: 300 });
 
-const queryClient = new QueryClient({
-  defaultOptions: { queries: { retry: 1, staleTime: 30_000 } },
-});
+// 캐시는 세션에 종속된 데이터라 로그아웃·계정 전환 때 함께 비워져야 한다.
+// 그래서 클라이언트는 화면이 아니라 data/network 에 두고, 비우는 책임은
+// store/sessionScope 한 곳이 진다(app/_layout 은 주입만 한다).
 
 function RootContent() {
   const { theme, isDark } = useTheme();
