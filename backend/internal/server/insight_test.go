@@ -263,3 +263,217 @@ func TestInsightCachesBetweenCalls(t *testing.T) {
 		t.Error("refresh 는 다시 계산해야 한다")
 	}
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 학습자 코칭 진단
+// ─────────────────────────────────────────────────────────────────────────────
+
+type learnerBody struct {
+	UserID  string `json:"user_id"`
+	Name    string `json:"name"`
+	Summary struct {
+		Cards         int64   `json:"cards"`
+		LapseRate     float64 `json:"lapse_rate"`
+		PeerLapseRate float64 `json:"peer_lapse_rate"`
+		DaysAway      int     `json:"days_away"`
+	} `json:"summary"`
+	Verdict []struct {
+		Severity string `json:"severity"`
+		Title    string `json:"title"`
+		Link     string `json:"link"`
+	} `json:"verdict"`
+	Weakness []struct {
+		Category string  `json:"category"`
+		Gap      float64 `json:"gap"`
+		Verdict  string  `json:"verdict"`
+	} `json:"weakness"`
+	Missed []struct {
+		CardID   string `json:"card_id"`
+		Signal   string `json:"signal"`
+		Question string `json:"question"`
+		Answer   string `json:"answer"`
+		Explain  string `json:"explain"`
+		Lapses   int64  `json:"lapses"`
+	} `json:"missed"`
+	Rhythm []map[string]any `json:"rhythm"`
+}
+
+func TestLearnerDiagnosisRequiresAdmin(t *testing.T) {
+	// 여기에는 특정 개인의 오답이 전부 들어 있다. 일반 사용자에게 열리면
+	// 남의 학습 약점을 그대로 들여다볼 수 있다.
+	env := buildAdminApp(t)
+	path := "/api/admin/insight/learner/someone"
+
+	res, _ := doJSON(t, env.app, "GET", path, env.memberToken, nil)
+	if res.StatusCode != 403 {
+		t.Errorf("일반 사용자는 403: %d", res.StatusCode)
+	}
+	res, _ = doJSON(t, env.app, "GET", path, "", nil)
+	if res.StatusCode != 401 {
+		t.Errorf("비로그인은 401: %d", res.StatusCode)
+	}
+}
+
+// TestLearnerDiagnosisSeparatesPersonalFromShared 는 이 기능의 존재 이유를 확인한다.
+//
+// 한 사람에게 두 종류의 오답을 심는다.
+//
+//	· 남들은 잘 맞히는데 이 사람만 틀리는 문제  → 가르쳐야 한다
+//	· 다들 틀리는 문제                          → 문제를 고쳐야 한다
+//
+// 이 둘을 구분하지 못하면 관리자는 어려운 순서대로 코칭하게 되고, 그건 헛수고다.
+func TestLearnerDiagnosisSeparatesPersonalFromShared(t *testing.T) {
+	env := buildAdminApp(t)
+	ctx := context.Background()
+	// adminID 는 로그인 아이디다. 진단은 내부 ID 로 조회하므로 목록에서 찾아 온다.
+	target := internalIDOf(t, env, "admin")
+
+	cards, err := env.cards.AllCards(ctx)
+	if err != nil || len(cards) < 2 {
+		t.Fatalf("시드 카드 필요: %v", err)
+	}
+	personalCard, sharedCard := cards[0], cards[1]
+	now := time.Now()
+
+	// 또래 20명: personalCard 는 잘 맞히고, sharedCard 는 다 같이 틀린다.
+	for i := 0; i < 20; i++ {
+		peer := fmt.Sprintf("peer%02d", i)
+		reviewed := now
+		if err := env.data.SaveSrs(ctx, domain.SrsState{
+			UserID: peer, CardID: personalCard.ID, Box: 4, Ease: 2.6,
+			DueAt: now, Reps: 10, Lapses: 0, LastGrade: "good", LastReviewedAt: &reviewed,
+		}, dayKeyFor(now)); err != nil {
+			t.Fatalf("또래 저장: %v", err)
+		}
+		if err := env.data.SaveSrs(ctx, domain.SrsState{
+			UserID: peer, CardID: sharedCard.ID, Box: 0, Ease: 1.5,
+			DueAt: now, Reps: 10, Lapses: 8, LastGrade: "again", LastReviewedAt: &reviewed,
+		}, dayKeyFor(now)); err != nil {
+			t.Fatalf("또래 저장: %v", err)
+		}
+	}
+
+	// 진단 대상: 둘 다 심하게 틀린다. 하지만 원인은 서로 다르다.
+	reviewed := now
+	for _, id := range []string{personalCard.ID, sharedCard.ID} {
+		if err := env.data.SaveSrs(ctx, domain.SrsState{
+			UserID: target, CardID: id, Box: 0, Ease: 1.4,
+			DueAt: now, Reps: 10, Lapses: 9, LastGrade: "again", LastReviewedAt: &reviewed,
+		}, dayKeyFor(now)); err != nil {
+			t.Fatalf("대상 저장: %v", err)
+		}
+	}
+
+	res, body := doJSON(t, env.app, "GET",
+		"/api/admin/insight/learner/"+target, env.adminToken, nil)
+	if res.StatusCode != 200 {
+		t.Fatalf("status=%d body=%s", res.StatusCode, body)
+	}
+	var got learnerBody
+	decode(t, body, &got)
+
+	signals := map[string]string{}
+	for _, m := range got.Missed {
+		signals[m.CardID] = m.Signal
+	}
+	if signals[personalCard.ID] != "personal" {
+		t.Errorf("남들은 맞히는 문제는 개인 약점이어야 한다: %q", signals[personalCard.ID])
+	}
+	if signals[sharedCard.ID] != "shared" {
+		t.Errorf("다들 틀리는 문제는 공통 난제여야 한다: %q", signals[sharedCard.ID])
+	}
+
+	// 개인 약점이 목록 맨 위에 와야 코칭 순서가 맞다.
+	if len(got.Missed) == 0 || got.Missed[0].CardID != personalCard.ID {
+		t.Errorf("개인 약점이 먼저 와야 한다: %+v", got.Missed)
+	}
+
+	// 가르칠 재료가 실려 왔는가 — 이게 없으면 관리자가 문제를 다시 찾아야 한다.
+	if got.Missed[0].Question == "" || got.Missed[0].Answer == "" {
+		t.Errorf("문제와 정답이 함께 와야 한다: %+v", got.Missed[0])
+	}
+
+	// 결론이 둘을 다르게 다루는가.
+	var hasCritical, tellsToFixContent bool
+	for _, v := range got.Verdict {
+		if v.Severity == "critical" {
+			hasCritical = true
+		}
+		if v.Link == "cards" {
+			tellsToFixContent = true
+		}
+	}
+	if !hasCritical {
+		t.Errorf("개인 약점은 급한 일로 올려야 한다: %+v", got.Verdict)
+	}
+	if !tellsToFixContent {
+		t.Errorf("공통 난제는 문제를 손보라고 안내해야 한다: %+v", got.Verdict)
+	}
+
+	// 또래 비교가 실제로 계산됐는가.
+	if got.Summary.PeerLapseRate <= 0 {
+		t.Errorf("또래 실패율이 있어야 비교가 의미 있다: %+v", got.Summary)
+	}
+	if got.Summary.LapseRate <= got.Summary.PeerLapseRate {
+		t.Errorf("이 사람이 더 많이 틀렸어야 한다: %+v", got.Summary)
+	}
+	if len(got.Rhythm) != 30 {
+		t.Errorf("학습 리듬은 30일치: %d", len(got.Rhythm))
+	}
+}
+
+func TestLearnerDiagnosisForUntouchedAccount(t *testing.T) {
+	// 가입만 하고 아무것도 안 한 계정에 없는 약점을 지어내면 안 된다.
+	env := buildAdminApp(t)
+	res, body := doJSON(t, env.app, "GET",
+		"/api/admin/insight/learner/"+internalIDOf(t, env, "admin"), env.adminToken, nil)
+	if res.StatusCode != 200 {
+		t.Fatalf("status=%d body=%s", res.StatusCode, body)
+	}
+	var got learnerBody
+	decode(t, body, &got)
+
+	if got.Summary.Cards != 0 {
+		t.Errorf("푼 문제가 없어야 한다: %d", got.Summary.Cards)
+	}
+	if len(got.Verdict) != 1 || got.Verdict[0].Severity != "info" {
+		t.Errorf("첫 학습을 안내해야 한다: %+v", got.Verdict)
+	}
+	if got.Missed == nil || got.Weakness == nil {
+		t.Error("빈 배열이어야 하고 null 이면 안 된다")
+	}
+}
+
+func TestLearnerDiagnosisUnknownUserIs404(t *testing.T) {
+	env := buildAdminApp(t)
+	res, _ := doJSON(t, env.app, "GET",
+		"/api/admin/insight/learner/nobody", env.adminToken, nil)
+	if res.StatusCode != 404 {
+		t.Errorf("없는 사용자는 404: %d", res.StatusCode)
+	}
+}
+
+// internalIDOf 는 로그인 아이디로 내부 사용자 ID 를 찾는다.
+// 로그인 응답은 액세스 토큰만 주고 내부 ID 는 관리 목록에만 있다.
+func internalIDOf(t *testing.T, env *adminEnv, loginID string) string {
+	t.Helper()
+	res, body := doJSON(t, env.app, "GET",
+		"/api/admin/users?search="+loginID, env.adminToken, nil)
+	if res.StatusCode != 200 {
+		t.Fatalf("사용자 조회 status=%d body=%s", res.StatusCode, body)
+	}
+	var page struct {
+		Items []struct {
+			ID      string `json:"id"`
+			LoginID string `json:"login_id"`
+		} `json:"items"`
+	}
+	decode(t, body, &page)
+	for _, u := range page.Items {
+		if u.LoginID == loginID {
+			return u.ID
+		}
+	}
+	t.Fatalf("%q 를 찾지 못했다: %s", loginID, body)
+	return ""
+}
