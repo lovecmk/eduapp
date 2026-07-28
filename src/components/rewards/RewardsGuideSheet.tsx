@@ -101,7 +101,7 @@ export function RewardsGuideSheet({ visible, onClose }: { visible: boolean; onCl
               <Ionicons name="sparkles" size={12} color={c.textSecondary} style={{ marginTop: 2 }} />
               <Text style={{ color: c.textSecondary, fontSize: 11.5 * fs, lineHeight: 16 * fs, flex: 1, fontFamily: fontBody }}>{it.how}</Text>
             </View>
-            <Pressable onPress={() => goto(it.route)} hitSlop={6} style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 8, alignSelf: 'flex-start' }}>
+            <Pressable accessibilityRole="button" onPress={() => goto(it.route)} hitSlop={6} style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 8, alignSelf: 'flex-start' }}>
               <Text style={{ color: it.color, fontSize: 12 * fs, fontWeight: '800', fontFamily: fontCute }}>{it.cta}</Text>
               <Ionicons name="chevron-forward" size={13} color={it.color} />
             </Pressable>
@@ -109,7 +109,7 @@ export function RewardsGuideSheet({ visible, onClose }: { visible: boolean; onCl
         </View>
       ))}
 
-      <Pressable onPress={onClose} style={{ marginTop: 18, backgroundColor: c.primary, borderRadius: 14, paddingVertical: 14, alignItems: 'center' }}>
+      <Pressable accessibilityRole="button" onPress={onClose} style={{ marginTop: 18, backgroundColor: c.primary, borderRadius: 14, paddingVertical: 14, alignItems: 'center' }}>
         <Text style={{ color: '#fff', fontSize: 15 * fs, fontWeight: '800', fontFamily: fontDisplay }}>알겠어요</Text>
       </Pressable>
     </BottomSheet>

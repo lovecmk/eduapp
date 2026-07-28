@@ -107,7 +107,7 @@ export default function LoginScreen() {
           />
 
           {/* 아이디 저장 — 다음 방문 때 자동으로 채워준다(비밀번호는 저장하지 않음). */}
-          <Pressable
+          <Pressable accessibilityRole="button"
             onPress={() => setRememberId((v) => !v)}
             hitSlop={6}
             style={{ flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start', marginTop: 2, marginBottom: 12, paddingVertical: 4 }}
@@ -124,11 +124,11 @@ export default function LoginScreen() {
           <Button label="로그인" variant="filled" loading={loading} onPress={onLogin} style={{ marginTop: 4 }} />
 
           <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 18, gap: 18, alignItems: 'center' }}>
-            <Pressable onPress={() => router.push(ROUTES.signup)} hitSlop={8}>
+            <Pressable accessibilityRole="button" onPress={() => router.push(ROUTES.signup)} hitSlop={8}>
               <Text style={{ color: c.textSecondary, fontSize: 13 * fs, fontFamily: fontBody }}>회원가입</Text>
             </Pressable>
             <View style={{ width: 1, height: 12, backgroundColor: c.border }} />
-            <Pressable onPress={() => router.push(ROUTES.findPw)} hitSlop={8}>
+            <Pressable accessibilityRole="button" onPress={() => router.push(ROUTES.findPw)} hitSlop={8}>
               <Text style={{ color: c.textSecondary, fontSize: 13 * fs, fontFamily: fontBody }}>비밀번호 찾기</Text>
             </Pressable>
           </View>

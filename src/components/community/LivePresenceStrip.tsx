@@ -48,7 +48,7 @@ export function LivePresenceStrip() {
   const cur = activities[idx % Math.max(activities.length, 1)];
 
   return (
-    <Pressable onPress={() => router.push(ROUTES.community)} style={[styles.strip, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
+    <Pressable accessibilityRole="button" onPress={() => router.push(ROUTES.community)} style={[styles.strip, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
       <View style={styles.dotWrap}>
         <Animated.View style={[styles.ring, { backgroundColor: '#34C759' }, ring]} />
         <View style={[styles.dot, { backgroundColor: '#34C759' }]} />

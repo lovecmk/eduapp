@@ -561,8 +561,8 @@ function SettingsBody({ scrollRef }: { scrollRef: React.RefObject<ScrollView> })
 
       {/* 알림 시간 설정 */}
       <Modal visible={timePickerOpen} transparent animationType="fade" onRequestClose={() => setTimePickerOpen(false)}>
-        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center' }} onPress={() => setTimePickerOpen(false)}>
-          <Pressable onPress={() => {}} style={{ backgroundColor: c.surface, borderRadius: 24, padding: 24, width: 280, borderWidth: 1, borderColor: c.border, boxShadow: '0 12px 40px rgba(0,0,0,0.3)', elevation: 12 }}>
+        <Pressable accessibilityRole="button" style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center' }} onPress={() => setTimePickerOpen(false)}>
+          <Pressable accessibilityRole="button" onPress={() => {}} style={{ backgroundColor: c.surface, borderRadius: 24, padding: 24, width: 280, borderWidth: 1, borderColor: c.border, boxShadow: '0 12px 40px rgba(0,0,0,0.3)', elevation: 12 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 18 }}>
               <Ionicons name="alarm-outline" size={20} color={c.primary} />
               <Text style={{ color: c.textPrimary, fontSize: 17 * fs, fontWeight: '800', textAlign: 'center', fontFamily: fontCute }}>알림 시간 설정</Text>
@@ -606,7 +606,7 @@ function SettingsBody({ scrollRef }: { scrollRef: React.RefObject<ScrollView> })
             학습 기록은 계정에 그대로 남아요.{'\n'}다시 로그인하면 이어서 학습할 수 있어요.
           </Text>
           <Button label="로그아웃" onPress={() => { void doLogout(); }} style={{ width: '100%' }} />
-          <Pressable onPress={() => setLogoutOpen(false)} style={{ paddingVertical: 14 }}>
+          <Pressable accessibilityRole="button" onPress={() => setLogoutOpen(false)} style={{ paddingVertical: 14 }}>
             <Text style={{ color: c.textSecondary, fontWeight: '600', fontFamily: fontCute }}>취소</Text>
           </Pressable>
         </View>
@@ -625,7 +625,7 @@ function SettingsBody({ scrollRef }: { scrollRef: React.RefObject<ScrollView> })
             로그인 정보와 앱 설정, 학습 캐시가{'\n'}모두 삭제되며 되돌릴 수 없습니다.
           </Text>
           <Button label="모두 삭제하고 초기화" loading={resetting} colorOverride={c.error} onPress={doReset} style={{ width: '100%' }} />
-          <Pressable onPress={() => !resetting && setResetOpen(false)} style={{ paddingVertical: 14 }}>
+          <Pressable accessibilityRole="button" onPress={() => !resetting && setResetOpen(false)} style={{ paddingVertical: 14 }}>
             <Text style={{ color: c.textSecondary, fontWeight: '600', fontFamily: fontCute }}>취소</Text>
           </Pressable>
         </View>

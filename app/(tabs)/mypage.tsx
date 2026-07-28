@@ -44,7 +44,7 @@ export default function MyPageScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: 'transparent' }}>
     <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 20, paddingBottom: 48, ...contentColumn }}>
-      <Pressable onPress={() => router.push(ROUTES.profile as never)} style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 12 }}>
+      <Pressable accessibilityRole="button" onPress={() => router.push(ROUTES.profile as never)} style={{ flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 12 }}>
         <Avatar uri={profileImage} size={56} ring={2} ringColor={c.primary} />
         <View style={{ flex: 1, gap: 4 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
@@ -77,7 +77,7 @@ export default function MyPageScreen() {
       </Pressable>
 
       {/* 요약 통계 — 탭하면 전체 통계로 이동(발견성) */}
-      <Pressable onPress={() => router.push(ROUTES.stats)} style={{ flexDirection: 'row', gap: 10, marginVertical: 16 }}>
+      <Pressable accessibilityRole="button" onPress={() => router.push(ROUTES.stats)} style={{ flexDirection: 'row', gap: 10, marginVertical: 16 }}>
         {[
           { value: `${allCards.length}`, label: '전체 카드' },
           { value: `${masteredCount}`, label: '마스터' },
@@ -98,13 +98,13 @@ export default function MyPageScreen() {
           [안내] 버튼으로 셋의 차이를 언제든 다시 볼 수 있다(초보자 배려). */}
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 18, marginBottom: 4, paddingHorizontal: 2 }}>
         <Text style={{ color: c.textPrimary, fontSize: 14 * fs, fontWeight: '800', fontFamily: fontDisplay }}>내 컬렉션 · 성취</Text>
-        <Pressable onPress={() => setGuideOpen(true)} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: c.primary + '14', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 }}>
+        <Pressable accessibilityRole="button" onPress={() => setGuideOpen(true)} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: c.primary + '14', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 }}>
           <Ionicons name="help-circle" size={14} color={c.primary} />
           <Text style={{ color: c.primary, fontSize: 12 * fs, fontWeight: '800', fontFamily: fontCute }}>안내</Text>
         </Pressable>
       </View>
 
-      <Pressable onPress={() => router.push(ROUTES.stats)}
+      <Pressable accessibilityRole="button" onPress={() => router.push(ROUTES.stats)}
         style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: c.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: c.border, marginVertical: 6 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
           <Ionicons name="ribbon-outline" size={20} color={c.textPrimary} />
@@ -119,7 +119,7 @@ export default function MyPageScreen() {
         <Ionicons name="chevron-forward" size={18} color={c.primary} />
       </Pressable>
 
-      <Pressable onPress={() => router.push(ROUTES.collectionBook as never)}
+      <Pressable accessibilityRole="button" onPress={() => router.push(ROUTES.collectionBook as never)}
         style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: c.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: c.border, marginVertical: 6 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
           <Ionicons name="albums-outline" size={20} color={c.textPrimary} />
@@ -141,7 +141,7 @@ export default function MyPageScreen() {
         </View>
       </Pressable>
 
-      <Pressable onPress={() => router.push(ROUTES.trophy as never)}
+      <Pressable accessibilityRole="button" onPress={() => router.push(ROUTES.trophy as never)}
         style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: c.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: c.border, marginVertical: 6 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
           <Ionicons name="trophy-outline" size={20} color={c.textPrimary} />
@@ -205,7 +205,7 @@ function MyRow({ icon, title, desc, onPress }: { icon: keyof typeof Ionicons.gly
   const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
   return (
-    <Pressable onPress={onPress}
+    <Pressable accessibilityRole="button" onPress={onPress}
       style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: c.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: c.border, marginVertical: 6 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
         <Ionicons name={icon} size={20} color={c.textPrimary} />

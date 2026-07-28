@@ -91,7 +91,7 @@ export default function ShareScreen() {
               <Text style={{ color: c.success, fontSize: 15 * fs, fontWeight: '800', fontFamily: fontCute }}>커뮤니티에 올렸어요!</Text>
             </View>
           ) : (
-            <Pressable onPress={onShare} disabled={phase === 'uploading'}
+            <Pressable accessibilityRole="button" onPress={onShare} disabled={phase === 'uploading'}
               style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.primary, borderRadius: 16, height: 54, opacity: phase === 'uploading' ? 0.7 : 1, boxShadow: '0 6px 16px rgba(37,99,235,0.3)' }}>
               {phase === 'uploading' ? (
                 <ActivityIndicator color="#fff" />

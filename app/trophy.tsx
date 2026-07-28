@@ -106,7 +106,7 @@ export default function TrophyRoomScreen() {
             const rarity = getRarity(t.snapshot);
             return (
               <Animated.View key={t.key} entering={FadeInDown.delay(Math.min(i, 8) * 45).duration(300)}>
-                <Pressable onPress={() => setSelected(t)} style={{ width: colW }}>
+                <Pressable accessibilityRole="button" onPress={() => setSelected(t)} style={{ width: colW }}>
                   <View style={{ borderRadius: 20, overflow: 'hidden', boxShadow: `0 8px 20px ${rarity.glow === 'transparent' ? 'rgba(37,99,235,0.2)' : rarity.glow + '55'}` }}>
                     <WrappedShareCard snapshot={t.snapshot} author={t.author} width={colW} />
                   </View>
@@ -123,7 +123,7 @@ export default function TrophyRoomScreen() {
           })}
 
           {/* 새로 만들기 타일 */}
-          <Pressable onPress={() => router.push(ROUTES.share as never)}
+          <Pressable accessibilityRole="button" onPress={() => router.push(ROUTES.share as never)}
             style={{ width: colW, height: colW / SHARE_CARD_ASPECT, borderRadius: 20, borderWidth: 1.5, borderColor: c.border, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.surface }}>
             <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: c.primary + '18', alignItems: 'center', justifyContent: 'center' }}>
               <Ionicons name="add" size={26} color={c.primary} />
@@ -152,9 +152,9 @@ function TrophyDetailModal({ trophy, onClose }: { trophy: Trophy | null; onClose
 
   return (
     <Modal visible={!!trophy} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
-      <Pressable onPress={onClose} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <Pressable accessibilityRole="button" onPress={onClose} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
         {trophy && rarity && (
-          <Pressable onPress={() => {}}>
+          <Pressable accessibilityRole="button" onPress={() => {}}>
             <View style={{ borderRadius: 28 * (bigW / 320), boxShadow: `0 18px 48px ${rarity.glow === 'transparent' ? 'rgba(37,99,235,0.4)' : rarity.glow + '77'}` }}>
               <WrappedShareCard snapshot={trophy.snapshot} author={trophy.author} width={bigW} tilt={tilt} animated />
             </View>
@@ -162,7 +162,7 @@ function TrophyDetailModal({ trophy, onClose }: { trophy: Trophy | null; onClose
               <Ionicons name="phone-portrait-outline" size={13} color="rgba(255,255,255,0.7)" />
               <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12 * fs, fontFamily: fontMono }}>기기를 기울여 광택을 감상하세요 · {rarity.label}</Text>
             </View>
-            <Pressable onPress={onClose} style={{ alignSelf: 'center', marginTop: 14, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 999, paddingHorizontal: 22, paddingVertical: 10 }}>
+            <Pressable accessibilityRole="button" onPress={onClose} style={{ alignSelf: 'center', marginTop: 14, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 999, paddingHorizontal: 22, paddingVertical: 10 }}>
               <Text style={{ color: '#fff', fontSize: 13 * fs, fontFamily: fontCute, fontWeight: '700' }}>닫기</Text>
             </Pressable>
           </Pressable>

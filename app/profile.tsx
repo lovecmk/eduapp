@@ -67,7 +67,7 @@ export default function ProfileScreen() {
       <ScreenHeader
         title="내 프로필"
         right={
-          <Pressable onPress={() => router.push(ROUTES.editProfile as never)} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, padding: 4 }}>
+          <Pressable accessibilityRole="button" onPress={() => router.push(ROUTES.editProfile as never)} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, padding: 4 }}>
             <Ionicons name="create-outline" size={18} color={c.primary} />
             <Text style={{ color: c.primary, fontSize: 13, fontWeight: '700', fontFamily: fontCute }}>수정</Text>
           </Pressable>
@@ -120,7 +120,7 @@ export default function ProfileScreen() {
               <Text style={{ color: c.textPrimary, fontSize: 14 * fs, fontFamily: fontDisplay }}>한 줄 소개</Text>
             </View>
             {!editing && (
-              <Pressable onPress={() => { setDraft(bio); setEditing(true); }} hitSlop={8}>
+              <Pressable accessibilityRole="button" onPress={() => { setDraft(bio); setEditing(true); }} hitSlop={8}>
                 <Text style={{ color: c.primary, fontSize: 13, fontFamily: fontCute, fontWeight: '700' }}>{bio ? '수정' : '추가'}</Text>
               </Pressable>
             )}
@@ -129,6 +129,7 @@ export default function ProfileScreen() {
           {editing ? (
             <View>
               <TextInput
+                accessibilityLabel="한 줄 소개"
                 value={draft}
                 onChangeText={(t) => setDraft(t.slice(0, BIO_MAX))}
                 placeholder="예) 안전은 습관입니다 💪 매일 3분씩 성장 중!"
@@ -140,10 +141,10 @@ export default function ProfileScreen() {
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
                 <Text style={{ color: c.textSecondary, fontSize: 11, fontFamily: fontMono }}>{draft.length}/{BIO_MAX}</Text>
                 <View style={{ flexDirection: 'row', gap: 8 }}>
-                  <Pressable onPress={() => setEditing(false)} style={{ paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: c.border }}>
+                  <Pressable accessibilityRole="button" onPress={() => setEditing(false)} style={{ paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: c.border }}>
                     <Text style={{ color: c.textSecondary, fontSize: 13, fontFamily: fontCute }}>취소</Text>
                   </Pressable>
-                  <Pressable onPress={saveBio} style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 10, backgroundColor: c.primary }}>
+                  <Pressable accessibilityRole="button" onPress={saveBio} style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 10, backgroundColor: c.primary }}>
                     <Text style={{ color: '#fff', fontSize: 13, fontFamily: fontCute, fontWeight: '700' }}>저장</Text>
                   </Pressable>
                 </View>
@@ -163,7 +164,7 @@ export default function ProfileScreen() {
             { value: `${masteredCount}`, label: '마스터', route: ROUTES.stats },
             { value: `${allCards.length}`, label: '전체 카드', route: ROUTES.stats },
           ].map((s) => (
-            <Pressable key={s.label} onPress={() => router.push(s.route as never)} style={{ flex: 1, backgroundColor: c.surfaceAlt, borderRadius: 12, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: c.border }}>
+            <Pressable accessibilityRole="button" key={s.label} onPress={() => router.push(s.route as never)} style={{ flex: 1, backgroundColor: c.surfaceAlt, borderRadius: 12, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: c.border }}>
               <Text style={{ color: c.primary, fontSize: 20 * fs, fontWeight: '900', fontFamily: fontMono }}>{s.value}</Text>
               <Text style={{ color: c.textSecondary, fontSize: 11, marginTop: 4, fontFamily: fontCute }}>{s.label}</Text>
             </Pressable>
@@ -171,7 +172,7 @@ export default function ProfileScreen() {
         </View>
 
         {/* 바로가기 */}
-        <Pressable onPress={() => router.push(ROUTES.trophy as never)} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: c.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: c.border, marginBottom: 8 }}>
+        <Pressable accessibilityRole="button" onPress={() => router.push(ROUTES.trophy as never)} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: c.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: c.border, marginBottom: 8 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
             <Ionicons name="trophy-outline" size={20} color={c.textPrimary} />
             <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontFamily: fontCute }}>내 트로피룸</Text>

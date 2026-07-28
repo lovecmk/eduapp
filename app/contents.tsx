@@ -171,7 +171,7 @@ function TrackDetail({ progress, onBack, onCard }: {
     <View>
       {/* 과정 헤더 */}
       <Animated.View entering={FadeIn.duration(300)} style={{ paddingHorizontal: 20, paddingTop: 16 }}>
-        <Pressable onPress={onBack} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 12 }}>
+        <Pressable accessibilityRole="button" onPress={onBack} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 12 }}>
           <Ionicons name="chevron-back" size={16} color={c.primary} />
           <Text style={{ color: c.primary, fontSize: 13, fontFamily: fontDisplay }}>모든 과정</Text>
         </Pressable>
@@ -238,7 +238,7 @@ function TrackCard({ progress, onPress }: { progress: TrackProgress; onPress: ()
   const { track, total, mastered, pct } = progress;
   const locked = track.locked;
   return (
-    <Pressable onPress={onPress} style={[styles.trackCard, { backgroundColor: c.surface, borderColor: c.border, opacity: locked ? 0.85 : 1 }]}>
+    <Pressable accessibilityRole="button" onPress={onPress} style={[styles.trackCard, { backgroundColor: c.surface, borderColor: c.border, opacity: locked ? 0.85 : 1 }]}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <View style={[styles.trackIcon, { backgroundColor: track.color + (locked ? '14' : '1A') }]}>
           <Ionicons name={(locked ? 'lock-closed' : track.icon) as never} size={20} color={track.color} />
@@ -271,7 +271,7 @@ function ContentRow({ card, onPress }: { card: LearningCard; onPress: () => void
   const diff = getDifficultyMeta(theme, card.difficulty);
   const status = STATUS_META[card.status];
   return (
-    <Pressable onPress={onPress} style={[styles.row, { backgroundColor: c.surface, borderColor: c.border }]}>
+    <Pressable accessibilityRole="button" onPress={onPress} style={[styles.row, { backgroundColor: c.surface, borderColor: c.border }]}>
       {resolveCardImage(card.imageUrl) ? (
         <Image source={resolveCardImage(card.imageUrl)!} style={styles.thumb} contentFit="cover" transition={200} />
       ) : (

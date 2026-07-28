@@ -173,7 +173,7 @@ export default function LegalScreen() {
                       </View>
                     ))}
 
-                    <Pressable
+                    <Pressable accessibilityRole="button"
                       onPress={() => {
                         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
                         setLicenseOpen((v) => !v);

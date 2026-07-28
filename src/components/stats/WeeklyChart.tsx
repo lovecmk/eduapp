@@ -44,7 +44,7 @@ export function WeeklyChart({ weekly }: { weekly: DailyProgress[] }) {
           {PERIODS.map((p) => {
             const active = period === p.key;
             return (
-              <Pressable key={p.key} onPress={() => setPeriod(p.key)} style={[styles.periodBtn, active && { backgroundColor: c.primary }]}>
+              <Pressable accessibilityRole="button" key={p.key} onPress={() => setPeriod(p.key)} style={[styles.periodBtn, active && { backgroundColor: c.primary }]}>
                 <Text style={{ color: active ? '#fff' : c.textSecondary, fontSize: 12, fontFamily: fontDisplay }}>{p.label}</Text>
               </Pressable>
             );

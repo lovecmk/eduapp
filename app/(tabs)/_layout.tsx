@@ -80,7 +80,7 @@ function NotificationBadge({ count }: { count: number }) {
 // 눌린 순간에만 아이콘이 은은하게 흐려졌다 돌아오는 차분한 피드백으로 바꾼다.
 function TabBarButton({ children, style, onPress }: BottomTabBarButtonProps) {
   return (
-    <Pressable
+    <Pressable accessibilityRole="button"
       onPress={(e) => onPress?.(e)}
       android_ripple={null}
       style={(state) => [

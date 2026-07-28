@@ -49,6 +49,7 @@ export function CardTips({ cardId }: { cardId: string }) {
       {/* 입력 */}
       <View style={[styles.inputRow, { backgroundColor: c.surfaceAlt, borderColor: focused ? c.primary : c.border }]}>
         <TextInput
+          accessibilityLabel="이 카드에 남길 팁"
           value={draft}
           onChangeText={setDraft}
           onFocus={() => setFocused(true)}
@@ -92,7 +93,7 @@ export function CardTips({ cardId }: { cardId: string }) {
                 <ExpandableText text={tip.body} />
               </View>
               <View style={{ alignItems: 'center', gap: 8 }}>
-                <Pressable onPress={() => toggleLike(tip.id)} hitSlop={6} style={{ alignItems: 'center' }}>
+                <Pressable accessibilityRole="button" onPress={() => toggleLike(tip.id)} hitSlop={6} style={{ alignItems: 'center' }}>
                   <Ionicons name={tip.likedByMe ? 'heart' : 'heart-outline'} size={17} color={tip.likedByMe ? c.error : c.textSecondary} />
                   <Text style={{ color: tip.likedByMe ? c.error : c.textSecondary, fontSize: 10.5, fontFamily: fontMono }}>{tip.likes}</Text>
                 </Pressable>
@@ -126,7 +127,7 @@ function ExpandableText({ text }: { text: string }) {
         {text}
       </Text>
       {truncated && (
-        <Pressable onPress={() => setExpanded((v) => !v)} hitSlop={6}>
+        <Pressable accessibilityRole="button" onPress={() => setExpanded((v) => !v)} hitSlop={6}>
           <Text style={{ color: c.primary, fontSize: 12, fontFamily: fontDisplay, marginTop: 3 }}>{expanded ? '접기' : '더보기'}</Text>
         </Pressable>
       )}

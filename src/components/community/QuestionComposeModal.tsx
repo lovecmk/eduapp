@@ -41,7 +41,7 @@ export function QuestionComposeModal({ visible, onClose, onCreated }: { visible:
           const active = category === cat;
           const color = CATEGORY_COLOR[cat];
           return (
-            <Pressable key={cat} onPress={() => setCategory(active ? undefined : cat)}
+            <Pressable accessibilityRole="button" key={cat} onPress={() => setCategory(active ? undefined : cat)}
               style={[styles.chip, { backgroundColor: active ? color + '1A' : c.surfaceAlt, borderColor: active ? color : c.border }]}>
               <Text style={{ color: active ? color : c.textSecondary, fontSize: 12, fontFamily: fontDisplay }}>{cat}</Text>
             </Pressable>

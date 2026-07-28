@@ -157,7 +157,7 @@ export function CommunityBuildCard() {
           <Ionicons name="flag" size={14} color={c.textSecondary} />
           <Text style={{ color: c.textPrimary, fontSize: 13, fontFamily: fontDisplay, flex: 1 }}>진영 대항전 · 이번 달</Text>
           {!myFaction && (
-            <Pressable onPress={() => router.push(ROUTES.factionSelect as never)} hitSlop={6} style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+            <Pressable accessibilityRole="button" onPress={() => router.push(ROUTES.factionSelect as never)} hitSlop={6} style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
               <Text style={{ color: c.primary, fontSize: 11.5, fontFamily: fontDisplay }}>진영 선택</Text>
               <Ionicons name="chevron-forward" size={13} color={c.primary} />
             </Pressable>
@@ -177,7 +177,7 @@ export function CommunityBuildCard() {
           const gap = leadFloors - s.floors;
           return (
             <View key={s.id}>
-              <Pressable
+              <Pressable accessibilityRole="button"
                 onPress={() => toggleFaction(s.id)}
                 style={[styles.vsRow, isMine && { backgroundColor: f.color + '12', borderRadius: 10 }]}
               >
@@ -258,7 +258,7 @@ export function CommunityBuildCard() {
       {/* 지난 기록(히스토리) */}
       {history.length > 0 && (
         <>
-          <Pressable onPress={toggleHistory} style={[styles.historyToggle, { borderTopColor: c.border }]}>
+          <Pressable accessibilityRole="button" onPress={toggleHistory} style={[styles.historyToggle, { borderTopColor: c.border }]}>
             <Ionicons name="time-outline" size={15} color={c.textSecondary} />
             <Text style={{ color: c.textSecondary, fontSize: 12.5, fontFamily: fontDisplay, flex: 1 }}>지난 달 기록</Text>
             {bestFloors > 0 && (

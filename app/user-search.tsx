@@ -49,6 +49,7 @@ export default function UserSearchScreen() {
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: c.surfaceAlt, borderRadius: 14, paddingHorizontal: 14, height: 48, borderWidth: 1, borderColor: c.border }}>
           <Ionicons name="search" size={18} color={c.textSecondary} />
           <TextInput
+            accessibilityLabel="닉네임으로 검색"
             value={raw}
             onChangeText={setRaw}
             placeholder="닉네임으로 검색"

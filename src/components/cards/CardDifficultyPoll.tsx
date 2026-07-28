@@ -40,7 +40,7 @@ export function CardDifficultyPoll({ cardId }: { cardId: string }) {
         {OPTIONS.map((o) => {
           const active = myVote === o.key;
           return (
-            <Pressable key={o.key} onPress={() => vote(cardId, o.key)}
+            <Pressable accessibilityRole="button" key={o.key} onPress={() => vote(cardId, o.key)}
               style={[styles.opt, { backgroundColor: active ? o.color + '1A' : c.surfaceAlt, borderColor: active ? o.color : c.border }]}>
               <Ionicons name={o.icon} size={20} color={active ? o.color : c.textSecondary} />
               <Text style={{ color: active ? o.color : c.textSecondary, fontSize: 11.5, fontFamily: fontDisplay, marginTop: 4 }}>{o.label}</Text>

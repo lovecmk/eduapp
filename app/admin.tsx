@@ -43,7 +43,7 @@ export default function AdminScreen() {
             {TABS.map((t) => {
               const active = tab === t.key;
               return (
-                <Pressable key={t.key} onPress={() => setTab(t.key)}
+                <Pressable accessibilityRole="button" key={t.key} onPress={() => setTab(t.key)}
                   style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, backgroundColor: active ? c.primary : c.surface, borderWidth: 1, borderColor: active ? c.primary : c.border }}>
                   <Ionicons name={t.icon} size={14} color={active ? '#fff' : c.textSecondary} />
                   <Text style={{ color: active ? '#fff' : c.textSecondary, fontSize: 13, fontFamily: fontDisplay }}>{t.label}</Text>
@@ -184,7 +184,7 @@ function CardsTab() {
   const removeCard = useAuthoredCardsStore((s) => s.removeCard);
   return (
     <Section title={`관리자 등록 카드 ${authored.length}개`}>
-      <Pressable onPress={() => router.push(ROUTES.authorCard as never)}
+      <Pressable accessibilityRole="button" onPress={() => router.push(ROUTES.authorCard as never)}
         style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.primary, borderRadius: 12, paddingVertical: 11, marginBottom: 12 }}>
         <Ionicons name="add" size={16} color="#fff" />
         <Text style={{ color: '#fff', fontSize: 13.5, fontFamily: fontCute, fontWeight: '800' }}>새 카드 등록 / 일괄 등록</Text>

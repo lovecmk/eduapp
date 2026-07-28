@@ -41,7 +41,7 @@ export function PackOpenModal({ results, onClose }: { results: DrawResult[] | nu
       <View style={{ flex: 1, backgroundColor: 'rgba(6,8,15,0.94)', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
         {!results ? null : !opened ? (
           // 닫힌 팩
-          <Pressable onPress={open} style={{ alignItems: 'center' }}>
+          <Pressable accessibilityRole="button" onPress={open} style={{ alignItems: 'center' }}>
             <Animated.View entering={ZoomIn.springify()} style={{ width: 180, height: 240, borderRadius: 22, backgroundColor: '#1E1B4B', borderWidth: 2, borderColor: '#6366F1', alignItems: 'center', justifyContent: 'center', gap: 12, boxShadow: '0 12px 40px rgba(99,102,241,0.5)' }}>
               <Text style={{ fontSize: 76 }}>🎁</Text>
               <Text style={{ color: '#fff', fontSize: 15, fontFamily: fontDisplay, fontWeight: '800' }}>안전 카드팩</Text>
@@ -68,7 +68,7 @@ export function PackOpenModal({ results, onClose }: { results: DrawResult[] | nu
               ))}
             </View>
             <Animated.View entering={FadeIn.delay(results.length * 160 + 300)} style={{ width: '100%', maxWidth: 320, marginTop: 26 }}>
-              <Pressable onPress={onClose} style={{ backgroundColor: '#fff', borderRadius: 16, height: 52, alignItems: 'center', justifyContent: 'center' }}>
+              <Pressable accessibilityRole="button" onPress={onClose} style={{ backgroundColor: '#fff', borderRadius: 16, height: 52, alignItems: 'center', justifyContent: 'center' }}>
                 <Text style={{ color: '#111', fontSize: 15, fontFamily: fontCute, fontWeight: '800' }}>확인</Text>
               </Pressable>
             </Animated.View>

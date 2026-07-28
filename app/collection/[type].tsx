@@ -146,6 +146,7 @@ export default function CollectionScreen() {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: c.surfaceAlt, borderRadius: 12, borderWidth: 1, borderColor: c.border, paddingHorizontal: 12, height: 42 }}>
             <Ionicons name="search" size={17} color={c.textSecondary} />
             <TextInput
+              accessibilityLabel="카드 검색"
               value={query}
               onChangeText={setQuery}
               placeholder="카드 검색 (질문·분야)"
@@ -166,7 +167,7 @@ export default function CollectionScreen() {
                 const active = cat === cc;
                 const color = cc ? (getCategoryColor(cc) ?? c.primary) : c.primary;
                 return (
-                  <Pressable key={cc ?? 'all'} onPress={() => setCat(cc)}
+                  <Pressable accessibilityRole="button" key={cc ?? 'all'} onPress={() => setCat(cc)}
                     style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, borderWidth: 1.5, backgroundColor: active ? color + '1A' : c.surface, borderColor: active ? color : c.border }}>
                     {cc && <Ionicons name={getCategoryIcon(cc)} size={13} color={active ? color : c.textSecondary} />}
                     <Text style={{ color: active ? color : c.textSecondary, fontSize: 12.5 * fs, fontFamily: fontDisplay }}>{cc ?? '전체'}</Text>
@@ -184,7 +185,7 @@ export default function CollectionScreen() {
             <Ionicons name={meta.icon} size={34} color={c.textSecondary} />
           </View>
           <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontFamily: fontDisplay }}>{meta.empty}</Text>
-          <Pressable onPress={() => router.push(ROUTES.cards)} style={{ marginTop: 18, backgroundColor: c.primary, borderRadius: 999, paddingHorizontal: 20, paddingVertical: 10 }}>
+          <Pressable accessibilityRole="button" onPress={() => router.push(ROUTES.cards)} style={{ marginTop: 18, backgroundColor: c.primary, borderRadius: 999, paddingHorizontal: 20, paddingVertical: 10 }}>
             <Text style={{ color: c.textOnPrimary, fontSize: 13, fontFamily: fontDisplay }}>학습하러 가기</Text>
           </Pressable>
         </Animated.View>

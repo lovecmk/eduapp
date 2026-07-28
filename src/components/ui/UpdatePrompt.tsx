@@ -58,7 +58,7 @@ export function UpdatePrompt({
 
   return (
     <Animated.View style={[styles.overlay, overlayStyle]} pointerEvents="box-none">
-      <Pressable style={StyleSheet.absoluteFill} onPress={onDismiss} accessibilityLabel="닫기" />
+      <Pressable accessibilityRole="button" style={StyleSheet.absoluteFill} onPress={onDismiss} accessibilityLabel="닫기" />
       <Animated.View
         style={[
           styles.card,

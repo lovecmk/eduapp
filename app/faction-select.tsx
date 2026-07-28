@@ -38,7 +38,7 @@ function FactionCard({
 
   return (
     <Animated.View style={style}>
-      <Pressable
+      <Pressable accessibilityRole="button"
         onPress={press}
         android_ripple={null}
         style={{

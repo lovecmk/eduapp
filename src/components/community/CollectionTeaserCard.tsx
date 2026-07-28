@@ -26,7 +26,7 @@ export function CollectionTeaserCard() {
   const pct = Math.round((uniqueOwned / total) * 100);
 
   return (
-    <Pressable onPress={() => router.push(ROUTES.collectionBook as never)} style={{ backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: radius.card, padding: 16, marginBottom: 14 }}>
+    <Pressable accessibilityRole="button" onPress={() => router.push(ROUTES.collectionBook as never)} style={{ backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: radius.card, padding: 16, marginBottom: 14 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           <Text style={{ fontSize: 17 }}>🃏</Text>

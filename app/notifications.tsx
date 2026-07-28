@@ -115,7 +115,7 @@ export default function NotificationsScreen() {
               ? items.filter((n) => !n.read).length
               : items.filter((n) => n.type === f.key && !n.read).length;
             return (
-              <Pressable key={f.key} onPress={() => setFilter(f.key)}
+              <Pressable accessibilityRole="button" key={f.key} onPress={() => setFilter(f.key)}
                 style={[styles.chip, { backgroundColor: active ? c.primary : c.surfaceAlt, borderColor: active ? c.primary : c.border }]}>
                 <Text style={{ color: active ? c.textOnPrimary : c.textSecondary, fontSize: 12.5 * fs, fontFamily: fontDisplay }}>{f.label}</Text>
                 {unread > 0 && (
@@ -147,10 +147,10 @@ export default function NotificationsScreen() {
               이런 알림을 끄고 싶으세요?
             </Text>
             <View style={{ flexDirection: 'row', gap: 8 }}>
-              <Pressable onPress={() => setMuteTarget(suggestion.type)} style={[styles.sgBtn, { backgroundColor: c.primary }]}>
+              <Pressable accessibilityRole="button" onPress={() => setMuteTarget(suggestion.type)} style={[styles.sgBtn, { backgroundColor: c.primary }]}>
                 <Text style={{ color: c.textOnPrimary, fontSize: 12.5, fontFamily: fontDisplay }}>이런 알림 끄기</Text>
               </Pressable>
-              <Pressable onPress={() => setSuggestionDismissed(true)} style={[styles.sgBtn, { backgroundColor: c.surface, borderWidth: 1, borderColor: c.border }]}>
+              <Pressable accessibilityRole="button" onPress={() => setSuggestionDismissed(true)} style={[styles.sgBtn, { backgroundColor: c.surface, borderWidth: 1, borderColor: c.border }]}>
                 <Text style={{ color: c.textSecondary, fontSize: 12.5, fontFamily: fontDisplay }}>괜찮아요</Text>
               </Pressable>
             </View>
@@ -164,7 +164,7 @@ export default function NotificationsScreen() {
             <Text style={{ color: c.textSecondary, fontSize: 12 * fs, flex: 1, fontFamily: fontBody }}>
               {mutedList.map((t) => NOTIFICATION_TYPE_META[t].label).join(', ')} 알림이 꺼져 있어요
             </Text>
-            <Pressable onPress={() => mutedList.forEach((t) => setMute(t, false))} hitSlop={6}>
+            <Pressable accessibilityRole="button" onPress={() => mutedList.forEach((t) => setMute(t, false))} hitSlop={6}>
               <Text style={{ color: c.primary, fontSize: 12 * fs, fontFamily: fontDisplay }}>모두 켜기</Text>
             </Pressable>
           </Animated.View>
@@ -187,7 +187,7 @@ export default function NotificationsScreen() {
                 const muted = mutedTypes[n.type];
                 return (
                   <Animated.View key={n.id} entering={FadeInDown.delay(i * 40).duration(320)} layout={LinearTransition.springify()}>
-                    <Pressable
+                    <Pressable accessibilityRole="button"
                       onPress={() => openNotification(n)}
                       style={[styles.item, { backgroundColor: c.surface, borderColor: n.read ? c.border : meta.color + '55' }]}
                     >
@@ -266,7 +266,7 @@ export default function NotificationsScreen() {
               {NOTIFICATION_TYPE_META[muteTarget].desc} 알림을{'\n'}더 이상 받지 않아요. 언제든 다시 켤 수 있어요.
             </Text>
             <Button label="이런 알림 끄기" colorOverride={c.error} onPress={() => { setMute(muteTarget, true); setMuteTarget(null); setSuggestionDismissed(true); }} style={{ width: '100%' }} />
-            <Pressable onPress={() => setMuteTarget(null)} style={{ paddingVertical: 14 }}>
+            <Pressable accessibilityRole="button" onPress={() => setMuteTarget(null)} style={{ paddingVertical: 14 }}>
               <Text style={{ color: c.textSecondary, fontFamily: fontDisplay }}>유지하기</Text>
             </Pressable>
           </View>
@@ -298,7 +298,7 @@ function SheetRow({ icon, label, onPress, destructive, highlight }: { icon: keyo
   const c = theme.colors;
   const color = destructive ? c.error : highlight ? c.primary : c.textPrimary;
   return (
-    <Pressable onPress={onPress} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingHorizontal: 4 }}>
+    <Pressable accessibilityRole="button" onPress={onPress} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingHorizontal: 4 }}>
       <Ionicons name={icon} size={19} color={color} />
       <Text style={{ color, fontSize: 14.5, fontFamily: fontDisplay }}>{label}</Text>
     </Pressable>

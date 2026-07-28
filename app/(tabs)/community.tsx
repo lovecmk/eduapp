@@ -95,7 +95,7 @@ export default function CommunityScreen() {
             <Ionicons name="chatbox-ellipses" size={18} color={c.primary} />
             <Text style={{ color: c.textPrimary, fontSize: 16, fontFamily: fontDisplay }}>질문 & 답변</Text>
           </View>
-          <Pressable onPress={() => setComposeOpen(true)} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.primary, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 }}>
+          <Pressable accessibilityRole="button" onPress={() => setComposeOpen(true)} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.primary, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 }}>
             <Ionicons name="add" size={15} color="#fff" />
             <Text style={{ color: '#fff', fontSize: 12.5, fontFamily: fontDisplay }}>질문하기</Text>
           </Pressable>
@@ -144,7 +144,7 @@ function QuestionRow({ question: q, onPress }: { question: Question; onPress: ()
   const accent = q.category ? getCategoryColor(q.category) ?? c.primary : c.primary;
   const solved = q.answers.some((a) => a.accepted);
   return (
-    <Pressable onPress={onPress} style={[styles.row, { backgroundColor: c.surface, borderColor: c.border }]}>
+    <Pressable accessibilityRole="button" onPress={onPress} style={[styles.row, { backgroundColor: c.surface, borderColor: c.border }]}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
         {q.category && (
           <View style={{ backgroundColor: accent + '1A', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 }}>

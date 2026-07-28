@@ -98,7 +98,7 @@ export function EmojiBurstButton({
         })}
       </View>
 
-      <Pressable onPress={handle} hitSlop={5}>
+      <Pressable accessibilityRole="button" onPress={handle} hitSlop={5}>
         <Animated.View
           style={{
             flexDirection: 'row', alignItems: 'center', gap: 3,

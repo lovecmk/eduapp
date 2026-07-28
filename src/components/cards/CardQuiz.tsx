@@ -83,7 +83,7 @@ export function CardQuiz({
       {isOX ? (
         <View style={{ flexDirection: 'row', gap: 12 }}>
           {choices.map((label, i) => (
-            <Pressable
+            <Pressable accessibilityRole="button"
               key={i}
               disabled={revealed}
               // 카드 앞면 전체가 '탭하여 뒤집기' Pressable 이라, 웹에서는 보기 선택 클릭이
@@ -109,7 +109,7 @@ export function CardQuiz({
           {choices.map((label, i) => {
             const mark = markFor(i);
             return (
-              <Pressable
+              <Pressable accessibilityRole="button"
                 key={i}
                 disabled={revealed}
                 onPress={(e) => { (e as unknown as { stopPropagation?: () => void })?.stopPropagation?.(); onPick(i); }}

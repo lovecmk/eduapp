@@ -179,7 +179,7 @@ function FormAuthor({ createCards, onDone }: { createCards: ReturnType<typeof us
           <Text style={{ color: c.textPrimary, fontSize: 13 * fs, fontFamily: fontDisplay, marginTop: 6, marginBottom: 8 }}>정답</Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
             {choices.map((ch, i) => (
-              <Pressable key={i} onPress={() => setAnswerIndex(i)}
+              <Pressable accessibilityRole="button" key={i} onPress={() => setAnswerIndex(i)}
                 style={{ paddingHorizontal: 14, paddingVertical: 9, borderRadius: 12, borderWidth: 1.5, borderColor: answerIndex === i ? c.success : c.border, backgroundColor: answerIndex === i ? c.success + '14' : c.surface }}>
                 <Text style={{ color: answerIndex === i ? c.success : c.textPrimary, fontSize: 13 * fs, fontFamily: fontCute, fontWeight: '700' }}>{ch || `보기${i + 1}`}</Text>
               </Pressable>
@@ -269,12 +269,13 @@ function JsonAuthor({ createCards, onDone }: { createCards: ReturnType<typeof us
     <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 60 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
         <Text style={{ color: c.textPrimary, fontSize: 13 * fs, fontFamily: fontDisplay }}>CardDraft JSON 배열</Text>
-        <Pressable onPress={() => setText(JSON_EXAMPLE)} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+        <Pressable accessibilityRole="button" onPress={() => setText(JSON_EXAMPLE)} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
           <Ionicons name="sparkles" size={13} color={c.primary} />
           <Text style={{ color: c.primary, fontSize: 12 * fs, fontFamily: fontDisplay }}>예시 채우기</Text>
         </Pressable>
       </View>
       <TextInput
+        accessibilityLabel="문제 JSON 붙여넣기"
         value={text}
         onChangeText={setText}
         placeholder={'[ { "category": "전기 위험", "subCategory": "...", "topic": "...", "title": "...", "question": "...", ... } ]'}
