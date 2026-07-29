@@ -43,7 +43,7 @@ const props = withDefaults(
     /** 왼쪽 라벨 칸 너비. 지표명은 짧고 문제 제목은 길다. */
     labelWidth?: string;
   }>(),
-  { selfLabel: '이 사람', peerLabel: '또래 평균', labelWidth: '62px' },
+  { selfLabel: '이 사람', peerLabel: '다른 직원 평균', labelWidth: '62px' },
 );
 
 const marks = computed(() =>
@@ -66,8 +66,9 @@ const marks = computed(() =>
     <div class="peer-legend">
       <span class="key"><i class="dot dot-self" />{{ selfLabel }}</span>
       <span class="key"><i class="dot dot-peer" />{{ peerLabel }}</span>
-      <span class="key"><i class="swatch is-worse" />기준보다 나쁨</span>
-      <span class="key"><i class="swatch is-better" />나음</span>
+      <span class="key"><i class="swatch is-worse" />더 나쁨</span>
+      <span class="key"><i class="swatch is-better" />더 나음</span>
+      <span class="peer-how">두 점이 멀수록 차이가 큽니다</span>
     </div>
 
     <div
@@ -121,9 +122,18 @@ const marks = computed(() =>
 <style scoped>
 .peer-legend {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 14px;
   margin-bottom: 10px;
   font-size: 11px;
+  color: var(--ink-4);
+}
+
+/* 읽는 법을 범례 옆에 한 줄로 둔다. 아령형은 익숙한 그림이 아니므로
+   "무슨 뜻이지"에서 멈추면 그 아래를 안 본다. */
+.peer-how {
+  margin-left: auto;
   color: var(--ink-4);
 }
 

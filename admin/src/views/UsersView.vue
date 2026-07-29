@@ -150,7 +150,7 @@ onMounted(() => void page.run());
     <header class="page-head">
       <div>
         <h1 class="page-title">사용자</h1>
-        <p class="page-sub">가입한 학습자 계정을 조회하고 권한·상태를 관리합니다</p>
+        <p class="page-sub">가입한 직원 계정을 조회하고 권한·상태를 관리합니다</p>
       </div>
       <div class="row">
         <button class="btn btn-sm" type="button" :disabled="exporting" @click="exportCSV">

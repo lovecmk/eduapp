@@ -285,16 +285,16 @@ func buildCoverage(in InsightInput, statByCard map[string]ports.CardLearningStat
 	// 판정 기준: 사람이 너무 적거나 기간이 너무 짧으면 어떤 그래프도 우연이다.
 	switch {
 	case c.LearnersWithData == 0:
-		c.Verdict = "학습 데이터가 아직 없습니다. 아래 수치는 모두 0 입니다."
+		c.Verdict = "아직 학습 기록이 없습니다. 아래 숫자는 모두 0 입니다."
 	case c.LearnersWithData < 10 || c.ActivityDays < 7:
-		c.Verdict = fmt.Sprintf("표본이 작습니다(학습자 %d명 · %d일). 추세로 읽지 말고 개별 사례로 보세요.",
+		c.Verdict = fmt.Sprintf("기록이 아직 적습니다(직원 %d명 · %d일치). 전체 흐름보다는 개별 사례로 보세요.",
 			c.LearnersWithData, c.ActivityDays)
 	case c.LearnersWithData < 50 || c.ActivityDays < 28:
-		c.Verdict = fmt.Sprintf("참고 수준입니다(학습자 %d명 · %d일). 방향은 읽을 수 있지만 정밀한 비교는 이릅니다.",
+		c.Verdict = fmt.Sprintf("참고할 만합니다(직원 %d명 · %d일치). 큰 방향은 믿어도 되지만 정확한 비교는 이릅니다.",
 			c.LearnersWithData, c.ActivityDays)
 		c.Trustworthy = true
 	default:
-		c.Verdict = fmt.Sprintf("표본이 충분합니다(학습자 %d명 · %d일).", c.LearnersWithData, c.ActivityDays)
+		c.Verdict = fmt.Sprintf("기록이 충분합니다(직원 %d명 · %d일치).", c.LearnersWithData, c.ActivityDays)
 		c.Trustworthy = true
 	}
 	return c
@@ -598,7 +598,7 @@ func buildFunnel(
 		{Stage: "가입", Count: signed},
 		{Stage: "첫 학습", Count: started},
 		{Stage: "3일 이상", Count: stuck},
-		{Stage: fmt.Sprintf("습관(%d일 중 %d일)", habitWindowDays, habitActiveDays), Count: habitual},
+		{Stage: fmt.Sprintf("꾸준히 학습(%d일 중 %d일)", habitWindowDays, habitActiveDays), Count: habitual},
 	}
 	for i := range stages {
 		if i == 0 {
@@ -809,8 +809,8 @@ func buildHeadlines(in Insight) []Headline {
 
 	if in.Coverage.LearnersWithData == 0 {
 		return append(out, Headline{
-			Severity: "info", Title: "아직 학습 데이터가 없습니다",
-			Detail: "학습자가 카드를 풀기 시작하면 여기에 분석이 채워집니다.",
+			Severity: "info", Title: "아직 학습 기록이 없습니다",
+			Detail: "직원들이 문제를 풀기 시작하면 여기에 내용이 채워집니다.",
 			Metric: "0명",
 		})
 	}
@@ -825,8 +825,8 @@ func buildHeadlines(in Insight) []Headline {
 	if harder > 0 {
 		out = append(out, Headline{
 			Severity: "warn",
-			Title:    fmt.Sprintf("선언보다 훨씬 어려운 문제 %d개", harder),
-			Detail:   "난이도가 잘못 매겨져 있으면 초급자에게 어려운 문제가 먼저 나갑니다. 난이도를 올리거나 해설을 보강하세요.",
+			Title:    fmt.Sprintf("표기보다 훨씬 어려운 문제 %d개", harder),
+			Detail:   "난이도 표기가 틀리면 이제 막 시작한 직원에게 어려운 문제가 먼저 나갑니다. 난이도를 올리거나 해설을 보강하세요.",
 			Metric:   fmt.Sprintf("%d개", harder),
 			Link:     "cards",
 		})
@@ -834,14 +834,14 @@ func buildHeadlines(in Insight) []Headline {
 
 	// 이탈 — 되돌릴 가치가 큰 학습자.
 	if n := in.Churn.AtRisk + in.Churn.Dormant; n > 0 {
-		detail := fmt.Sprintf("%d일 이상 학습이 없는 학습자입니다.", churnRiskDays)
+		detail := fmt.Sprintf("%d일 넘게 학습하지 않은 직원입니다.", churnRiskDays)
 		if len(in.Churn.Top) > 0 {
 			t := in.Churn.Top[0]
-			detail = fmt.Sprintf("가장 아까운 사례: %s(%d장 쌓고 %d일째 중단). %s",
+			detail = fmt.Sprintf("가장 아까운 사람: %s(%d장까지 배우고 %d일째 중단). %s",
 				t.Name, t.Cards, t.DaysAway, detail)
 		}
 		out = append(out, Headline{
-			Severity: "critical", Title: fmt.Sprintf("이탈 위험 학습자 %d명", n),
+			Severity: "critical", Title: fmt.Sprintf("곧 그만둘 것 같은 직원 %d명", n),
 			Detail: detail, Metric: fmt.Sprintf("%d명", n), Link: "users",
 		})
 	}
@@ -850,8 +850,8 @@ func buildHeadlines(in Insight) []Headline {
 	if worst := worstFunnelStage(in.Funnel); worst != nil {
 		out = append(out, Headline{
 			Severity: "warn",
-			Title:    fmt.Sprintf("'%s' 단계에서 %d명이 이탈", worst.Stage, worst.Drop),
-			Detail:   fmt.Sprintf("직전 단계의 %.0f%%만 넘어옵니다. 이 구간이 가장 크게 새고 있습니다.", worst.Rate*100),
+			Title:    fmt.Sprintf("'%s' 단계에서 %d명이 그만뒀습니다", worst.Stage, worst.Drop),
+			Detail:   fmt.Sprintf("앞 단계에서 %.0f%%만 넘어옵니다. 여기서 사람이 가장 많이 빠집니다.", worst.Rate*100),
 			Metric:   fmt.Sprintf("%.0f%%", worst.Rate*100),
 		})
 	}
@@ -863,7 +863,7 @@ func buildHeadlines(in Insight) []Headline {
 			out = append(out, Headline{
 				Severity: "warn",
 				Title:    fmt.Sprintf("'%s' 분야가 평균보다 %.1f배 어렵습니다", c.Category, c.Ratio),
-				Detail:   fmt.Sprintf("실패율 %.0f%%. 이 분야 교육을 보강하거나 문제를 쉬운 것부터 재배치하세요.", c.LapseRate*100),
+				Detail:   fmt.Sprintf("이 분야에서 %.0f%%를 틀립니다. 교육을 보강하거나 쉬운 문제부터 나가게 바꾸세요.", c.LapseRate*100),
 				Metric:   fmt.Sprintf("%.0f%%", c.LapseRate*100),
 			})
 		}
@@ -873,8 +873,8 @@ func buildHeadlines(in Insight) []Headline {
 	if n := len(in.DeadContent); n > 0 {
 		out = append(out, Headline{
 			Severity: "info",
-			Title:    fmt.Sprintf("아무도 만나지 못한 문제 %d개", n),
-			Detail:   "만들어 두고 도달하지 않으면 없는 것과 같습니다. 분야 배분이나 노출 규칙을 확인하세요.",
+			Title:    fmt.Sprintf("아무도 풀지 않은 문제 %d개", n),
+			Detail:   "만들어 두고 아무도 안 보면 없는 것과 같습니다. 분야별 배분이나 출제 설정을 확인하세요.",
 			Metric:   fmt.Sprintf("%d개", n), Link: "cards",
 		})
 	}
@@ -887,7 +887,7 @@ func buildHeadlines(in Insight) []Headline {
 		out = append(out, Headline{
 			Severity: "warn",
 			Title:    fmt.Sprintf("%s 활동이 평소보다 크게 낮았습니다", a.Day),
-			Detail:   fmt.Sprintf("%d명(평소 %.0f명). 배포 사고·공휴일·알림 실패 중 무엇인지 확인하세요.", a.Users, a.Expected),
+			Detail:   fmt.Sprintf("%d명(평소 %.0f명). 공휴일이었는지, 알림이 안 갔는지 확인해 보세요.", a.Users, a.Expected),
 			Metric:   fmt.Sprintf("%d명", a.Users),
 		})
 		break // 가장 최근 것 하나만 — 같은 말을 반복하면 아무도 안 읽는다.
@@ -896,7 +896,7 @@ func buildHeadlines(in Insight) []Headline {
 	if len(out) == 0 {
 		out = append(out, Headline{
 			Severity: "good", Title: "지금 손볼 것이 없습니다",
-			Detail: "콘텐츠 난이도·이탈·퍼널 모두 기준 안에 있습니다.",
+			Detail: "문제 난이도, 그만두는 사람, 가입 후 이탈 모두 정상 범위입니다.",
 			Metric: "이상 없음",
 		})
 	}

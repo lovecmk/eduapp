@@ -37,11 +37,15 @@ const axisMax = computed(() => divergingAxisMax(props.rows.map((r) => r.gap * 10
 const bars = computed(() =>
   props.rows.map((r) => {
     const thin = r.cards < (props.minCards ?? MIN_CARDS);
+    // 반올림한 값으로 판단한다. 0.4%p 를 '0%포인트 더'라고 쓰면 화면에는 0 이
+    // 보이는데 '더'가 붙어, 읽는 사람이 없는 차이를 찾게 된다.
+    const points = Math.round(Math.abs(r.gap * 100));
     return {
       ...r,
       bar: divergingBar(r.gap * 100, axisMax.value),
       thin,
-      text: `${r.gap > 0 ? '+' : ''}${Math.round(r.gap * 100)}%p`,
+      // '%p' 로 쓰지 않는다 — 퍼센트포인트를 %로 읽으면 뜻이 달라진다.
+      text: points === 0 ? '같음' : `${points}%포인트 ${r.gap > 0 ? '더' : '덜'}`,
     };
   }),
 );
@@ -50,9 +54,9 @@ const bars = computed(() =>
 <template>
   <div v-if="bars.length" class="gap">
     <div class="gap-axis">
-      <span>또래보다 덜 틀림</span>
-      <span class="gap-zero">또래와 같음</span>
-      <span>더 틀림</span>
+      <span>← 덜 틀림</span>
+      <span class="gap-zero">다른 직원과 같음</span>
+      <span>더 틀림 →</span>
     </div>
 
     <div v-for="r in bars" :key="r.label" class="gap-row">
@@ -61,7 +65,7 @@ const bars = computed(() =>
       <div
         class="gap-track"
         role="img"
-        :aria-label="`${r.label} — 또래 대비 ${r.text}${r.verdict === 'weak' ? ', 이 분야를 가르칠 것' : ''}`"
+        :aria-label="`${r.label} — 다른 직원보다 ${r.text}${r.verdict === 'weak' ? ', 이 분야를 가르칠 것' : ''}`"
       >
         <i class="gap-base" />
         <i
@@ -69,7 +73,7 @@ const bars = computed(() =>
           class="gap-bar"
           :class="[r.bar.side === 'worse' ? 'is-worse' : 'is-better', { thin: r.thin }]"
           :style="{ left: `${r.bar.x}%`, width: `${r.bar.width}%` }"
-          :title="`${r.label} · 또래 대비 ${r.text} · 푼 문제 ${r.cards}장`"
+          :title="`${r.label} · 다른 직원보다 ${r.text} · 푼 문제 ${r.cards}장`"
         />
       </div>
 
@@ -77,14 +81,15 @@ const bars = computed(() =>
            표를 따로 펴지 않아도 정확한 수치가 남는다. -->
       <div class="gap-value num" :class="{ bad: r.bar.side === 'worse' && !r.thin }">
         {{ r.text }}
-        <span v-if="r.thin" class="gap-note">표본 {{ r.cards }}장</span>
+        <span v-if="r.thin" class="gap-note">{{ r.cards }}장뿐</span>
       </div>
     </div>
 
     <p class="gap-foot">
-      막대가 오른쪽으로 갈수록 같은 문제에서 또래보다 많이 틀립니다. 축 끝 ±{{ axisMax }}%p.
+      가운데 선은 '다른 직원과 똑같음'입니다. 오른쪽으로 길수록 같은 문제를 더 많이 틀립니다 —
+      <b>오른쪽으로 튀어나온 분야가 가르칠 곳</b>입니다. 눈금 끝은 {{ axisMax }}%포인트.
       <template v-if="bars.some((b) => b.thin)">
-        옅은 막대는 푼 문제가 {{ minCards ?? MIN_CARDS }}장 미만이라 판단 근거로 쓰지 않습니다.
+        옅은 막대는 푼 문제가 {{ minCards ?? MIN_CARDS }}장뿐이라 아직 판단하지 않습니다.
       </template>
     </p>
   </div>
@@ -116,7 +121,7 @@ const bars = computed(() =>
 
 .gap-row {
   display: grid;
-  grid-template-columns: 96px 1fr 96px;
+  grid-template-columns: 96px 1fr 108px;
   align-items: center;
   gap: 12px;
   padding: 4px 0;
@@ -170,7 +175,7 @@ const bars = computed(() =>
 }
 
 .gap-value {
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 600;
   color: var(--ink-2);
   text-align: right;
@@ -204,7 +209,7 @@ const bars = computed(() =>
   }
 
   .gap-row {
-    grid-template-columns: 76px 1fr 62px;
+    grid-template-columns: 68px 1fr 76px;
     gap: 8px;
   }
 }

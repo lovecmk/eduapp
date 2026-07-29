@@ -229,13 +229,19 @@ describe('처방 표기', () => {
     // 'medium' 만 띄우면 "적당히 믿어도 됨"인지 "표본 부족"인지 알 수 없다.
     expect(confidenceLabel('high')).toBe('확신 높음');
     expect(confidenceNote('low')).toContain('직접 확인');
+    // 담당자에게 통계 용어를 던지지 않는다.
+    for (const c of ['high', 'medium', 'low'] as const) {
+      expect(confidenceNote(c)).not.toContain('표본');
+    }
     expect(confidenceNote('medium')).not.toBe(confidenceNote('high'));
   });
 
-  it('근거의 세기를 우리말로 옮긴다', () => {
-    expect(strengthLabel('strong')).toBe('강함');
-    expect(strengthLabel('moderate')).toBe('보통');
-    expect(strengthLabel('weak')).toBe('약함');
+  it('근거의 세기가 무엇에서 나온 것인지 이름으로 밝힌다', () => {
+    // '강함/약함'만 띄우면 무엇이 강한지 알 수 없다. 이 세기는 기록의 양에서
+    // 나오므로 그 뜻이 이름에 있어야 한다.
+    expect(strengthLabel('strong')).toBe('기록 충분');
+    expect(strengthLabel('moderate')).toBe('기록 보통');
+    expect(strengthLabel('weak')).toBe('기록 적음');
   });
 });
 

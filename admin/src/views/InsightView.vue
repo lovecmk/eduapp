@@ -45,6 +45,16 @@ const router = useRouter();
 const { data, error, loading, run } = useAsync<Insight>(() => api.insight());
 const refreshing = ref(false);
 
+/**
+ * 파고드는 자료를 펼쳤는가.
+ *
+ * 기본은 접힘이다. 인사팀이 매일 쓰는 것은 '지금 할 일 → 분야 → 문제 → 사람'까지고,
+ * 가입 이탈 구간이나 주별 잔존은 원인을 캘 때 필요한 것이다. 늘 펼쳐 두면 화면이
+ * 길어져 정작 위쪽 할 일까지 안 읽힌다. 지우지는 않는다 — 내용을 줄이는 것과
+ * 순서를 정하는 것은 다른 일이다.
+ */
+const showDetail = ref(false);
+
 /** 조사용 분야 필터 — 하나를 고르면 아래 표들이 전부 그 분야로 좁혀진다. */
 const category = ref<string | null>(null);
 
@@ -141,9 +151,9 @@ onMounted(() => {
   <div class="page">
     <header class="page-head">
       <div>
-        <h1 class="page-title">분석</h1>
+        <h1 class="page-title">교육 현황 분석</h1>
         <p class="page-sub">
-          학습 데이터에서 지금 손봐야 할 것을 뽑아냅니다.
+          학습 기록에서 지금 손봐야 할 것을 찾아 줍니다. 위에서부터 순서대로 보시면 됩니다.
           <span v-if="generatedAt" class="muted">· {{ generatedAt }} 기준</span>
         </p>
       </div>
@@ -171,8 +181,8 @@ onMounted(() => {
           <div>
             <strong>{{ view.coverage.verdict }}</strong>
             <div class="muted cov-line">
-              학습자 {{ num(view.coverage.learners_with_data) }}/{{ num(view.coverage.users) }}명 ·
-              데이터 있는 문제 {{ num(view.coverage.cards_with_data) }}/{{ num(view.coverage.cards) }}장 ·
+              학습 기록이 있는 직원 {{ num(view.coverage.learners_with_data) }}/{{ num(view.coverage.users) }}명 ·
+              풀린 적 있는 문제 {{ num(view.coverage.cards_with_data) }}/{{ num(view.coverage.cards) }}장 ·
               활동 {{ num(view.coverage.activity_days) }}일
             </div>
           </div>
@@ -182,7 +192,7 @@ onMounted(() => {
         <section class="panel">
           <div class="panel-head">
             <h2 class="panel-title">지금 할 일</h2>
-            <span class="panel-note">근거는 아래 표에 있습니다</span>
+            <span class="panel-note">급한 것부터 · 자세한 근거는 아래에 있습니다</span>
           </div>
           <div class="panel-body headlines">
             <article
@@ -213,72 +223,11 @@ onMounted(() => {
           </div>
         </section>
 
-        <div class="grid-2">
-          <!-- 3. 가입에서 습관까지 -->
-          <section class="panel">
-            <div class="panel-head">
-              <h2 class="panel-title">가입 → 습관</h2>
-              <span class="panel-note">어디서 새는가</span>
-            </div>
-            <div class="panel-body">
-              <div v-for="s in view.funnel" :key="s.stage" class="funnel-row">
-                <div class="funnel-label">
-                  <span>{{ s.stage }}</span>
-                  <span class="num">{{ num(s.count) }}명</span>
-                </div>
-                <div class="funnel-track">
-                  <div class="funnel-bar" :style="{ width: `${funnelWidth(s.count, funnelFirst)}%` }" />
-                </div>
-                <div v-if="s.drop > 0" class="funnel-drop muted">
-                  −{{ num(s.drop) }}명 이탈 · 통과 {{ pct(s.rate) }}
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <!-- 4. 활동 추세와 이상 -->
-          <section class="panel">
-            <div class="panel-head">
-              <h2 class="panel-title">최근 30일 활동</h2>
-              <span class="panel-note">평소와 다른 날은 표시됩니다</span>
-            </div>
-            <div class="panel-body">
-              <svg
-                class="spark"
-                :viewBox="`0 0 ${SPARK_W} ${SPARK_H}`"
-                preserveAspectRatio="none"
-                role="img"
-                :aria-label="`최근 30일 일별 학습자 수. 이상 감지 ${view.anomalies.length}건`"
-              >
-                <polyline class="spark-line" :points="spark" />
-                <circle
-                  v-for="m in marks"
-                  :key="m.day"
-                  :cx="m.x"
-                  :cy="m.y"
-                  r="4"
-                  :class="m.direction === 'drop' ? 'mark-drop' : 'mark-spike'"
-                />
-              </svg>
-              <ul v-if="view.anomalies.length" class="anomaly-list">
-                <li v-for="a in view.anomalies" :key="a.day">
-                  <span class="badge" :class="a.direction === 'drop' ? 'badge-danger' : 'badge-accent'">
-                    {{ a.direction === 'drop' ? '급락' : '급등' }}
-                  </span>
-                  {{ a.day }} · {{ num(a.users) }}명
-                  <span class="muted">(평소 {{ num(Math.round(a.expected)) }}명)</span>
-                </li>
-              </ul>
-              <p v-else class="muted">평소와 크게 다른 날은 없었습니다.</p>
-            </div>
-          </section>
-        </div>
-
         <!-- 5. 조사 필터 -->
         <section class="panel">
           <div class="panel-head">
-            <h2 class="panel-title">분야별 지식 격차</h2>
-            <span class="panel-note">분야를 누르면 아래 표가 함께 좁혀집니다</span>
+            <h2 class="panel-title">어느 분야를 다들 어려워하나</h2>
+            <span class="panel-note">분야를 누르면 아래 내용이 그 분야로 좁혀집니다</span>
           </div>
           <div class="panel-body">
             <div class="chips">
@@ -311,14 +260,14 @@ onMounted(() => {
                     class="cbar"
                     :class="{ over: c.over }"
                     :style="{ width: `${c.width}%` }"
-                    :title="`${c.category} · 실패율 ${pct(c.lapse_rate)} · 문제 ${num(c.cards)}장`"
+                    :title="`${c.category} · 틀린 비율 ${pct(c.lapse_rate)} · 문제 ${num(c.cards)}장`"
                   />
                 </span>
                 <span class="cbar-value num" :class="{ bad: c.over }">{{ pct(c.lapse_rate) }}</span>
               </div>
               <p class="cbar-foot">
-                축 끝 {{ Math.round(categoryAxisMax) }}%.
-                진한 막대는 전체 평균의 1.3배 이상 틀리는 분야입니다.
+                눈금 끝은 {{ Math.round(categoryAxisMax) }}%입니다.
+                진한 막대는 전체 평균보다 1.3배 넘게 틀리는 분야 — 여기부터 손보면 됩니다.
               </p>
             </div>
 
@@ -328,9 +277,9 @@ onMounted(() => {
                   <tr>
                     <th>분야</th>
                     <th class="right">문제</th>
-                    <th class="right">실패율</th>
-                    <th class="right">평균 대비</th>
-                    <th class="right">숙달률</th>
+                    <th class="right">틀린 비율</th>
+                    <th class="right">평균의 몇 배</th>
+                    <th class="right">익힌 비율</th>
                     <th class="right">신고</th>
                   </tr>
                 </thead>
@@ -356,26 +305,26 @@ onMounted(() => {
         <!-- 6. 난이도 보정 -->
         <section class="panel">
           <div class="panel-head">
-            <h2 class="panel-title">난이도가 실제와 어긋난 문제</h2>
-            <span class="panel-note">학습자 5명 이상이 푼 문제만 판정합니다</span>
+            <h2 class="panel-title">난이도 표기가 실제와 다른 문제</h2>
+            <span class="panel-note">5명 이상이 푼 문제만 판단합니다</span>
           </div>
           <div class="panel-body">
             <p class="hint">
-              선언한 난이도와 실제 실패율이 크게 다르면, 초급자에게 어려운 문제가 먼저 나가거나
-              그 반대가 됩니다. 표본이 모자란 문제는 아예 판정하지 않습니다.
+              "쉬움"이라고 표기했는데 실제로는 다들 틀리는 문제가 있으면, 이제 막 시작한 직원에게
+              어려운 문제가 먼저 나갑니다. 기록이 모자란 문제는 아예 판단하지 않습니다.
             </p>
             <div v-if="calibrationRows.length" class="calib">
               <PeerCompare
                 :rows="calibrationRows"
-                self-label="실제 실패율"
-                peer-label="선언 난이도의 기대"
+                self-label="실제로 틀린 비율"
+                peer-label="난이도 표기상 예상"
                 label-width="minmax(0, 200px)"
               />
               <p class="cbar-foot">
                 <!-- 색 이름으로 설명하지 않는다 — 다크 모드에서 '검은 점'은 흰 점이 된다.
                      계열을 가리키는 일은 범례가 한다. -->
-                점 사이의 거리가 곧 오표기의 크기입니다. 표본이 5명 미만인 문제는
-                판정하지 않습니다.
+                점 사이가 멀수록 표기가 크게 어긋난 문제입니다. 5명 미만이 푼 문제는
+                판단하지 않습니다.
               </p>
             </div>
 
@@ -385,11 +334,11 @@ onMounted(() => {
                   <tr>
                     <th>문제</th>
                     <th>분야</th>
-                    <th>선언</th>
-                    <th class="right">학습자</th>
-                    <th class="right">실패율</th>
-                    <th class="right">기대</th>
-                    <th>판정</th>
+                    <th>표기</th>
+                    <th class="right">푼 사람</th>
+                    <th class="right">틀린 비율</th>
+                    <th class="right">예상</th>
+                    <th>판단</th>
                     <th>제안</th>
                   </tr>
                 </thead>
@@ -422,96 +371,195 @@ onMounted(() => {
           </div>
         </section>
 
+        <!-- 7. 이탈 위험 -->
+        <section class="panel">
+          <div class="panel-head">
+            <h2 class="panel-title">곧 그만둘 것 같은 직원</h2>
+            <span class="panel-note">지금까지 많이 배운 사람부터 — 되돌릴 값어치가 큽니다</span>
+          </div>
+          <div class="panel-body">
+            <div class="tiles">
+              <StatTile label="활성" :value="num(view.churn.active)" />
+              <StatTile label="식는 중" :value="num(view.churn.cooling)" tone="warn" />
+              <StatTile label="이탈 위험" :value="num(view.churn.at_risk)" tone="warn" />
+              <StatTile label="휴면" :value="num(view.churn.dormant)" tone="danger" />
+            </div>
+            <div v-if="view.churn.top.length" class="table-wrap">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>직원</th>
+                    <th>소속</th>
+                    <th class="right">학습</th>
+                    <th class="right">경과</th>
+                    <th>상태</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="e in view.churn.top"
+                    :key="e.user_id"
+                    class="clickable"
+                    tabindex="0"
+                    @click="router.push(`/users/${e.user_id}`)"
+                    @keydown.enter="router.push(`/users/${e.user_id}`)"
+                  >
+                    <td class="strong truncate">{{ e.name }}</td>
+                    <td class="truncate muted">{{ e.org || '—' }}</td>
+                    <td class="right num">{{ num(e.cards) }}장</td>
+                    <td class="right num">{{ num(e.days_away) }}일</td>
+                    <td>
+                      <span class="badge" :class="churnBadge(e.tier)">{{ churnLabel(e.tier) }}</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p v-else class="empty">그만둘 것 같은 직원이 없습니다.</p>
+          </div>
+        </section>
+
+        <!-- 10. 도달하지 못한 콘텐츠 -->
+        <section v-if="view.dead_content.length" class="panel">
+          <div class="panel-head">
+            <h2 class="panel-title">아무도 풀지 않은 문제</h2>
+            <span class="panel-note">{{ num(view.dead_content.length) }}장</span>
+          </div>
+          <div class="panel-body">
+            <p class="hint">만들어 두고 아무도 안 보면 없는 것과 같습니다.</p>
+            <ul class="dead-list">
+              <li
+                v-for="c in view.dead_content"
+                :key="c.card_id"
+                class="clickable"
+                tabindex="0"
+                @click="router.push(`/cards/${c.card_id}`)"
+                @keydown.enter="router.push(`/cards/${c.card_id}`)"
+              >
+                <span class="badge badge-neutral">{{ c.category }}</span>
+                <span class="truncate">{{ c.title }}</span>
+              </li>
+            </ul>
+          </div>
+        </section>
+
+        <!-- ── 여기부터는 자세히 보고 싶을 때 ───────────────────────────
+             인사팀이 매일 쓰는 것은 위까지다. 아래 넷은 '왜 그런가'를 파고들 때
+             필요한 것들인데, 늘 펼쳐 두면 화면이 길어져 위쪽 할 일까지 안 읽힌다.
+             숨기지는 않는다 — 내용을 줄이는 것과 순서를 정하는 것은 다르다. -->
+        <button
+          class="more"
+          type="button"
+          :aria-expanded="showDetail"
+          @click="showDetail = !showDetail"
+        >
+          <AppIcon :name="showDetail ? 'chevron-up' : 'chevron-down'" :size="13" />
+          자세히 보기 — 가입 후 이탈 구간 · 최근 30일 활동 · 부서별 · 가입 주별 잔존
+        </button>
+
+        <template v-if="showDetail">
         <div class="grid-2">
-          <!-- 7. 이탈 위험 -->
+          <!-- 3. 가입에서 습관까지 -->
           <section class="panel">
             <div class="panel-head">
-              <h2 class="panel-title">되돌릴 가치가 큰 학습자</h2>
-              <span class="panel-note">쌓아 둔 학습량이 많은 순</span>
+              <h2 class="panel-title">가입하고 나서 어디서 그만두나</h2>
+              <span class="panel-note">막대가 크게 줄어드는 칸이 문제 구간입니다</span>
             </div>
             <div class="panel-body">
-              <div class="tiles">
-                <StatTile label="활성" :value="num(view.churn.active)" />
-                <StatTile label="식는 중" :value="num(view.churn.cooling)" tone="warn" />
-                <StatTile label="이탈 위험" :value="num(view.churn.at_risk)" tone="warn" />
-                <StatTile label="휴면" :value="num(view.churn.dormant)" tone="danger" />
+              <div v-for="s in view.funnel" :key="s.stage" class="funnel-row">
+                <div class="funnel-label">
+                  <span>{{ s.stage }}</span>
+                  <span class="num">{{ num(s.count) }}명</span>
+                </div>
+                <div class="funnel-track">
+                  <div class="funnel-bar" :style="{ width: `${funnelWidth(s.count, funnelFirst)}%` }" />
+                </div>
+                <div v-if="s.drop > 0" class="funnel-drop muted">
+                  −{{ num(s.drop) }}명 이탈 · 통과 {{ pct(s.rate) }}
+                </div>
               </div>
-              <div v-if="view.churn.top.length" class="table-wrap">
-                <table class="table">
-                  <thead>
-                    <tr>
-                      <th>학습자</th>
-                      <th>소속</th>
-                      <th class="right">학습</th>
-                      <th class="right">경과</th>
-                      <th>상태</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr
-                      v-for="e in view.churn.top"
-                      :key="e.user_id"
-                      class="clickable"
-                      tabindex="0"
-                      @click="router.push(`/users/${e.user_id}`)"
-                      @keydown.enter="router.push(`/users/${e.user_id}`)"
-                    >
-                      <td class="strong truncate">{{ e.name }}</td>
-                      <td class="truncate muted">{{ e.org || '—' }}</td>
-                      <td class="right num">{{ num(e.cards) }}장</td>
-                      <td class="right num">{{ num(e.days_away) }}일</td>
-                      <td>
-                        <span class="badge" :class="churnBadge(e.tier)">{{ churnLabel(e.tier) }}</span>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              <p v-else class="empty">멀어진 학습자가 없습니다.</p>
             </div>
           </section>
 
-          <!-- 8. 조직별 도입 -->
+          <!-- 4. 활동 추세와 이상 -->
           <section class="panel">
             <div class="panel-head">
-              <h2 class="panel-title">조직별 도입</h2>
-              <span class="panel-note">인원이 많은 곳부터</span>
+              <h2 class="panel-title">최근 30일 활동</h2>
+              <span class="panel-note">평소와 유난히 다른 날에 점이 찍힙니다</span>
             </div>
             <div class="panel-body">
-              <div v-if="view.orgs.length" class="table-wrap">
-                <table class="table">
-                  <thead>
-                    <tr>
-                      <th>조직</th>
-                      <th class="right">인원</th>
-                      <th class="right">도입률</th>
-                      <th class="right">습관</th>
-                      <th class="right">평균 학습</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="o in view.orgs" :key="o.org">
-                      <td class="strong truncate">{{ o.org }}</td>
-                      <td class="right num">{{ num(o.members) }}</td>
-                      <td class="right num">
-                        <span :class="o.adoption_rate < 0.5 ? 'over' : ''">{{ pct(o.adoption_rate) }}</span>
-                      </td>
-                      <td class="right num">{{ num(o.habitual) }}</td>
-                      <td class="right num">{{ o.avg_cards ? `${o.avg_cards}장` : '—' }}</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              <p v-else class="empty">조직 정보가 없습니다.</p>
+              <svg
+                class="spark"
+                :viewBox="`0 0 ${SPARK_W} ${SPARK_H}`"
+                preserveAspectRatio="none"
+                role="img"
+                :aria-label="`최근 30일 하루별 학습한 직원 수. 평소와 다른 날 ${view.anomalies.length}건`"
+              >
+                <polyline class="spark-line" :points="spark" />
+                <circle
+                  v-for="m in marks"
+                  :key="m.day"
+                  :cx="m.x"
+                  :cy="m.y"
+                  r="4"
+                  :class="m.direction === 'drop' ? 'mark-drop' : 'mark-spike'"
+                />
+              </svg>
+              <ul v-if="view.anomalies.length" class="anomaly-list">
+                <li v-for="a in view.anomalies" :key="a.day">
+                  <span class="badge" :class="a.direction === 'drop' ? 'badge-danger' : 'badge-accent'">
+                    {{ a.direction === 'drop' ? '급락' : '급등' }}
+                  </span>
+                  {{ a.day }} · {{ num(a.users) }}명
+                  <span class="muted">(평소 {{ num(Math.round(a.expected)) }}명)</span>
+                </li>
+              </ul>
+              <p v-else class="muted">평소와 크게 다른 날은 없었습니다.</p>
             </div>
           </section>
         </div>
 
+
+        <!-- 8. 조직별 도입 -->
+        <section class="panel">
+          <div class="panel-head">
+            <h2 class="panel-title">부서별 참여 현황</h2>
+            <span class="panel-note">인원이 많은 곳부터</span>
+          </div>
+          <div class="panel-body">
+            <div v-if="view.orgs.length" class="table-wrap">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>조직</th>
+                    <th class="right">인원</th>
+                    <th class="right">시작한 비율</th>
+                    <th class="right">꾸준한 사람</th>
+                    <th class="right">평균 학습</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="o in view.orgs" :key="o.org">
+                    <td class="strong truncate">{{ o.org }}</td>
+                    <td class="right num">{{ num(o.members) }}</td>
+                    <td class="right num">
+                      <span :class="o.adoption_rate < 0.5 ? 'over' : ''">{{ pct(o.adoption_rate) }}</span>
+                    </td>
+                    <td class="right num">{{ num(o.habitual) }}</td>
+                    <td class="right num">{{ o.avg_cards ? `${o.avg_cards}장` : '—' }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p v-else class="empty">조직 정보가 없습니다.</p>
+          </div>
+        </section>
+
         <!-- 9. 코호트 리텐션 -->
         <section class="panel">
           <div class="panel-head">
-            <h2 class="panel-title">가입 주차별 잔존</h2>
-            <span class="panel-note">0주차는 가입한 그 주입니다</span>
+            <h2 class="panel-title">가입 주별로 얼마나 남았나</h2>
+            <span class="panel-note">가로는 가입 후 몇 주째인지 · 진할수록 많이 남아 있습니다</span>
           </div>
           <div class="panel-body">
             <div v-if="view.retention.length" class="table-wrap">
@@ -543,33 +591,11 @@ onMounted(() => {
                 </tbody>
               </table>
             </div>
-            <p v-else class="empty">코호트를 만들 만한 가입 기록이 없습니다.</p>
+            <p v-else class="empty">주 단위로 나눌 만큼 가입 기록이 쌓이지 않았습니다.</p>
           </div>
         </section>
+        </template>
 
-        <!-- 10. 도달하지 못한 콘텐츠 -->
-        <section v-if="view.dead_content.length" class="panel">
-          <div class="panel-head">
-            <h2 class="panel-title">아무도 만나지 못한 문제</h2>
-            <span class="panel-note">{{ num(view.dead_content.length) }}장</span>
-          </div>
-          <div class="panel-body">
-            <p class="hint">만들어 두고 도달하지 않으면 없는 것과 같습니다.</p>
-            <ul class="dead-list">
-              <li
-                v-for="c in view.dead_content"
-                :key="c.card_id"
-                class="clickable"
-                tabindex="0"
-                @click="router.push(`/cards/${c.card_id}`)"
-                @keydown.enter="router.push(`/cards/${c.card_id}`)"
-              >
-                <span class="badge badge-neutral">{{ c.category }}</span>
-                <span class="truncate">{{ c.title }}</span>
-              </li>
-            </ul>
-          </div>
-        </section>
       </template>
     </AsyncSection>
   </div>
@@ -740,6 +766,36 @@ onMounted(() => {
   flex-direction: column;
   gap: 6px;
   font-size: 12.5px;
+}
+
+/* ── 자세히 보기 ─────────────────────────────────────────────────────────
+   판(panel)이 아니라 줄 하나로 둔다. 상자로 만들면 위 판들과 같은 무게로 보이고,
+   그러면 '접혀 있다'가 아니라 '빈 판이다'로 읽힌다. */
+.more {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 11px 2px;
+  margin-top: 4px;
+  border: 0;
+  border-top: 1px solid var(--line-strong);
+  background: transparent;
+  color: var(--ink-3);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.more:hover {
+  color: var(--ink);
+}
+
+.more:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+  border-radius: var(--r-1);
 }
 
 /* ── 분야별 실패율 막대 ──────────────────────────────────────────────────── */
