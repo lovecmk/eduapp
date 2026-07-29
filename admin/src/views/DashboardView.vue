@@ -168,13 +168,13 @@ function share(v: number): string {
           <div class="panel-head">
             <h2 class="panel-title">학습 진행</h2>
             <!-- 분모를 밝힌다. '완료 126'만 있으면 무엇 중 126인지 알 수 없다. -->
-            <span class="panel-note">학습자 × 문제 조합 · 완료율 {{ pct(learning?.rate) }}</span>
+            <span class="panel-note">직원 × 문제 조합 · 완료율 {{ pct(learning?.rate) }}</span>
           </div>
           <div class="panel-body">
             <div
               class="stack"
               role="img"
-              :aria-label="`학습자 × 문제 조합 ${learnTotal}칸 중 완료 ${learning?.mastered ?? 0}, 학습 중 ${learning?.learning ?? 0}, 미시작 ${learning?.new ?? 0}`"
+              :aria-label="`직원 × 문제 조합 ${learnTotal}칸 중 완료 ${learning?.mastered ?? 0}, 학습 중 ${learning?.learning ?? 0}, 미시작 ${learning?.new ?? 0}`"
             >
               <span class="seg s-done" :style="{ width: share(learning?.mastered ?? 0) }" />
               <span class="seg s-doing" :style="{ width: share(learning?.learning ?? 0) }" />

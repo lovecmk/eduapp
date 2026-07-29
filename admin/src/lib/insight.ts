@@ -108,9 +108,9 @@ export function heatIntensity(rate: number): number {
   return Math.min(1, Math.sqrt(rate));
 }
 
-/** 난이도 오표기의 방향을 사람 말로. */
+/** 난이도 표기가 어느 쪽으로 어긋났는지 사람 말로. */
 export function calibrationLabel(c: CardCalibration): string {
-  return c.verdict === 'harder' ? '선언보다 어려움' : '선언보다 쉬움';
+  return c.verdict === 'harder' ? '표기보다 어려움' : '표기보다 쉬움';
 }
 
 /**
@@ -219,9 +219,9 @@ export function confidenceNote(c: Prescription['confidence']): string {
     case 'high':
       return '서로 다른 근거 둘 이상이 같은 결론을 가리킵니다';
     case 'medium':
-      return '근거는 분명하나 표본이나 비교 대상이 아쉽습니다';
+      return '근거는 분명하지만 비교한 기록이 조금 적습니다';
     default:
-      return '정황 수준입니다 — 실행 전에 직접 확인해 보세요';
+      return '아직 짐작에 가깝습니다 — 실행 전에 직접 확인해 보세요';
   }
 }
 
@@ -236,15 +236,20 @@ export function confidenceLabel(c: Prescription['confidence']): string {
   }
 }
 
-/** 근거 한 줄의 세기. */
+/**
+ * 근거 한 줄의 세기.
+ *
+ * '강함/보통/약함'만 띄우면 무엇이 강한지 알 수 없다. 이 세기는 **기록이 얼마나
+ * 많은가**에서 나오므로, 그 뜻을 이름에 넣는다.
+ */
 export function strengthLabel(s: EvidenceStrength): string {
   switch (s) {
     case 'strong':
-      return '강함';
+      return '기록 충분';
     case 'moderate':
-      return '보통';
+      return '기록 보통';
     default:
-      return '약함';
+      return '기록 적음';
   }
 }
 

@@ -180,7 +180,7 @@ const DIFFS: { value: Difficulty; label: string }[] = [
           문제 목록
         </RouterLink>
         <h1 class="page-title">{{ isNew ? '문제 만들기' : '문제 수정' }}</h1>
-        <p class="page-sub">학습자가 앱에서 보게 될 카드 한 장을 작성합니다</p>
+        <p class="page-sub">직원이 앱에서 보게 될 카드 한 장을 작성합니다</p>
       </div>
       <div class="row">
         <span v-if="dirty" class="badge badge-warn">저장 안 됨</span>
@@ -366,7 +366,7 @@ const DIFFS: { value: Difficulty; label: string }[] = [
                 class="textarea"
                 :class="{ 'input-error': showError('principle_txt') }"
                 rows="4"
-                placeholder="왜 그런지를 설명합니다. 학습자가 뒷면에서 보는 내용입니다."
+                placeholder="왜 그런지를 설명합니다. 직원이 뒷면에서 보는 내용입니다."
                 @blur="touch('principle_txt')"
               />
               <span v-if="showError('principle_txt')" class="hint hint-error">
@@ -407,7 +407,7 @@ const DIFFS: { value: Difficulty; label: string }[] = [
         <section class="panel">
           <div class="panel-head">
             <h2 class="panel-title">미리보기</h2>
-            <span class="hint">학습자가 보는 화면</span>
+            <span class="hint">직원이 보는 화면</span>
           </div>
           <div class="panel-body">
             <div class="preview">

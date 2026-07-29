@@ -191,8 +191,8 @@ func prescribeOnboarding(d LearnerDiagnosis, in LearnerInput) (Prescription, boo
 		Fact:     "가입 이후 학습 기록이 한 건도 없습니다",
 		Observed: "푼 문제 0장 · 학습한 날 0일",
 		Compared: since,
-		Rule:     "학습 기록이 0건이면 내용 진단 자체가 불가능하다 — 진입부터 해결한다",
-		Source:   "학습 동기화 기록(카드별 채점 이력)",
+		Rule:     "학습 기록이 하나도 없으면 무엇이 부족한지 판단할 수 없습니다 — 먼저 시작하게 하는 것이 순서입니다",
+		Source:   "앱 학습 기록(문제별 채점 이력)",
 		Strength: strength,
 	}}
 
@@ -200,10 +200,10 @@ func prescribeOnboarding(d LearnerDiagnosis, in LearnerInput) (Prescription, boo
 		ID: "onboarding", Priority: "now", Kind: "onboarding",
 		Title:  "첫 학습 진입 안내",
 		Target: "앱 설치·로그인·첫 문제 1장",
-		Why: "무엇이 부족한지 판단할 근거가 아직 없습니다. 약점이 없어서가 아니라 " +
-			"측정된 적이 없어서입니다. 이 상태에서 내용 교육을 배정하면 근거 없는 배정이 됩니다.",
+		Why: "무엇이 부족한지 판단할 자료가 아직 없습니다. 잘해서가 아니라 " +
+			"학습 기록이 하나도 없어서입니다. 이 상태에서 교육을 배정하면 근거 없이 배정하는 것이 됩니다.",
 		Action:  "설치·로그인 상태를 확인하고, 옆에서 첫 문제 한 장을 함께 풀어 주세요.",
-		Expect:  "첫 학습 기록이 남으면 다음 진단부터 분야별 약점을 근거와 함께 지목할 수 있습니다.",
+		Expect:  "첫 학습 기록이 남으면 다음부터 어느 분야가 부족한지 근거와 함께 알려 드릴 수 있습니다.",
 		Minutes: 10,
 		Score:   90,
 		// 점수 90 — 미측정은 '약점 없음'이 아니다. 다른 모든 처방의 선행 조건이라 높게 둔다.
@@ -234,27 +234,27 @@ func prescribeEngagement(d LearnerDiagnosis) (Prescription, bool) {
 
 	ev := []Evidence{
 		{
-			Fact:     "마지막 학습 이후 경과일이 습관 이탈 구간에 들어갔습니다",
+			Fact:     "마지막 학습 이후 너무 오래 지났습니다",
 			Observed: awayTxt,
-			Rule: fmt.Sprintf("%d일이면 습관이 끊기기 시작하고, %d일을 넘기면 대부분 돌아오지 않는다",
+			Rule: fmt.Sprintf("%d일이 지나면 학습 습관이 끊기기 시작하고, %d일을 넘기면 대부분 돌아오지 않습니다",
 				churnWarnDays, churnRiskDays),
-			Source:   "학습 이력의 마지막 채점 시각",
+			Source:   "앱 학습 기록의 마지막 접속 시각",
 			Strength: "strong",
 		},
 		{
 			Fact:     "그동안 쌓아 둔 학습량이 있어 되돌릴 값어치가 큽니다",
 			Observed: fmt.Sprintf("누적 %d장 · 학습한 날 %d일", d.Summary.Cards, d.Summary.ActiveDays),
-			Rule:     "쌓인 학습량이 많을수록 복귀 시 회복 속도가 빠르다 — 신규 유치보다 비용이 낮다",
-			Source:   "학습 동기화 기록",
+			Rule:     "이미 배운 것이 많을수록 돌아왔을 때 회복이 빠릅니다 — 새로 가르치는 것보다 손이 덜 갑니다",
+			Source:   "앱 학습 기록",
 			Strength: evidenceStrengthBySample(d.Summary.Cards, 10, 30),
 		},
 	}
 	if !d.Summary.Habitual {
 		ev = append(ev, Evidence{
 			Fact:     "중단 이전에도 학습이 규칙적이지 않았습니다",
-			Observed: fmt.Sprintf("최근 %d일 중 학습일이 %d일 미만", habitWindowDays, habitActiveDays),
-			Rule:     fmt.Sprintf("%d일 중 %d일 이상이면 습관 형성으로 본다", habitWindowDays, habitActiveDays),
-			Source:   "일자별 학습 이력",
+			Observed: fmt.Sprintf("최근 %d일 중 학습한 날이 %d일이 안 됩니다", habitWindowDays, habitActiveDays),
+			Rule:     fmt.Sprintf("%d일 중 %d일 이상 학습하면 습관이 잡힌 것으로 봅니다", habitWindowDays, habitActiveDays),
+			Source:   "날짜별 학습 기록",
 			Strength: "moderate",
 		})
 	}
@@ -296,31 +296,31 @@ func prescribeCategories(d LearnerDiagnosis) []Prescription {
 
 		ev := []Evidence{
 			{
-				Fact:     fmt.Sprintf("'%s' 분야에서만 또래보다 뚜렷하게 더 틀립니다", w.Category),
-				Observed: fmt.Sprintf("본인 실패율 %s", pctText(w.LapseRate)),
-				Compared: fmt.Sprintf("같은 문제를 푼 또래 %s", pctText(w.PeerRate)),
-				Sample: fmt.Sprintf("이 분야에서 본인이 푼 문제 %d장 · 시도 %d회",
+				Fact:     fmt.Sprintf("'%s' 분야에서만 %s보다 뚜렷하게 더 틀립니다", w.Category, peerWord),
+				Observed: fmt.Sprintf("이 사람이 %s %s", missWord, pctText(w.LapseRate)),
+				Compared: fmt.Sprintf("%s은 %s", peerLongWord, pctText(w.PeerRate)),
+				Sample: fmt.Sprintf("이 분야에서 이 사람이 푼 문제 %d장 · 시도 %d회",
 					w.Cards, w.Reps),
-				Rule: fmt.Sprintf("또래와의 격차가 %.0f%%p 이상이면 개인 약점으로 판정(현재 %+.0f%%p)",
-					personalGapThreshold*100, w.Gap*100),
-				Source:   "카드별 채점 이력 + 같은 카드를 푼 전체 학습자 집계",
+				Rule: fmt.Sprintf("%s보다 %s 틀리면 이 사람의 약점으로 봅니다(지금은 %s)",
+					peerWord, gapText(personalGapThreshold), gapText(w.Gap)),
+				Source:   "문제별 채점 이력 + 같은 문제를 푼 전체 직원 집계",
 				Strength: evidenceStrengthBySample(w.Reps, prescriptionMinReps, 20),
 			},
 			{
-				Fact:     "이 분야가 어려운 문제만 모여서 생긴 결과는 아닙니다",
-				Observed: fmt.Sprintf("같은 문제에서 또래 실패율은 %s", pctText(w.PeerRate)),
-				Rule: fmt.Sprintf("또래 실패율이 %.0f%% 이상이면 '모두 어려워함'으로 분류해 개인 처방에서 제외한다",
-					sharedDifficultyRate*100),
-				Source:   "카드별 전체 학습자 집계",
+				Fact:     "이 분야에 어려운 문제만 몰려 있어서 생긴 결과는 아닙니다",
+				Observed: fmt.Sprintf("같은 문제에서 %s은 %s만 틀립니다", peerWord, pctText(w.PeerRate)),
+				Rule: fmt.Sprintf("%s도 %s 이상 틀리는 문제는 '모두 어려워하는 문제'로 보고 개인 교육 대상에서 뺍니다",
+					peerWord, pctText(sharedDifficultyRate)),
+				Source:   "같은 문제를 푼 전체 직원 집계",
 				Strength: "strong",
 			},
 		}
 		if len(cards) > 0 {
 			ev = append(ev, Evidence{
-				Fact:     "실제로 반복해서 틀린 문제가 이 분야에 몰려 있습니다",
-				Observed: fmt.Sprintf("이 분야 오답 %d장", len(cards)),
-				Rule:     "낱장이 아니라 같은 분야에 몰려 있으면 원리 이해의 공백으로 본다",
-				Source:   "카드별 채점 이력",
+				Fact:     "반복해서 틀린 문제가 이 분야에 몰려 있습니다",
+				Observed: fmt.Sprintf("이 분야에서 틀린 문제 %d장", len(cards)),
+				Rule:     "여기저기 흩어진 게 아니라 한 분야에 몰려 있으면 그 분야의 원리를 모르는 것으로 봅니다",
+				Source:   "문제별 채점 이력",
 				Strength: evidenceStrengthBySample(int64(len(cards)), 2, 5),
 			})
 		}
@@ -334,17 +334,14 @@ func prescribeCategories(d LearnerDiagnosis) []Prescription {
 			Priority: priorityByGap(w.Gap),
 			Kind:     "category",
 			Title:    fmt.Sprintf("'%s' 분야 재교육", w.Category),
-			Target:   fmt.Sprintf("'%s' 분야 · 오답 %d장 포함 %d장", w.Category, len(cards), w.Cards),
-			Why: fmt.Sprintf(
-				"같은 문제를 푼 또래는 %s만 틀리는데 이 사람은 %s를 틀립니다(%+.0f%%p). "+
-					"문제가 어려워서가 아니라 이 분야의 원리를 다르게 이해하고 있을 가능성이 큽니다.",
-				pctText(w.PeerRate), pctText(w.LapseRate), w.Gap*100),
+			Target:   fmt.Sprintf("'%s' 분야 · 틀린 문제 %d장 포함 %d장", w.Category, len(cards), w.Cards),
+			Why:      whyCategory(w),
 			Action: fmt.Sprintf(
-				"'%s' 분야를 낱장이 아니라 원리 단위로 30분 재교육하고, 끝난 뒤 이 분야 오답을 다시 풀리세요.",
+				"'%s' 분야를 문제 하나씩이 아니라 원리 중심으로 30분 교육하고, 끝난 뒤 아래 문제를 다시 풀게 하세요.",
 				w.Category),
 			Expect: fmt.Sprintf(
-				"이 분야 실패율이 또래 수준(%s)에 가까워지는지 2주 뒤 같은 표에서 확인할 수 있습니다.",
-				pctText(w.PeerRate)),
+				"2주 뒤 이 화면을 다시 열어, 이 분야에서 틀리는 비율이 %s(%s 수준)에 가까워졌는지 보면 됩니다.",
+				pctText(w.PeerRate), peerWord),
 			Minutes:  30,
 			Score:    score,
 			Evidence: ev,
@@ -352,6 +349,23 @@ func prescribeCategories(d LearnerDiagnosis) []Prescription {
 		})
 	}
 	return out
+}
+
+// whyCategory 는 "왜 이 사람이 이 분야 교육을 받아야 하는가"를 한 문단으로 만든다.
+//
+// 차이를 **두 가지 방법으로** 말한다. 17%와 75%는 '58%포인트 더'이기도 하고
+// '4.4배'이기도 한데, 퍼센트포인트가 낯선 사람에게는 뒤엣것이 훨씬 빨리 와닿는다.
+// 배수가 성립하지 않는 구간(기준이 0 이거나 차이가 미미하거나 지나치게 큼)에서는
+// 억지로 만들지 않고 뺀다 — 잘못된 비유는 없느니만 못하다.
+func whyCategory(w CategoryWeakness) string {
+	scale := ""
+	if times := timesText(w.LapseRate, w.PeerRate); times != "" {
+		scale = fmt.Sprintf(" %s 더 틀리는 셈입니다.", times)
+	}
+	return fmt.Sprintf(
+		"같은 문제를 푼 %s은 %s만 틀리는데 이 사람은 %s를 틀립니다.%s "+
+			"문제가 어려워서가 아니라 이 분야의 내용을 잘못 알고 있을 가능성이 큽니다.",
+		peerWord, pctText(w.PeerRate), pctText(w.LapseRate), scale)
 }
 
 // cardsForCategory 는 그 분야에서 **이 사람만 어려워하는** 오답을 고른다.
@@ -412,32 +426,35 @@ func prescribePersonalCards(d LearnerDiagnosis, covered map[string]struct{}) (Pr
 	first := cards[0]
 	ev := []Evidence{
 		{
-			Fact:     "또래는 대체로 맞히는 문제를 반복해서 틀립니다",
-			Observed: fmt.Sprintf("해당 문제 %d장 · 최대 격차 %+.0f%%p", len(cards), worstGap*100),
-			Compared: "같은 문제를 푼 다른 학습자들의 실패율",
-			Sample:   fmt.Sprintf("비교에 쓴 최소 인원 %d명 이상 · 본인 시도 %d회", minPeersForComparison, totalReps),
-			Rule: fmt.Sprintf("또래 실패율이 %.0f%% 미만인데 본인이 %.0f%%p 이상 더 틀리면 개인 약점으로 본다",
-				sharedDifficultyRate*100, personalGapThreshold*100),
-			Source:   "카드별 채점 이력 + 같은 카드를 푼 전체 학습자 집계",
+			Fact:     fmt.Sprintf("%s은 대체로 맞히는 문제를 반복해서 틀립니다", peerWord),
+			Observed: fmt.Sprintf("해당 문제 %d장 · 가장 큰 차이는 %s", len(cards), gapText(worstGap)),
+			Compared: fmt.Sprintf("%s이 틀린 비율", peerLongWord),
+			Sample: fmt.Sprintf("한 문제당 %d명 이상과 비교 · 이 사람의 시도 %d회",
+				minPeersForComparison, totalReps),
+			Rule: fmt.Sprintf("%s은 %s 미만으로 틀리는 문제인데 이 사람만 %s 틀리면 개인 약점으로 봅니다",
+				peerWord, pctText(sharedDifficultyRate), gapText(personalGapThreshold)),
+			Source:   "문제별 채점 이력 + 같은 문제를 푼 전체 직원 집계",
 			Strength: "strong",
 		},
 		{
-			Fact:     "정답과 해설이 이미 있으므로 즉시 코칭할 수 있습니다",
+			Fact:     "정답과 해설이 이미 준비돼 있어 따로 자료를 만들 필요가 없습니다",
 			Observed: fmt.Sprintf("예: %s", first.Title),
-			Rule:     "문제·정답·원리를 한 화면에서 볼 수 있으면 준비 시간 때문에 코칭이 미뤄지지 않는다",
-			Source:   "학습 콘텐츠(문제 본문·정답·원리)",
+			Rule:     "문제·정답·해설을 한 화면에서 볼 수 있으면 준비 시간 때문에 교육이 미뤄지지 않습니다",
+			Source:   "학습 문제 내용(문제·정답·해설)",
 			Strength: "moderate",
 		},
 	}
 
 	return Prescription{
 		ID: "cards:personal", Priority: "now", Kind: "cards",
-		Title:  fmt.Sprintf("개별 오답 코칭 %d장", len(cards)),
-		Target: "또래는 맞히는데 이 사람만 틀리는 문제",
-		Why: "이 문제들은 난이도 때문이 아닙니다. 같은 문제에서 또래는 대체로 맞힙니다. " +
-			"특정 개념이나 절차를 잘못 기억하고 있을 가능성이 높아, 설명 한 번으로 교정되는 경우가 많습니다.",
-		Action:  "아래 문제를 하나씩 열어 정답과 원리를 설명하고, 그 자리에서 다시 풀리세요.",
-		Expect:  "다음 복습에서 이 문제들의 재실패가 사라지면 교정된 것입니다. 남으면 분야 재교육으로 올리세요.",
+		Title:  fmt.Sprintf("틀린 문제 %d장 개별 설명", len(cards)),
+		Target: fmt.Sprintf("%s은 맞히는데 이 사람만 틀리는 문제", peerWord),
+		Why: fmt.Sprintf(
+			"이 문제들은 어려워서 틀린 것이 아닙니다. 같은 문제를 %s은 대체로 맞힙니다. "+
+				"특정 내용이나 절차를 잘못 알고 있을 가능성이 높아, 한 번 설명하면 바로잡히는 경우가 많습니다.",
+			peerWord),
+		Action:  "아래 문제를 하나씩 열어 정답과 해설을 설명하고, 그 자리에서 다시 풀게 하세요.",
+		Expect:  "다음에 같은 문제를 다시 틀리지 않으면 바로잡힌 것입니다. 계속 틀리면 분야 교육으로 올리세요.",
 		Minutes: len(cards) * coachMinutesPerCard,
 		// 개인 약점은 교육 효과가 가장 확실한 자리다 — 기본 점수를 높게 둔다.
 		Score:    70 + float64(len(cards))*2,
@@ -477,34 +494,36 @@ func prescribeRetention(d LearnerDiagnosis, contentGapFound bool) (Prescription,
 
 	ev := []Evidence{
 		{
-			Fact:     "문제를 푸는 양에 비해 오래 남는 비율이 낮습니다",
-			Observed: fmt.Sprintf("숙달률 %s (푼 문제 %d장 중 %d장)", pctText(s.MasteryRate), s.Cards, s.Mastered),
-			Compared: fmt.Sprintf("같은 문제를 푼 또래 숙달률 %s", pctText(s.PeerMastery)),
-			Sample:   fmt.Sprintf("본인 시도 %d회 · 실패 %d회", s.Reps, s.Lapses),
-			Rule: fmt.Sprintf("또래보다 숙달률이 %.0f%%p 이상 낮으면 복습 주기 문제로 본다(현재 %.0f%%p 낮음)",
-				masteryGapThreshold*100, gap*100),
-			Source:   "카드별 기억 상자(간격반복 상태) 집계",
+			Fact:     "푸는 양에 비해 오래 기억에 남는 비율이 낮습니다",
+			Observed: fmt.Sprintf("%s %s (푼 문제 %d장 중 %d장)", masteryWord, pctText(s.MasteryRate), s.Cards, s.Mastered),
+			Compared: fmt.Sprintf("%s은 %s", peerLongWord, pctText(s.PeerMastery)),
+			Sample:   fmt.Sprintf("이 사람의 시도 %d회 · 그중 틀린 것 %d회", s.Reps, s.Lapses),
+			Rule: fmt.Sprintf("%s보다 %s 적게 익히면 복습 시점을 놓치는 것으로 봅니다(지금은 %s)",
+				peerWord, gapText(masteryGapThreshold), gapText(-gap)),
+			Source:   "문제별 복습 단계 집계",
 			Strength: evidenceStrengthBySample(s.Cards, 10, 40),
 		},
 		{
-			Fact:     "학습 빈도가 간격반복이 요구하는 주기를 채우지 못하고 있습니다",
+			Fact:     "접속이 뜸해 복습해야 할 때를 놓치고 있습니다",
 			Observed: fmt.Sprintf("학습한 날 %d일 · %s", s.ActiveDays, habitText(s.Habitual)),
-			Rule:     fmt.Sprintf("간격반복은 복습 시점을 놓치면 상자가 되돌아간다 — 최근 %d일 중 %d일 이상 접속이 전제", habitWindowDays, habitActiveDays),
-			Source:   "일자별 학습 이력",
+			Rule: fmt.Sprintf("복습은 때를 놓치면 처음부터 다시 외워야 합니다 — 최근 %d일 중 %d일 이상 접속이 필요합니다",
+				habitWindowDays, habitActiveDays),
+			Source:   "날짜별 학습 기록",
 			Strength: boolStrength(!s.Habitual, "strong", "weak"),
 		},
 	}
 
 	return Prescription{
 		ID: "retention", Priority: "soon", Kind: "retention",
-		Title:  "복습 주기 교정",
+		Title:  "복습 주기 바로잡기",
 		Target: "학습 방법 · 복습 간격",
 		Why: fmt.Sprintf(
-			"새 문제는 풀고 있는데 남는 비율이 또래보다 %.0f%%p 낮습니다. "+
-				"내용을 몰라서가 아니라 복습 시점을 놓쳐 되돌아가는 패턴입니다. "+
-				"이 상태에서 새 분야를 더 배정하면 쌓이지 않고 흘러갑니다.", gap*100),
-		Action:  "새 문제 배정을 잠시 줄이고, 복습 알림 시간을 본인 근무 패턴에 맞춰 다시 잡아 주세요.",
-		Expect:  fmt.Sprintf("숙달률이 또래 수준(%s)으로 올라오면 새 분야 배정을 재개하면 됩니다.", pctText(s.PeerMastery)),
+			"새 문제는 계속 푸는데 기억에 남는 비율이 %s보다 %s 낮습니다. "+
+				"내용을 몰라서가 아니라 복습할 때를 놓쳐 다시 잊는 것입니다. "+
+				"이 상태에서 새 분야를 더 주면 쌓이지 않고 흘러갑니다.", peerWord, gapText(gap)),
+		Action: "새 문제 배정을 잠시 줄이고, 복습 알림 시간을 이 사람 근무 시간에 맞춰 다시 잡아 주세요.",
+		Expect: fmt.Sprintf("기억에 남는 비율이 %s 수준(%s)까지 올라오면 새 분야를 다시 배정하면 됩니다.",
+			peerWord, pctText(s.PeerMastery)),
 		Minutes: 15,
 		Score:   40 + gap*100,
 		// 복습 문제는 급하지 않지만 방치하면 다른 모든 교육의 효과를 깎는다.
@@ -534,24 +553,25 @@ func prescribeContentFix(d LearnerDiagnosis) (Prescription, bool) {
 	}
 
 	ev := []Evidence{{
-		Fact:     "이 문제들은 이 사람만이 아니라 대부분의 학습자가 틀립니다",
-		Observed: fmt.Sprintf("해당 오답 %d장 · 관련 분야 %d개", len(cards), len(cats)),
-		Compared: "같은 문제를 푼 전체 학습자의 실패율",
-		Sample:   fmt.Sprintf("비교에 쓴 최소 인원 %d명 이상", minPeersForComparison),
-		Rule: fmt.Sprintf("또래 실패율이 %.0f%% 이상이면 개인 약점이 아니라 문제·자료 쪽 원인으로 본다",
-			sharedDifficultyRate*100),
-		Source:   "카드별 전체 학습자 집계",
+		Fact:     "이 문제들은 이 사람만이 아니라 대부분의 직원이 틀립니다",
+		Observed: fmt.Sprintf("해당 문제 %d장 · 관련 분야 %d개", len(cards), len(cats)),
+		Compared: fmt.Sprintf("%s이 틀린 비율", peerLongWord),
+		Sample:   fmt.Sprintf("한 문제당 %d명 이상과 비교", minPeersForComparison),
+		Rule: fmt.Sprintf("%s도 %s 이상 틀리는 문제는 개인 약점이 아니라 문제나 자료 쪽 원인으로 봅니다",
+			peerWord, pctText(sharedDifficultyRate)),
+		Source:   "같은 문제를 푼 전체 직원 집계",
 		Strength: "strong",
 	}}
 
 	return Prescription{
 		ID: "content", Priority: "later", Kind: "content",
-		Title:  fmt.Sprintf("문제·자료 보완 %d장", len(cards)),
-		Target: "학습 콘텐츠(개인 교육 대상 아님)",
-		Why: "이 오답은 이 사람의 약점 근거가 되지 못합니다. 같은 문제에서 다른 학습자도 대부분 틀립니다. " +
-			"여기에 개인 코칭 시간을 쓰면 같은 설명을 사람 수만큼 반복하게 됩니다.",
-		Action:  "문제 문장이 모호한지, 해설이 원리를 설명하는지 확인하고 문제를 고치세요. 난이도 표기도 함께 점검합니다.",
-		Expect:  "문제를 고치면 이 오답은 다음 진단부터 개인 처방 목록에서 빠집니다.",
+		Title:  fmt.Sprintf("문제·자료 손보기 %d장", len(cards)),
+		Target: "학습 문제 자체(개인 교육 대상 아님)",
+		Why: fmt.Sprintf(
+			"이 문제들은 이 사람의 약점이라고 볼 수 없습니다. 같은 문제를 %s도 대부분 틀립니다. "+
+				"여기에 개인 교육 시간을 쓰면 같은 설명을 사람 수만큼 반복하게 됩니다.", peerWord),
+		Action:  "문제 문장이 헷갈리게 쓰였는지, 해설이 이유를 제대로 설명하는지 확인하고 문제를 고치세요. 난이도 표기도 함께 봅니다.",
+		Expect:  "문제를 고치면 이 문제들은 다음부터 개인 교육 목록에서 빠집니다.",
 		Minutes: len(cards) * 5,
 		// 개인 처방보다 낮게 둔다 — 급하지만 '이 사람'의 일은 아니다.
 		Score:    20 + float64(len(cards)),
@@ -565,11 +585,13 @@ func prescribeContentFix(d LearnerDiagnosis) (Prescription, bool) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 func toPrescribedCard(m MissedCard) PrescribedCard {
-	reason := fmt.Sprintf("%d회 중 %d회 실패(%s)", m.Reps, m.Lapses, pctText(m.LapseRate))
+	// 왜 이 문제가 뽑혔는지 — 이 사람의 기록과 비교 대상을 한 줄에 같이 둔다.
+	// '10회 중 8회 틀림'만으로는 심각한지 알 수 없다. 옆에 비교 대상이 있어야 뜻이 선다.
+	reason := fmt.Sprintf("%d번 중 %d번 틀림(%s)", m.Reps, m.Lapses, pctText(m.LapseRate))
 	if m.PeerCount >= minPeersForComparison {
-		reason += fmt.Sprintf(" · 또래 %s(%d명)", pctText(m.PeerRate), m.PeerCount)
+		reason += fmt.Sprintf(" · %s %s(%d명)", peerWord, pctText(m.PeerRate), m.PeerCount)
 	} else {
-		reason += " · 또래 비교 표본 부족"
+		reason += fmt.Sprintf(" · 비교할 %s 기록이 부족", peerWord)
 	}
 	return PrescribedCard{
 		CardID: m.CardID, Title: firstNonEmpty(m.Title, "(제목 없음)"),
@@ -628,12 +650,6 @@ func foldConfidence(ev []Evidence) string {
 	default:
 		return "low"
 	}
-}
-
-// pctText 는 비율을 화면과 같은 규칙(정수 %)으로 문자열화한다.
-// 서버와 화면이 각자 반올림하면 근거 문장과 표의 숫자가 1% 어긋난다.
-func pctText(v float64) string {
-	return fmt.Sprintf("%.0f%%", v*100)
 }
 
 func habitText(habitual bool) string {

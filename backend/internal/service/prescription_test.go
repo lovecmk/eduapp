@@ -299,8 +299,8 @@ func TestPrescribedCardSaysWhyItWasPicked(t *testing.T) {
 		if c.Reason == "" {
 			t.Errorf("왜 이 문제가 뽑혔는지 없다: %+v", c)
 		}
-		if !strings.Contains(c.Reason, "또래") {
-			t.Errorf("또래 비교가 빠지면 '어려운 문제'와 구분이 안 된다: %q", c.Reason)
+		if !strings.Contains(c.Reason, peerWord) {
+			t.Errorf("비교 대상이 빠지면 '어려운 문제'와 구분이 안 된다: %q", c.Reason)
 		}
 	}
 }

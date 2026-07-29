@@ -396,7 +396,8 @@ func buildLearnerVerdict(d LearnerDiagnosis) []Headline {
 			Severity: "critical",
 			Title:    fmt.Sprintf("이 사람만 어려워하는 문제 %d개", personal),
 			Detail: fmt.Sprintf(
-				"다른 사람은 대체로 맞히는데 계속 틀립니다. 여기부터 설명해 주세요. 예: %s", first),
+				"%s은 대체로 맞히는데 이 사람은 계속 틀립니다. 여기부터 설명해 주세요. 예: %s",
+				peerWord, first),
 			Metric: fmt.Sprintf("%d개", personal),
 		})
 	}
@@ -408,10 +409,10 @@ func buildLearnerVerdict(d LearnerDiagnosis) []Headline {
 		}
 		out = append(out, Headline{
 			Severity: "warn",
-			Title:    fmt.Sprintf("'%s' 분야가 또래보다 약합니다", w.Category),
-			Detail: fmt.Sprintf("실패율 %.0f%% (또래 %.0f%%). 이 분야를 묶어서 다시 교육하는 편이 빠릅니다.",
-				w.LapseRate*100, w.PeerRate*100),
-			Metric: fmt.Sprintf("+%.0f%%p", w.Gap*100),
+			Title:    fmt.Sprintf("'%s' 분야를 %s보다 어려워합니다", w.Category, peerWord),
+			Detail: fmt.Sprintf("이 사람은 %s를 틀리고 %s은 %s를 틀립니다. 이 분야를 묶어서 다시 교육하는 편이 빠릅니다.",
+				pctText(w.LapseRate), peerWord, pctText(w.PeerRate)),
+			Metric: gapText(w.Gap),
 		})
 	}
 
@@ -426,7 +427,7 @@ func buildLearnerVerdict(d LearnerDiagnosis) []Headline {
 		out = append(out, Headline{
 			Severity: "info",
 			Title:    fmt.Sprintf("모두가 어려워하는 문제 %d개", shared),
-			Detail:   "이 사람의 약점이 아닙니다. 개인 코칭 대신 문제나 교육 자료를 손보세요.",
+			Detail:   "이 사람의 약점이 아닙니다. 개인 교육 대신 문제나 교육 자료를 손보세요.",
 			Metric:   fmt.Sprintf("%d개", shared),
 			Link:     "cards",
 		})
@@ -444,7 +445,7 @@ func buildLearnerVerdict(d LearnerDiagnosis) []Headline {
 		}
 		out = append(out, Headline{
 			Severity: sev, Title: "학습이 끊겼습니다",
-			Detail: "내용을 가르치기 전에 다시 오게 하는 것이 먼저입니다.",
+			Detail: "무엇을 가르칠지 정하기 전에, 다시 학습하러 오게 하는 것이 먼저입니다.",
 			Metric: away,
 		})
 	}
@@ -452,7 +453,7 @@ func buildLearnerVerdict(d LearnerDiagnosis) []Headline {
 	if len(out) == 0 {
 		out = append(out, Headline{
 			Severity: "good", Title: "따로 가르칠 것이 없습니다",
-			Detail: "또래와 비교해 뒤처지는 분야가 없고 학습도 이어지고 있습니다.",
+			Detail: fmt.Sprintf("%s과 비교해 뒤처지는 분야가 없고 학습도 이어지고 있습니다.", peerWord),
 			Metric: "양호",
 		})
 	}

@@ -123,7 +123,7 @@ onMounted(() => void page.run());
     <header class="page-head">
       <div>
         <h1 class="page-title">문제 관리</h1>
-        <p class="page-sub">학습 카드를 만들고 고치며, 학습자들의 진행 상황을 확인합니다</p>
+        <p class="page-sub">학습 카드를 만들고 고치며, 직원들의 진행 상황을 확인합니다</p>
       </div>
       <RouterLink to="/cards/new" class="btn btn-primary btn-sm">
         <AppIcon name="plus" :size="13" />

@@ -110,8 +110,8 @@ const peerRows = computed<PeerRow[]>(() => {
   const s = data.value?.summary;
   if (!s) return [];
   return [
-    { label: '실패율', self: s.lapse_rate, peer: s.peer_lapse_rate, higherIsWorse: true },
-    { label: '숙달률', self: s.mastery_rate, peer: s.peer_mastery_rate, higherIsWorse: false },
+    { label: '틀린 비율', self: s.lapse_rate, peer: s.peer_lapse_rate, higherIsWorse: true },
+    { label: '익힌 비율', self: s.mastery_rate, peer: s.peer_mastery_rate, higherIsWorse: false },
   ];
 });
 
@@ -151,9 +151,9 @@ function signalLabel(s: MissSignal): string {
     case 'personal':
       return '이 사람만';
     case 'shared':
-      return '모두';
+      return '다들';
     default:
-      return '표본 부족';
+      return '비교 불가';
   }
 }
 
@@ -191,7 +191,7 @@ watch(
 <template>
   <section class="panel span-2">
     <div class="panel-head">
-      <h2 class="panel-title">교육 처방 · 무엇을, 왜 이 사람에게</h2>
+      <h2 class="panel-title">이 직원에게 필요한 교육</h2>
       <span v-if="data" class="panel-note">{{ data.needs }}</span>
     </div>
 
@@ -211,29 +211,9 @@ watch(
             <span>건의 교육이 필요합니다</span>
           </p>
           <p class="plan-meta">
-            합계 {{ minutesLabel(plan.minutes) }}
+            모두 하면 {{ minutesLabel(plan.minutes) }}
             <template v-if="plan.thisWeek"> · 이번 주 {{ plan.thisWeek }}건</template>
           </p>
-        </div>
-
-        <!-- ── 한눈에 ──────────────────────────────────────────────────
-             처방을 읽기 전에 '이 사람이 어디에 서 있는가'가 먼저 보여야 한다.
-             아래 근거표와 같은 값이고, 표는 접힌 채로 그대로 남는다. -->
-        <div v-if="data.summary.cards > 0" class="glance">
-          <div class="glance-col">
-            <h4 class="section-title">또래 대비</h4>
-            <PeerCompare :rows="peerRows" />
-          </div>
-
-          <div v-if="gapRows.length" class="glance-col">
-            <h4 class="section-title">분야별 격차 — 어디를 가르칠 것인가</h4>
-            <GapBars :rows="gapRows" />
-          </div>
-
-          <div v-if="data.rhythm.length" class="glance-col">
-            <h4 class="section-title">학습 리듬</h4>
-            <DayStrip :points="data.rhythm" />
-          </div>
         </div>
 
         <ol v-if="plan.count" class="rx-list">
@@ -280,7 +260,7 @@ watch(
                 @click="toggleEvidence(p.id)"
               >
                 <AppIcon :name="openEvidence.has(p.id) ? 'chevron-up' : 'chevron-down'" :size="12" />
-                근거 {{ p.evidence.length }}개
+                왜 이 교육인가 · 근거 {{ p.evidence.length }}개
                 <span class="rx-conf" :class="`conf-${p.confidence}`">{{ confidenceLabel(p.confidence) }}</span>
                 <span class="rx-confnote">{{ confidenceNote(p.confidence) }}</span>
               </button>
@@ -303,7 +283,7 @@ watch(
                     </template>
 
                     <template v-if="e.sample">
-                      <dt>표본</dt>
+                      <dt>기록</dt>
                       <dd class="num">{{ e.sample }}</dd>
                     </template>
 
@@ -319,7 +299,7 @@ watch(
 
               <!-- 지목한 문제 — 여기서 바로 열 수 있어야 코칭이 미뤄지지 않는다. -->
               <div v-if="p.cards.length" class="rx-cards">
-                <p class="rx-cards-head">대상 문제 {{ p.cards.length }}장</p>
+                <p class="rx-cards-head">이 문제들을 설명하세요 · {{ p.cards.length }}장</p>
                 <ul>
                   <li v-for="c in p.cards" :key="c.card_id">
                     <RouterLink :to="`/cards/${c.card_id}`" class="rx-card-link truncate">
@@ -334,8 +314,31 @@ watch(
         </ol>
 
         <p v-else class="rx-none">
-          지금 배정할 교육이 없습니다. 또래와 비교해 뒤처지는 분야가 없고 학습도 이어지고 있습니다.
+          지금 따로 교육할 것이 없습니다. 다른 직원과 비교해 뒤처지는 분야가 없고 학습도 이어지고 있습니다.
         </p>
+
+        <!-- ── 지금 상태 ───────────────────────────────────────────────────
+             할 일이 먼저, 상태가 그다음이다. 담당자가 이 화면을 여는 이유는
+             "이 사람 무엇을 해야 하나"이지 "이 사람 통계가 어떤가"가 아니다.
+             그림은 위 처방이 왜 나왔는지를 눈으로 확인시켜 주는 자리다. -->
+        <div v-if="data.summary.cards > 0" class="glance">
+          <h3 class="glance-head">지금 상태</h3>
+
+          <div class="glance-col">
+            <h4 class="section-title">다른 직원과 비교하면</h4>
+            <PeerCompare :rows="peerRows" />
+          </div>
+
+          <div v-if="gapRows.length" class="glance-col">
+            <h4 class="section-title">어느 분야를 어려워하나</h4>
+            <GapBars :rows="gapRows" />
+          </div>
+
+          <div v-if="data.rhythm.length" class="glance-col">
+            <h4 class="section-title">얼마나 꾸준히 하나</h4>
+            <DayStrip :points="data.rhythm" />
+          </div>
+        </div>
 
         <!-- ── 진단 근거 ───────────────────────────────────────────────────
              처방을 뒷받침하는 원자료. 처방보다 위에 두면 담당자는 표를 읽다가
@@ -347,7 +350,7 @@ watch(
           @click="showEvidenceTables = !showEvidenceTables"
         >
           <AppIcon :name="showEvidenceTables ? 'chevron-up' : 'chevron-down'" :size="12" />
-          진단 근거 자료 · 또래 비교 · 분야별 · 오답 {{ counts.all }}건
+          자세한 자료 보기 · 비교표 · 분야별 · 틀린 문제 {{ counts.all }}건
         </button>
 
         <div v-if="showEvidenceTables" class="tables">
@@ -364,19 +367,19 @@ watch(
           </div>
 
           <!-- 요약: 모든 수치에 또래를 나란히 -->
-          <h4 class="section-title">또래 대비</h4>
+          <h4 class="section-title">숫자로 보기</h4>
           <div class="table-wrap">
             <table class="table compare">
               <thead>
                 <tr>
                   <th>지표</th>
                   <th class="right">이 사람</th>
-                  <th class="right">또래 평균</th>
+                  <th class="right">다른 직원 평균</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
-                  <td>실패율</td>
+                  <td>틀린 비율</td>
                   <td
                     class="right num"
                     :class="{ bad: worseThanPeers(data.summary.lapse_rate, data.summary.peer_lapse_rate) }"
@@ -386,7 +389,7 @@ watch(
                   <td class="right num muted">{{ pct(data.summary.peer_lapse_rate) }}</td>
                 </tr>
                 <tr>
-                  <td>숙달률</td>
+                  <td>확실히 익힌 비율</td>
                   <td
                     class="right num"
                     :class="{ bad: worseThanPeers(data.summary.peer_mastery_rate, data.summary.mastery_rate) }"
@@ -417,7 +420,7 @@ watch(
           </div>
 
           <!-- 분야별 약점 -->
-          <h4 class="section-title">분야별</h4>
+          <h4 class="section-title">분야별 자세히</h4>
           <div v-if="data.weakness.length" class="table-wrap">
             <table class="table">
               <thead>
@@ -425,8 +428,8 @@ watch(
                   <th>분야</th>
                   <th class="right">푼 문제</th>
                   <th class="right">본인</th>
-                  <th class="right">또래</th>
-                  <th class="right">차이</th>
+                  <th class="right">다른 직원</th>
+                  <th class="right">차이(%포인트)</th>
                   <th>판정</th>
                 </tr>
               </thead>
@@ -437,10 +440,10 @@ watch(
                   <td class="right num" :class="{ bad: w.verdict === 'weak' }">{{ pct(w.lapse_rate) }}</td>
                   <td class="right num muted">{{ w.peer_rate ? pct(w.peer_rate) : '—' }}</td>
                   <td class="right num" :class="{ bad: w.gap >= 0.25 }">
-                    {{ w.peer_rate ? `${w.gap > 0 ? '+' : ''}${Math.round(w.gap * 100)}%p` : '—' }}
+                    {{ w.peer_rate ? `${w.gap > 0 ? '+' : ''}${Math.round(w.gap * 100)}` : '—' }}
                   </td>
                   <td>
-                    <span v-if="w.verdict === 'weak'" class="badge badge-danger">이 분야를 가르칠 것</span>
+                    <span v-if="w.verdict === 'weak'" class="badge badge-danger">가르칠 분야</span>
                     <span v-else-if="w.verdict === 'shared'" class="badge badge-neutral">모두 어려워함</span>
                     <span v-else class="muted">—</span>
                   </td>
@@ -451,7 +454,7 @@ watch(
           <p v-else class="empty">아직 분야를 나눌 만큼 학습하지 않았습니다.</p>
 
           <!-- 오답 -->
-          <h4 class="section-title">틀린 문제</h4>
+          <h4 class="section-title">틀린 문제 목록</h4>
           <div class="chips">
             <button
               class="chip"
@@ -459,13 +462,13 @@ watch(
               type="button"
               @click="filter = 'personal'"
             >
-              이 사람만 어려워함<span class="chip-n">{{ counts.personal }}</span>
+              이 사람만 틀림<span class="chip-n">{{ counts.personal }}</span>
             </button>
             <button class="chip" :class="{ on: filter === 'shared' }" type="button" @click="filter = 'shared'">
-              모두 어려워함<span class="chip-n">{{ counts.shared }}</span>
+              다들 틀림<span class="chip-n">{{ counts.shared }}</span>
             </button>
             <button class="chip" :class="{ on: filter === 'unknown' }" type="button" @click="filter = 'unknown'">
-              표본 부족<span class="chip-n">{{ counts.unknown }}</span>
+              비교 불가<span class="chip-n">{{ counts.unknown }}</span>
             </button>
             <button class="chip" :class="{ on: filter === 'all' }" type="button" @click="filter = 'all'">
               전체<span class="chip-n">{{ counts.all }}</span>
@@ -473,7 +476,7 @@ watch(
           </div>
 
           <p v-if="filter === 'shared' && counts.shared > 0" class="hint">
-            이 문제들은 다른 사람도 대부분 틀립니다. 개인 코칭보다 문제나 교육 자료를 손보는 편이 빠릅니다.
+            이 문제들은 다른 직원도 대부분 틀립니다. 개별 설명보다 문제나 교육 자료를 손보는 편이 빠릅니다.
           </p>
 
           <ul v-if="missed.length" class="miss-list">
@@ -487,9 +490,9 @@ watch(
                 <span class="miss-sig" :class="`sig-${m.signal}`">{{ signalLabel(m.signal) }}</span>
                 <span class="miss-title truncate">{{ m.title }}</span>
                 <span class="miss-stat num">
-                  {{ num(m.lapses) }}/{{ num(m.reps) }}회 실패
+                  {{ num(m.reps) }}번 중 {{ num(m.lapses) }}번 틀림
                   <span class="muted">
-                    (본인 {{ pct(m.lapse_rate) }}<template v-if="m.peer_count >= 5"> · 또래 {{ pct(m.peer_rate) }}</template>)
+                    ({{ pct(m.lapse_rate) }}<template v-if="m.peer_count >= 5"> · 다른 직원 {{ pct(m.peer_rate) }}</template>)
                   </span>
                 </span>
                 <AppIcon :name="openMiss.has(m.card_id) ? 'chevron-up' : 'chevron-down'" :size="12" />
@@ -523,7 +526,7 @@ watch(
             </li>
           </ul>
           <p v-else class="empty">
-            {{ filter === 'personal' ? '이 사람만 어려워하는 문제는 없습니다.' : '해당하는 오답이 없습니다.' }}
+            {{ filter === 'personal' ? '이 사람만 틀리는 문제는 없습니다.' : '해당하는 문제가 없습니다.' }}
           </p>
         </div>
       </div>
@@ -578,8 +581,16 @@ watch(
   display: flex;
   flex-direction: column;
   gap: 20px;
-  padding: 16px 0 4px;
-  border-bottom: 1px solid var(--line);
+  padding: 18px 0 4px;
+  margin-top: 4px;
+  border-top: 1px solid var(--line-strong);
+}
+
+.glance-head {
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  margin-bottom: -6px;
 }
 
 .glance-col .section-title {
