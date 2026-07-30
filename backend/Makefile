@@ -1,8 +1,9 @@
 # eduapp 백엔드 — 자주 쓰는 작업을 한 줄 명령으로. (작업시간 단축용)
 #
 #   make help          # 명령 목록
-#   make dev           # 관리 콘솔까지 볼 때 — 무 DB + 관리자 계정 자동 생성
-#   make demo-data     # 데모 학습 기록 심기(콘솔 화면 확인용, 서버가 떠 있어야 함)
+#   make console       # ★ 백엔드+관리 콘솔+데모 데이터를 한 번에 (Ctrl+C 로 전체 종료)
+#   make dev           # 백엔드만 — 무 DB + 관리자 계정 자동 생성
+#   make demo-data     # 데모 학습 기록 심기(서버가 떠 있어야 함)
 #   make run           # 로컬 개발(무 DB, STORE=memory) — go run
 #   make test          # 단위 테스트
 #   make test-pg       # 실제 Postgres 대상 통합 스모크(DATABASE_URL_TEST 필요)
@@ -19,7 +20,7 @@
 .DEFAULT_GOAL := help
 COMPOSE ?= docker compose
 
-.PHONY: help run dev demo-data test test-pg secret up-test up up-web down logs backup psql fmt vet build
+.PHONY: help run console dev demo-data test test-pg secret up-test up up-web down logs backup psql fmt vet build
 
 # 관리자 아이디·비밀번호는 덮어쓸 수 있다: make dev ADMIN_PW='...'
 ADMIN_ID ?= admin
@@ -30,6 +31,13 @@ help:
 
 run:
 	STORE=memory JWT_SECRET=dev-secret go run ./cmd/server
+
+# 관리 콘솔을 보려면 네 가지가 순서대로 맞아야 한다 — 백엔드 기동, 관리자 계정,
+# 볼 데이터, 콘솔 기동. 터미널 세 개를 열어 순서를 지키는 대신 한 줄로 묶는다.
+# 각 단계가 실제로 됐는지 확인하고 넘어간다(확인 없이 이어 붙이면 화면에는
+# "로그인 실패"만 남고 원인은 서버 로그에 숨는다).
+console:
+	@sh ./scripts/dev-console.sh
 
 # make run 과 다른 점은 하나다: **관리자 계정을 만들어 준다.**
 # 이것이 없으면 서버는 뜨지만 관리 콘솔에 로그인할 계정이 없어서
