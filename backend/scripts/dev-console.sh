@@ -27,6 +27,7 @@ BASE="http://localhost:${API_PORT}"
 BACKEND_DIR=$(cd "$(dirname "$0")/.." && pwd)
 ADMIN_DIR=$(cd "$BACKEND_DIR/../admin" && pwd)
 LOG="${TMPDIR:-/tmp}/eduapp-backend.log"
+BIN="${TMPDIR:-/tmp}/eduapp-dev-server"
 
 say() { printf '\033[36m▸\033[0m %s\n' "$1"; }
 die() { printf '\033[31m✗ %s\033[0m\n' "$1" >&2; exit 1; }
@@ -43,22 +44,43 @@ fi
 # ── 종료 정리 ──────────────────────────────────────────────────────────────
 BACKEND_PID=""
 cleanup() {
-  [ -n "$BACKEND_PID" ] && kill "$BACKEND_PID" 2>/dev/null || true
+  if [ -n "$BACKEND_PID" ]; then
+    kill "$BACKEND_PID" 2>/dev/null || true
+    # 끝나기를 기다린다. 기다리지 않고 나가면 포트가 아직 잡혀 있는 상태로
+    # 프롬프트가 돌아오고, 바로 다시 실행하면 이유 없이 실패한다.
+    i=0
+    while kill -0 "$BACKEND_PID" 2>/dev/null && [ "$i" -lt 20 ]; do
+      i=$((i + 1)); sleep 0.2
+    done
+    kill -9 "$BACKEND_PID" 2>/dev/null || true
+  fi
   printf '\n'
-  say "종료했습니다."
+  say "백엔드까지 정리했습니다."
 }
 trap cleanup EXIT INT TERM
 
 # ── ① 백엔드 ───────────────────────────────────────────────────────────────
-say "백엔드 시작(메모리 저장소 — DB 불필요)… 첫 실행은 컴파일에 30초쯤 걸립니다."
 cd "$BACKEND_DIR"
+
+# `go run` 을 쓰지 않는다. go run 은 컴파일한 바이너리를 **자식 프로세스**로 띄우므로,
+# go run 의 PID 를 죽여도 실제 서버는 살아남아 포트를 잡고 있는다. 그러면 다음
+# 실행이 "이미 떠 있습니다" 로 막히고, 원인이 화면에 안 보인다.
+# 먼저 빌드해서 우리가 직접 띄우면 PID 가 곧 서버가 된다.
+say "백엔드 빌드 중… 첫 실행은 30초쯤 걸립니다."
+if ! go build -o "$BIN" ./cmd/server 2>"$LOG"; then
+  echo "--- 빌드 오류 ---" >&2
+  cat "$LOG" >&2
+  die "백엔드 빌드 실패."
+fi
+
+say "백엔드 시작(메모리 저장소 — DB 불필요)…"
 STORE=memory \
 JWT_SECRET=dev-secret \
 SEED_ON_START=true \
 PORT="$API_PORT" \
 ADMIN_LOGIN_ID="$ADMIN_ID" \
 ADMIN_PASSWORD="$ADMIN_PW" \
-  go run ./cmd/server >"$LOG" 2>&1 &
+  "$BIN" >"$LOG" 2>&1 &
 BACKEND_PID=$!
 
 # 뜰 때까지 기다린다. 고정 시간(sleep 30)으로 두면 느린 컴퓨터에서 실패하고
@@ -111,5 +133,9 @@ printf '\033[32m  관리 콘솔  http://localhost:%s/admin/\033[0m\n' "$WEB_PORT
 printf '  로그인      %s / %s\n' "$ADMIN_ID" "$ADMIN_PW"
 printf '  끄기        Ctrl+C (백엔드까지 함께 내려갑니다)\n\n'
 
-# 콘솔을 앞단에 둔다 — Ctrl+C 가 이 프로세스에 닿고, trap 이 백엔드를 정리한다.
-ADMIN_API_TARGET="$BASE" exec npm run dev -- --port "$WEB_PORT"
+# exec 을 쓰지 않는다. exec 은 이 셸을 npm 으로 **대체**하므로 위에서 걸어 둔
+# trap 이 사라진다. 그러면 Ctrl+C 로 콘솔은 죽지만 백엔드가 살아남아, 다음
+# 실행이 "포트에 이미 무언가 떠 있습니다" 로 막힌다 — 이 스크립트가 막으려던
+# 바로 그 상태다. 자식으로 두면 Ctrl+C 가 프로세스 그룹 전체에 닿고,
+# 이 셸이 살아 있으므로 trap 이 백엔드까지 정리한다.
+ADMIN_API_TARGET="$BASE" npm run dev -- --port "$WEB_PORT"
