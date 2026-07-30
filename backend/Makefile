@@ -1,6 +1,8 @@
 # eduapp 백엔드 — 자주 쓰는 작업을 한 줄 명령으로. (작업시간 단축용)
 #
 #   make help          # 명령 목록
+#   make dev           # 관리 콘솔까지 볼 때 — 무 DB + 관리자 계정 자동 생성
+#   make demo-data     # 데모 학습 기록 심기(콘솔 화면 확인용, 서버가 떠 있어야 함)
 #   make run           # 로컬 개발(무 DB, STORE=memory) — go run
 #   make test          # 단위 테스트
 #   make test-pg       # 실제 Postgres 대상 통합 스모크(DATABASE_URL_TEST 필요)
@@ -17,13 +19,32 @@
 .DEFAULT_GOAL := help
 COMPOSE ?= docker compose
 
-.PHONY: help run test test-pg secret up-test up up-web down logs backup psql fmt vet build
+.PHONY: help run dev demo-data test test-pg secret up-test up up-web down logs backup psql fmt vet build
+
+# 관리자 아이디·비밀번호는 덮어쓸 수 있다: make dev ADMIN_PW='...'
+ADMIN_ID ?= admin
+ADMIN_PW ?= admin1234!
 
 help:
 	@grep -E '^#   make ' $(MAKEFILE_LIST) | sed 's/^#   /  /'
 
 run:
 	STORE=memory JWT_SECRET=dev-secret go run ./cmd/server
+
+# make run 과 다른 점은 하나다: **관리자 계정을 만들어 준다.**
+# 이것이 없으면 서버는 뜨지만 관리 콘솔에 로그인할 계정이 없어서
+# "아이디 또는 비밀번호가 올바르지 않습니다"만 보게 된다.
+dev:
+	@echo "관리 콘솔 로그인: $(ADMIN_ID) / $(ADMIN_PW)"
+	@echo "콘솔은 다른 터미널에서: cd ../admin && npm install && npm run dev"
+	STORE=memory JWT_SECRET=dev-secret SEED_ON_START=true \
+		ADMIN_LOGIN_ID=$(ADMIN_ID) ADMIN_PASSWORD='$(ADMIN_PW)' \
+		go run ./cmd/server
+
+# 데모 학습 기록 — 갓 띄운 서버는 기록이 없어서 관리 콘솔의 그림이 비어 있다.
+# 비교 대상이 있어야 '다른 직원보다 못함' 같은 판정이 나온다.
+demo-data:
+	ADMIN_ID=$(ADMIN_ID) ADMIN_PW='$(ADMIN_PW)' node ./scripts/demo-data.mjs
 
 build:
 	CGO_ENABLED=0 go build -o ./bin/server ./cmd/server
