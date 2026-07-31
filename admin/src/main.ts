@@ -16,4 +16,15 @@ const app = createApp(App);
 app.use(createPinia());
 app.use(router);
 
-app.mount('#app');
+/*
+ * 첫 경로가 정해진 뒤에 마운트한다.
+ *
+ * 그냥 mount 하면 첫 렌더가 **아직 해석되지 않은 기본 경로**로 그려진다.
+ * route.meta.public 이 undefined 라 로그인 화면인데도 사이드바·상단 바가 붙은
+ * 관리 화면이 한 프레임 그려지고, 그 상단 바가 곧바로 실시간 스트림을 연다 —
+ * 토큰이 없으니 서버는 401 로 끊고, 화면은 그 뒤에야 로그인으로 넘어간다.
+ *
+ * 경로가 정해질 때까지 기다리면 둘 다 사라진다: 껍데기가 번쩍이지 않고,
+ * 인증 없는 요청도 나가지 않는다.
+ */
+void router.isReady().then(() => app.mount('#app'));

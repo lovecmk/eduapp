@@ -31,12 +31,28 @@ export const alertsLoaded = ref(false);
 
 const REFRESH_MS = 120_000;
 
-let timer: ReturnType<typeof setInterval> | null = null;
-let inFlight = false;
+/**
+ * 첫 확인을 조금 미룬다.
+ *
+ * 대시보드로 들어오면 그 화면도 같은 응답(api.dashboard)을 받아 온다. 상단 바가
+ * 마운트 즉시 따로 요청하면 **첫 화면에서 같은 질의가 두 번** 나간다.
+ * 잠깐 기다렸다가, 그 사이 대시보드가 넘겨준 것(adopt)이 있으면 요청을 접는다.
+ * 목록 화면으로 바로 들어온 경우에만 실제로 요청이 나간다.
+ */
+const FIRST_CHECK_MS = 1_500;
 
-/** 서버에서 최신 상태를 받아 온다. 겹쳐 부르면 뒤엣것은 그냥 무시한다. */
-export async function refreshAlerts(): Promise<void> {
+/** 이 시간 안에 받은 값이면 다시 받지 않는다. */
+const FRESH_MS = 30_000;
+
+let timer: ReturnType<typeof setInterval> | null = null;
+let firstCheck: ReturnType<typeof setTimeout> | null = null;
+let inFlight = false;
+let loadedAt = 0;
+
+/** 서버에서 최신 상태를 받아 온다. 겹쳐 부르거나 값이 아직 싱싱하면 건너뛴다. */
+export async function refreshAlerts(force = false): Promise<void> {
   if (inFlight) return;
+  if (!force && loadedAt !== 0 && Date.now() - loadedAt < FRESH_MS) return;
   inFlight = true;
   try {
     adoptDashboard(await api.dashboard());
@@ -56,18 +72,24 @@ export function adoptDashboard(d: Dashboard): void {
   pendingReports.value = d.content.reports;
   storeHealthy.value = d.service.store_healthy;
   alertsLoaded.value = true;
+  loadedAt = Date.now();
 }
 
 /** 상단 바가 붙어 있는 동안만 돈다. */
 export function startAlertPolling(): void {
   if (timer) return;
-  void refreshAlerts();
-  timer = setInterval(() => void refreshAlerts(), REFRESH_MS);
+  // 첫 확인은 미룬다 — 대시보드가 먼저 넘겨주면 요청 자체가 필요 없다.
+  firstCheck = setTimeout(() => void refreshAlerts(), FIRST_CHECK_MS);
+  // 주기 확인은 '싱싱함'과 무관하게 돌아야 한다. 2분이면 어차피 낡았다.
+  timer = setInterval(() => void refreshAlerts(true), REFRESH_MS);
 }
 
 export function stopAlertPolling(): void {
   if (timer) clearInterval(timer);
+  if (firstCheck) clearTimeout(firstCheck);
   timer = null;
+  firstCheck = null;
+  loadedAt = 0;
   // 로그아웃 뒤 다음 사람의 화면에 이전 세션의 건수가 남지 않게 되돌린다.
   pendingReports.value = 0;
   storeHealthy.value = true;
