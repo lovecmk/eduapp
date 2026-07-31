@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
-import { api, ApiError } from '../api/client';
-import type { UserDetail, RoleCd, StatusCd } from '../api/types';
+import { api } from '../api/client';
+import type { UserDetail } from '../api/types';
 import { useAsync } from '../composables/useAsync';
+import { useUserActions } from '../composables/useUserActions';
 import { num, pct, dateTime, statusLabel } from '../lib/format';
-import { toast } from '../lib/toast';
 import AsyncSection from '../components/AsyncSection.vue';
 import AppDialog from '../components/AppDialog.vue';
 import AppIcon from '../components/AppIcon.vue';
@@ -14,21 +14,22 @@ import LearnerDiagnosisPanel from '../components/LearnerDiagnosisPanel.vue';
 /**
  * 사용자 상세 — 프로필 + 학습 진행 + 권한·상태 변경.
  *
- * 권한 변경은 되돌리기 어려우므로 확인 단계를 둔다. 서버도 잠금 방지 규칙
- * (자기 자신·마지막 관리자)을 갖고 있어, 화면에서 못 막은 경우 409 로 거절된다 —
- * 그 메시지를 그대로 보여준다.
+ * 목록의 미리보기 서랍이 '이 사람이 누구인가'에 답한다면, 이 화면은
+ * 학습 진단까지 펼쳐 놓고 **오래 들여다보는** 자리다.
+ *
+ * 권한·상태 변경의 확인 문구와 위험 판단은 useUserActions 에 있다 —
+ * 목록의 빠른 동작과 한 벌을 나눠 쓴다. 같은 일을 두 화면이 다르게 물어보면
+ * 안 된다.
  */
 
 const route = useRoute();
 const id = computed(() => String(route.params.id ?? ''));
 
 const detail = useAsync<UserDetail>(() => api.user(id.value));
-const saving = ref(false);
-const pending = ref<{ kind: 'role' | 'status'; value: string; message: string; danger: boolean } | null>(
-  null,
-);
 
 const user = computed(() => detail.data.value?.user ?? null);
+
+const { pending, saving, askRole, askStatus, confirm, cancel } = useUserActions(() => detail.run());
 const learning = computed(() => detail.data.value?.learning ?? null);
 
 const learnTotal = computed(() => {
@@ -37,53 +38,6 @@ const learnTotal = computed(() => {
 });
 function share(v: number): string {
   return learnTotal.value === 0 ? '0%' : `${(v / learnTotal.value) * 100}%`;
-}
-
-function askRole(next: RoleCd): void {
-  const u = user.value;
-  if (!u || u.role_cd === next) return;
-  pending.value = {
-    kind: 'role',
-    value: next,
-    danger: next === 'USER',
-    message:
-      next === 'ADMIN'
-        ? `${u.user_nm}님에게 관리자 권한을 부여합니다. 전체 사용자 데이터와 학습 콘텐츠를 조회·수정할 수 있게 됩니다.`
-        : `${u.user_nm}님의 관리자 권한을 해제합니다. 즉시 관리 콘솔에 접근할 수 없게 됩니다.`,
-  };
-}
-
-function askStatus(next: StatusCd): void {
-  const u = user.value;
-  if (!u || u.status_cd === next) return;
-  pending.value = {
-    kind: 'status',
-    value: next,
-    danger: next !== 'A',
-    message:
-      next === 'A'
-        ? `${u.user_nm}님의 계정을 다시 활성화합니다.`
-        : `${u.user_nm}님의 계정을 '${statusLabel(next)}' 상태로 바꿉니다. 새 로그인은 즉시 막히고, 이미 접속 중인 기기는 최대 15초 뒤에 끊깁니다.`,
-  };
-}
-
-async function confirm(): Promise<void> {
-  const req = pending.value;
-  if (!req || saving.value) return;
-  saving.value = true;
-  try {
-    if (req.kind === 'role') await api.setUserRole(id.value, req.value as RoleCd);
-    else await api.setUserStatus(id.value, req.value as StatusCd);
-    toast.success(req.kind === 'role' ? '권한을 변경했습니다' : '계정 상태를 변경했습니다');
-    pending.value = null;
-    // 서버가 최종 상태의 주인이다 — 화면을 임의로 낙관 갱신하지 않는다.
-    await detail.run();
-  } catch (e) {
-    // 409(잠금 방지 규칙)는 서버 메시지가 이유를 정확히 설명한다.
-    toast.error(e instanceof ApiError ? e.message : '변경하지 못했습니다');
-  } finally {
-    saving.value = false;
-  }
 }
 
 onMounted(() => void detail.run());
@@ -181,7 +135,7 @@ onMounted(() => void detail.run());
                 class="btn btn-sm"
                 type="button"
                 :disabled="user!.role_cd === 'ADMIN' || saving"
-                @click="askRole('ADMIN')"
+                @click="askRole(user!, 'ADMIN')"
               >
                 관리자로 승격
               </button>
@@ -189,7 +143,7 @@ onMounted(() => void detail.run());
                 class="btn btn-sm btn-danger"
                 type="button"
                 :disabled="user!.role_cd !== 'ADMIN' || saving"
-                @click="askRole('USER')"
+                @click="askRole(user!, 'USER')"
               >
                 권한 해제
               </button>
@@ -209,7 +163,7 @@ onMounted(() => void detail.run());
                 class="btn btn-sm"
                 type="button"
                 :disabled="user!.status_cd === 'A' || saving"
-                @click="askStatus('A')"
+                @click="askStatus(user!, 'A')"
               >
                 활성화
               </button>
@@ -217,7 +171,7 @@ onMounted(() => void detail.run());
                 class="btn btn-sm"
                 type="button"
                 :disabled="user!.status_cd === 'I' || saving"
-                @click="askStatus('I')"
+                @click="askStatus(user!, 'I')"
               >
                 정지
               </button>
@@ -225,7 +179,7 @@ onMounted(() => void detail.run());
                 class="btn btn-sm btn-danger"
                 type="button"
                 :disabled="user!.status_cd === 'D' || saving"
-                @click="askStatus('D')"
+                @click="askStatus(user!, 'D')"
               >
                 삭제 처리
               </button>
@@ -241,7 +195,7 @@ onMounted(() => void detail.run());
       :danger="pending?.danger ?? false"
       confirm-text="변경"
       :busy="saving"
-      @close="pending = null"
+      @close="cancel"
       @confirm="confirm"
     >
       <p class="dlg-p">{{ pending?.message }}</p>

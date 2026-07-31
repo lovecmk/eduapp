@@ -11,6 +11,8 @@ import { toast } from '../lib/toast';
 import AsyncSection from '../components/AsyncSection.vue';
 import SortTh from '../components/SortTh.vue';
 import AppIcon from '../components/AppIcon.vue';
+import StatusBadge from '../components/StatusBadge.vue';
+import UserPeekDrawer from '../components/UserPeekDrawer.vue';
 
 /**
  * 사용자 목록.
@@ -33,6 +35,55 @@ const { state, writeToUrl } = useQuerySync({
 
 const now = useNow();
 const exporting = ref(false);
+
+/** 미리보기 서랍이 열려 있는 대상. null 이면 닫혀 있다. */
+const peekId = ref<string | null>(null);
+
+/**
+ * 자주 쓰는 조건 묶음.
+ *
+ * 필터 상자 두 개를 각각 맞추는 일은 별것 아닌 것 같지만, 하루에 스무 번 하면
+ * 스무 번의 잔손질이다. 게다가 **관리자가 실제로 찾는 것은 정해져 있다** —
+ * 대개 '지금 문제가 있는 계정'이다. 그 질문 하나를 버튼 하나로 만든다.
+ *
+ * 목록 위에 두는 이유: 필터를 걸기 전에 눈에 들어와야 쓴다. 아래에 두면
+ * 이미 손으로 필터를 다 맞춘 뒤에 발견하게 된다.
+ */
+const PRESETS: { key: string; label: string; role: string; status: string }[] = [
+  { key: 'all', label: '전체', role: '', status: '' },
+  { key: 'suspended', label: '정지된 계정', role: '', status: 'I' },
+  { key: 'admins', label: '관리자', role: 'ADMIN', status: '' },
+  { key: 'deleted', label: '삭제된 계정', role: '', status: 'D' },
+];
+
+/** 지금 조건이 어느 묶음과 정확히 같은가. 검색어가 걸려 있으면 어느 것도 아니다. */
+const activePreset = computed(() => {
+  if (state.search.trim() !== '') return null;
+  return PRESETS.find((p) => p.role === state.role && p.status === state.status)?.key ?? null;
+});
+
+/**
+ * 줄 위에서의 Enter · Space — 마우스 없이도 미리보기를 연다.
+ *
+ * `@keydown.enter` 와 `@keydown.space` 를 따로 달지 않는다. 같은 요소에 같은
+ * 이벤트를 두 번 걸면 어느 한쪽이 조용히 사라진다(실제로 Enter 가 먹지 않았다).
+ * 키 판별을 여기서 직접 하면 그런 일이 없고, 무엇을 처리하는지도 한눈에 보인다.
+ */
+function onRowKey(e: KeyboardEvent, id: string): void {
+  // 줄 안의 링크에 포커스가 있을 때는 링크가 열려야 한다 — 가로채지 않는다.
+  if (e.target !== e.currentTarget) return;
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  // Space 는 기본이 '한 화면 아래로 스크롤'이다. 목록이 뛰면 안 된다.
+  e.preventDefault();
+  peekId.value = id;
+}
+
+function applyPreset(p: (typeof PRESETS)[number]): void {
+  state.search = '';
+  state.role = p.role;
+  state.status = p.status;
+  reload();
+}
 
 const page = useAsync<UserPage>(() =>
   api.users({
@@ -161,6 +212,21 @@ onMounted(() => void page.run());
       </div>
     </header>
 
+    <!-- 자주 쓰는 조건 묶음. 표 위에 둬서 필터를 손으로 맞추기 전에 눈에 띄게 한다. -->
+    <div class="chips">
+      <button
+        v-for="p in PRESETS"
+        :key="p.key"
+        class="chip"
+        type="button"
+        :class="{ on: activePreset === p.key }"
+        :aria-pressed="activePreset === p.key"
+        @click="applyPreset(p)"
+      >
+        {{ p.label }}
+      </button>
+    </div>
+
     <section class="panel">
       <div class="panel-head filters">
         <div class="search-wrap">
@@ -233,12 +299,31 @@ onMounted(() => void page.run());
                 >
                   가입
                 </SortTh>
+                <!-- 빠른 동작 자리. 머리글은 비워 둔다 — '동작'이라고 써 두면
+                     읽을 것이 하나 늘 뿐, 버튼을 보면 무엇인지 안다. -->
+                <th class="act-col"><span class="sr-only">동작</span></th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="u in items" :key="u.id">
+              <!--
+                줄 전체를 눌러 미리보기 서랍을 연다.
+                이름의 링크는 그대로 둔다 — 새 탭으로 열거나 주소를 복사하는 길이
+                막히면 안 된다. 그래서 링크는 클릭을 삼켜(stop) 전체 상세로 가고,
+                줄의 나머지를 누르면 서랍이 열린다.
+              -->
+              <tr
+                v-for="u in items"
+                :key="u.id"
+                class="row-peek"
+                :class="{ on: peekId === u.id }"
+                tabindex="0"
+                role="button"
+                :aria-label="`${u.user_nm || '이름 없음'} 미리보기`"
+                @click="peekId = u.id"
+                @keydown="onRowKey($event, u.id)"
+              >
                 <td>
-                  <RouterLink :to="`/users/${u.id}`" class="strong">
+                  <RouterLink :to="`/users/${u.id}`" class="strong" @click.stop>
                     {{ u.user_nm || '(이름 없음)' }}
                   </RouterLink>
                   <span v-if="u.nickname" class="nick">{{ u.nickname }}</span>
@@ -248,7 +333,9 @@ onMounted(() => void page.run());
                   {{ [u.org_nm, u.job_title].filter(Boolean).join(' · ') || '—' }}
                 </td>
                 <td>
-                  <span v-if="u.role_cd === 'ADMIN'" class="badge badge-accent">관리자</span>
+                  <StatusBadge v-if="u.role_cd === 'ADMIN'" tone="accent" dotless>
+                    관리자
+                  </StatusBadge>
                   <span v-else class="muted">일반</span>
                 </td>
                 <td class="nowrap">
@@ -266,6 +353,27 @@ onMounted(() => void page.run());
                 </td>
                 <td class="right num muted" :title="dateOnly(u.created_at)">
                   {{ timeAgo(u.created_at, now) }}
+                </td>
+                <td class="act-col">
+                  <!--
+                    평소에는 감춰 두고 줄에 마우스를 올리거나 포커스가 왔을 때만
+                    나타난다. 서른 줄에 버튼이 늘 떠 있으면 표가 버튼 밭이 되어
+                    정작 데이터가 안 읽힌다.
+
+                    다만 '감춤'은 opacity 로만 한다. display:none 으로 지우면
+                    키보드 Tab 순서에서도 사라져 마우스 없이는 닿을 수 없다.
+                  -->
+                  <div class="row-acts">
+                    <RouterLink
+                      class="btn btn-ghost btn-sm btn-icon"
+                      :to="`/users/${u.id}`"
+                      title="전체 상세 열기"
+                      aria-label="전체 상세 열기"
+                      @click.stop
+                    >
+                      <AppIcon name="chevron-right" :size="14" />
+                    </RouterLink>
+                  </div>
                 </td>
               </tr>
             </tbody>
@@ -287,6 +395,9 @@ onMounted(() => void page.run());
         </div>
       </AsyncSection>
     </section>
+
+    <!-- 서랍은 목록 위에 겹쳐 뜬다. 닫으면 스크롤 위치도 필터도 그대로다. -->
+    <UserPeekDrawer :user-id="peekId" @close="peekId = null" @changed="() => void page.run()" />
   </div>
 </template>
 
@@ -313,5 +424,45 @@ onMounted(() => void page.run());
   color: var(--ink-4);
   font-size: 11.5px;
   margin-left: 6px;
+}
+
+/* 줄 전체가 눌린다는 것을 보여 준다. */
+.row-peek {
+  cursor: pointer;
+}
+.row-peek:focus-visible {
+  outline: none;
+  /* 줄 안쪽에 링을 그린다 — 표 바깥으로 삐져나가면 옆 줄을 가린다. */
+  box-shadow: inset var(--focus);
+}
+/* 서랍에 열려 있는 줄 — 뒤를 봤을 때 '무엇을 보고 있었는지'가 남아야 한다. */
+.row-peek.on td {
+  background: var(--accent-bg);
+}
+
+.act-col {
+  width: 34px;
+  padding-left: 0 !important;
+  padding-right: 6px !important;
+}
+
+/* 평소에는 감춰 두되 자리는 차지한다 — 나타날 때 줄이 밀리면 안 된다.
+   display:none 을 쓰지 않는 이유는 템플릿 주석에 있다(키보드 접근). */
+.row-acts {
+  display: flex;
+  justify-content: flex-end;
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+tr:hover .row-acts,
+tr:focus-within .row-acts {
+  opacity: 1;
+}
+
+/* 터치 기기에는 hover 가 없다 — 늘 보여 준다. */
+@media (hover: none) {
+  .row-acts {
+    opacity: 1;
+  }
 }
 </style>

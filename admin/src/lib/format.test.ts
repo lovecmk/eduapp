@@ -98,13 +98,22 @@ describe('timeAgo', () => {
   });
 });
 
-describe('statusTone — HTTP 상태를 색으로', () => {
-  it('2xx 초록, 4xx 주황, 5xx 빨강', () => {
-    expect(statusTone(200)).toBe('green');
-    expect(statusTone(204)).toBe('green');
-    expect(statusTone(404)).toBe('amber');
-    expect(statusTone(500)).toBe('red');
-    expect(statusTone(302)).toBe('gray');
+describe('statusTone — HTTP 상태를 배지 토큰으로', () => {
+  it('2xx 정상, 4xx 경고, 5xx 오류', () => {
+    expect(statusTone(200)).toBe('ok');
+    expect(statusTone(204)).toBe('ok');
+    expect(statusTone(404)).toBe('warn');
+    expect(statusTone(500)).toBe('danger');
+    expect(statusTone(302)).toBe('neutral');
+  });
+
+  it('base.css 에 실제로 있는 배지 클래스만 만든다', () => {
+    // 호출부는 `badge-${statusTone(...)}` 로 클래스를 만든다. 여기서 색 이름
+    // (green/amber)을 돌려주면 존재하지 않는 클래스가 되어 배지가 색을 잃는다.
+    const defined = ['ok', 'warn', 'danger', 'neutral', 'accent', 'info'];
+    for (const code of [200, 204, 302, 404, 429, 500, 503]) {
+      expect(defined).toContain(statusTone(code));
+    }
   });
 });
 

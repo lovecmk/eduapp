@@ -417,6 +417,12 @@ textarea {
 .status-danger {
   background: var(--danger);
 }
+.status-info {
+  background: var(--info);
+}
+.status-accent {
+  background: var(--accent);
+}
 .status-idle {
   background: var(--n-300);
 }
@@ -957,6 +963,119 @@ textarea {
   border-top: 1px solid var(--line);
   background: var(--surface-2);
   border-radius: 0 0 var(--r-3) var(--r-3);
+}
+
+/* ── 서랍(drawer) ──────────────────────────────────────────────────────
+   오른쪽에서 밀려 나오는 상세 판.
+
+   모달과 무엇이 다른가 — 이 구분이 이 도구의 핵심 규칙 중 하나다.
+
+     · 서랍은 **맥락을 지키려고** 연다. 목록에서 한 줄을 눌러 자세히 볼 때,
+       화면을 갈아 끼우면 스크롤 위치·필터·"몇 번째를 보던 중이었는지"가 날아간다.
+       서랍은 목록을 뒤에 그대로 남긴다. 그래서 가볍게 열고 가볍게 닫아야 한다 —
+       바깥을 눌러도, Esc 로도 닫힌다.
+     · 모달은 **맥락을 끊으려고** 연다. 되돌릴 수 없는 일(계정 정지, 삭제) 앞에서
+       "지금 이것만 보라"고 붙잡는 자리다.
+
+   그래서 서랍의 막은 모달보다 옅다. 뒤가 보여야 '아직 그 목록 위에 있다'는 것이
+   전달된다. 반대로 모달의 막이 옅으면 경고가 가벼워 보인다. */
+
+.drawer-scrim {
+  position: fixed;
+  inset: 0;
+  /* 모달(0.5)보다 옅게 — 뒤 목록이 비쳐야 맥락이 유지된다. */
+  background: rgba(15, 18, 22, 0.28);
+  z-index: 50;
+  display: flex;
+  justify-content: flex-end;
+  animation: fade 0.12s ease-out;
+}
+
+.drawer {
+  width: 100%;
+  max-width: 460px;
+  height: 100%;
+  background: var(--surface);
+  border-left: 1px solid var(--line-strong);
+  box-shadow: var(--pop);
+  display: flex;
+  flex-direction: column;
+  /* 밀려 들어오는 방향이 '오른쪽에서 왔다'는 것을 말해 준다.
+     150ms 를 넘기면 목록을 훑다가 여는 동작에서 답답해진다. */
+  animation: slide-in 0.16s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.drawer-wide {
+  max-width: 640px;
+}
+
+@keyframes slide-in {
+  from {
+    transform: translateX(16px);
+    opacity: 0;
+  }
+}
+
+.drawer-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+}
+
+.drawer-title {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.012em;
+  min-width: 0;
+}
+
+/* 제목 위 한 줄 — "무엇의 상세인지"(사용자·문제·신고)를 밝힌다.
+   서랍은 목록 위에 겹쳐 뜨므로 제목만으로는 종류를 알기 어렵다. */
+.drawer-eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-4);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+
+/* 본문만 스크롤한다 — 머리와 발은 제자리에 있어야 닫기 버튼과
+   주요 동작을 찾으러 스크롤할 일이 없다. */
+.drawer-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.drawer-foot {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--line);
+  background: var(--surface-2);
+  flex-shrink: 0;
+}
+
+/* 서랍 안의 구획 — 판(panel)을 또 겹쳐 넣지 않는다.
+   이미 떠 있는 면 위에 테두리 상자를 얹으면 상자 속의 상자가 된다. */
+.drawer-section {
+  padding: 13px 14px;
+}
+.drawer-section + .drawer-section {
+  border-top: 1px solid var(--line);
+}
+
+@media (max-width: 560px) {
+  /* 좁은 화면에서는 옆에서 나올 자리가 없다 — 화면을 거의 다 쓴다. */
+  .drawer {
+    max-width: none;
+  }
 }
 
 /* 눈에 띄어야 하는 안내 상자 — 색 띠 대신 옅은 배경으로 구분한다. */

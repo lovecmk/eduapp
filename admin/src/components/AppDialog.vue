@@ -1,16 +1,15 @@
 <script setup lang="ts">
-import { ref, watch, onUnmounted, nextTick } from 'vue';
+import { ref } from 'vue';
+import { useOverlay } from '../composables/useOverlay';
 
 /**
  * 확인·경고 대화상자.
  *
- * 직접 만든 이유는 접근성 때문이다. div 로 대충 만든 모달은 다음이 전부 깨진다.
- *  · Tab 이 뒤 화면으로 새어 나가 보이지 않는 버튼에 포커스가 간다
- *  · Esc 로 닫을 수 없다
- *  · 뒤 화면이 같이 스크롤된다
- *  · 닫은 뒤 포커스가 body 로 날아가 키보드 사용자가 위치를 잃는다
+ * 되돌릴 수 없는 일 앞에서 "지금 이것만 보라"고 붙잡는 자리다.
+ * 맥락을 지키며 훑어보는 상세는 서랍(AppDrawer)이 맡는다.
  *
- * 여기서 네 가지를 모두 처리하고, 화면들은 내용만 넣는다.
+ * 접근성 처리(포커스 가둠·Esc·스크롤 잠금·포커스 복귀)는 useOverlay 에 있다 —
+ * 서랍과 한 벌을 나눠 쓴다. 두 벌을 두면 한쪽만 고쳐지는 날이 온다.
  */
 
 const props = withDefaults(
@@ -30,58 +29,20 @@ const emit = defineEmits<{ close: []; confirm: [] }>();
 
 const panel = ref<HTMLElement | null>(null);
 const confirmBtn = ref<HTMLButtonElement | null>(null);
-/** 열기 직전에 포커스가 있던 곳 — 닫을 때 여기로 돌려보낸다. */
-let restoreTo: HTMLElement | null = null;
 
-watch(
-  () => props.open,
-  async (open) => {
-    if (open) {
-      restoreTo = document.activeElement as HTMLElement | null;
-      // 뒤 화면이 함께 스크롤되지 않게 잠근다.
-      document.body.style.overflow = 'hidden';
-      await nextTick();
-      // 파괴적 동작은 '취소'가 아니라 '확인'에 자동 포커스하지 않는 편이 안전하지만,
-      // 여기선 확인 버튼에 두되 danger 일 때는 취소를 먼저 잡는다.
-      if (props.danger) panel.value?.querySelector<HTMLElement>('[data-cancel]')?.focus();
-      else confirmBtn.value?.focus();
-    } else {
-      document.body.style.overflow = '';
-      restoreTo?.focus?.();
-      restoreTo = null;
-    }
-  },
-);
-
-// 열린 채로 화면을 떠나면 스크롤 잠금이 남는다 — 반드시 되돌린다.
-onUnmounted(() => {
-  document.body.style.overflow = '';
-});
-
-/** Tab 이 대화상자 밖으로 새어 나가지 않게 가둔다. */
-function onKeydown(e: KeyboardEvent): void {
-  if (e.key === 'Escape') {
-    e.stopPropagation();
+const { onKeydown } = useOverlay({
+  open: () => props.open,
+  panel,
+  // 처리 중에는 Esc 로 닫지 않는다 — 요청이 날아간 뒤 화면만 사라지면
+  // 결과를 확인할 방법이 없어진다.
+  onClose: () => {
     if (!props.busy) emit('close');
-    return;
-  }
-  if (e.key !== 'Tab' || !panel.value) return;
-
-  const focusable = panel.value.querySelectorAll<HTMLElement>(
-    'button:not([disabled]), [href], input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])',
-  );
-  if (focusable.length === 0) return;
-  const first = focusable[0]!;
-  const last = focusable[focusable.length - 1]!;
-
-  if (e.shiftKey && document.activeElement === first) {
-    e.preventDefault();
-    last.focus();
-  } else if (!e.shiftKey && document.activeElement === last) {
-    e.preventDefault();
-    first.focus();
-  }
-}
+  },
+  // 파괴적 동작에서는 '취소'를 먼저 잡는다. 습관적으로 누른 Enter 로
+  // 되돌릴 수 없는 일이 일어나면 안 된다.
+  initialFocus: () =>
+    props.danger ? panel.value?.querySelector<HTMLElement>('[data-cancel]') : confirmBtn.value,
+});
 </script>
 
 <template>

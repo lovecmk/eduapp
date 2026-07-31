@@ -5,11 +5,11 @@ import type { Dashboard } from '../api/types';
 import { useAsync } from '../composables/useAsync';
 import { useLiveMetrics } from '../composables/useLiveMetrics';
 import { useNow } from '../composables/useNow';
+import { adoptDashboard } from '../stores/alerts';
 import { num, pct, ms, uptime, timeAgo, statusTone } from '../lib/format';
 import StatTile from '../components/StatTile.vue';
 import TrafficChart from '../components/TrafficChart.vue';
 import AsyncSection from '../components/AsyncSection.vue';
-import LiveIndicator from '../components/LiveIndicator.vue';
 import AppIcon from '../components/AppIcon.vue';
 
 /**
@@ -20,8 +20,17 @@ import AppIcon from '../components/AppIcon.vue';
  *  · 트래픽·지연·활성 사용자는 실시간이어야 한다 → SSE 스트림
  * 둘을 합쳐 2초마다 전부 다시 계산하면 DB 를 헛되이 두드린다.
  */
-const dash = useAsync<Dashboard>(() => api.dashboard());
-const { snapshot, live, lastUpdate } = useLiveMetrics();
+/*
+ * 받아 온 응답을 상단 바의 알림 저장소에도 넘긴다(adopt).
+ * 상단 바는 신고 건수·저장소 상태를 상시 표시하느라 같은 응답을 2분마다 받아 오는데,
+ * 이 화면에 있는 동안에는 방금 받은 것을 넘겨주면 그 요청이 통째로 필요 없어진다.
+ */
+const dash = useAsync<Dashboard>(async () => {
+  const d = await api.dashboard();
+  adoptDashboard(d);
+  return d;
+});
+const { snapshot } = useLiveMetrics();
 const now = useNow();
 
 onMounted(() => void dash.run());
@@ -45,6 +54,22 @@ const latencyTone = computed(() => {
   return p >= 1000 ? 'danger' : p >= 300 ? 'warn' : 'default';
 });
 
+/*
+ * 타일 옆 추세선에 쓸 계열.
+ *
+ * 스트림이 주는 traffic 은 '분당 요청 수'와 '그 분의 오류 수'다. 여기서 정직하게
+ * 뽑을 수 있는 추세는 두 가지뿐이라, 그 두 타일에만 선을 단다.
+ *
+ * '지금 활동 중'·'응답 p95'·'가동'에는 달지 않는다. 시계열이 없기 때문이다.
+ * 자리가 비어 보인다는 이유로 아무 계열이나 그려 넣으면, 그 선이 무엇을 뜻하는지
+ * 아무도 설명할 수 없는 장식이 된다 — 관리 도구에서 가장 하지 말아야 할 일이다.
+ */
+const requestTrend = computed(() => (m.value?.traffic ?? []).map((p) => p.requests));
+const errorTrend = computed(() =>
+  // 분당 오류율(%). 요청이 없던 분은 0 으로 둔다 — 0/0 을 100% 로 그리면 안 된다.
+  (m.value?.traffic ?? []).map((p) => (p.requests > 0 ? (p.errors / p.requests) * 100 : 0)),
+);
+
 /** 학습 진행 막대의 비율(0 나눗셈 방지). */
 const learnTotal = computed(() => {
   const l = learning.value;
@@ -62,8 +87,9 @@ function share(v: number): string {
         <h1 class="page-title">대시보드</h1>
         <p class="page-sub">사용자 · 학습 콘텐츠 · 서비스 상태를 한눈에 봅니다</p>
       </div>
+      <!-- 실시간 연결 표시등은 상단 바로 옮겼다. 화면마다 두면 같은 사실을
+           두 곳에서 말하게 되고, 둘의 표시가 어긋나는 순간 둘 다 못 믿게 된다. -->
       <div class="row">
-        <LiveIndicator :live="live" :last-update="lastUpdate" />
         <button
           class="btn btn-sm"
           type="button"
@@ -95,12 +121,14 @@ function share(v: number): string {
           label="분당 요청"
           :value="num(m?.requests_per_min)"
           :sub="`누적 ${num(m?.total_requests)}`"
+          :trend="requestTrend"
         />
         <StatTile
           label="오류율"
           :value="pct(m?.error_rate)"
           :sub="`5xx ${num(m?.total_errors)} · 4xx ${num(m?.total_rejected)}`"
           :tone="errorTone"
+          :trend="errorTrend"
         />
         <StatTile
           label="응답 p95"
