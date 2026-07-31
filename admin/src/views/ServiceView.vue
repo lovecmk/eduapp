@@ -9,7 +9,6 @@ import { num, pct, ms, uptime, dateTime, timeAgo, statusTone } from '../lib/form
 import StatTile from '../components/StatTile.vue';
 import TrafficChart from '../components/TrafficChart.vue';
 import AsyncSection from '../components/AsyncSection.vue';
-import LiveIndicator from '../components/LiveIndicator.vue';
 import AppIcon from '../components/AppIcon.vue';
 
 /**
@@ -20,7 +19,7 @@ import AppIcon from '../components/AppIcon.vue';
  */
 
 const status = useAsync<ServiceStatus>(() => api.status());
-const { snapshot, live, lastUpdate } = useLiveMetrics();
+const { snapshot } = useLiveMetrics();
 const now = useNow();
 
 onMounted(() => void status.run());
@@ -44,8 +43,8 @@ const errorTone = computed(() => {
         <h1 class="page-title">서비스 상태</h1>
         <p class="page-sub">서버 연결 · 응답 속도 · 오류를 실시간으로 진단합니다</p>
       </div>
+      <!-- 실시간 연결 표시등은 상단 바에 있다. -->
       <div class="row">
-        <LiveIndicator :live="live" :last-update="lastUpdate" />
         <button
           class="btn btn-sm"
           type="button"

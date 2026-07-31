@@ -5,9 +5,9 @@ import { useAuthStore } from './stores/auth';
 import { useShortcuts } from './composables/useShortcuts';
 
 import ToastHost from './components/ToastHost.vue';
-import ThemeSwitch from './components/ThemeSwitch.vue';
 import CommandPalette from './components/CommandPalette.vue';
 import ShortcutHelp from './components/ShortcutHelp.vue';
+import AppHeader from './components/AppHeader.vue';
 import AppIcon from './components/AppIcon.vue';
 import type { IconName } from './components/icons';
 
@@ -86,12 +86,6 @@ async function onLogout(): Promise<void> {
         </div>
       </div>
 
-      <button class="cmd-open" type="button" @click="paletteOpen = true">
-        <AppIcon name="search" :size="14" />
-        <span>검색 · 이동</span>
-        <kbd class="kbd">⌘K</kbd>
-      </button>
-
       <nav class="nav" aria-label="주요 메뉴">
         <RouterLink
           v-for="item in NAV"
@@ -106,9 +100,11 @@ async function onLogout(): Promise<void> {
         </RouterLink>
       </nav>
 
-      <div class="side-foot">
-        <div class="side-actions">
-          <ThemeSwitch />
+    </aside>
+
+    <main class="main">
+      <AppHeader @palette="paletteOpen = true">
+        <template #account>
           <button
             class="btn btn-ghost btn-sm btn-icon"
             type="button"
@@ -128,11 +124,9 @@ async function onLogout(): Promise<void> {
           >
             <AppIcon name="logout" :size="15" />
           </button>
-        </div>
-      </div>
-    </aside>
+        </template>
+      </AppHeader>
 
-    <main class="main">
       <RouterView />
     </main>
   </div>
@@ -188,31 +182,6 @@ async function onLogout(): Promise<void> {
   color: var(--ink-4);
 }
 
-/* 팔레트 열기 버튼 — 검색창처럼 생겨야 눌러 볼 생각이 든다. */
-.cmd-open {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  width: 100%;
-  height: 28px;
-  padding: 0 8px;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--r-2);
-  background: var(--surface-2);
-  color: var(--ink-4);
-  font-size: 12px;
-  cursor: pointer;
-  transition: border-color 0.1s, color 0.1s;
-}
-.cmd-open:hover {
-  border-color: var(--n-300);
-  color: var(--ink-2);
-}
-.cmd-open span {
-  flex: 1;
-  text-align: left;
-}
-
 .nav {
   display: flex;
   flex-direction: column;
@@ -242,47 +211,30 @@ async function onLogout(): Promise<void> {
   font-weight: 600;
 }
 
-.side-foot {
-  border-top: 1px solid var(--line);
-  padding-top: 9px;
-}
-.side-actions {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
+/* 로그인한 사람 이름 — 상단 바의 계정 자리에 들어간다.
+   이름은 늘리지 않는다. 긴 이름 하나 때문에 옆의 버튼들이 밀리면 안 된다. */
 .who {
-  flex: 1;
-  min-width: 0;
+  max-width: 120px;
   font-size: 11.5px;
   color: var(--ink-3);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  padding: 0 4px;
-  text-align: right;
+  padding: 0 2px;
 }
 
-/* 좁은 화면에서는 사이드바를 상단 가로 막대로 바꾼다. */
+/* 좁은 화면에서는 사이드바를 상단 가로 막대로 바꾼다.
+   이제 사이드바에는 이동만 남았으므로 브랜드 한 줄 + 메뉴 한 줄이면 된다. */
 @media (max-width: 900px) {
   .side {
     position: static;
     height: auto;
-    display: grid;
-    grid-template-columns: auto 1fr auto;
-    align-items: center;
     border-right: none;
     border-bottom: 1px solid var(--line);
     gap: 8px;
     padding: 8px 12px;
   }
-  .cmd-open {
-    grid-column: 2;
-    max-width: 260px;
-    justify-self: end;
-  }
   .nav {
-    grid-column: 1 / -1;
     flex-direction: row;
     overflow-x: auto;
     gap: 2px;
@@ -291,12 +243,7 @@ async function onLogout(): Promise<void> {
   .nav-item {
     white-space: nowrap;
   }
-  .side-foot {
-    grid-column: 3;
-    grid-row: 1;
-    border-top: none;
-    padding-top: 0;
-  }
+  /* 좁은 화면에서 이름까지 넣을 자리는 없다 — 로그아웃 버튼만 남긴다. */
   .who {
     display: none;
   }

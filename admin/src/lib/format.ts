@@ -77,12 +77,22 @@ function toDate(iso: string | null | undefined): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-/** HTTP 상태 코드를 배지 색으로. */
-export function statusTone(status: number): 'green' | 'amber' | 'red' | 'gray' {
-  if (status >= 500) return 'red';
-  if (status >= 400) return 'amber';
-  if (status >= 200 && status < 300) return 'green';
-  return 'gray';
+/**
+ * HTTP 상태 코드를 배지 색으로.
+ *
+ * 돌려주는 값은 **디자인 토큰의 이름**이지 색 이름이 아니다(green 이 아니라 ok).
+ * 호출부가 `badge-${statusTone(...)}` 로 클래스를 만들기 때문에, 여기서 색 이름을
+ * 돌려주면 base.css 에 없는 클래스(badge-green)가 만들어져 배지가 통째로
+ * 색을 잃는다 — 실제로 그랬다. 토큰 이름으로 맞춰 둔다.
+ *
+ * 이름을 색이 아니라 뜻으로 두는 이유이기도 하다. 다크 테마에서 --ok 는 초록이
+ * 아닌 값으로 바뀔 수 있는데, 'green' 이라는 이름은 그때 거짓말이 된다.
+ */
+export function statusTone(status: number): 'ok' | 'warn' | 'danger' | 'neutral' {
+  if (status >= 500) return 'danger';
+  if (status >= 400) return 'warn';
+  if (status >= 200 && status < 300) return 'ok';
+  return 'neutral';
 }
 
 /** 계정 상태 코드를 한국어 이름표로. */

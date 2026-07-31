@@ -8,6 +8,7 @@ import {
   longestStreak,
   niceMax,
   pairMark,
+  sparklinePath,
 } from './chart';
 
 // 차트는 눈으로 검증할 수 없다. 막대가 반대쪽에 그려져도, 축이 잘려도 화면은
@@ -166,5 +167,67 @@ describe('막대 축', () => {
     expect(barWidth(20, 10)).toBe(100);
     expect(barWidth(-5, 10)).toBe(0);
     expect(barWidth(5, 0)).toBe(0);
+  });
+});
+
+describe('스파크라인', () => {
+  /** "M0 5L10 1" → [{x:0,y:5},{x:10,y:1}] */
+  function parse(d: string): { x: number; y: number }[] {
+    return [...d.matchAll(/[ML]([\d.-]+) ([\d.-]+)/g)].map((m) => ({
+      x: Number(m[1]),
+      y: Number(m[2]),
+    }));
+  }
+
+  it('그릴 것이 없으면 빈 경로를 준다', () => {
+    // 빈 문자열이어야 호출부가 <path> 자체를 그리지 않는다.
+    expect(sparklinePath([], 100, 20)).toBe('');
+    expect(sparklinePath([1, 2], 0, 20)).toBe('');
+    expect(sparklinePath([1, 2], 100, 0)).toBe('');
+  });
+
+  it('점이 하나면 가운데 평평한 선', () => {
+    // 점 하나로는 추세랄 것이 없다. 위나 아래에 붙이면 없는 방향을 지어낸다.
+    expect(sparklinePath([42], 100, 20)).toBe('M0 10L100 10');
+  });
+
+  it('점을 가로로 고르게 나눈다', () => {
+    const pts = parse(sparklinePath([1, 2, 3, 4, 5], 100, 20));
+    expect(pts.map((p) => p.x)).toEqual([0, 25, 50, 75, 100]);
+  });
+
+  it('큰 값이 위에 온다(SVG y 뒤집기)', () => {
+    // y 는 아래로 자라므로, 최댓값의 y 가 최솟값의 y 보다 작아야 한다.
+    const pts = parse(sparklinePath([0, 100], 100, 20));
+    expect(pts[0]!.y).toBeGreaterThan(pts[1]!.y);
+  });
+
+  it('위아래 가장자리에 붙지 않는다', () => {
+    // 선이 잘려 보이지 않도록 여백을 남긴다.
+    const pts = parse(sparklinePath([0, 100], 100, 20));
+    expect(Math.min(...pts.map((p) => p.y))).toBeGreaterThan(0);
+    expect(Math.max(...pts.map((p) => p.y))).toBeLessThan(20);
+  });
+
+  it('값이 모두 같으면 평평하게 그린다', () => {
+    const pts = parse(sparklinePath([5, 5, 5], 100, 20));
+    expect(pts.every((p) => p.y === 10)).toBe(true);
+  });
+
+  it('변동이 값에 비해 미미하면 평평하게 그린다', () => {
+    // 1000 → 1001 은 '별일 없음'이다. 최솟값을 바닥으로 잡았다는 이유로
+    // 이것을 위아래 꽉 찬 그래프로 그리면 눈금 없는 그림에서 거짓말이 된다.
+    const pts = parse(sparklinePath([1000, 1001, 1000], 100, 20));
+    expect(pts.every((p) => p.y === 10)).toBe(true);
+  });
+
+  it('의미 있는 변동은 평평하게 만들지 않는다', () => {
+    const pts = parse(sparklinePath([100, 200, 150], 100, 20));
+    expect(new Set(pts.map((p) => p.y)).size).toBeGreaterThan(1);
+  });
+
+  it('숫자가 아닌 값은 건너뛴다', () => {
+    const pts = parse(sparklinePath([1, NaN, 3], 100, 20));
+    expect(pts).toHaveLength(2);
   });
 });

@@ -142,6 +142,60 @@ export function longestStreak(cells: DayCell[]): number {
   return best;
 }
 
+/**
+ * 지표 타일에 들어가는 아주 작은 추세선(스파크라인)의 경로.
+ *
+ * 왜 필요한가: '오류율 2.1%' 는 그 자체로 좋고 나쁨을 말하지 않는다. 30분째
+ * 2.1% 로 평평한 것과, 0.2% 에서 방금 치솟아 2.1% 가 된 것은 완전히 다른 상황인데
+ * 숫자 하나로는 둘을 구분할 수 없다. 관리자가 그 차이를 알려면 지금까지는
+ * 아래 그래프까지 내려가야 했다. 타일 안에 형태를 같이 두면 눈을 옮길 필요가 없다.
+ *
+ * ── 축을 0 이 아니라 최솟값에서 시작하는 이유 ──────────────────────────
+ * 스파크라인이 답하는 질문은 '얼마나 큰가'가 아니라 **'어느 쪽으로 가고 있나'** 다.
+ * 크기는 바로 옆의 숫자가 이미 말하고 있다. 0 을 바닥으로 잡으면 950~1000 사이의
+ * 변화가 한 픽셀로 눌려 아무것도 보이지 않는다.
+ *
+ * ── 다만 평평한 것은 평평하게 그린다 ─────────────────────────────────
+ * 최솟값을 바닥으로 잡으면 **모든** 계열이 위아래로 꽉 차게 그려진다. 그러면
+ * 1000 → 1001 로 흔들린 계열이 0 → 1000 으로 치솟은 것과 똑같이 극적으로 보인다.
+ * 눈금 없는 그림에서 이건 거짓말에 가깝다. 그래서 변동 폭이 값의 크기에 비해
+ * 무시할 만하면(2% 미만) 가운데 평평한 선으로 그린다 — '별일 없다'가 정직한 답이다.
+ *
+ * @returns SVG path. 그릴 것이 없으면 빈 문자열(호출부가 아무것도 그리지 않는다).
+ */
+export function sparklinePath(values: number[], w: number, h: number): string {
+  const pts = values.filter((v) => Number.isFinite(v));
+  if (pts.length === 0 || w <= 0 || h <= 0) return '';
+
+  // 점이 하나뿐이면 추세랄 게 없다 — 가운데 평평한 선.
+  if (pts.length === 1) return `M0 ${h / 2}L${w} ${h / 2}`;
+
+  const min = Math.min(...pts);
+  const max = Math.max(...pts);
+  const range = max - min;
+  // 선이 위아래 가장자리에 딱 붙으면 잘려 보인다. 위아래로 조금 비워 둔다.
+  const pad = h * 0.12;
+  const usable = h - pad * 2;
+
+  const flat = range === 0 || range < Math.abs(max) * 0.02;
+  const step = w / (pts.length - 1);
+
+  const y = (v: number): number => {
+    if (flat) return h / 2;
+    // SVG 는 y 가 아래로 자란다 — 큰 값이 위로 가도록 뒤집는다.
+    return pad + (1 - (v - min) / range) * usable;
+  };
+
+  return pts
+    .map((v, i) => `${i === 0 ? 'M' : 'L'}${round(i * step)} ${round(y(v))}`)
+    .join('');
+}
+
+/** 소수점 두 자리로 — 좌표 문자열이 길어지면 DOM 만 무거워지고 보이는 건 같다. */
+function round(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
 /** 수평 막대 하나의 너비(%). 축 최댓값이 0 이면 0(0 으로 나누지 않는다). */
 export function barWidth(value: number, max: number): number {
   if (!Number.isFinite(value) || !Number.isFinite(max) || max <= 0) return 0;
