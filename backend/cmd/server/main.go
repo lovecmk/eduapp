@@ -122,11 +122,11 @@ func main() {
 	// 운영 설정(점검 모드·하루 상한·공지 배너)과 그것을 소비하는 학습 상한.
 	// 설정은 모든 요청이 읽으므로 서비스가 짧은 캐시를 들고 있다.
 	settingsSvc := service.NewSettingsService(settingsRepo, auditRepo)
-	learningSvc := service.NewLearningService(dataRepo, settingsSvc)
+	learningSvc := service.NewLearningService(dataRepo, cardRepo, settingsSvc)
 
 	adminSvc := service.NewAdminService(service.AdminDeps{
 		Users: userRepo, Cards: cardRepo, Audit: auditRepo, Data: dataRepo,
-		Announcements: annRepo, Push: pushSvc, Settings: settingsSvc,
+		Announcements: annRepo, Push: pushSvc, Settings: settingsSvc, Learning: learningSvc,
 		Metrics: metrics, StoreKind: cfg.Store,
 	})
 

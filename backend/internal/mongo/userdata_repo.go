@@ -23,6 +23,7 @@ type UserDataRepo struct {
 	reports    *mongo.Collection
 	notifs     *mongo.Collection
 	learning   *mongo.Collection
+	plans      *mongo.Collection
 }
 
 // NewUserDataRepo 는 개인 데이터 어댑터를 만든다.
@@ -35,6 +36,7 @@ func NewUserDataRepo(db *mongo.Database) *UserDataRepo {
 		reports:    db.Collection("reports"),
 		notifs:     db.Collection("notifications"),
 		learning:   db.Collection("learning_daily"),
+		plans:      db.Collection("daily_assignment"),
 	}
 }
 
@@ -54,6 +56,8 @@ func (r *UserDataRepo) EnsureIndexes(ctx context.Context) error {
 		// 하루 상한도 규칙이다 — (사용자, 날짜)가 두 줄이 되면 누계가 갈라져
 		// 어느 쪽을 읽느냐에 따라 상한이 달라진다.
 		{r.learning, bson.D{{Key: "user_id", Value: 1}, {Key: "day_key", Value: 1}}, "learning_daily_unique"},
+		// 하루에 한 벌 — 두 기기가 동시에 앱을 열어도 오늘의 목록이 갈리지 않게 한다.
+		{r.plans, bson.D{{Key: "user_id", Value: 1}, {Key: "day_key", Value: 1}}, "daily_assignment_unique"},
 	}
 	for _, s := range specs {
 		if _, err := s.col.Indexes().CreateOne(ctx, mongo.IndexModel{
@@ -307,6 +311,41 @@ func (r *UserDataRepo) UpdateReport(ctx context.Context, id string, u ports.Repo
 		return nil, ports.ErrNotFound{Entity: "report"}
 	}
 	if err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (r *UserDataRepo) LoadAssignment(ctx context.Context, userID, day string) (*domain.DailyAssignment, error) {
+	var a domain.DailyAssignment
+	err := r.plans.FindOne(ctx, bson.M{"user_id": userID, "day_key": day}).Decode(&a)
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		return nil, nil // 오늘 아직 안 열어 봤다 — 오류가 아니다
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &a, nil
+}
+
+func (r *UserDataRepo) SaveAssignment(ctx context.Context, a domain.DailyAssignment) (*domain.DailyAssignment, error) {
+	// $setOnInsert 만 쓴다 — 먼저 저장된 것이 그날의 답이다. $set 으로 두면
+	// 나중에 연 기기가 목록을 덮어써, 먼저 화면에 뜬 것과 어긋난다.
+	var out domain.DailyAssignment
+	err := r.plans.FindOneAndUpdate(ctx,
+		bson.M{"user_id": a.UserID, "day_key": a.DayKey},
+		bson.M{"$setOnInsert": bson.M{
+			"user_id": a.UserID, "day_key": a.DayKey, "card_ids": a.CardIDs,
+			"difficulty_cd": string(a.DifficultyCd), "target_count": a.TargetCount,
+			"created_at": a.CreatedAt,
+		}},
+		options.FindOneAndUpdate().SetUpsert(true).SetReturnDocument(options.After),
+	).Decode(&out)
+	if err != nil {
+		if mongo.IsDuplicateKeyError(err) {
+			// 두 요청이 같은 순간에 들어왔다 — 상대가 넣은 것을 읽어 돌려준다.
+			return r.LoadAssignment(ctx, a.UserID, a.DayKey)
+		}
 		return nil, err
 	}
 	return &out, nil

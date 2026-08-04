@@ -271,6 +271,43 @@ func (r *UserDataRepo) UpdateReport(ctx context.Context, id string, u ports.Repo
 	return &rep, nil
 }
 
+func (r *UserDataRepo) LoadAssignment(ctx context.Context, userID, day string) (*domain.DailyAssignment, error) {
+	var a domain.DailyAssignment
+	err := r.pool.QueryRow(ctx,
+		`SELECT user_id, day_key, card_ids, difficulty_cd, target_count, created_at
+		 FROM daily_assignment WHERE user_id=$1 AND day_key=$2`, userID, day).
+		Scan(&a.UserID, &a.DayKey, &a.CardIDs, &a.DifficultyCd, &a.TargetCount, &a.CreatedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil // 오늘 아직 안 열어 봤다 — 오류가 아니다
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &a, nil
+}
+
+func (r *UserDataRepo) SaveAssignment(ctx context.Context, a domain.DailyAssignment) (*domain.DailyAssignment, error) {
+	// DO NOTHING 이 핵심이다. 두 기기가 동시에 앱을 열면 둘 다 편성을 만들어 넣는데,
+	// 나중 것이 이기면 먼저 화면에 뜬 목록과 저장된 것이 어긋난다.
+	// RETURNING 은 충돌 시 아무것도 주지 않으므로, 넣은 뒤 항상 다시 읽는다.
+	if _, err := r.pool.Exec(ctx,
+		`INSERT INTO daily_assignment (user_id, day_key, card_ids, difficulty_cd, target_count, created_at)
+		 VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (user_id, day_key) DO NOTHING`,
+		a.UserID, a.DayKey, a.CardIDs, string(a.DifficultyCd), a.TargetCount, a.CreatedAt); err != nil {
+		return nil, err
+	}
+	stored, err := r.LoadAssignment(ctx, a.UserID, a.DayKey)
+	if err != nil {
+		return nil, err
+	}
+	if stored == nil {
+		// 넣자마자 사라졌다 — 있을 수 없는 일이지만, 여기서 nil 을 흘리면
+		// 호출부가 nil 역참조로 죽는다. 만든 값을 그대로 돌려준다.
+		return &a, nil
+	}
+	return stored, nil
+}
+
 func (r *UserDataRepo) LearningCount(ctx context.Context, userID, day string) (int, error) {
 	var n int
 	err := r.pool.QueryRow(ctx,

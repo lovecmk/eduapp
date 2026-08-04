@@ -28,6 +28,8 @@ type UserDataRepo struct {
 	updatedAt  map[string]time.Time
 	// learned 는 (사용자, 날짜) 별 신규 학습 건수 — 하루 상한 판정의 권위다.
 	learned map[string]int // key: userID|dayKey
+	// plans 는 (사용자, 날짜) 별 오늘의 편성. 한 번 정해지면 그날은 바뀌지 않는다.
+	plans map[string]domain.DailyAssignment // key: userID|dayKey
 }
 
 // NewUserDataRepo 는 인메모리 개인 데이터 저장소를 만든다.
@@ -40,6 +42,7 @@ func NewUserDataRepo() *UserDataRepo {
 		notifs:     map[string][]domain.Notification{},
 		updatedAt:  map[string]time.Time{},
 		learned:    map[string]int{},
+		plans:      map[string]domain.DailyAssignment{},
 	}
 }
 
@@ -238,6 +241,36 @@ func (r *UserDataRepo) UpdateReport(_ context.Context, id string, u ports.Report
 		return &out, nil
 	}
 	return nil, ports.ErrNotFound{Entity: "report"}
+}
+
+func (r *UserDataRepo) LoadAssignment(_ context.Context, userID, day string) (*domain.DailyAssignment, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	a, ok := r.plans[srsKey(userID, day)]
+	if !ok {
+		return nil, nil // 오늘 아직 안 열어 봤다 — 오류가 아니다
+	}
+	out := a
+	out.CardIDs = append([]string(nil), a.CardIDs...)
+	return &out, nil
+}
+
+func (r *UserDataRepo) SaveAssignment(_ context.Context, a domain.DailyAssignment) (*domain.DailyAssignment, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	key := srsKey(a.UserID, a.DayKey)
+	// 먼저 저장된 것이 그날의 답이다 — 두 기기가 동시에 열어도 목록이 갈리지 않게.
+	if existing, ok := r.plans[key]; ok {
+		out := existing
+		out.CardIDs = append([]string(nil), existing.CardIDs...)
+		return &out, nil
+	}
+	stored := a
+	stored.CardIDs = append([]string(nil), a.CardIDs...)
+	r.plans[key] = stored
+	out := stored
+	out.CardIDs = append([]string(nil), stored.CardIDs...)
+	return &out, nil
 }
 
 func (r *UserDataRepo) LearningCount(_ context.Context, userID, day string) (int, error) {

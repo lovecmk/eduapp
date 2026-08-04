@@ -319,6 +319,37 @@ export interface AudiencePreview {
   label: string;
 }
 
+// ── 오늘의 출제 ───────────────────────────────────────────────────────────────
+
+/** 오늘 그 사람에게 나간 문제 한 장. */
+export interface TodayCard extends Card {
+  /** 새로 배우는 것인가, 복습인가. */
+  kind: 'NEW' | 'REVIEW';
+  /** 오늘 이미 푼 문제인지. */
+  done: boolean;
+}
+
+/** 그 사람의 오늘 편성. */
+export interface TodayPlan {
+  day: string;
+  difficulty_cd: Difficulty;
+  /** 난이도가 정한 목표 장수(3~5). 후보가 모자라면 cards 가 더 짧다. */
+  target_count: number;
+  cards: TodayCard[];
+  done_count: number;
+  resets_at: string;
+}
+
+/** 콘솔이 보는 '그 사람의 오늘'. */
+export interface LearnerToday {
+  /**
+   * false 면 오늘 아직 앱을 열지 않았다는 뜻이다 — '문제가 0개'와 전혀 다르다.
+   * (콘솔이 조회했다는 이유로 편성이 확정되지는 않는다.)
+   */
+  started: boolean;
+  plan?: TodayPlan;
+}
+
 // ── 운영 설정 ─────────────────────────────────────────────────────────────────
 
 export type NoticeLevel = 'INFO' | 'WARN' | 'DANGER';
@@ -328,7 +359,15 @@ export interface OpsSettings {
   maintenance_yn: boolean;
   maintenance_msg: string;
   signup_enabled: boolean;
-  daily_new_limit: number;
+  /**
+   * 하루 출제량은 **범위**다. 정확한 장수는 그날 그 사람의 난이도가 정한다 —
+   * 쉬운 날은 최대치, 어려운 날은 최소치. 한 장에 드는 시간이 다르므로
+   * 개수를 고정하면 '하루 3분'이 날마다 3분도 10분도 된다.
+   */
+  daily_min_cards: number;
+  daily_max_cards: number;
+  /** 끄면 난이도를 관찰로 조절하지 않고 늘 쉬움으로 낸다. */
+  adaptive_difficulty: boolean;
   notice_txt: string;
   notice_level: NoticeLevel;
   updated_at: string;
@@ -348,7 +387,9 @@ export type SettingsPatch = Partial<
     | 'maintenance_yn'
     | 'maintenance_msg'
     | 'signup_enabled'
-    | 'daily_new_limit'
+    | 'daily_min_cards'
+    | 'daily_max_cards'
+    | 'adaptive_difficulty'
     | 'notice_txt'
     | 'notice_level'
   >

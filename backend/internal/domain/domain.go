@@ -297,8 +297,15 @@ type OpsSettings struct {
 	MaintenanceMsg string `bson:"maintenance_msg" json:"maintenance_msg"`
 	// SignupEnabled 가 꺼지면 신규 가입만 막힌다(기존 사용자는 그대로 쓴다).
 	SignupEnabled bool `bson:"signup_enabled" json:"signup_enabled"`
-	// DailyNewLimit 은 하루에 새로 배울 수 있는 카드 수(복습은 상한이 없다).
-	DailyNewLimit int `bson:"daily_new_limit" json:"daily_new_limit"`
+
+	// 하루 출제량은 **범위**다. 정확한 장수는 그날 그 사람의 난이도가 정한다 —
+	// 쉬운 날은 많이(max), 어려운 날은 적게(min). 한 장에 드는 시간과 집중이
+	// 다르므로 개수를 고정하면 '하루 3분'이 날마다 3분도 10분도 된다.
+	DailyMinCards int `bson:"daily_min_cards" json:"daily_min_cards"`
+	DailyMaxCards int `bson:"daily_max_cards" json:"daily_max_cards"`
+	// AdaptiveDifficulty 가 꺼지면 난이도를 관찰로 조절하지 않고 늘 쉬움으로 낸다
+	// (콘텐츠가 한 난이도에 몰려 있거나, 교육 과정이 순서를 강제할 때).
+	AdaptiveDifficulty bool `bson:"adaptive_difficulty" json:"adaptive_difficulty"`
 	// NoticeTxt 가 비어 있지 않으면 앱이 상단에 배너로 띄운다.
 	NoticeTxt   string      `bson:"notice_txt" json:"notice_txt"`
 	NoticeLevel NoticeLevel `bson:"notice_level" json:"notice_level"`
@@ -308,38 +315,51 @@ type OpsSettings struct {
 	UpdatedByName string    `bson:"updated_by_name" json:"updated_by_name"`
 }
 
-// DefaultDailyNewLimit 은 하루 신규 학습 상한의 기본값이다.
-//
-// **앱의 `src/constants/learning.ts` 의 `DAILY_NEW_LIMIT` 과 같은 값이어야 한다.**
-// 이 앱의 정체성이 '하루 3분'이라 그쪽이 3으로 정해져 있고, 서버가 다른 값을 주면
-// 아직 서버에 닿지 못한 기기(목업 폴백)와 닿은 기기가 서로 다른 상한으로 돌아간다 —
-// 같은 사람이 태블릿에서는 3장, 휴대폰에서는 5장을 배우게 된다.
-const DefaultDailyNewLimit = 3
+// 하루 출제량의 기본 범위 — **앱의 `src/constants/learning.ts` 와 같은 값이어야 한다**
+// (`DAILY_NEW_LIMIT`=3, `DAILY_TOTAL_LIMIT`=5). 서버가 다른 값을 주면 아직 서버에
+// 닿지 못한 기기(목업 폴백)와 닿은 기기가 서로 다른 분량으로 돌아간다 —
+// 같은 사람이 태블릿에서는 3장, 휴대폰에서는 5장을 받게 된다.
+const (
+	DefaultDailyMinCards = 3
+	DefaultDailyMaxCards = 5
+)
 
-// maxDailyNewLimit 은 상한의 상한. 0 이나 음수는 '무제한'이 아니라 실수이므로
-// 기본값으로 되돌리고, 지나치게 큰 값은 사실상 상한이 없는 것과 같아 잘라 낸다.
-const maxDailyNewLimit = 100
+// 출제량의 한계. 이 앱의 정체성이 '하루 3분'이라, 어떤 설정으로도 이 범위를
+// 벗어나지 않게 한다 — 상한을 100으로 열어 두면 그것은 다른 앱이다.
+const (
+	MinDailyCardsAllowed = 1
+	MaxDailyCardsAllowed = 10
+)
 
 // DefaultOpsSettings 는 저장된 설정이 아직 없을 때의 값이다.
 // 실패는 항상 '서비스가 열려 있는' 쪽으로 — 설정을 읽지 못했다고 점검 모드에
 // 들어가면 저장소 장애 하나가 전면 중단이 된다.
 func DefaultOpsSettings() OpsSettings {
 	return OpsSettings{
-		MaintenanceYn: false,
-		SignupEnabled: true,
-		DailyNewLimit: DefaultDailyNewLimit,
-		NoticeLevel:   NoticeInfo,
+		MaintenanceYn:      false,
+		SignupEnabled:      true,
+		DailyMinCards:      DefaultDailyMinCards,
+		DailyMaxCards:      DefaultDailyMaxCards,
+		AdaptiveDifficulty: true,
+		NoticeLevel:        NoticeInfo,
 	}
 }
 
 // Normalized 는 저장·응답 전에 값을 규칙 안으로 되돌린다.
 // 저장소에 예전 형식이나 손으로 넣은 값이 있어도 앱이 이상한 값을 보지 않게 한다.
 func (s OpsSettings) Normalized() OpsSettings {
-	if s.DailyNewLimit <= 0 {
-		s.DailyNewLimit = DefaultDailyNewLimit
+	if s.DailyMinCards <= 0 {
+		s.DailyMinCards = DefaultDailyMinCards
 	}
-	if s.DailyNewLimit > maxDailyNewLimit {
-		s.DailyNewLimit = maxDailyNewLimit
+	if s.DailyMaxCards <= 0 {
+		s.DailyMaxCards = DefaultDailyMaxCards
+	}
+	s.DailyMinCards = clampCards(s.DailyMinCards)
+	s.DailyMaxCards = clampCards(s.DailyMaxCards)
+	// 뒤집혀 저장돼 있어도 학습이 멈추지는 않게 한다 — 설정 실수의 대가가
+	// '오늘 아무 문제도 안 나옴'이어서는 안 된다.
+	if s.DailyMinCards > s.DailyMaxCards {
+		s.DailyMinCards, s.DailyMaxCards = s.DailyMaxCards, s.DailyMinCards
 	}
 	switch s.NoticeLevel {
 	case NoticeInfo, NoticeWarn, NoticeDanger:
@@ -348,6 +368,45 @@ func (s OpsSettings) Normalized() OpsSettings {
 	}
 	return s
 }
+
+func clampCards(n int) int {
+	if n < MinDailyCardsAllowed {
+		return MinDailyCardsAllowed
+	}
+	if n > MaxDailyCardsAllowed {
+		return MaxDailyCardsAllowed
+	}
+	return n
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 오늘의 출제 — 사람마다, 날마다
+// ─────────────────────────────────────────────────────────────────────────────
+
+// DailyAssignment 는 "이 사람에게 이 날 무엇이 나갔는가" 한 건이다.
+//
+// ── 왜 저장하는가 ──────────────────────────────────────────────────────
+// 편성은 (사람, 날짜) 시드로 결정적이라 저장하지 않아도 같은 답이 나온다.
+// 그런데 **후보가 바뀌면** 답도 바뀐다 — 관리자가 낮에 문제를 하나 추가하거나
+// 지우면, 오전에 두 장을 푼 사람의 '오늘의 학습'이 오후에 다른 목록으로 변한다.
+// 사용자에게는 풀던 문제가 사라지는 일이고, 교육 이력으로도 "그날 무엇을
+// 배정받았는가"에 답할 수 없게 된다. 그래서 그날 처음 물어본 순간 얼려 둔다.
+type DailyAssignment struct {
+	UserID string `bson:"user_id" json:"-"`
+	// DayKey 는 앱과 같은 날짜 키(YYYY-M-D, month 0-based).
+	DayKey string `bson:"day_key" json:"day"`
+	// CardIDs 는 그날 나간 문제. 순서도 그대로 의미가 있다(복습이 앞).
+	CardIDs []string `bson:"card_ids" json:"card_ids"`
+	// DifficultyCd 는 그날 그 사람에게 맞춰 정해진 난이도.
+	DifficultyCd Difficulty `bson:"difficulty_cd" json:"difficulty_cd"`
+	// TargetCount 는 난이도가 정한 목표 장수. 후보가 모자라면 CardIDs 가 더 짧을 수
+	// 있어서 따로 남긴다 — 화면이 "2/5" 로 진도를 보여주려면 목표를 알아야 한다.
+	TargetCount int       `bson:"target_count" json:"target_count"`
+	CreatedAt   time.Time `bson:"created_at" json:"created_at"`
+}
+
+// Size 는 실제로 배정된 문제 수.
+func (a DailyAssignment) Size() int { return len(a.CardIDs) }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 공지 — 누구에게 무엇을 보냈는가

@@ -43,8 +43,10 @@ func (r *SettingsRepo) SaveSettings(ctx context.Context, s domain.OpsSettings) e
 		bson.M{"_id": settingsDocID},
 		bson.M{"$set": bson.M{
 			"maintenance_yn": s.MaintenanceYn, "maintenance_msg": s.MaintenanceMsg,
-			"signup_enabled": s.SignupEnabled, "daily_new_limit": s.DailyNewLimit,
-			"notice_txt": s.NoticeTxt, "notice_level": string(s.NoticeLevel),
+			"signup_enabled":  s.SignupEnabled,
+			"daily_min_cards": s.DailyMinCards, "daily_max_cards": s.DailyMaxCards,
+			"adaptive_difficulty": s.AdaptiveDifficulty,
+			"notice_txt":          s.NoticeTxt, "notice_level": string(s.NoticeLevel),
 			"updated_at": s.UpdatedAt, "updated_by": s.UpdatedBy, "updated_by_name": s.UpdatedByName,
 		}},
 		options.Update().SetUpsert(true),

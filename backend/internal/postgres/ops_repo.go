@@ -27,10 +27,12 @@ func NewSettingsRepo(pool *pgxpool.Pool) *SettingsRepo { return &SettingsRepo{po
 func (r *SettingsRepo) LoadSettings(ctx context.Context) (domain.OpsSettings, error) {
 	var s domain.OpsSettings
 	err := r.pool.QueryRow(ctx,
-		`SELECT maintenance_yn, maintenance_msg, signup_enabled, daily_new_limit,
+		`SELECT maintenance_yn, maintenance_msg, signup_enabled,
+		        daily_min_cards, daily_max_cards, adaptive_difficulty,
 		        notice_txt, notice_level, updated_at, updated_by, updated_by_name
 		 FROM ops_settings WHERE id=$1`, settingsRowID).
-		Scan(&s.MaintenanceYn, &s.MaintenanceMsg, &s.SignupEnabled, &s.DailyNewLimit,
+		Scan(&s.MaintenanceYn, &s.MaintenanceMsg, &s.SignupEnabled,
+			&s.DailyMinCards, &s.DailyMaxCards, &s.AdaptiveDifficulty,
 			&s.NoticeTxt, &s.NoticeLevel, &s.UpdatedAt, &s.UpdatedBy, &s.UpdatedByName)
 	if errors.Is(err, pgx.ErrNoRows) {
 		// 아무도 바꾼 적이 없다 — 정상 상태다.
@@ -45,15 +47,19 @@ func (r *SettingsRepo) LoadSettings(ctx context.Context) (domain.OpsSettings, er
 func (r *SettingsRepo) SaveSettings(ctx context.Context, s domain.OpsSettings) error {
 	_, err := r.pool.Exec(ctx,
 		`INSERT INTO ops_settings (id, maintenance_yn, maintenance_msg, signup_enabled,
-		     daily_new_limit, notice_txt, notice_level, updated_at, updated_by, updated_by_name)
-		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+		     daily_min_cards, daily_max_cards, adaptive_difficulty,
+		     notice_txt, notice_level, updated_at, updated_by, updated_by_name)
+		 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
 		 ON CONFLICT (id) DO UPDATE SET
 		   maintenance_yn=EXCLUDED.maintenance_yn, maintenance_msg=EXCLUDED.maintenance_msg,
-		   signup_enabled=EXCLUDED.signup_enabled, daily_new_limit=EXCLUDED.daily_new_limit,
+		   signup_enabled=EXCLUDED.signup_enabled,
+		   daily_min_cards=EXCLUDED.daily_min_cards, daily_max_cards=EXCLUDED.daily_max_cards,
+		   adaptive_difficulty=EXCLUDED.adaptive_difficulty,
 		   notice_txt=EXCLUDED.notice_txt, notice_level=EXCLUDED.notice_level,
 		   updated_at=EXCLUDED.updated_at, updated_by=EXCLUDED.updated_by,
 		   updated_by_name=EXCLUDED.updated_by_name`,
-		settingsRowID, s.MaintenanceYn, s.MaintenanceMsg, s.SignupEnabled, s.DailyNewLimit,
+		settingsRowID, s.MaintenanceYn, s.MaintenanceMsg, s.SignupEnabled,
+		s.DailyMinCards, s.DailyMaxCards, s.AdaptiveDifficulty,
 		s.NoticeTxt, string(s.NoticeLevel), s.UpdatedAt, s.UpdatedBy, s.UpdatedByName)
 	return err
 }

@@ -88,9 +88,12 @@ type SettingsInput struct {
 	MaintenanceYn  *bool
 	MaintenanceMsg *string
 	SignupEnabled  *bool
-	DailyNewLimit  *int
-	NoticeTxt      *string
-	NoticeLevel    *string
+	// 하루 출제량은 범위다 — 정확한 장수는 그날 그 사람의 난이도가 정한다.
+	DailyMinCards      *int
+	DailyMaxCards      *int
+	AdaptiveDifficulty *bool
+	NoticeTxt          *string
+	NoticeLevel        *string
 }
 
 // maxNoticeLen 은 앱 배너에 들어갈 수 있는 문구 길이.
@@ -121,14 +124,26 @@ func (s *SettingsService) Update(ctx context.Context, actor Actor, in SettingsIn
 	if in.SignupEnabled != nil {
 		next.SignupEnabled = *in.SignupEnabled
 	}
-	if in.DailyNewLimit != nil {
-		if *in.DailyNewLimit < 1 {
-			return current, ErrInvalidInput{Reason: "하루 학습 상한은 1 이상이어야 합니다"}
+	if in.DailyMinCards != nil {
+		if err := validCardCount(*in.DailyMinCards, "최소 출제량"); err != nil {
+			return current, err
 		}
-		if *in.DailyNewLimit > 100 {
-			return current, ErrInvalidInput{Reason: "하루 학습 상한은 100을 넘을 수 없습니다"}
+		next.DailyMinCards = *in.DailyMinCards
+	}
+	if in.DailyMaxCards != nil {
+		if err := validCardCount(*in.DailyMaxCards, "최대 출제량"); err != nil {
+			return current, err
 		}
-		next.DailyNewLimit = *in.DailyNewLimit
+		next.DailyMaxCards = *in.DailyMaxCards
+	}
+	// 뒤집힌 범위는 저장 전에 거절한다. Normalized 가 알아서 바꿔 주기는 하지만,
+	// 관리자가 3~5 를 5~3 으로 잘못 넣었을 때 조용히 고쳐 주면 무엇이 저장됐는지
+	// 모른 채 화면만 달라진다.
+	if next.DailyMinCards > next.DailyMaxCards {
+		return current, ErrInvalidInput{Reason: "최소 출제량이 최대보다 클 수 없습니다"}
+	}
+	if in.AdaptiveDifficulty != nil {
+		next.AdaptiveDifficulty = *in.AdaptiveDifficulty
 	}
 	if in.NoticeTxt != nil {
 		txt := strings.TrimSpace(*in.NoticeTxt)
@@ -206,8 +221,12 @@ func settingsDiff(before, after domain.OpsSettings) []string {
 	if before.SignupEnabled != after.SignupEnabled {
 		out = append(out, "신규 가입 "+onOff(after.SignupEnabled))
 	}
-	if before.DailyNewLimit != after.DailyNewLimit {
-		out = append(out, fmt.Sprintf("하루 학습 상한 %d → %d", before.DailyNewLimit, after.DailyNewLimit))
+	if before.DailyMinCards != after.DailyMinCards || before.DailyMaxCards != after.DailyMaxCards {
+		out = append(out, fmt.Sprintf("하루 출제량 %d~%d → %d~%d",
+			before.DailyMinCards, before.DailyMaxCards, after.DailyMinCards, after.DailyMaxCards))
+	}
+	if before.AdaptiveDifficulty != after.AdaptiveDifficulty {
+		out = append(out, "난이도 자동 조절 "+onOff(after.AdaptiveDifficulty))
 	}
 	if before.NoticeTxt != after.NoticeTxt {
 		if after.NoticeTxt == "" {
@@ -220,6 +239,17 @@ func settingsDiff(before, after domain.OpsSettings) []string {
 		out = append(out, "공지 단계 "+string(after.NoticeLevel))
 	}
 	return out
+}
+
+// validCardCount 는 출제량 값 하나를 검사한다.
+// 범위를 도메인 상수와 맞추는 이유 — 여기서만 100까지 열어 두면
+// 저장은 되고 Normalized 가 10으로 자르는, 설명할 수 없는 동작이 된다.
+func validCardCount(n int, label string) error {
+	if n < domain.MinDailyCardsAllowed || n > domain.MaxDailyCardsAllowed {
+		return ErrInvalidInput{Reason: fmt.Sprintf("%s은 %d~%d 사이여야 합니다",
+			label, domain.MinDailyCardsAllowed, domain.MaxDailyCardsAllowed)}
+	}
+	return nil
 }
 
 func onOff(on bool) string {

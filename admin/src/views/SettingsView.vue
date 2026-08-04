@@ -107,6 +107,30 @@ function reset(): void {
   void load();
 }
 
+// 출제량의 한계 — 서버(domain.MinDailyCardsAllowed/Max)와 같은 값이어야 한다.
+// 여기서만 더 넓게 열어 두면 저장은 되고 서버가 조용히 자르는, 설명할 수 없는
+// 동작이 된다(관리자는 20을 넣었는데 10으로 돌아간다).
+const MIN_CARDS = 1;
+const MAX_CARDS = 10;
+
+/**
+ * 지금 범위로 각 난이도에 몇 문제가 나가는지.
+ *
+ * 서버의 countForDifficulty 와 같은 규칙이다. 숫자 두 개만 보여 주면
+ * "그래서 오늘 몇 문제가 나가지?"에 답할 수 없어, 관리자가 값을 넣어 보고
+ * 앱을 열어 확인하게 된다.
+ */
+const countPreview = computed(() => {
+  const lo = Math.min(draft.value.daily_min_cards ?? 3, draft.value.daily_max_cards ?? 5);
+  const hi = Math.max(draft.value.daily_min_cards ?? 3, draft.value.daily_max_cards ?? 5);
+  const mid = Math.floor((lo + hi) / 2) + ((lo + hi) % 2 === 1 ? 1 : 0);
+  return [
+    { label: '쉬움', count: hi },
+    { label: '보통', count: Math.min(hi, Math.max(lo, mid)) },
+    { label: '어려움', count: lo },
+  ];
+});
+
 const NOTICE_MAX = 200;
 const noticeLen = computed(() => [...(draft.value.notice_txt ?? '')].length);
 const maintenanceMsgLen = computed(() => [...(draft.value.maintenance_msg ?? '')].length);
@@ -192,30 +216,69 @@ const maintenanceMsgLen = computed(() => [...(draft.value.maintenance_msg ?? '')
           </div>
         </section>
 
-        <!-- 2. 학습 정책 -->
+        <!-- 2. 출제 정책 -->
         <section class="panel">
           <div class="panel-head">
-            <h2 class="panel-title">학습 정책</h2>
+            <h2 class="panel-title">출제 정책</h2>
+            <span class="panel-meta">사람마다 · 날마다 새로 편성</span>
           </div>
           <div class="rows">
-            <label class="row">
+            <div class="row">
               <span class="row-text">
-                <span class="row-title">하루 신규 학습 상한</span>
+                <span class="row-title">하루 출제량</span>
                 <span class="row-desc">
-                  하루에 새로 배울 수 있는 문제 수입니다. 복습에는 상한이 없습니다.
-                  자정(서버 기준)에 초기화됩니다.
+                  정확한 장수는 <strong>그날 그 사람의 난이도</strong>가 정합니다 —
+                  쉬운 날은 최대치, 어려운 날은 최소치. 한 장에 드는 시간이 다르므로
+                  개수를 고정하면 '하루 3분'이 날마다 3분도 10분도 됩니다.
+                  복습에는 상한이 없습니다.
                 </span>
               </span>
-              <span class="limit-input">
+              <span class="range-input">
                 <input
-                  v-model.number="draft.daily_new_limit"
+                  v-model.number="draft.daily_min_cards"
                   class="input num"
                   type="number"
-                  min="1"
-                  max="100"
+                  :min="MIN_CARDS"
+                  :max="MAX_CARDS"
+                  aria-label="최소 출제량"
+                />
+                <span class="tilde" aria-hidden="true">~</span>
+                <input
+                  v-model.number="draft.daily_max_cards"
+                  class="input num"
+                  type="number"
+                  :min="MIN_CARDS"
+                  :max="MAX_CARDS"
+                  aria-label="최대 출제량"
                 />
                 <span class="unit">문제</span>
               </span>
+            </div>
+
+            <!-- 지금 설정이 실제로 어떻게 나가는지 바로 보여 준다.
+                 숫자 두 개만 있으면 "그래서 오늘 몇 문제가 나가지?"를 알 수 없다. -->
+            <div class="row preview-row">
+              <span class="row-text">
+                <span class="row-title">이 설정으로 나가는 분량</span>
+              </span>
+              <span class="preview">
+                <span v-for="p in countPreview" :key="p.label" class="preview-item">
+                  <span class="preview-label">{{ p.label }}</span>
+                  <span class="preview-n num">{{ p.count }}문제</span>
+                </span>
+              </span>
+            </div>
+
+            <label class="row">
+              <span class="row-text">
+                <span class="row-title">난이도 자동 조절</span>
+                <span class="row-desc">
+                  그동안의 학습 기록(기억 상자·되돌아간 횟수)으로 그 사람에게 맞는
+                  난이도를 정합니다. 끄면 모두에게 쉬운 문제만 나갑니다 —
+                  교육 과정이 순서를 강제하거나 콘텐츠가 한 난이도에 몰려 있을 때 씁니다.
+                </span>
+              </span>
+              <input v-model="draft.adaptive_difficulty" class="row-switch" type="checkbox" />
             </label>
           </div>
         </section>
@@ -363,15 +426,44 @@ const maintenanceMsgLen = computed(() => [...(draft.value.maintenance_msg ?? '')
   cursor: pointer;
 }
 
-.limit-input {
+.range-input {
   display: flex;
   align-items: center;
   gap: 6px;
   flex-shrink: 0;
 }
-.limit-input .input {
-  width: 88px;
+.range-input .input {
+  width: 64px;
   text-align: right;
+}
+.tilde {
+  color: var(--ink-4);
+  font-size: 12px;
+}
+
+/* 설정이 실제로 어떻게 나가는지 — 값이 아니라 결과를 보여 준다. */
+.preview-row {
+  background: var(--surface-2);
+}
+.preview {
+  display: flex;
+  gap: 14px;
+  flex-shrink: 0;
+}
+.preview-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+}
+.preview-label {
+  font-size: 10.5px;
+  color: var(--ink-4);
+}
+.preview-n {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink);
 }
 .unit {
   font-size: 12px;
@@ -420,8 +512,8 @@ const maintenanceMsgLen = computed(() => [...(draft.value.maintenance_msg ?? '')
     align-items: stretch;
     gap: 8px;
   }
-  .limit-input .input {
-    width: 100%;
+  .range-input {
+    justify-content: flex-end;
   }
 }
 </style>

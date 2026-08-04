@@ -34,6 +34,8 @@ type AdminService struct {
 	announcements ports.AnnouncementRepository
 	// settings 는 운영 설정. 대시보드가 점검 모드·공지 배너를 함께 실어 주기 위해 읽는다.
 	settings *SettingsService
+	// learning 은 오늘의 편성. 콘솔이 "이 사람은 오늘 무엇을 받았나"에 답하는 데 쓴다.
+	learning *LearningService
 	// push 는 공지를 기기 알림으로도 밀어 줄 때 쓴다(없으면 앱 안 알림만).
 	push *PushService
 
@@ -59,6 +61,7 @@ type AdminDeps struct {
 	Announcements ports.AnnouncementRepository
 	Push          *PushService
 	Settings      *SettingsService
+	Learning      *LearningService
 
 	Metrics   *Metrics
 	StoreKind string
@@ -68,7 +71,7 @@ type AdminDeps struct {
 func NewAdminService(d AdminDeps) *AdminService {
 	return &AdminService{
 		users: d.Users, cards: d.Cards, audit: d.Audit, data: d.Data,
-		announcements: d.Announcements, push: d.Push, settings: d.Settings,
+		announcements: d.Announcements, push: d.Push, settings: d.Settings, learning: d.Learning,
 		metrics: d.Metrics, storeKind: d.StoreKind, now: time.Now,
 	}
 }
@@ -517,6 +520,33 @@ func (s *AdminService) learningOf(ctx context.Context, userID string) (LearningS
 		rate = round2(float64(mastered) / float64(total) * 100)
 	}
 	return LearningSummary{New: newCount, Learning: learning, Mastered: mastered, Rate: rate}, nil
+}
+
+// TodayFor 는 그 사람이 오늘 받은 편성을 준다.
+//
+// 편성을 **만들지는 않는다** — 관리자가 목록을 열어 봤다는 이유로 그 사람의
+// 오늘 문제가 확정되면, 아직 앱을 열지도 않은 사람의 편성이 관리자의 조회
+// 시각과 그때의 후보로 굳는다. 아직 없으면 '아직 시작하지 않음'으로 답한다.
+func (s *AdminService) TodayFor(ctx context.Context, userID string) (*LearnerToday, error) {
+	if _, err := s.users.FindByID(ctx, userID); err != nil {
+		return nil, err
+	}
+	if s.learning == nil || !s.learning.Available() {
+		return &LearnerToday{Started: false}, nil
+	}
+	plan, started, err := s.learning.Existing(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	return &LearnerToday{Started: started, Plan: plan}, nil
+}
+
+// LearnerToday 는 콘솔이 보는 '그 사람의 오늘'.
+type LearnerToday struct {
+	// Started 가 false 면 오늘 아직 앱을 열지 않았다는 뜻이다 —
+	// '문제가 0개'와 전혀 다른 상황이라 구분해서 알린다.
+	Started bool       `json:"started"`
+	Plan    *TodayPlan `json:"plan,omitempty"`
 }
 
 // Actor 는 변경을 수행하는 관리자(감사 기록용).

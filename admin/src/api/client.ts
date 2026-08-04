@@ -24,6 +24,7 @@ import type {
   AudiencePreview,
   OpsSettings,
   SettingsPatch,
+  LearnerToday,
   LabelCount,
   RoleCd,
   StatusCd,
@@ -283,6 +284,11 @@ class AdminApi {
       method: 'PATCH',
       body: JSON.stringify({ status_cd: status }),
     });
+  }
+
+  /** 그 사람이 오늘 받은 문제 — 편성이 사람마다 다르므로 콘솔에서 확인할 수 있어야 한다. */
+  learnerToday(id: string): Promise<LearnerToday> {
+    return this.request<LearnerToday>(`/api/admin/users/${encodeURIComponent(id)}/today`);
   }
 
   cards(q: CardQuery = {}): Promise<CardPage> {

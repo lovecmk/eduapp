@@ -243,6 +243,8 @@ func registerLearningRoutes(r fiber.Router, d Deps) {
 		return
 	}
 	h := handler.NewLearningHandler(d.Learning)
+	// 오늘의 학습 — 사람마다·날마다 새로 편성된다. 앱은 이 목록만 보고 덱을 만든다.
+	r.Get("/learning/today", h.Today)
 	r.Get("/learning/quota", h.Quota)
 	// 완료 보고는 오프라인 큐를 타고 재전송된다 — 멱등키가 없으면 상한이
 	// 실제보다 빨리 찬다(같은 학습이 두 번 세어진다).
@@ -276,6 +278,9 @@ func registerAdminRoutes(api fiber.Router, d Deps) {
 	admin.Get("/users/:id", h.GetUser)
 	admin.Patch("/users/:id/role", h.SetUserRole)
 	admin.Patch("/users/:id/status", h.SetUserStatus)
+	// 그 사람이 오늘 받은 문제 — 편성이 사람마다 달라, 콘솔에서 확인할 길이
+	// 없으면 "왜 이 문제가 나갔나"에 답할 수 없다.
+	admin.Get("/users/:id/today", h.TodayFor)
 
 	admin.Get("/cards", h.ListCards)
 	admin.Post("/cards", h.CreateCard)

@@ -63,6 +63,7 @@ func buildAdminApp(t *testing.T) *adminEnv {
 	metrics := service.NewMetrics()
 	pushSvc := service.NewPushService(memory.NewPushTokenRepo(), "")
 	settings := service.NewSettingsService(memory.NewSettingsRepo(), audit)
+	learning := service.NewLearningService(data, cards, settings)
 	app := server.New(server.Deps{
 		Cfg: cfg, Tokens: tm, Auth: authSvc, Cards: cardSvc,
 		Stats:     service.NewStatsService(cardSvc),
@@ -72,7 +73,8 @@ func buildAdminApp(t *testing.T) *adminEnv {
 		Admin: service.NewAdminService(service.AdminDeps{
 			Users: users, Cards: cards, Audit: audit, Data: data,
 			Announcements: memory.NewAnnouncementRepo(), Push: pushSvc, Settings: settings,
-			Metrics: metrics, StoreKind: cfg.Store,
+			Learning: learning,
+			Metrics:  metrics, StoreKind: cfg.Store,
 		}),
 		Sync:        service.NewSyncService(data, cards),
 		Idempotency: middleware.NewIdempotencyStore(),
@@ -81,7 +83,7 @@ func buildAdminApp(t *testing.T) *adminEnv {
 		Users:       users,
 		Insight:     service.NewInsightService(users, cards, data, data),
 		Settings:    settings,
-		Learning:    service.NewLearningService(data, settings),
+		Learning:    learning,
 	})
 
 	env := &adminEnv{app: app, data: data, cards: cards, users: users}

@@ -15,7 +15,9 @@ function base(): OpsSettings {
     maintenance_yn: false,
     maintenance_msg: '',
     signup_enabled: true,
-    daily_new_limit: 5,
+    daily_min_cards: 3,
+    daily_max_cards: 5,
+    adaptive_difficulty: true,
     notice_txt: '',
     notice_level: 'INFO',
     updated_at: '2026-08-01T00:00:00Z',
@@ -49,8 +51,8 @@ describe('changedFields — 바꾼 것만 보낸다', () => {
 
   it('고친 필드 하나만 담는다', () => {
     const s = base();
-    const draft = { ...toDraft(s), daily_new_limit: 3 };
-    expect(changedFields(s, draft)).toEqual({ daily_new_limit: 3 });
+    const draft = { ...toDraft(s), daily_max_cards: 4 };
+    expect(changedFields(s, draft)).toEqual({ daily_max_cards: 4 });
     expect(isDirty(s, draft)).toBe(true);
   });
 
@@ -80,6 +82,6 @@ describe('changedFields — 바꾼 것만 보낸다', () => {
     // 화면이 아직 그리지 않은 항목이 undefined 로 남아 있다고 해서
     // 그것을 '지움'으로 해석하면, 저장 한 번에 그 값이 초기화된다.
     const s = { ...base(), notice_txt: '살아 있어야 한다' };
-    expect(changedFields(s, { daily_new_limit: 7 })).toEqual({ daily_new_limit: 7 });
+    expect(changedFields(s, { daily_max_cards: 7 })).toEqual({ daily_max_cards: 7 });
   });
 });

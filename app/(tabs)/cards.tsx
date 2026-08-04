@@ -25,7 +25,7 @@ import { endFlow } from '../../src/navigation/flow';
 import { useAllCards, useMarkCard } from '../../src/hooks/useCards';
 import { useReview } from '../../src/hooks/useReview';
 import { useDailyQuota, recordNewLearned } from '../../src/hooks/useDailyQuota';
-import { DAILY_TOTAL_LIMIT } from '../../src/constants/learning';
+import { useDailyAssignment } from '../../src/hooks/useDailyAssignment';
 import type { LearningCard } from '../../src/domain/models/LearningCard';
 import { resolveCardImage } from '../../src/data/cardImages';
 import { useBookmarkStore } from '../../src/store/bookmarkStore';
@@ -44,9 +44,6 @@ import { safeInternalPath } from '../../src/utils/safeRoute';
 const { height: SCREEN_H, width: SCREEN_W } = Dimensions.get('window');
 // 스와이프 트랙(원진섭)에서 좌우로 넘겨 분류하는 최소 이동 거리.
 const SWIPE_THRESHOLD = 90;
-// 신규 카드는 쉬운 난이도부터 보여줘 학습 부담을 낮춘다.
-const DIFFICULTY_RANK: Record<string, number> = { easy: 0, medium: 1, hard: 2 };
-
 function haptic() {
   hapticTap();
 }
@@ -170,8 +167,10 @@ export default function CardsScreen() {
   const srsGrade = useSrsStore((s) => s.grade);
   // 오늘 남은 신규 학습 수(하루 상한). 복습·단일카드 모드는 상한과 무관.
   const quota = useDailyQuota();
-  // 오늘 복습 예정(간격반복 도래) 카드 — '오늘의 학습'에서 신규 뒤에 자동으로 이어 붙인다.
+  // 오늘 복습 예정(간격반복 도래) 카드 — '복습' 모드가 쓴다.
   const { dueCards } = useReview();
+  // 오늘의 학습 — **서버가 편성한 목록**. 앱이 직접 고르지 않는다.
+  const { assignment } = useDailyAssignment();
 
   // 오늘의 학습 = 신규(≤ 하루 상한) + 복습 도래 카드를 이어 붙여 최대 DAILY_TOTAL_LIMIT장.
   // 카테고리 복습은 해당 카테고리 전체. 신규/복습 순서 옵션(섞기·약점우선)은 카테고리 복습에만 적용.
@@ -197,18 +196,18 @@ export default function CardsScreen() {
       return base;
     }
 
-    // 오늘의 학습(신규): 전체 풀에서 '신규' 카드를 쉬운 난이도부터, 하루 남은 상한까지.
-    const newBase = (allQuery.data ?? [])
-      .filter((x) => x.status === 'new')
-      .sort((a, b) => DIFFICULTY_RANK[a.difficulty] - DIFFICULTY_RANK[b.difficulty])
-      .slice(0, quota.remaining);
-    // 남는 자리를 복습(간격반복 도래) 카드로 채워 총 DAILY_TOTAL_LIMIT장까지. 신규→복습 순서 유지.
-    const newIds = new Set(newBase.map((x) => x.id));
-    const reviewFill = dueCards
-      .filter((x) => !newIds.has(x.id))
-      .slice(0, Math.max(0, DAILY_TOTAL_LIMIT - newBase.length));
-    return [...newBase, ...reviewFill];
-  }, [isFocusMode, focusId, isDueMode, isCategoryMode, category, allQuery.data, prioritizeWeakSpots, shuffleCards, srsCards, quota.remaining, dueCards]);
+    // 오늘의 학습 — 서버가 편성한 목록을 그대로 쓴다.
+    //
+    // 예전에는 여기서 직접 골랐다. "신규 카드를 쉬운 순으로 정렬해 앞에서 세 장."
+    // 그 결과 (1) 진도가 같은 모든 사용자가 같은 문제를 같은 순서로 받았고,
+    // (2) 세션을 마치지 않으면 다음 날에도 똑같은 카드가 나왔으며,
+    // (3) 난이도는 정렬 순서만 바꿀 뿐 분량을 정하지 않았고,
+    // (4) 관리자가 콘솔에서 출제 정책을 바꿔도 아무 일도 일어나지 않았다.
+    //
+    // 지금은 사람·날짜별 편성을 서버가 정하고(오프라인이면 같은 규칙으로 로컬에서),
+    // 화면은 받은 것을 보여 주기만 한다. 이미 푼 문제는 빼서 이어서 하게 한다.
+    return assignment.cards.filter((c) => !c.done).map((c) => c.card);
+  }, [isFocusMode, focusId, isDueMode, isCategoryMode, category, allQuery.data, prioritizeWeakSpots, shuffleCards, srsCards, dueCards, assignment]);
 
   // 덱은 세션 시작 시 한 번만 확정한다.
   // 카드를 마킹하면 cards 쿼리가 무효화되어 목록이 새로 내려오는데, 그때마다 덱을 다시 계산하면
@@ -537,7 +536,7 @@ export default function CardsScreen() {
         </View>
         <Text style={{ color: c.textPrimary, fontSize: 22 * fs, fontWeight: '800', fontFamily: fontCute }}>오늘 학습 완료!</Text>
         <Text style={{ color: c.textSecondary, marginTop: 8, textAlign: 'center', lineHeight: 21 * fs, fontFamily: fontCute }}>
-          오늘 신규 학습 {quota.limit}장을 모두 마쳤어요.{'\n'}배운 내용은 <Text style={{ color: c.primary, fontWeight: '800' }}>복습</Text>에서 이어갈 수 있어요.
+          오늘의 학습 {quota.limit}문제를 모두 마쳤어요.{'\n'}배운 내용은 <Text style={{ color: c.primary, fontWeight: '800' }}>복습</Text>에서 이어갈 수 있어요.
         </Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 18, backgroundColor: c.surfaceAlt, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 7 }}>
           <Ionicons name="time-outline" size={15} color={c.textSecondary} />

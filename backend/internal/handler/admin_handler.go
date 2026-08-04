@@ -233,6 +233,19 @@ func (h *AdminHandler) SetUserStatus(c *fiber.Ctx) error {
 	return c.JSON(u)
 }
 
+// TodayFor 는 GET /api/admin/users/:id/today — 그 사람이 오늘 받은 문제.
+//
+// "왜 이 사람에게 이 문제가 나갔나"는 교육 담당자가 가장 자주 받는 질문이다.
+// 편성이 사람마다 다르므로, 콘솔에서 그 사람의 화면을 그대로 볼 수 없으면
+// 답할 방법이 없다.
+func (h *AdminHandler) TodayFor(c *fiber.Ctx) error {
+	plan, err := h.svc.TodayFor(c.Context(), param(c, "id"))
+	if err != nil {
+		return adminError(err)
+	}
+	return c.JSON(plan)
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // 문제(카드) 관리
 // ─────────────────────────────────────────────────────────────────────────────

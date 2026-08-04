@@ -198,7 +198,7 @@ CREATE TABLE IF NOT EXISTS ops_settings (
     signup_enabled   BOOLEAN NOT NULL DEFAULT TRUE,
     -- 앱의 DAILY_NEW_LIMIT('하루 3분')과 같은 값. 두 값이 갈리면 서버에 닿은 기기와
     -- 목업으로 떨어진 기기가 서로 다른 상한으로 돌아간다.
-    daily_new_limit  INTEGER NOT NULL DEFAULT 3,
+    daily_new_limit  INTEGER NOT NULL DEFAULT 3,   -- (구) 단일 상한. daily_max_cards 로 대체됨
     notice_txt       TEXT NOT NULL DEFAULT '',
     notice_level     TEXT NOT NULL DEFAULT 'INFO',
     updated_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -232,3 +232,32 @@ CREATE INDEX IF NOT EXISTS users_org_idx ON users (org_nm) WHERE org_nm <> '';
 -- 두 사람이 같은 문제를 열어 각자 저장하면 나중 저장이 앞의 수정을 통째로 덮어쓰는데,
 -- 이 값을 함께 보내면 서버가 "그 사이 누가 고쳤다"를 판별해 409 로 막을 수 있다.
 ALTER TABLE cards ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now();
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- 오늘의 출제.
+-- 하루 출제량은 '범위'이고 정확한 장수는 그날 그 사람의 난이도가 정한다.
+-- 예전 단일 상한(daily_new_limit)은 남겨 두되 읽지 않는다 — 배포 중인 서버가
+-- 아직 그 열을 쓰고 있을 수 있어, 지우면 롤백이 불가능해진다.
+-- ─────────────────────────────────────────────────────────────────────────────
+ALTER TABLE ops_settings ADD COLUMN IF NOT EXISTS daily_min_cards     INTEGER NOT NULL DEFAULT 3;
+ALTER TABLE ops_settings ADD COLUMN IF NOT EXISTS daily_max_cards     INTEGER NOT NULL DEFAULT 5;
+ALTER TABLE ops_settings ADD COLUMN IF NOT EXISTS adaptive_difficulty BOOLEAN NOT NULL DEFAULT TRUE;
+
+-- 그날 그 사람에게 무엇이 나갔는가.
+--
+-- 편성은 (사람, 날짜) 시드로 결정적이라 저장하지 않아도 같은 답이 나오지만,
+-- **후보가 바뀌면 답도 바뀐다** — 관리자가 낮에 문제를 추가·삭제하면 오전에
+-- 두 장을 푼 사람의 오늘 목록이 오후에 달라진다. 처음 물어본 순간 얼려 둔다.
+-- (user, day) 기본키가 "하루에 한 벌"을 강제해, 두 기기가 동시에 열어도 갈리지 않는다.
+CREATE TABLE IF NOT EXISTS daily_assignment (
+    user_id       TEXT NOT NULL,
+    day_key       TEXT NOT NULL,
+    card_ids      TEXT[] NOT NULL,
+    difficulty_cd TEXT NOT NULL DEFAULT 'EASY',
+    target_count  INTEGER NOT NULL DEFAULT 0,
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (user_id, day_key)
+);
+
+-- 관리 콘솔이 "오늘 누가 무엇을 받았나"를 훑을 때 이 인덱스를 탄다.
+CREATE INDEX IF NOT EXISTS daily_assignment_day_idx ON daily_assignment (day_key, user_id);

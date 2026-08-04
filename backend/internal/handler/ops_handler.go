@@ -29,9 +29,12 @@ type settingsReq struct {
 	MaintenanceYn  *bool   `json:"maintenance_yn"`
 	MaintenanceMsg *string `json:"maintenance_msg"`
 	SignupEnabled  *bool   `json:"signup_enabled"`
-	DailyNewLimit  *int    `json:"daily_new_limit"`
-	NoticeTxt      *string `json:"notice_txt"`
-	NoticeLevel    *string `json:"notice_level"`
+	// 하루 출제량은 범위다 — 정확한 장수는 그날 그 사람의 난이도가 정한다.
+	DailyMinCards      *int    `json:"daily_min_cards"`
+	DailyMaxCards      *int    `json:"daily_max_cards"`
+	AdaptiveDifficulty *bool   `json:"adaptive_difficulty"`
+	NoticeTxt          *string `json:"notice_txt"`
+	NoticeLevel        *string `json:"notice_level"`
 }
 
 // Update 는 PUT /api/admin/settings — 운영 설정 변경.
@@ -41,12 +44,14 @@ func (h *SettingsHandler) Update(c *fiber.Ctx) error {
 		return fiber.NewError(fiber.StatusBadRequest, "요청 형식이 올바르지 않습니다")
 	}
 	updated, err := h.svc.Update(c.Context(), actorOf(c), service.SettingsInput{
-		MaintenanceYn:  req.MaintenanceYn,
-		MaintenanceMsg: req.MaintenanceMsg,
-		SignupEnabled:  req.SignupEnabled,
-		DailyNewLimit:  req.DailyNewLimit,
-		NoticeTxt:      req.NoticeTxt,
-		NoticeLevel:    req.NoticeLevel,
+		MaintenanceYn:      req.MaintenanceYn,
+		MaintenanceMsg:     req.MaintenanceMsg,
+		SignupEnabled:      req.SignupEnabled,
+		DailyMinCards:      req.DailyMinCards,
+		DailyMaxCards:      req.DailyMaxCards,
+		AdaptiveDifficulty: req.AdaptiveDifficulty,
+		NoticeTxt:          req.NoticeTxt,
+		NoticeLevel:        req.NoticeLevel,
 	})
 	if err != nil {
 		return adminError(err)
@@ -63,10 +68,16 @@ type PublicConfig struct {
 	MaintenanceYn  bool   `json:"maintenance_yn"`
 	MaintenanceMsg string `json:"maintenance_msg"`
 	SignupEnabled  bool   `json:"signup_enabled"`
-	DailyNewLimit  int    `json:"daily_new_limit"`
-	NoticeTxt      string `json:"notice_txt"`
-	NoticeLevel    string `json:"notice_level"`
-	Version        string `json:"version"`
+	// 하루 출제량 범위. 앱은 서버에 닿지 못했을 때의 기본값 판단에만 쓰고,
+	// 실제 오늘의 장수는 /api/learning/today 가 정한다.
+	DailyMinCards int `json:"daily_min_cards"`
+	DailyMaxCards int `json:"daily_max_cards"`
+	// DailyNewLimit 은 범위가 생기기 전의 이름이다. 이미 배포된 앱이 이 필드를
+	// 읽고 있어 최대치를 그대로 실어 준다 — 지워서 얻는 것이 없다.
+	DailyNewLimit int    `json:"daily_new_limit"`
+	NoticeTxt     string `json:"notice_txt"`
+	NoticeLevel   string `json:"notice_level"`
+	Version       string `json:"version"`
 }
 
 // PublicConfigHandler 는 무인증 서비스 상태 공개 어댑터.
@@ -87,7 +98,9 @@ func (h *PublicConfigHandler) Get(c *fiber.Ctx) error {
 		MaintenanceYn:  s.MaintenanceYn,
 		MaintenanceMsg: s.MaintenanceMsg,
 		SignupEnabled:  s.SignupEnabled,
-		DailyNewLimit:  s.DailyNewLimit,
+		DailyMinCards:  s.DailyMinCards,
+		DailyMaxCards:  s.DailyMaxCards,
+		DailyNewLimit:  s.DailyMaxCards,
 		NoticeTxt:      s.NoticeTxt,
 		NoticeLevel:    string(s.NoticeLevel),
 		Version:        h.version,
@@ -109,6 +122,15 @@ func (h *LearningHandler) Quota(c *fiber.Ctx) error {
 		return err
 	}
 	return c.JSON(q)
+}
+
+// Today 는 GET /api/learning/today — 오늘 이 사람에게 배정된 문제.
+func (h *LearningHandler) Today(c *fiber.Ctx) error {
+	plan, err := h.svc.Today(c.Context(), middleware.UserID(c))
+	if err != nil {
+		return err
+	}
+	return c.JSON(plan)
 }
 
 type completeReq struct {

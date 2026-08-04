@@ -25,8 +25,12 @@ import { useAllCards, useTodayCards } from '../../src/hooks/useCards';
 import { useStudyStats } from '../../src/hooks/useStats';
 import { useReview } from '../../src/hooks/useReview';
 import { useDailyQuota } from '../../src/hooks/useDailyQuota';
-import { DAILY_TOTAL_LIMIT } from '../../src/constants/learning';
+import { useDailyAssignment } from '../../src/hooks/useDailyAssignment';
 import { contentColumn } from '../../src/theme/layout';
+
+// 오늘의 난이도를 사람이 읽는 말로. 코드를 그대로 보이면 학습 화면이
+// 개발자 화면처럼 읽힌다.
+const DIFFICULTY_LABEL: Record<string, string> = { easy: '쉬움', medium: '보통', hard: '어려움' };
 
 // 홈 히어로 고정 문구 — 앱의 미션을 한 줄로.
 // 히어로 텍스트 열은 오른쪽 실드 아이콘 때문에 폭이 좁아, 한 문장으로 두면
@@ -67,11 +71,12 @@ export default function HomeScreen() {
   const { data: stats, isLoading: statsLoading, error: statsError, refetch: refetchStats } = useStudyStats();
   const { dueTodayCount } = useReview();
   const quota = useDailyQuota();
+  // 오늘 배정된 문제 — 장수는 그날 난이도가 정한다(쉬우면 5, 어려우면 3).
+  const { assignment } = useDailyAssignment();
 
   const masteredCount = useMemo(() => allCards.filter((x) => x.status === 'mastered').length, [allCards]);
   // 실제로 지금 배울 수 있는 '신규' 카드 수 — 하루 상한과 별개로 풀이 비었는지 확인용.
   // (상한은 남았지만 새 카드가 없으면 '학습 시작' 버튼이 빈 화면으로 이어지던 어긋남 방지.)
-  const newAvailable = useMemo(() => allCards.filter((x) => x.status === 'new').length, [allCards]);
 
   // 앱을 켠 시각에 맞춰 인사·이모지·톤이 바뀐다(히어로 적극 활용).
   // 시간대(아침/저녁)를 '의도적으로 문구로 띄우지 않는다'. 인사·문구는 시간 중립으로 두고,
@@ -273,7 +278,7 @@ export default function HomeScreen() {
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.surfaceAlt, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 4 }}>
               <Ionicons name="hourglass-outline" size={11} color={c.textSecondary} />
-              <Text style={{ color: c.textSecondary, fontSize: 11 * fs, fontFamily: fontCute, fontWeight: '700' }}>신규 {quota.limit} · 복습 포함 최대 {DAILY_TOTAL_LIMIT}장</Text>
+              <Text style={{ color: c.textSecondary, fontSize: 11 * fs, fontFamily: fontCute, fontWeight: '700' }}>{DIFFICULTY_LABEL[assignment.difficulty]} {quota.limit}문제 · 3분</Text>
             </View>
           </View>
 
@@ -291,9 +296,14 @@ export default function HomeScreen() {
           {/* 오늘의 학습 CTA — 신규(≤남은 상한) + 복습(도래)을 한 번에 이어서 진행.
               버튼 한 개로 단순화(복습은 오늘의 학습에 자동 편입). 오늘 담길 신규/복습 개수를 정직하게 표기. */}
           {(() => {
-            const newToStudy = Math.min(quota.remaining, newAvailable);
-            const reviewToStudy = Math.min(dueTodayCount, Math.max(0, DAILY_TOTAL_LIMIT - newToStudy));
-            const sessionCount = newToStudy + reviewToStudy;
+            // 오늘 무엇이 남았는지는 **배정 목록에서 직접 센다.**
+            // 예전에는 '남은 상한'과 '복습 도래 수'로 추정했는데, 그 추정이
+            // 실제로 화면에 뜨는 덱과 어긋나 "신규 3 · 복습 2" 라고 안내하고
+            // 두 장만 나오는 일이 있었다. 세는 대상과 보여 주는 대상은 같아야 한다.
+            const pending = assignment.cards.filter((x) => !x.done);
+            const newToStudy = pending.filter((x) => x.kind === 'new').length;
+            const reviewToStudy = pending.filter((x) => x.kind === 'review').length;
+            const sessionCount = pending.length;
             const countLine = `신규 ${newToStudy} · 복습 ${reviewToStudy} · 3분이면 충분`;
             const cta = sessionCount > 0
               ? { to: ROUTES.cards, bg: c.primary, fg: '#fff', sub: 'rgba(255,255,255,0.85)', iconBg: 'rgba(255,255,255,0.2)', iconColor: '#fff', icon: 'play' as const, bw: 0, border: 'transparent', chevron: true,

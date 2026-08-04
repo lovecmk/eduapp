@@ -11,7 +11,9 @@ export const EDITABLE_SETTINGS = [
   'maintenance_yn',
   'maintenance_msg',
   'signup_enabled',
-  'daily_new_limit',
+  'daily_min_cards',
+  'daily_max_cards',
+  'adaptive_difficulty',
   'notice_txt',
   'notice_level',
 ] as const;

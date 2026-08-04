@@ -226,6 +226,17 @@ type UserDataRepository interface {
 	// 없으면 ErrNotFound.
 	UpdateReport(ctx context.Context, id string, u ReportUpdate) (*domain.Report, error)
 
+	// --- 오늘의 출제 ---
+	// LoadAssignment 는 그 사람의 그날 편성을 준다. 아직 없으면 (nil, nil) —
+	// '없음'은 오류가 아니라 "오늘 아직 안 열어 봤다"는 정상 상태다.
+	LoadAssignment(ctx context.Context, userID, day string) (*domain.DailyAssignment, error)
+	// SaveAssignment 는 그날의 편성을 얼려 둔다.
+	//
+	// 이미 있으면 **덮어쓰지 않는다.** 두 기기에서 동시에 앱을 열면 둘 다 편성을
+	// 만들려 하는데, 나중 것이 이기면 먼저 화면에 뜬 목록과 저장된 것이 어긋난다.
+	// 먼저 저장된 것이 그날의 답이다.
+	SaveAssignment(ctx context.Context, a domain.DailyAssignment) (*domain.DailyAssignment, error)
+
 	// --- 하루 학습량 ---
 	// LearningCount 는 그 사람이 그날 새로 배운 카드 수를 센다(하루 상한 판정용).
 	LearningCount(ctx context.Context, userID, day string) (int, error)

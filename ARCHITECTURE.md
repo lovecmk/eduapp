@@ -81,7 +81,34 @@ eduapp/
 | 운영 설정·점검 모드 | admin/views/SettingsView | backend: SettingsService(+`/api/config`), middleware.Maintenance | — |
 | 공지 센터(대상·이력) | admin/views/AnnouncementsView | backend: domain.Announcement·AdminService.Announce | — |
 | 하루 학습 상한(서버 권위) | hooks/useDailyQuota | backend: LearningService(`/api/learning/*`), domain/models/LearningQuota(합침 규칙) | store/dailyLearningStore |
+| **오늘의 출제(사람마다·날마다 3~5문제)** | hooks/useDailyAssignment, app/(tabs)/cards·index | domain/dailyPlan(규칙) · data/repositories/DailyAssignmentRepository(`/api/learning/today`) | — |
 | 운영 공지 배너·점검 안내 | components/ui/NoticeBanner((tabs)/_layout) | data/repositories/ServiceConfigRepository(`/api/config`) | — |
+
+## 오늘의 출제 — 사람마다, 날마다
+
+이 앱의 약속은 **"매일 3~5문제"** 다. 그 편성을 서버가 정하고, 앱은 받은 것을
+보여 준다. 규칙은 두 곳에 같은 내용으로 있다.
+
+| | 파일 | 언제 쓰나 |
+|---|---|---|
+| 서버 | `backend/internal/service/daily_plan.go` | 평상시(권위) |
+| 앱 | `src/domain/dailyPlan.ts` | 서버에 닿지 못할 때 |
+
+두 벌인 이유는 오프라인 때문이다. 이 앱은 지하·철골 구조물에서 쓰여 서버에 닿지
+못하는 날이 흔한데, 그때 "오늘의 학습이 없습니다"를 띄우면 그날 학습은 그냥
+없던 일이 된다. 대신 **같은 규칙**을 써서 온라인이든 아니든 같은 사람이 같은 날
+같은 문제를 본다.
+
+> ⚠️ 한쪽만 고치면 온라인·오프라인에서 서로 다른 문제가 나간다. 규칙을 바꿀 때는
+> 반드시 두 파일을 함께 고칠 것. 양쪽 다 검사가 붙어 있다.
+
+규칙: ① 그 사람의 기록으로 오늘의 난이도를 정하고 → ② 난이도가 출제 수를 정하고
+(쉬움 5 · 보통 4 · 어려움 3) → ③ 복습 도래 카드를 먼저 채우고 → ④ `(사람, 날짜)`
+시드로 섞는다. ④가 핵심이다 — 무작위를 쓰면 앱을 다시 열 때마다 문제가 바뀌어
+학습이 아니라 뽑기가 된다.
+
+편성은 그날 처음 물어본 순간 **저장해 얼려 둔다**. 관리자가 낮에 문제를 추가·삭제해도
+오전에 받은 목록이 오후에 달라지지 않는다. 자세한 내용은 `backend/README.md`.
 
 ## 설정 화면 규칙
 
@@ -173,7 +200,7 @@ react-query 클라이언트가 `data/network/queryClient.ts` 에 있는 이유�
 | ✅ 구현 | auth(login·register·refresh·logout·me·username/nickname-available) | |
 | ✅ 구현 | cards · stats · community/live · push/register · telegram/alert | |
 | ✅ 구현 | progress(+grade·attendance) · engagement(+like·bookmark) · reports(+mine) · notifications | 쓰기는 전부 멱등키 |
-| ✅ 구현 | `learning/quota` · `learning/complete` | 상한은 운영 설정을 따른다 |
+| ✅ 구현 | `learning/today` · `learning/quota` · `learning/complete` | 오늘의 편성(3~5문제)과 그 진도 |
 | ✅ 구현 | `GET /api/config`(무인증) | 점검 안내·공지 배너·상한 |
 | ⛔️ 열지 않음 | `auth/social` | 이름·이메일만으로 세션을 내주는 계약 — 비밀번호를 묻지 않는 인증이 된다 |
 | ⛔️ 열지 않음 | `auth/reset-password` | 아이디+이메일만으로 계정 탈취가 가능해진다. 메일 인증이 선행되어야 한다 |
@@ -197,7 +224,8 @@ react-query 클라이언트가 `data/network/queryClient.ts` 에 있는 이유�
 
 | 앱 | 서버 | 어긋나면 |
 |---|---|---|
-| `constants/learning.ts` `DAILY_NEW_LIMIT` | `domain.DefaultDailyNewLimit` | 서버에 닿은 기기와 목업으로 떨어진 기기가 서로 다른 상한으로 돈다 |
+| `constants/learning.ts` `DAILY_NEW_LIMIT`·`DAILY_TOTAL_LIMIT` | `domain.DefaultDailyMinCards`·`DefaultDailyMaxCards` | 서버에 닿은 기기와 목업으로 떨어진 기기가 서로 다른 분량으로 돈다 |
+| `src/domain/dailyPlan.ts` | `service/daily_plan.go` | 온라인과 오프라인에서 **서로 다른 문제**가 나간다 |
 | `utils/dateKey.ts` | `service.DayKey` | 학습 이력·출석이 달력의 다른 칸에 찍힌다(month 0-based) |
 
 ## 서버 배포 & 이식 (backend/)

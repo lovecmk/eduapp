@@ -191,31 +191,33 @@ func TestAdminSettingsPartialUpdate(t *testing.T) {
 	}
 	var s struct {
 		SignupEnabled bool `json:"signup_enabled"`
-		DailyNewLimit int  `json:"daily_new_limit"`
+		DailyMinCards int  `json:"daily_min_cards"`
+		DailyMaxCards int  `json:"daily_max_cards"`
 	}
 	decode(t, body, &s)
-	if !s.SignupEnabled || s.DailyNewLimit != domain.DefaultDailyNewLimit {
+	if !s.SignupEnabled || s.DailyMinCards != domain.DefaultDailyMinCards ||
+		s.DailyMaxCards != domain.DefaultDailyMaxCards {
 		t.Fatalf("기본 설정이 어긋난다: %s", body)
 	}
 
-	// 상한만 바꾼다.
+	// 최소 출제량만 바꾼다.
 	if res, b := doJSON(t, env.app, "PUT", "/api/admin/settings", env.adminToken,
-		map[string]any{"daily_new_limit": 2}); res.StatusCode != 200 {
-		t.Fatalf("상한 변경: %d %s", res.StatusCode, b)
+		map[string]any{"daily_min_cards": 2}); res.StatusCode != 200 {
+		t.Fatalf("출제량 변경: %d %s", res.StatusCode, b)
 	}
 	// 이번엔 공지 배너만 바꾼다 — 앞서 바꾼 상한이 살아 있어야 한다.
 	_, after := doJSON(t, env.app, "PUT", "/api/admin/settings", env.adminToken,
 		map[string]any{"notice_txt": "오늘 오후 정전 예정", "notice_level": "WARN"})
 	var s2 struct {
-		DailyNewLimit int    `json:"daily_new_limit"`
+		DailyMinCards int    `json:"daily_min_cards"`
 		SignupEnabled bool   `json:"signup_enabled"`
 		NoticeTxt     string `json:"notice_txt"`
 		NoticeLevel   string `json:"notice_level"`
 		UpdatedByName string `json:"updated_by_name"`
 	}
 	decode(t, after, &s2)
-	if s2.DailyNewLimit != 2 {
-		t.Errorf("보내지 않은 상한이 덮였다: %s", after)
+	if s2.DailyMinCards != 2 {
+		t.Errorf("보내지 않은 출제량이 덮였다: %s", after)
 	}
 	if !s2.SignupEnabled {
 		t.Errorf("보내지 않은 가입 개방이 꺼졌다: %s", after)
@@ -229,8 +231,9 @@ func TestAdminSettingsPartialUpdate(t *testing.T) {
 
 	// 범위를 벗어난 값은 거부한다.
 	for _, bad := range []map[string]any{
-		{"daily_new_limit": 0},
-		{"daily_new_limit": 500},
+		{"daily_min_cards": 0},
+		{"daily_max_cards": 500},
+		{"daily_min_cards": 5, "daily_max_cards": 3},
 		{"notice_level": "LOUD"},
 		{"notice_txt": strings.Repeat("가", 201)},
 	} {
@@ -331,7 +334,9 @@ func TestLearningQuotaFollowsSettings(t *testing.T) {
 		ResetsAt  string `json:"resets_at"`
 	}
 	decode(t, body, &q)
-	if q.Limit != domain.DefaultDailyNewLimit || q.Used != 0 || q.Remaining != q.Limit {
+	// 처음 오는 사람은 쉬운 난이도 → 최대치(5장)를 받는다.
+	// 상한이 '설정의 최대치'가 아니라 **오늘 실제로 배정된 수**라는 점이 핵심이다.
+	if q.Limit != domain.DefaultDailyMaxCards || q.Used != 0 || q.Remaining != q.Limit {
 		t.Fatalf("초기 쿼터가 어긋난다: %s", body)
 	}
 	if _, err := time.Parse(time.RFC3339, q.ResetsAt); err != nil {
@@ -349,14 +354,77 @@ func TestLearningQuotaFollowsSettings(t *testing.T) {
 		t.Errorf("보고가 반영되지 않았다: %s", after)
 	}
 
-	// 관리자가 상한을 줄이면 앱이 보는 값도 따라 바뀐다 —
-	// 이것이 안 되면 콘솔의 상한 설정은 아무 의미가 없다.
-	doJSON(t, env.app, "PUT", "/api/admin/settings", env.adminToken, map[string]any{"daily_new_limit": 2})
-	_, tightened := doJSON(t, env.app, "GET", "/api/learning/quota", userTok, nil)
-	decode(t, tightened, &q)
-	if q.Limit != 2 || q.Remaining != 0 {
-		t.Errorf("바뀐 상한이 반영되지 않았다: %s", tightened)
+	// 관리자가 출제량을 줄이면 **다음 날부터** 반영된다.
+	//
+	// 오늘 것은 이미 배정돼 얼어 있다 — 풀던 문제가 도중에 사라지면 안 되기
+	// 때문이다. 그래서 오늘의 상한은 그대로여야 한다.
+	doJSON(t, env.app, "PUT", "/api/admin/settings", env.adminToken,
+		map[string]any{"daily_min_cards": 2, "daily_max_cards": 2})
+	_, sameDay := doJSON(t, env.app, "GET", "/api/learning/quota", userTok, nil)
+	decode(t, sameDay, &q)
+	if q.Limit != domain.DefaultDailyMaxCards {
+		t.Errorf("오늘 배정이 도중에 바뀌었다: %s", sameDay)
 	}
+}
+
+// 오늘의 학습은 사람마다 다르게, 3~5장으로 편성되어야 한다.
+func TestTodayPlanIsPersonalAndSized(t *testing.T) {
+	env := buildAdminApp(t)
+
+	first := todayPlan(t, env, loginToken(t, env.app, "demo", "demo1234"))
+	if first.TargetCount < 3 || first.TargetCount > 5 {
+		t.Errorf("목표 장수=%d — 3~5 여야 한다", first.TargetCount)
+	}
+	if len(first.Cards) != first.TargetCount {
+		t.Errorf("배정 %d장 != 목표 %d장: %s", len(first.Cards), first.TargetCount, first.Day)
+	}
+	// 새 사용자는 쉬운 난이도부터.
+	if first.DifficultyCd != string(domain.Easy) {
+		t.Errorf("처음 오는 사람의 난이도=%s, want EASY", first.DifficultyCd)
+	}
+
+	// 다시 물어도 같은 목록이어야 한다 — 앱을 다시 열 때마다 문제가 바뀌면 뽑기다.
+	again := todayPlan(t, env, loginToken(t, env.app, "demo", "demo1234"))
+	if fmt.Sprint(cardIDsOf(again)) != fmt.Sprint(cardIDsOf(first)) {
+		t.Errorf("같은 날인데 목록이 달라졌다:\n%v\n%v", cardIDsOf(first), cardIDsOf(again))
+	}
+
+	// 다른 사람은 다른 목록을 받아야 한다.
+	other := todayPlan(t, env, registerUser(t, env, "learner1", "학습자", "현장5팀"))
+	if fmt.Sprint(cardIDsOf(other)) == fmt.Sprint(cardIDsOf(first)) {
+		t.Errorf("다른 사용자가 같은 목록을 받았다: %v", cardIDsOf(first))
+	}
+}
+
+type todayPlanDTO struct {
+	Day          string `json:"day"`
+	DifficultyCd string `json:"difficulty_cd"`
+	TargetCount  int    `json:"target_count"`
+	DoneCount    int    `json:"done_count"`
+	Cards        []struct {
+		ID   string `json:"id"`
+		Kind string `json:"kind"`
+		Done bool   `json:"done"`
+	} `json:"cards"`
+}
+
+func todayPlan(t *testing.T, env *adminEnv, tok string) todayPlanDTO {
+	t.Helper()
+	res, body := doJSON(t, env.app, "GET", "/api/learning/today", tok, nil)
+	if res.StatusCode != 200 {
+		t.Fatalf("오늘의 학습: %d %s", res.StatusCode, body)
+	}
+	var out todayPlanDTO
+	decode(t, body, &out)
+	return out
+}
+
+func cardIDsOf(p todayPlanDTO) []string {
+	out := make([]string, 0, len(p.Cards))
+	for _, c := range p.Cards {
+		out = append(out, c.ID)
+	}
+	return out
 }
 
 // 오프라인 큐가 같은 보고를 재전송해도 두 번 세면 안 된다.
@@ -593,9 +661,52 @@ func TestNicknameExcludeAcceptsAppSideUserID(t *testing.T) {
 // 두 값이 갈리면, 서버에 닿은 기기와 아직 목업으로 떨어진 기기가 서로 다른
 // 상한으로 돌아간다 — 같은 사람이 태블릿에서는 3장, 휴대폰에서는 5장을 배운다.
 func TestDefaultDailyLimitMatchesApp(t *testing.T) {
-	const appDailyNewLimit = 3 // src/constants/learning.ts
-	if domain.DefaultDailyNewLimit != appDailyNewLimit {
-		t.Errorf("서버 기본 상한=%d, 앱 상수=%d — 두 값은 같아야 한다",
-			domain.DefaultDailyNewLimit, appDailyNewLimit)
+	// src/constants/learning.ts — DAILY_NEW_LIMIT / DAILY_TOTAL_LIMIT
+	const appMin, appMax = 3, 5
+	if domain.DefaultDailyMinCards != appMin || domain.DefaultDailyMaxCards != appMax {
+		t.Errorf("서버 기본 범위=%d~%d, 앱 상수=%d~%d — 같아야 한다",
+			domain.DefaultDailyMinCards, domain.DefaultDailyMaxCards, appMin, appMax)
+	}
+}
+
+// 콘솔의 조회가 그 사람의 오늘 편성을 확정해서는 안 된다.
+//
+// 아직 앱을 열지도 않은 사람의 편성이 관리자의 조회 시각과 그때의 후보로 굳으면,
+// 그날 새로 등록된 문제가 그 사람에게는 영영 나가지 않는다.
+func TestAdminTodayViewDoesNotCreateAssignment(t *testing.T) {
+	env := buildAdminApp(t)
+	tok := registerUser(t, env, "quiet", "조용한사람", "현장6팀")
+	id := userIDOf(t, env, "quiet")
+
+	res, body := doJSON(t, env.app, "GET", "/api/admin/users/"+id+"/today", env.adminToken, nil)
+	if res.StatusCode != 200 {
+		t.Fatalf("오늘 배정 조회: %d %s", res.StatusCode, body)
+	}
+	var before struct {
+		Started bool `json:"started"`
+	}
+	decode(t, body, &before)
+	if before.Started {
+		t.Errorf("앱을 열지도 않았는데 편성이 만들어졌다: %s", body)
+	}
+
+	// 사용자가 앱을 열면 그때 편성된다.
+	todayPlan(t, env, tok)
+
+	_, after := doJSON(t, env.app, "GET", "/api/admin/users/"+id+"/today", env.adminToken, nil)
+	var seen struct {
+		Started bool `json:"started"`
+		Plan    struct {
+			Cards []map[string]any `json:"cards"`
+		} `json:"plan"`
+	}
+	decode(t, after, &seen)
+	if !seen.Started || len(seen.Plan.Cards) == 0 {
+		t.Errorf("학습을 시작했는데 콘솔에 배정이 보이지 않는다: %s", after)
+	}
+
+	// 일반 사용자는 남의 배정을 볼 수 없다.
+	if r, _ := doJSON(t, env.app, "GET", "/api/admin/users/"+id+"/today", tok, nil); r.StatusCode != 403 {
+		t.Errorf("일반 사용자의 남의 배정 조회 -> %d, want 403", r.StatusCode)
 	}
 }
