@@ -80,7 +80,8 @@ eduapp/
 | 신고 처리 워크플로 | admin/views/ReportsView | backend: domain.ReportStatus·AdminService.ReviewReport | — |
 | 운영 설정·점검 모드 | admin/views/SettingsView | backend: SettingsService(+`/api/config`), middleware.Maintenance | — |
 | 공지 센터(대상·이력) | admin/views/AnnouncementsView | backend: domain.Announcement·AdminService.Announce | — |
-| 하루 학습 상한(서버 권위) | 앱의 기존 화면 그대로 | backend: LearningService(`/api/learning/*`) | store/dailyLearningStore |
+| 하루 학습 상한(서버 권위) | hooks/useDailyQuota | backend: LearningService(`/api/learning/*`), domain/models/LearningQuota(합침 규칙) | store/dailyLearningStore |
+| 운영 공지 배너·점검 안내 | components/ui/NoticeBanner((tabs)/_layout) | data/repositories/ServiceConfigRepository(`/api/config`) | — |
 
 ## 설정 화면 규칙
 
@@ -159,18 +160,45 @@ react-query 클라이언트가 `data/network/queryClient.ts` 에 있는 이유�
 
 1. `EXPO_PUBLIC_API_BASE_URL`(+ `EXPO_PUBLIC_USE_MOCK_DATA=false`) 설정.
 2. `src/data/repositories/*Repository.ts` 의 엔드포인트 구현 확정.
-   auth 엔드포인트는 Go 백엔드에 구현 완료:
-   `POST /api/auth/login|register`, `GET /api/auth/username-available|nickname-available`,
-   `GET/PATCH /api/auth/me`. (비밀번호 재설정 `reset-password` 는 미구현.)
-   **하루 학습 상한**(`GET /api/learning/quota`, `POST /api/learning/complete`)도 구현
-   완료 — 이제 서버가 권위를 갖고, 상한 값은 관리 콘솔의 운영 설정을 따른다.
-   (아직 서버에 없는 것: 날씨 `weather`, 사용자 디렉터리 `users/search|:id/public`.
-   이 둘은 `withMockFallback` 이 계속 목업으로 떨어뜨린다.)
 3. `data/auth/mockUserDb`, `data/packRules`(규칙 테이블), 출석/컬렉션 로컬 저장을
    서버 API + 관리 콘솔(admin) CRUD 로 대체.
-4. 앱이 `GET /api/config`(무인증)를 읽어 **점검 안내·공지 배너**를 표시하도록 배선.
-   점검 모드 자체는 이미 서버가 503 으로 집행하므로 앱 변경 없이도 동작하지만,
-   배너 문구는 이 경로를 읽는 화면이 있어야 사용자에게 닿는다.
+
+### 앱이 부르는 경로 ↔ 서버 (전수)
+
+앱의 저장소가 부르는 경로와 서버 라우트는 **주기적으로 맞춰 봐야 한다.** 한쪽만
+바뀌면 목업 모드에서는 아무 증상이 없고 실서버로 전환하는 순간 드러나기 때문이다.
+
+| 상태 | 경로 | 비고 |
+|---|---|---|
+| ✅ 구현 | auth(login·register·refresh·logout·me·username/nickname-available) | |
+| ✅ 구현 | cards · stats · community/live · push/register · telegram/alert | |
+| ✅ 구현 | progress(+grade·attendance) · engagement(+like·bookmark) · reports(+mine) · notifications | 쓰기는 전부 멱등키 |
+| ✅ 구현 | `learning/quota` · `learning/complete` | 상한은 운영 설정을 따른다 |
+| ✅ 구현 | `GET /api/config`(무인증) | 점검 안내·공지 배너·상한 |
+| ⛔️ 열지 않음 | `auth/social` | 이름·이메일만으로 세션을 내주는 계약 — 비밀번호를 묻지 않는 인증이 된다 |
+| ⛔️ 열지 않음 | `auth/reset-password` | 아이디+이메일만으로 계정 탈취가 가능해진다. 메일 인증이 선행되어야 한다 |
+| ⛔️ 열지 않음 | `auth/email/request-code`·`verify-code` | 지금 배포에 메일 발송 경로가 없다 |
+| 🕓 미구현 | `weather/current` | 보조 기능 — `withMockFallback` 이 목업으로 떨어뜨린다 |
+| 🕓 미구현 | `users/search`·`users/:id/public` | 위와 같음(사용자 디렉터리) |
+
+**⛔️ 세 가지는 '아직 안 만든 것'이 아니라 '이대로는 만들면 안 되는 것'이다.**
+목업의 계약을 그대로 서버로 옮기면 인증 우회가 된다. 그래서 실서버 저장소는 없는
+경로를 호출하는 대신 **정직하게 501 로 끊고**(`AuthRepository`), 로그인 화면의
+간편 로그인 버튼은 목업 모드에서만 보인다 — 누를 때마다 실패하는 버튼을 띄워 두면
+사용자는 앱이 고장났다고 여긴다.
+
+> ⚠️ 앱이 서버로 **되돌려 보내는 값**에 주의할 것. `UserDTO.id` 는 number 라
+> 서버가 문자열 id 를 축약해 내보내는데(`service.PublicUserID`), 그 값이 돌아오는
+> 경로가 하나 있다 — 닉네임 중복 검사의 `exclude`. 서버가 진짜 id 하고만 비교하면
+> 본인이 본인과 충돌해, 닉네임을 바꾸지 않는 한 프로필을 저장할 수 없다.
+> 판정은 `service.SameUser` 한 곳에 모여 있다.
+
+### 상수의 짝
+
+| 앱 | 서버 | 어긋나면 |
+|---|---|---|
+| `constants/learning.ts` `DAILY_NEW_LIMIT` | `domain.DefaultDailyNewLimit` | 서버에 닿은 기기와 목업으로 떨어진 기기가 서로 다른 상한으로 돈다 |
+| `utils/dateKey.ts` | `service.DayKey` | 학습 이력·출석이 달력의 다른 칸에 찍힌다(month 0-based) |
 
 ## 서버 배포 & 이식 (backend/)
 

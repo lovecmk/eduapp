@@ -308,9 +308,13 @@ type OpsSettings struct {
 	UpdatedByName string    `bson:"updated_by_name" json:"updated_by_name"`
 }
 
-// DefaultDailyNewLimit 은 하루 신규 학습 상한의 기본값 —
-// 앱의 constants/learning.ts(DAILY_NEW_LIMIT)와 같은 값이어야 한다.
-const DefaultDailyNewLimit = 5
+// DefaultDailyNewLimit 은 하루 신규 학습 상한의 기본값이다.
+//
+// **앱의 `src/constants/learning.ts` 의 `DAILY_NEW_LIMIT` 과 같은 값이어야 한다.**
+// 이 앱의 정체성이 '하루 3분'이라 그쪽이 3으로 정해져 있고, 서버가 다른 값을 주면
+// 아직 서버에 닿지 못한 기기(목업 폴백)와 닿은 기기가 서로 다른 상한으로 돌아간다 —
+// 같은 사람이 태블릿에서는 3장, 휴대폰에서는 5장을 배우게 된다.
+const DefaultDailyNewLimit = 3
 
 // maxDailyNewLimit 은 상한의 상한. 0 이나 음수는 '무제한'이 아니라 실수이므로
 // 기본값으로 되돌리고, 지나치게 큰 값은 사실상 상한이 없는 것과 같아 잘라 낸다.

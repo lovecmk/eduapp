@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/lovecmk/eduapp/backend/internal/domain"
+	"github.com/lovecmk/eduapp/backend/internal/service"
 )
 
 // CardDTO 는 src/data/dto/CardDTO.ts 와 필드가 정확히 일치한다.
@@ -102,8 +103,10 @@ type AuthResultDTO struct {
 
 func toUserDTO(u *domain.User) UserDTO {
 	// 프런트 UserDTO.id 는 number 타입이라, 문자열 _id 를 안정적 정수로 축약해 노출한다.
+	// 축약 규칙은 service.PublicUserID 한 곳에만 둔다 — 앱이 이 값을 되돌려 보내는
+	// 경로(닉네임 중복 검사의 exclude)가 있어서, 두 벌로 갈리면 본인 판별이 조용히 깨진다.
 	return UserDTO{
-		ID:           hashID(u.ID),
+		ID:           service.PublicUserID(u.ID),
 		LoginID:      u.LoginID,
 		UserNm:       u.UserNm,
 		Nickname:     u.Nickname,
@@ -115,15 +118,6 @@ func toUserDTO(u *domain.User) UserDTO {
 		CreatedAt:    u.CreatedAt.UTC().Format(time.RFC3339),
 		StatusCd:     u.StatusCd,
 	}
-}
-
-func hashID(s string) int {
-	var h uint32 = 2166136261
-	for i := 0; i < len(s); i++ {
-		h ^= uint32(s[i])
-		h *= 16777619
-	}
-	return int(h % 1_000_000_000)
 }
 
 // StatsDTO 는 src/data/dto/StatsDTO.ts 와 일치한다.

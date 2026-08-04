@@ -222,6 +222,16 @@ EXISTS`) — 신규 배포에 충분하다. 컬럼 변경/데이터 이관이 �
 화면과 서버가 어긋난다. 상한은 '다음 학습을 열어 줄지'를 정하는 값이지 기록을
 버리는 규칙이 아니다.
 
+앱에서 이 값을 읽는 곳은 `hooks/useDailyQuota` 하나다. 상한은 서버 값을 쓰고,
+사용량은 **로컬과 서버 중 큰 쪽**을 쓴다(합치는 규칙은 앱의
+`domain/models/LearningQuota.resolveDailyQuota`). 작은 쪽을 쓰면 태블릿과 휴대폰으로
+각각 상한을 채울 수 있고, 큰 쪽을 쓰면 기껏해야 그날 신규 학습이 조금 일찍 닫힌다.
+
+기본값 `domain.DefaultDailyNewLimit` 은 앱의 `constants/learning.ts` 의
+`DAILY_NEW_LIMIT` 과 **같아야 한다**(둘 다 3). 갈리면 서버에 닿은 기기와 아직
+목업으로 떨어진 기기가 서로 다른 상한으로 돈다. 검사로 못박아 뒀다
+(`TestDefaultDailyLimitMatchesApp`).
+
 ### 헬스체크 두 경로
 
 같은 응답을 `/health` 와 `/api/health` 두 곳에 낸다. 앞은 로드밸런서·Docker

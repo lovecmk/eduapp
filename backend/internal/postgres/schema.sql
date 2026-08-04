@@ -196,7 +196,9 @@ CREATE TABLE IF NOT EXISTS ops_settings (
     maintenance_yn   BOOLEAN NOT NULL DEFAULT FALSE,
     maintenance_msg  TEXT NOT NULL DEFAULT '',
     signup_enabled   BOOLEAN NOT NULL DEFAULT TRUE,
-    daily_new_limit  INTEGER NOT NULL DEFAULT 5,
+    -- 앱의 DAILY_NEW_LIMIT('하루 3분')과 같은 값. 두 값이 갈리면 서버에 닿은 기기와
+    -- 목업으로 떨어진 기기가 서로 다른 상한으로 돌아간다.
+    daily_new_limit  INTEGER NOT NULL DEFAULT 3,
     notice_txt       TEXT NOT NULL DEFAULT '',
     notice_level     TEXT NOT NULL DEFAULT 'INFO',
     updated_at       TIMESTAMPTZ NOT NULL DEFAULT now(),

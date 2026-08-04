@@ -4,7 +4,7 @@ import type { AuthResultDTO, UserDTO } from '../dto/UserDTO';
 import { UserMapper } from '../mappers/UserMapper';
 import { apiClient } from '../network/ApiClient';
 import { secureStorage, StorageKeys } from '../storage/secureStorage';
-import { toApiError } from '../network/errors';
+import { ApiError, toApiError } from '../network/errors';
 import { logger } from '../../utils/logger';
 
 export class AuthRepository implements IAuthRepository {
@@ -47,9 +47,23 @@ export class AuthRepository implements IAuthRepository {
     );
   }
 
-  async socialLogin(name: string, email: string): Promise<AuthSession> {
-    return this.persistSession(
-      await apiClient.post<AuthResultDTO>('/api/auth/social', { name, email }),
+  /**
+   * 간편 로그인 — **실서버에는 없다.**
+   *
+   * 목업의 간편 로그인은 이름·이메일만으로 계정을 찾아 세션을 내주는 데모다.
+   * 그 계약을 서버에 그대로 옮기면 아무나 `{name, email}` 을 보내 남의 계정
+   * 토큰을 받아 갈 수 있다 — 비밀번호를 묻지 않는 인증이 되어 버린다.
+   * 그래서 서버에는 이 라우트가 없고, 앞으로도 진짜 OAuth(제공자가 서명한
+   * 토큰을 서버가 검증하는 방식) 없이는 열지 않는다.
+   *
+   * 없는 경로를 그냥 호출하면 사용자에게는 "요청한 정보를 찾을 수 없어요"(404)가
+   * 뜬다 — 무엇이 잘못됐는지 알 수 없는 문구다. 여기서 정직하게 끊는다.
+   */
+  async socialLogin(_name: string, _email: string): Promise<AuthSession> {
+    throw new ApiError(
+      501,
+      '간편 로그인은 아직 준비 중이에요. 아이디와 비밀번호로 로그인해주세요.',
+      'unknown',
     );
   }
 
@@ -59,23 +73,46 @@ export class AuthRepository implements IAuthRepository {
     );
   }
 
-  async resetPassword(username: string, email: string, newPassword: string): Promise<void> {
-    await apiClient.post('/api/auth/reset-password', { username, email, newPassword });
+  /**
+   * 비밀번호 재설정 — **실서버에는 없다.**
+   *
+   * 목업은 아이디와 이메일이 맞으면 곧바로 비밀번호를 바꿔 준다. 서버에 그대로
+   * 옮기면 남의 아이디와 이메일만 알면 그 계정을 가져갈 수 있다 — 둘 다 비밀이
+   * 아니다(이메일은 명함에 적혀 있고 아이디는 화면에 보인다).
+   *
+   * 제대로 하려면 아래 `requestEmailCode` 가 실제로 메일을 보내고 그 코드를
+   * 검증한 세션에서만 재설정을 허용해야 하는데, 지금 배포에는 메일 발송 경로가
+   * 없다. 없는 것을 있는 척하는 대신 여기서 정직하게 끊는다.
+   */
+  async resetPassword(_username: string, _email: string, _newPassword: string): Promise<void> {
+    throw new ApiError(
+      501,
+      '비밀번호 재설정은 아직 준비 중이에요. 관리자에게 문의해주세요.',
+      'unknown',
+    );
   }
 
   /**
    * 인증코드 발송 — 코드는 서버가 생성해 메일로만 보낸다.
    * 응답에 코드를 포함시키지 않는 것이 계약이다(포함되면 우회 가능).
+   *
+   * 지금 배포에는 메일 발송 경로가 없어 서버에 이 라우트가 없다.
    */
-  async requestEmailCode(email: string): Promise<EmailCodeRequestResult> {
-    await apiClient.post('/api/auth/email/request-code', { email });
-    return {};
+  async requestEmailCode(_email: string): Promise<EmailCodeRequestResult> {
+    throw new ApiError(
+      501,
+      '이메일 인증은 아직 준비 중이에요. 관리자에게 문의해주세요.',
+      'unknown',
+    );
   }
 
-  /** 인증코드 검증 — 비교는 서버에서만 수행한다. */
-  async verifyEmailCode(email: string, code: string): Promise<boolean> {
-    const dto = await apiClient.post<{ verified: boolean }>('/api/auth/email/verify-code', { email, code });
-    return dto.verified === true;
+  /** 인증코드 검증 — 비교는 서버에서만 수행한다(위와 같은 이유로 미구현). */
+  async verifyEmailCode(_email: string, _code: string): Promise<boolean> {
+    throw new ApiError(
+      501,
+      '이메일 인증은 아직 준비 중이에요. 관리자에게 문의해주세요.',
+      'unknown',
+    );
   }
 
   async isUsernameTaken(username: string): Promise<boolean> {

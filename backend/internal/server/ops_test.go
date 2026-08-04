@@ -1,6 +1,7 @@
 package server_test
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -199,7 +200,7 @@ func TestAdminSettingsPartialUpdate(t *testing.T) {
 
 	// 상한만 바꾼다.
 	if res, b := doJSON(t, env.app, "PUT", "/api/admin/settings", env.adminToken,
-		map[string]any{"daily_new_limit": 3}); res.StatusCode != 200 {
+		map[string]any{"daily_new_limit": 2}); res.StatusCode != 200 {
 		t.Fatalf("상한 변경: %d %s", res.StatusCode, b)
 	}
 	// 이번엔 공지 배너만 바꾼다 — 앞서 바꾼 상한이 살아 있어야 한다.
@@ -213,7 +214,7 @@ func TestAdminSettingsPartialUpdate(t *testing.T) {
 		UpdatedByName string `json:"updated_by_name"`
 	}
 	decode(t, after, &s2)
-	if s2.DailyNewLimit != 3 {
+	if s2.DailyNewLimit != 2 {
 		t.Errorf("보내지 않은 상한이 덮였다: %s", after)
 	}
 	if !s2.SignupEnabled {
@@ -535,4 +536,66 @@ func notificationCount(t *testing.T, env *adminEnv, tok string) int {
 	var list []map[string]any
 	decode(t, body, &list)
 	return len(list)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 앱 ↔ 서버 계약
+// ─────────────────────────────────────────────────────────────────────────────
+
+// 앱이 보내는 exclude(축약된 정수 id)로도 본인이 인정되어야 한다.
+//
+// 앱의 `UserDTO.id` 는 number 라, 서버는 문자열 id 를 정수로 축약해 내보낸다.
+// 그 값이 되돌아오는 유일한 경로가 내 정보 수정 화면의 닉네임 중복 검사다.
+// 서버가 진짜 id 하고만 비교하면 절대 일치하지 않아, 닉네임을 그대로 둔 채
+// 소속만 고치려 해도 "이미 사용 중인 닉네임입니다"가 뜬다 — 닉네임을 바꾸지
+// 않는 한 자기 프로필을 저장할 수 없게 된다.
+func TestNicknameExcludeAcceptsAppSideUserID(t *testing.T) {
+	env := buildAdminApp(t)
+	tok := registerUser(t, env, "keeper", "지킴이", "현장4팀")
+
+	// 앱이 아는 내 id — 로그인 응답의 user.id 그대로(숫자).
+	_, me := doJSON(t, env.app, "GET", "/api/auth/me", tok, nil)
+	var profile struct {
+		ID       int    `json:"id"`
+		Nickname string `json:"nickname"`
+	}
+	decode(t, me, &profile)
+	if profile.Nickname == "" {
+		t.Fatalf("닉네임이 비었다: %s", me)
+	}
+
+	// exclude 없이 물으면 '사용 중'이다(내가 쓰고 있으니까).
+	_, taken := doJSON(t, env.app, "GET",
+		"/api/auth/nickname-available?nickname="+profile.Nickname, "", nil)
+	if !strings.Contains(string(taken), `"taken":true`) {
+		t.Fatalf("exclude 없이 -> %s, want taken=true", taken)
+	}
+
+	// 앱이 보내는 형태(숫자 id)로 exclude 하면 본인이므로 '사용 가능'이어야 한다.
+	_, mine := doJSON(t, env.app, "GET",
+		fmt.Sprintf("/api/auth/nickname-available?nickname=%s&exclude=%d", profile.Nickname, profile.ID),
+		"", nil)
+	if !strings.Contains(string(mine), `"taken":false`) {
+		t.Errorf("앱 형식 exclude -> %s, want taken=false (본인 닉네임은 충돌이 아니다)", mine)
+	}
+
+	// 관리 콘솔이 보내는 형태(진짜 문자열 id)도 그대로 통해야 한다.
+	_, byReal := doJSON(t, env.app, "GET",
+		"/api/auth/nickname-available?nickname="+profile.Nickname+"&exclude="+userIDOf(t, env, "keeper"),
+		"", nil)
+	if !strings.Contains(string(byReal), `"taken":false`) {
+		t.Errorf("콘솔 형식 exclude -> %s, want taken=false", byReal)
+	}
+}
+
+// 하루 학습 상한의 기본값은 앱 상수(DAILY_NEW_LIMIT=3)와 같아야 한다.
+//
+// 두 값이 갈리면, 서버에 닿은 기기와 아직 목업으로 떨어진 기기가 서로 다른
+// 상한으로 돌아간다 — 같은 사람이 태블릿에서는 3장, 휴대폰에서는 5장을 배운다.
+func TestDefaultDailyLimitMatchesApp(t *testing.T) {
+	const appDailyNewLimit = 3 // src/constants/learning.ts
+	if domain.DefaultDailyNewLimit != appDailyNewLimit {
+		t.Errorf("서버 기본 상한=%d, 앱 상수=%d — 두 값은 같아야 한다",
+			domain.DefaultDailyNewLimit, appDailyNewLimit)
+	}
 }
