@@ -35,7 +35,7 @@ func Metrics(m *service.Metrics) fiber.Handler {
 			path = r.Path
 		}
 
-		userID, _ := c.Locals("userID").(string)
+		userID, _ := c.Locals(LocalUserID).(string)
 		m.Observe(service.RequestSample{
 			At:       start,
 			Method:   c.Method(),

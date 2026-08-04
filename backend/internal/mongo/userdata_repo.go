@@ -2,6 +2,7 @@ package mongo
 
 import (
 	"context"
+	"errors"
 	"sort"
 	"time"
 
@@ -21,6 +22,7 @@ type UserDataRepo struct {
 	engagement *mongo.Collection
 	reports    *mongo.Collection
 	notifs     *mongo.Collection
+	learning   *mongo.Collection
 }
 
 // NewUserDataRepo 는 개인 데이터 어댑터를 만든다.
@@ -32,6 +34,7 @@ func NewUserDataRepo(db *mongo.Database) *UserDataRepo {
 		engagement: db.Collection("engagement"),
 		reports:    db.Collection("reports"),
 		notifs:     db.Collection("notifications"),
+		learning:   db.Collection("learning_daily"),
 	}
 }
 
@@ -48,6 +51,9 @@ func (r *UserDataRepo) EnsureIndexes(ctx context.Context) error {
 		{r.attendance, bson.D{{Key: "user_id", Value: 1}, {Key: "day_key", Value: 1}}, "attendance_daily"},
 		{r.engagement, bson.D{{Key: "user_id", Value: 1}, {Key: "card_id", Value: 1}, {Key: "kind", Value: 1}}, "engagement_unique"},
 		{r.reports, bson.D{{Key: "user_id", Value: 1}, {Key: "card_id", Value: 1}, {Key: "reason", Value: 1}}, "report_unique"},
+		// 하루 상한도 규칙이다 — (사용자, 날짜)가 두 줄이 되면 누계가 갈라져
+		// 어느 쪽을 읽느냐에 따라 상한이 달라진다.
+		{r.learning, bson.D{{Key: "user_id", Value: 1}, {Key: "day_key", Value: 1}}, "learning_daily_unique"},
 	}
 	for _, s := range specs {
 		if _, err := s.col.Indexes().CreateOne(ctx, mongo.IndexModel{
@@ -213,6 +219,7 @@ func (r *UserDataRepo) AddReport(ctx context.Context, rep domain.Report) error {
 		bson.M{"$setOnInsert": bson.M{
 			"_id": rep.ID, "user_id": rep.UserID, "card_id": rep.CardID,
 			"reason": rep.Reason, "detail": rep.Detail, "created_at": rep.CreatedAt,
+			"status_cd": string(rep.Status()),
 		}},
 		options.Update().SetUpsert(true),
 	)
@@ -234,11 +241,19 @@ func (r *UserDataRepo) ReportedCardIDs(ctx context.Context, userID string) ([]st
 	return out, nil
 }
 
-func (r *UserDataRepo) ListReports(ctx context.Context, limit int) ([]domain.Report, error) {
+func (r *UserDataRepo) ListReports(ctx context.Context, q ports.ReportQuery) ([]domain.Report, error) {
+	limit := q.Limit
 	if limit <= 0 {
 		limit = 100
 	}
-	cur, err := r.reports.Find(ctx, bson.M{},
+	filter := bson.M{}
+	if q.Status != "" {
+		filter["status_cd"] = statusFilter(q.Status)
+	}
+	if q.CardID != "" {
+		filter["card_id"] = q.CardID
+	}
+	cur, err := r.reports.Find(ctx, filter,
 		options.Find().SetSort(bson.D{{Key: "created_at", Value: -1}, {Key: "_id", Value: -1}}).
 			SetLimit(int64(limit)))
 	if err != nil {
@@ -249,6 +264,82 @@ func (r *UserDataRepo) ListReports(ctx context.Context, limit int) ([]domain.Rep
 		return nil, err
 	}
 	return out, nil
+}
+
+// statusFilter 는 처리 단계 조건을 만든다.
+// OPEN 은 상태가 없던 시절의 문서(필드 자체가 없거나 빈 값)까지 포함해야 한다 —
+// 그러지 않으면 예전 신고가 어느 칩에도 잡히지 않고 목록에서 사라진다.
+func statusFilter(s domain.ReportStatus) any {
+	if s != domain.ReportOpen {
+		return string(s)
+	}
+	return bson.M{"$in": []any{string(domain.ReportOpen), "", nil}}
+}
+
+func (r *UserDataRepo) CountReportsByStatus(ctx context.Context) (map[string]int64, error) {
+	out := map[string]int64{
+		string(domain.ReportOpen): 0, string(domain.ReportDoing): 0,
+		string(domain.ReportResolved): 0, string(domain.ReportRejected): 0,
+	}
+	for st := range out {
+		n, err := r.reports.CountDocuments(ctx, bson.M{"status_cd": statusFilter(domain.ReportStatus(st))})
+		if err != nil {
+			return nil, err
+		}
+		out[st] = n
+	}
+	return out, nil
+}
+
+func (r *UserDataRepo) UpdateReport(ctx context.Context, id string, u ports.ReportUpdate) (*domain.Report, error) {
+	var out domain.Report
+	// After 로 갱신된 문서를 그대로 받는다 — 갱신 후 다시 조회하면 그 사이의
+	// 다른 변경을 '내가 만든 결과'로 돌려주게 된다.
+	err := r.reports.FindOneAndUpdate(ctx,
+		bson.M{"_id": id},
+		bson.M{"$set": bson.M{
+			"status_cd": string(u.Status), "resolution_txt": u.Resolution,
+			"handler_id": u.HandlerID, "handler_name": u.HandlerName, "handled_at": u.HandledAt,
+		}},
+		options.FindOneAndUpdate().SetReturnDocument(options.After),
+	).Decode(&out)
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		return nil, ports.ErrNotFound{Entity: "report"}
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (r *UserDataRepo) LearningCount(ctx context.Context, userID, day string) (int, error) {
+	var row struct {
+		NewCount int `bson:"new_count"`
+	}
+	err := r.learning.FindOne(ctx, bson.M{"user_id": userID, "day_key": day}).Decode(&row)
+	if errors.Is(err, mongo.ErrNoDocuments) {
+		return 0, nil // 오늘 아직 학습하지 않았다 — 오류가 아니다
+	}
+	return row.NewCount, err
+}
+
+func (r *UserDataRepo) AddLearningCount(ctx context.Context, userID, day string, n int) (int, error) {
+	if n <= 0 {
+		return r.LearningCount(ctx, userID, day)
+	}
+	var row struct {
+		NewCount int `bson:"new_count"`
+	}
+	// $inc 로 저장소가 더하게 한다 — 읽고 더해서 쓰면 동시 요청 하나가 조용히 사라진다.
+	err := r.learning.FindOneAndUpdate(ctx,
+		bson.M{"user_id": userID, "day_key": day},
+		bson.M{
+			"$inc": bson.M{"new_count": n},
+			"$set": bson.M{"user_id": userID, "day_key": day, "updated_at": time.Now()},
+		},
+		options.FindOneAndUpdate().SetUpsert(true).SetReturnDocument(options.After),
+	).Decode(&row)
+	return row.NewCount, err
 }
 
 func (r *UserDataRepo) Notifications(ctx context.Context, userID string) ([]domain.Notification, error) {

@@ -4,6 +4,7 @@ import { useLiveMetrics } from '../composables/useLiveMetrics';
 import {
   pendingReports,
   storeHealthy,
+  maintenanceOn,
   alertsLoaded,
   startAlertPolling,
   stopAlertPolling,
@@ -20,6 +21,7 @@ import AppIcon from './AppIcon.vue';
  *  · 실시간 연결이 살아 있는지 — 이게 끊기면 화면의 모든 숫자가 옛것이다
  *  · 처리할 신고가 쌓여 있는지 — 어느 화면에 있든 급한 일은 급하다
  *  · 저장소가 죽었는지 — 가장 급하다
+ *  · 지금 서비스가 점검 중인지 — 켜 놓고 잊으면 몇 시간씩 닫혀 있게 된다
  *  · 검색·이동(⌘K), 테마, 계정
  *
  * 반대로 화면 제목·설명·그 화면의 동작은 여기 두지 않는다. 그건 각 화면의
@@ -64,6 +66,14 @@ const hasReports = computed(() => alertsLoaded.value && pendingReports.value > 0
     <RouterLink v-if="alertsLoaded && !storeHealthy" to="/service" class="store-down">
       <AppIcon name="alert" :size="14" />
       <span>저장소 연결 끊김</span>
+    </RouterLink>
+
+    <!-- 점검 중은 '지금 사용자가 아무도 못 쓴다'는 뜻이다. 켜 놓고 다른 화면으로
+         넘어가 잊어버리는 것이 이 기능의 유일한 위험이라, 어느 화면에 있든
+         눈에 걸리게 두고 누르면 곧장 설정으로 간다. -->
+    <RouterLink v-if="maintenanceOn" to="/settings" class="maint">
+      <AppIcon name="alert" :size="14" />
+      <span>점검 중</span>
     </RouterLink>
 
     <LiveIndicator :live="live" :last-update="lastUpdate" />
@@ -158,6 +168,26 @@ const hasReports = computed(() => alertsLoaded.value && pendingReports.value > 0
   filter: brightness(0.97);
 }
 
+/* 점검 중 — 저장소 장애와 같은 모양이되 색만 다르다(장애가 아니라 '우리가 켠 것').
+   두 배지가 동시에 뜰 수 있으므로 생김새를 맞춰 나란히 읽히게 한다. */
+.maint {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: var(--r-1);
+  background: var(--warn-bg);
+  color: var(--warn);
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.maint:hover {
+  text-decoration: none;
+  filter: brightness(0.97);
+}
+
 .bell {
   position: relative;
   display: grid;
@@ -216,7 +246,8 @@ const hasReports = computed(() => alertsLoaded.value && pendingReports.value > 0
     max-width: 200px;
   }
   /* 좁은 화면에서는 글자를 지우고 표시등만 남긴다 — 자리가 없다. */
-  .store-down span {
+  .store-down span,
+  .maint span {
     display: none;
   }
 }

@@ -3,10 +3,11 @@ import { api } from '../api/client';
 import type { Dashboard } from '../api/types';
 
 /**
- * 상단 바가 상시 지고 있는 두 가지 알림.
+ * 상단 바가 상시 지고 있는 알림.
  *
  *  · 처리되지 않은 신고 건수
  *  · 저장소가 죽었는지
+ *  · 지금 점검 모드인지
  *
  * 왜 전역이어야 하나 — 지금까지 이 둘은 대시보드에만 떠 있었다. 그런데 관리자가
  * 하루 종일 머무는 곳은 사용자·문제 목록이지 대시보드가 아니다. 신고가 쌓이거나
@@ -22,10 +23,18 @@ import type { Dashboard } from '../api/types';
  * 받아 오므로, 받은 것을 여기에 넘겨(adopt) 쓴다.
  */
 
-/** 접수된 신고 건수. */
+/** 아직 처리되지 않은 신고 건수(OPEN+DOING). 처리하면 줄어든다. */
 export const pendingReports = ref(0);
 /** 저장소 연결 상태. 아직 확인 전이면 true 로 둔다 — 확인도 안 하고 빨간불을 켜지 않는다. */
 export const storeHealthy = ref(true);
+/**
+ * 점검 모드가 켜져 있는가.
+ *
+ * 이것이야말로 "어느 화면에 있든 항상 참"인 사실이다. 설정 화면에서 켜고
+ * 사용자 목록으로 넘어간 뒤 잊어버리면, 서비스가 몇 시간씩 닫혀 있어도
+ * 아무도 알아채지 못한다. 실제로 그렇게 잠기는 것이 이 종류 사고의 전형이다.
+ */
+export const maintenanceOn = ref(false);
 /** 한 번이라도 받아 봤는지. 받기 전에는 '0건'조차 말하지 않는다. */
 export const alertsLoaded = ref(false);
 
@@ -71,8 +80,20 @@ export async function refreshAlerts(force = false): Promise<void> {
 export function adoptDashboard(d: Dashboard): void {
   pendingReports.value = d.content.reports;
   storeHealthy.value = d.service.store_healthy;
+  // 예전 서버는 ops 를 주지 않는다 — 없으면 '점검 아님'으로 둔다(없는 경고를 켜지 않는다).
+  maintenanceOn.value = d.ops?.maintenance_yn ?? false;
   alertsLoaded.value = true;
   loadedAt = Date.now();
+}
+
+/**
+ * 설정 화면이 점검 모드를 켜고 끈 직후 상단 바를 바로 맞춘다.
+ *
+ * 폴링(2분)을 기다리면 방금 켠 점검이 한동안 상단 바에 안 뜬다 — 그 사이
+ * "정말 켜졌나?" 를 확인할 방법이 없어 관리자가 한 번 더 누르게 된다.
+ */
+export function setMaintenance(on: boolean): void {
+  maintenanceOn.value = on;
 }
 
 /** 상단 바가 붙어 있는 동안만 돈다. */
@@ -93,5 +114,6 @@ export function stopAlertPolling(): void {
   // 로그아웃 뒤 다음 사람의 화면에 이전 세션의 건수가 남지 않게 되돌린다.
   pendingReports.value = 0;
   storeHealthy.value = true;
+  maintenanceOn.value = false;
   alertsLoaded.value = false;
 }

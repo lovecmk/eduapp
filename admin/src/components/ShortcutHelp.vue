@@ -22,10 +22,14 @@ const GROUPS: { title: string; items: { keys: string[]; desc: string }[] }[] = [
     title: '이동 — G 를 누른 뒤',
     items: [
       { keys: ['G', 'D'], desc: '대시보드' },
+      { keys: ['G', 'I'], desc: '분석' },
       { keys: ['G', 'U'], desc: '사용자' },
       { keys: ['G', 'C'], desc: '문제 관리' },
+      { keys: ['G', 'R'], desc: '신고 관리' },
+      { keys: ['G', 'N'], desc: '공지' },
       { keys: ['G', 'S'], desc: '서비스 상태' },
       { keys: ['G', 'A'], desc: '관리 이력' },
+      { keys: ['G', 'G'], desc: '운영 설정' },
     ],
   },
   {

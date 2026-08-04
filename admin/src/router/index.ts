@@ -67,6 +67,18 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '신고 관리' },
   },
   {
+    path: '/announcements',
+    name: 'announcements',
+    component: () => import('../views/AnnouncementsView.vue'),
+    meta: { title: '공지' },
+  },
+  {
+    path: '/settings',
+    name: 'settings',
+    component: () => import('../views/SettingsView.vue'),
+    meta: { title: '운영 설정' },
+  },
+  {
     path: '/service',
     name: 'service',
     component: () => import('../views/ServiceView.vue'),

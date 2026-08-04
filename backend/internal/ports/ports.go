@@ -17,8 +17,12 @@ type UserQuery struct {
 	Role       string // "" | USER | ADMIN
 	Status     string // "" | A | I | D
 	Membership string // "" | BASIC | PREMIUM | VIP
-	Offset     int
-	Limit      int // 0 이면 저장소 기본값(50)
+	// Org 는 소속 조직 **완전 일치**다. Search 의 부분 일치와 달리 이쪽은
+	// 공지를 '그 조직에게만' 보내는 데 쓰이므로, 부분 일치면 "영업1팀"을
+	// 고른 발송이 "영업1팀지원"까지 함께 맞아 엉뚱한 사람에게 간다.
+	Org    string
+	Offset int
+	Limit  int // 0 이면 저장소 기본값(50)
 
 	// 정렬은 반드시 저장소에서 한다. 페이지를 받아 온 뒤 화면에서 정렬하면
 	// '현재 페이지 안에서만' 정렬되어, 관리자는 전체가 정렬된 줄 알고
@@ -110,6 +114,43 @@ type CardStat struct {
 	Mastered int64
 }
 
+// ReportQuery 는 신고 목록 조회 조건.
+type ReportQuery struct {
+	// Status 가 비면 전체. 값이 있으면 그 처리 단계만.
+	Status domain.ReportStatus
+	// CardID 가 있으면 그 문제에 달린 신고만(문제 화면에서 바로 확인할 때).
+	CardID string
+	Limit  int // 0 이면 저장소 기본값(100)
+}
+
+// ReportUpdate 는 신고 처리 기록. 저장소는 여기 담긴 값만 덮어쓴다.
+type ReportUpdate struct {
+	Status      domain.ReportStatus
+	Resolution  string
+	HandlerID   string
+	HandlerName string
+	HandledAt   time.Time
+}
+
+// SettingsRepository 는 운영 설정(점검 모드·하루 상한·공지 배너) 영속화 포트.
+//
+// 값이 하나의 구조체로 통째로 오가는 것은 의도적이다. 키-값으로 쪼개면 저장소마다
+// 형 변환 규칙(불리언을 "true" 로 쓸 것인가 1 로 쓸 것인가)이 갈리고, 두 값이
+// 함께 바뀌어야 하는 변경(점검 모드 ON + 안내 문구)이 반쪽만 반영될 수 있다.
+type SettingsRepository interface {
+	// LoadSettings 는 저장된 설정을 준다. 아직 없으면 (기본값, nil) 이다 —
+	// '없음'은 오류가 아니라 "아무도 바꾼 적이 없다"는 정상 상태다.
+	LoadSettings(ctx context.Context) (domain.OpsSettings, error)
+	SaveSettings(ctx context.Context, s domain.OpsSettings) error
+}
+
+// AnnouncementRepository 는 발송된 공지 이력 영속화 포트(append-only).
+type AnnouncementRepository interface {
+	AppendAnnouncement(ctx context.Context, a domain.Announcement) error
+	// ListAnnouncements 는 최신순으로 limit 건을 준다.
+	ListAnnouncements(ctx context.Context, limit int) ([]domain.Announcement, error)
+}
+
 // AuditRepository 는 관리자 행위 이력 영속화 포트.
 type AuditRepository interface {
 	Append(ctx context.Context, l domain.AuditLog) error
@@ -173,7 +214,27 @@ type UserDataRepository interface {
 	// ReportedCardIDs 는 내가 신고한 카드 id 목록(화면에서 중복 신고를 막는 데 쓴다).
 	ReportedCardIDs(ctx context.Context, userID string) ([]string, error)
 	// ListReports 는 최근 신고를 관리 콘솔용으로 준다.
-	ListReports(ctx context.Context, limit int) ([]domain.Report, error)
+	ListReports(ctx context.Context, q ReportQuery) ([]domain.Report, error)
+	// CountReportsByStatus 는 처리 단계별 건수를 센다.
+	//
+	// 목록을 세지 않고 따로 두는 이유 — 화면의 상태 칩은 "미처리 3 · 완료 128"
+	// 처럼 **필터에 걸리지 않은 것까지** 보여 줘야 고를 값이 있는지 알 수 있다.
+	// 필터된 목록의 길이로는 그 숫자를 만들 수 없고, 상한(limit)에 잘린 목록을
+	// 세면 128건이 100건으로 보인다.
+	CountReportsByStatus(ctx context.Context) (map[string]int64, error)
+	// UpdateReport 는 신고의 처리 단계·처리 메모를 기록하고 갱신된 신고를 돌려준다.
+	// 없으면 ErrNotFound.
+	UpdateReport(ctx context.Context, id string, u ReportUpdate) (*domain.Report, error)
+
+	// --- 하루 학습량 ---
+	// LearningCount 는 그 사람이 그날 새로 배운 카드 수를 센다(하루 상한 판정용).
+	LearningCount(ctx context.Context, userID, day string) (int, error)
+	// AddLearningCount 는 새로 배운 카드 수를 더하고 누계를 돌려준다.
+	//
+	// '설정'이 아니라 '더하기'인 이유 — 앱은 학습을 마칠 때마다 그 건수를 보고한다.
+	// 오프라인 큐가 여러 건을 모아 두었다가 한꺼번에 보내는 일이 흔해서, 마지막
+	// 보고로 덮어쓰면 그 사이의 학습이 사라진다. 중복 전송은 상위의 멱등키가 막는다.
+	AddLearningCount(ctx context.Context, userID, day string, n int) (int, error)
 
 	// --- 알림 ---
 	// AddNotifications 는 알림을 한꺼번에 넣는다(관리자 발송).

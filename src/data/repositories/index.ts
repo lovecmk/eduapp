@@ -25,6 +25,8 @@ import { ReportRepository } from './ReportRepository';
 import { MockReportRepository } from './ReportRepository.mock';
 import { NotificationRepository } from './NotificationRepository';
 import { MockNotificationRepository } from './NotificationRepository.mock';
+import { ServiceConfigRepository } from './ServiceConfigRepository';
+import { MockServiceConfigRepository } from './ServiceConfigRepository.mock';
 
 import type { IAuthRepository } from '../../domain/repositories/IAuthRepository';
 import type { ICardRepository } from '../../domain/repositories/ICardRepository';
@@ -37,6 +39,7 @@ import type { IProgressRepository } from '../../domain/repositories/IProgressRep
 import type { IEngagementRepository } from '../../domain/repositories/IEngagementRepository';
 import type { IReportRepository } from '../../domain/repositories/IReportRepository';
 import type { INotificationRepository } from '../../domain/repositories/INotificationRepository';
+import type { IServiceConfigRepository } from '../../domain/repositories/IServiceConfigRepository';
 
 export const authRepository: IAuthRepository = env.useMockData
   ? new MockAuthRepository()
@@ -69,6 +72,13 @@ export const weatherRepository: IWeatherRepository = env.useMockData
 export const learningQuotaRepository: ILearningQuotaRepository = env.useMockData
   ? new MockLearningQuotaRepository()
   : withMockFallback(new LearningQuotaRepository(), new MockLearningQuotaRepository(), 'learning-quota');
+
+// 서비스 운영 상태(점검 모드·공지 배너·하루 상한) — 관리 콘솔이 바꾸고 앱이 읽는다.
+// 이 값을 못 읽어도 앱은 평상시처럼 돌아야 하므로 보조 기능으로 둔다.
+// (진짜 점검 중이라면 다른 모든 요청이 503 으로 막혀 사용자는 어차피 알게 된다.)
+export const serviceConfigRepository: IServiceConfigRepository = env.useMockData
+  ? new MockServiceConfigRepository()
+  : withMockFallback(new ServiceConfigRepository(), new MockServiceConfigRepository(), 'service-config');
 
 // 사용자 디렉터리 — 닉네임 검색 + 공개 프로필(공개 범위 적용).
 export const userDirectoryRepository: IUserDirectoryRepository = env.useMockData

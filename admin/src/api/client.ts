@@ -12,10 +12,19 @@ import type {
   CardQuery,
   Card,
   AdminReport,
+  ReportPage,
+  ReportStatus,
   AuditLog,
   Insight,
   LearnerDiagnosis,
   NotifyInput,
+  Announcement,
+  AnnounceResult,
+  AudienceKind,
+  AudiencePreview,
+  OpsSettings,
+  SettingsPatch,
+  LabelCount,
   RoleCd,
   StatusCd,
 } from './types';
@@ -302,19 +311,62 @@ class AdminApi {
     return this.request<void>(`/api/admin/cards/${encodeURIComponent(id)}`, { method: 'DELETE' });
   }
 
-  /** 접수된 신고 목록. */
-  async reports(limit = 100): Promise<AdminReport[]> {
-    const res = await this.request<{ items: AdminReport[] }>(`/api/admin/reports?limit=${limit}`);
-    return res.items ?? [];
+  /** 접수된 신고 목록 + 단계별 전체 건수. */
+  async reports(q: { status?: string; card_id?: string; limit?: number } = {}): Promise<ReportPage> {
+    const res = await this.request<ReportPage>(
+      `/api/admin/reports${queryString({ limit: 100, ...q })}`,
+    );
+    return { items: res.items ?? [], counts: res.counts ?? {}, pending: res.pending ?? 0 };
   }
 
-  /** 공지를 발송하고 받은 인원 수를 돌려준다. */
-  async notify(input: NotifyInput): Promise<number> {
-    const res = await this.request<{ sent: number }>('/api/admin/notifications', {
+  /** 신고 한 건의 처리 단계를 바꾼다. */
+  reviewReport(id: string, status: ReportStatus, resolution = ''): Promise<AdminReport> {
+    return this.request<AdminReport>(`/api/admin/reports/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status_cd: status, resolution_txt: resolution }),
+    });
+  }
+
+  /** 공지를 발송하고 결과(수신자 수·이력)를 돌려준다. */
+  announce(input: NotifyInput): Promise<AnnounceResult> {
+    return this.request<AnnounceResult>('/api/admin/announcements', {
       method: 'POST',
       body: JSON.stringify(input),
     });
-    return res.sent ?? 0;
+  }
+
+  /** 발송된 공지 이력. */
+  async announcements(limit = 50): Promise<Announcement[]> {
+    const res = await this.request<{ items: Announcement[] }>(
+      `/api/admin/announcements?limit=${limit}`,
+    );
+    return res.items ?? [];
+  }
+
+  /** 보내기 전에 대상 규모를 확인한다 — 되돌릴 수 없는 발송을 눈감고 누르지 않게. */
+  audiencePreview(kind: AudienceKind, value = ''): Promise<AudiencePreview> {
+    return this.request<AudiencePreview>(
+      `/api/admin/announcements/audience${queryString({ audience_cd: kind, audience_value: value })}`,
+    );
+  }
+
+  /** 지금 존재하는 소속 조직 목록(대상 고르기·필터용). */
+  async orgs(): Promise<LabelCount[]> {
+    const res = await this.request<{ items: LabelCount[] }>('/api/admin/orgs');
+    return res.items ?? [];
+  }
+
+  /** 운영 설정 조회. */
+  settings(): Promise<OpsSettings> {
+    return this.request<OpsSettings>('/api/admin/settings');
+  }
+
+  /** 운영 설정 변경 — 바꾼 필드만 보낸다(남의 변경을 덮지 않기 위해). */
+  updateSettings(patch: SettingsPatch): Promise<OpsSettings> {
+    return this.request<OpsSettings>('/api/admin/settings', {
+      method: 'PUT',
+      body: JSON.stringify(patch),
+    });
   }
 
   async audit(limit = 100): Promise<AuditLog[]> {

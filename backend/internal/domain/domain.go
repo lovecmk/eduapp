@@ -183,6 +183,34 @@ const (
 	Bookmarked EngagementKind = "BOOKMARK"
 )
 
+// ReportStatus 는 신고 한 건의 처리 단계다.
+//
+// 왜 필요한가 — 신고는 "지금 잘못된 내용이 배포 중"이라는 신호인데, 상태가 없으면
+// 목록은 접수된 순간부터 영원히 같은 모습으로 남는다. 운영자는 어제 본 신고를
+// 오늘 다시 읽고, 다른 운영자가 이미 처리한 것을 또 붙잡는다. 대시보드의
+// '신고 N건'도 줄어들지 않아 결국 아무도 보지 않는 숫자가 된다.
+type ReportStatus string
+
+const (
+	ReportOpen     ReportStatus = "OPEN"     // 접수됨 — 아무도 손대지 않았다
+	ReportDoing    ReportStatus = "DOING"    // 확인 중 — 담당자가 잡았다
+	ReportResolved ReportStatus = "RESOLVED" // 처리 완료 — 문제를 고쳤거나 지웠다
+	ReportRejected ReportStatus = "REJECTED" // 반려 — 신고 내용이 사실이 아니다
+)
+
+// ParseReportStatus 는 외부 입력을 허용된 처리 단계로만 해석한다.
+// 알 수 없는 값은 빈 값으로 — 호출자가 "지정하지 않음"과 구분할 수 있어야 한다.
+func ParseReportStatus(raw string) ReportStatus {
+	switch ReportStatus(raw) {
+	case ReportOpen, ReportDoing, ReportResolved, ReportRejected:
+		return ReportStatus(raw)
+	}
+	return ""
+}
+
+// Pending 은 아직 사람 손이 필요한 단계인지. 대시보드의 '신고' 숫자가 이것을 센다.
+func (s ReportStatus) Pending() bool { return s == "" || s == ReportOpen || s == ReportDoing }
+
 // Report 는 문제에 대한 사용자 신고. 운영자가 반드시 확인해야 하는 데이터다.
 type Report struct {
 	ID        string    `bson:"_id" json:"id"`
@@ -191,6 +219,25 @@ type Report struct {
 	Reason    string    `bson:"reason" json:"reason"`
 	Detail    string    `bson:"detail" json:"detail"`
 	CreatedAt time.Time `bson:"created_at" json:"created_at"`
+
+	// --- 처리 이력 ---
+	// StatusCd 는 빈 문자열이면 ReportOpen 으로 취급한다(상태가 없던 시절의 데이터 호환).
+	// 판독은 반드시 Status() 를 거쳐, 빈 값이 '처리됨'으로 새지 않게 한다.
+	StatusCd ReportStatus `bson:"status_cd" json:"status_cd"`
+	// ResolutionTxt 는 "왜 그렇게 판단했는가" — 반려에는 특히 이것이 없으면
+	// 같은 신고가 다시 올라왔을 때 앞사람의 판단을 되짚을 수 없다.
+	ResolutionTxt string     `bson:"resolution_txt" json:"resolution_txt"`
+	HandlerID     string     `bson:"handler_id" json:"handler_id"`
+	HandlerName   string     `bson:"handler_name" json:"handler_name"`
+	HandledAt     *time.Time `bson:"handled_at" json:"handled_at"`
+}
+
+// Status 는 저장된 처리 단계를 안전하게 해석한다(빈 값·미지의 값은 모두 미처리).
+func (r Report) Status() ReportStatus {
+	if s := ParseReportStatus(string(r.StatusCd)); s != "" {
+		return s
+	}
+	return ReportOpen
 }
 
 // Notification 은 사용자에게 보여 줄 알림 한 건.
@@ -223,4 +270,135 @@ type SyncSnapshot struct {
 type EngagementSnapshot struct {
 	LikedIDs      []string `json:"liked_ids"`
 	BookmarkedIDs []string `json:"bookmarked_ids"`
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 운영 설정 — 재배포 없이 바꿀 수 있어야 하는 값들
+//
+// 왜 환경변수가 아니라 저장소에 두는가 — 점검 모드나 하루 학습 상한은 "지금 당장"
+// 바꿔야 하는 값이다. 환경변수로 두면 바꾸는 데 재기동이 필요하고, 재기동은
+// 현장에서 학습 중인 사용자의 세션을 끊는다. 게다가 누가 언제 바꿨는지가
+// 남지 않는다(감사 기록은 저장소를 거치는 변경에만 붙는다).
+// ─────────────────────────────────────────────────────────────────────────────
+
+// NoticeLevel 은 앱 상단 공지 배너의 세기.
+type NoticeLevel string
+
+const (
+	NoticeInfo   NoticeLevel = "INFO"
+	NoticeWarn   NoticeLevel = "WARN"
+	NoticeDanger NoticeLevel = "DANGER"
+)
+
+// OpsSettings 는 운영자가 콘솔에서 즉시 바꾸는 서비스 동작 값이다.
+type OpsSettings struct {
+	// MaintenanceYn 이 켜지면 일반 사용자의 API 는 503 으로 막힌다(관리자는 통과).
+	MaintenanceYn  bool   `bson:"maintenance_yn" json:"maintenance_yn"`
+	MaintenanceMsg string `bson:"maintenance_msg" json:"maintenance_msg"`
+	// SignupEnabled 가 꺼지면 신규 가입만 막힌다(기존 사용자는 그대로 쓴다).
+	SignupEnabled bool `bson:"signup_enabled" json:"signup_enabled"`
+	// DailyNewLimit 은 하루에 새로 배울 수 있는 카드 수(복습은 상한이 없다).
+	DailyNewLimit int `bson:"daily_new_limit" json:"daily_new_limit"`
+	// NoticeTxt 가 비어 있지 않으면 앱이 상단에 배너로 띄운다.
+	NoticeTxt   string      `bson:"notice_txt" json:"notice_txt"`
+	NoticeLevel NoticeLevel `bson:"notice_level" json:"notice_level"`
+
+	UpdatedAt     time.Time `bson:"updated_at" json:"updated_at"`
+	UpdatedBy     string    `bson:"updated_by" json:"updated_by"`
+	UpdatedByName string    `bson:"updated_by_name" json:"updated_by_name"`
+}
+
+// DefaultDailyNewLimit 은 하루 신규 학습 상한의 기본값이다.
+//
+// **앱의 `src/constants/learning.ts` 의 `DAILY_NEW_LIMIT` 과 같은 값이어야 한다.**
+// 이 앱의 정체성이 '하루 3분'이라 그쪽이 3으로 정해져 있고, 서버가 다른 값을 주면
+// 아직 서버에 닿지 못한 기기(목업 폴백)와 닿은 기기가 서로 다른 상한으로 돌아간다 —
+// 같은 사람이 태블릿에서는 3장, 휴대폰에서는 5장을 배우게 된다.
+const DefaultDailyNewLimit = 3
+
+// maxDailyNewLimit 은 상한의 상한. 0 이나 음수는 '무제한'이 아니라 실수이므로
+// 기본값으로 되돌리고, 지나치게 큰 값은 사실상 상한이 없는 것과 같아 잘라 낸다.
+const maxDailyNewLimit = 100
+
+// DefaultOpsSettings 는 저장된 설정이 아직 없을 때의 값이다.
+// 실패는 항상 '서비스가 열려 있는' 쪽으로 — 설정을 읽지 못했다고 점검 모드에
+// 들어가면 저장소 장애 하나가 전면 중단이 된다.
+func DefaultOpsSettings() OpsSettings {
+	return OpsSettings{
+		MaintenanceYn: false,
+		SignupEnabled: true,
+		DailyNewLimit: DefaultDailyNewLimit,
+		NoticeLevel:   NoticeInfo,
+	}
+}
+
+// Normalized 는 저장·응답 전에 값을 규칙 안으로 되돌린다.
+// 저장소에 예전 형식이나 손으로 넣은 값이 있어도 앱이 이상한 값을 보지 않게 한다.
+func (s OpsSettings) Normalized() OpsSettings {
+	if s.DailyNewLimit <= 0 {
+		s.DailyNewLimit = DefaultDailyNewLimit
+	}
+	if s.DailyNewLimit > maxDailyNewLimit {
+		s.DailyNewLimit = maxDailyNewLimit
+	}
+	switch s.NoticeLevel {
+	case NoticeInfo, NoticeWarn, NoticeDanger:
+	default:
+		s.NoticeLevel = NoticeInfo
+	}
+	return s
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 공지 — 누구에게 무엇을 보냈는가
+// ─────────────────────────────────────────────────────────────────────────────
+
+// AudienceKind 는 공지 수신 대상의 지정 방식.
+type AudienceKind string
+
+const (
+	AudienceAll        AudienceKind = "ALL"        // 활성 사용자 전원
+	AudienceRole       AudienceKind = "ROLE"       // 권한(USER/ADMIN)
+	AudienceMembership AudienceKind = "MEMBERSHIP" // 등급(BASIC/PREMIUM/VIP)
+	AudienceOrg        AudienceKind = "ORG"        // 소속 조직명
+	AudienceUser       AudienceKind = "USER"       // 특정 한 사람
+)
+
+// ParseAudienceKind 는 외부 입력을 허용된 대상 방식으로만 해석한다.
+// 빈 값은 전체 발송(가장 흔한 경우)으로 본다.
+func ParseAudienceKind(raw string) (AudienceKind, bool) {
+	switch AudienceKind(raw) {
+	case AudienceAll, AudienceRole, AudienceMembership, AudienceOrg, AudienceUser:
+		return AudienceKind(raw), true
+	case "":
+		return AudienceAll, true
+	}
+	return "", false
+}
+
+// Announcement 는 발송된 공지 한 건의 기록이다.
+//
+// 왜 남기는가 — 공지는 되돌릴 수 없다. 무엇을 언제 누구에게 보냈는지가 남지
+// 않으면 "그 안내 보냈나요?"에 아무도 답할 수 없고, 같은 공지를 두 번 보내게 된다.
+// 감사 로그에도 한 줄이 남지만 그쪽은 관리 행위 전체가 섞이는 흐름이라
+// 공지만 훑어보기 어렵고, 대상·수신자 수 같은 구조를 잃는다.
+type Announcement struct {
+	ID       string `bson:"_id" json:"id"`
+	TitleTxt string `bson:"title_txt" json:"title_txt"`
+	DescTxt  string `bson:"desc_txt" json:"desc_txt"`
+	TypeCd   string `bson:"type_cd" json:"type_cd"`
+
+	AudienceCd    AudienceKind `bson:"audience_cd" json:"audience_cd"`
+	AudienceValue string       `bson:"audience_value" json:"audience_value"`
+	// AudienceLabel 은 사람이 읽는 대상 설명("영업2팀 · 12명"). 화면이 매번
+	// 코드에서 문구를 다시 만들지 않도록 발송 시점의 설명을 그대로 얼려 둔다 —
+	// 조직 이름이 나중에 바뀌어도 "그때 누구에게 보냈는가"는 변하지 않아야 한다.
+	AudienceLabel string `bson:"audience_label" json:"audience_label"`
+
+	Recipients int  `bson:"recipients" json:"recipients"`
+	PushYn     bool `bson:"push_yn" json:"push_yn"`
+
+	ActorID   string    `bson:"actor_id" json:"actor_id"`
+	ActorName string    `bson:"actor_name" json:"actor_name"`
+	CreatedAt time.Time `bson:"created_at" json:"created_at"`
 }

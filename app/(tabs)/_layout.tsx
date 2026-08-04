@@ -13,6 +13,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useTheme } from '../../src/theme/ThemeProvider';
 import { OfflineBanner } from '../../src/components/ui/OfflineBanner';
+import { NoticeBanner } from '../../src/components/ui/NoticeBanner';
 import { WeatherBackground } from '../../src/components/ui/WeatherBackground';
 import { AppLogo } from '../../src/components/ui/AppLogo';
 import { HeaderMenuSheet } from '../../src/components/ui/HeaderMenuSheet';
@@ -169,7 +170,10 @@ export default function TabsLayout() {
       {/* 전역 날씨/시간대 배경 — 학습카드(cards)를 제외한 모든 탭 뒤에 은은히 깔린다.
           각 탭 화면 루트를 투명으로 두면 이 배경이 비쳐 보인다(cards 는 불투명 유지). */}
       <WeatherBackground />
+      {/* 화면 맨 위 한 줄이 '지금 알아야 할 것'을 맡는다.
+          연결 상태가 먼저 오는 이유 — 오프라인이면 공지 자체가 옛것일 수 있다. */}
       <OfflineBanner />
+      <NoticeBanner />
       <Tabs
       // 뒤로가기 시 '직전에 보던 탭'으로 되돌아가도록 한다(기본값은 항상 첫 탭=홈으로 튕김).
       // 예: MY → 학습 통계 진입 후 뒤로가기 → 다시 MY 로 자연스럽게 복귀.

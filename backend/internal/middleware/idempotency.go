@@ -98,7 +98,7 @@ func Idempotent(store *IdempotencyStore) fiber.Handler {
 		}
 		// 사용자를 키에 섞는다. 섞지 않으면 A 가 만든 키를 B 가 그대로 보내
 		// 남의 응답을 받아 볼 수 있다("attendance:2026-7-27" 같은 키는 쉽게 겹친다).
-		userID, _ := c.Locals("userID").(string)
+		userID, _ := c.Locals(LocalUserID).(string)
 		full := userID + "\x00" + key
 
 		if hit, ok := store.lookup(full); ok {

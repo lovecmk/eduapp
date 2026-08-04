@@ -41,10 +41,15 @@ const staticItems = computed<Item[]>(() => [
   { id: 'go-users', icon: 'users', label: '사용자', hint: 'G U', group: '이동', run: () => go('/users') },
   { id: 'go-cards', icon: 'cards', label: '문제 관리', hint: 'G C', group: '이동', run: () => go('/cards') },
   { id: 'go-reports', icon: 'flag', label: '신고 관리', hint: 'G R', group: '이동', run: () => go('/reports') },
-  { id: 'go-service', icon: 'pulse', label: '서비스 상태', hint: 'G S', group: '이동', run: () => go('/service') },
+  { id: 'go-notices', icon: 'bell', label: '공지', hint: 'G N', group: '이동', run: () => go('/announcements') },
+  { id: 'go-service', icon: 'monitor', label: '서비스 상태', hint: 'G S', group: '이동', run: () => go('/service') },
   { id: 'go-audit', icon: 'history', label: '관리 이력', hint: 'G A', group: '이동', run: () => go('/audit') },
+  { id: 'go-settings', icon: 'sliders', label: '운영 설정', hint: 'G G', group: '이동', run: () => go('/settings') },
   { id: 'new-card', icon: 'plus', label: '새 문제 만들기', group: '동작', run: () => go('/cards/new') },
-  { id: 'send-notice', icon: 'bell', label: '공지 보내기', group: '동작', run: () => go('/reports') },
+  { id: 'send-notice', icon: 'bell', label: '공지 보내기', group: '동작', run: () => go('/announcements') },
+  // 미처리 신고만 걸러 보는 것은 이 도구에서 가장 자주 하는 질문이다 —
+  // 팔레트에서 바로 그 조건이 걸린 화면으로 간다.
+  { id: 'open-reports', icon: 'flag', label: '미처리 신고만 보기', group: '동작', run: () => go('/reports?status=OPEN') },
   // 테마는 세 가지를 각각 항목으로 둔다 — '전환' 한 줄이면 눌러 보기 전엔
   // 무엇이 될지 알 수 없다. 팔레트는 닫지 않아 연속으로 눌러 비교할 수 있다.
   ...(['light', 'dark', 'auto'] as ThemeMode[])

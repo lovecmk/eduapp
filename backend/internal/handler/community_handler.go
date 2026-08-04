@@ -3,6 +3,7 @@ package handler
 import (
 	"github.com/gofiber/fiber/v2"
 
+	"github.com/lovecmk/eduapp/backend/internal/middleware"
 	"github.com/lovecmk/eduapp/backend/internal/service"
 )
 
@@ -16,7 +17,7 @@ func NewCommunityHandler(svc *service.CommunityService) *CommunityHandler {
 
 // Live GET /api/community/live
 func (h *CommunityHandler) Live(c *fiber.Ctx) error {
-	userID := c.Locals("userID").(string)
+	userID := middleware.UserID(c)
 	s, err := h.svc.Build(c.Context(), userID)
 	if err != nil {
 		return err

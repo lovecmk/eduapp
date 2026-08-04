@@ -199,7 +199,10 @@ func (s *AuthService) NicknameTaken(ctx context.Context, nickname, excludeID str
 		}
 		return false, err
 	}
-	if excludeID != "" && u.ID == excludeID {
+	// 앱은 축약된 정수 id 를, 관리 콘솔은 진짜 문자열 id 를 보낸다 — 둘 다 본인으로 본다.
+	// 한쪽만 인정하면 앱의 '내 정보 수정'에서 닉네임을 그대로 둔 채로는 저장이 안 된다
+	// (자기 닉네임이 자기 것과 충돌한다고 나온다). 자세한 내용은 publicid.go.
+	if SameUser(u.ID, excludeID) {
 		return false, nil
 	}
 	return true, nil

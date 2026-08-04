@@ -192,6 +192,10 @@ func userFilter(q ports.UserQuery) bson.M {
 	if q.Membership != "" {
 		and = append(and, bson.M{"membership_cd": q.Membership})
 	}
+	// 조직은 완전 일치(정규식이 아니다) — 공지 대상 지정에 그대로 쓰인다.
+	if q.Org != "" {
+		and = append(and, bson.M{"org_nm": q.Org})
+	}
 	if len(and) == 0 {
 		return bson.M{}
 	}

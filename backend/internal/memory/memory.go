@@ -214,6 +214,10 @@ func matchUser(u domain.User, q ports.UserQuery) bool {
 	if q.Membership != "" && string(u.MembershipCd) != q.Membership {
 		return false
 	}
+	// 조직은 완전 일치(공지 대상 지정에 쓰이므로 부분 일치면 남의 조직까지 맞는다).
+	if q.Org != "" && u.OrgNm != q.Org {
+		return false
+	}
 	if s := strings.TrimSpace(q.Search); s != "" {
 		needle := strings.ToLower(s)
 		hay := strings.ToLower(u.UserNm + " " + u.Nickname + " " + u.LoginID + " " + u.EmailAddr + " " + u.OrgNm)

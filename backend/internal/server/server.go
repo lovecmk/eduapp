@@ -50,6 +50,12 @@ type Deps struct {
 	// Insight 는 데이터 분석(난이도 보정·이탈·코호트). 없으면 /insight 만 빠지고
 	// 나머지 관리 API 는 그대로 동작한다 — 분석은 부가 기능이지 전제가 아니다.
 	Insight *service.InsightService
+
+	// Settings 는 운영 설정(점검 모드·하루 상한·공지 배너). 없으면 기본값으로 동작하고
+	// 설정 변경 API 만 빠진다 — 설정은 서비스의 전제가 아니라 조절 손잡이다.
+	Settings *service.SettingsService
+	// Learning 은 하루 신규 학습 상한. 없으면 /learning/* 만 빠진다.
+	Learning *service.LearningService
 }
 
 // New 는 라우트가 모두 등록된 Fiber 앱을 만든다.
@@ -92,6 +98,19 @@ func New(d Deps) *fiber.App {
 	app.Get("/health", health)
 	app.Get("/api/health", health)
 
+	// 점검 모드 — 라우팅 **앞**에 둔다. 그래야 나중에 추가되는 경로도 기본으로
+	// 막히고, "새 API 를 만들었는데 점검 중에도 열려 있더라"가 생기지 않는다.
+	// 무엇을 통과시킬지는 middleware.Maintenance 안에 한 곳으로 모여 있다.
+	if d.Settings != nil {
+		app.Use(middleware.Maintenance(d.Settings, d.Tokens, d.Users))
+	}
+
+	// 앱이 부팅 때 읽는 공개 설정(무인증) — 점검 중이라 로그인조차 못 하는
+	// 사람에게도 "왜 안 되는지"는 전달되어야 한다.
+	if d.Settings != nil {
+		app.Get("/api/config", handler.NewPublicConfigHandler(d.Settings, d.Cfg.Version).Get)
+	}
+
 	authH := handler.NewAuthHandler(d.Auth)
 	cardH := handler.NewCardHandler(d.Cards)
 	statsH := handler.NewStatsHandler(d.Stats)
@@ -128,7 +147,9 @@ func New(d Deps) *fiber.App {
 	}))
 
 	auth.Post("/login", authH.Login)
-	auth.Post("/register", authH.Register)
+	// 가입만 따로 닫을 수 있다 — 점검("아무도 못 쓴다")과 달리
+	// "쓰던 사람은 그대로, 새로 받지 않는다"는 전혀 다른 운영 상황이다.
+	auth.Post("/register", middleware.RequireSignupOpen(d.Settings), authH.Register)
 	auth.Post("/refresh", authH.Refresh)
 	auth.Post("/logout", authH.Logout)
 	auth.Get("/username-available", authH.UsernameAvailable)
@@ -168,6 +189,7 @@ func New(d Deps) *fiber.App {
 	protected.Post("/telegram/alert", tgH.Alert)
 
 	registerSyncRoutes(protected, d)
+	registerLearningRoutes(protected, d)
 
 	registerAdminRoutes(api, d)
 
@@ -209,6 +231,24 @@ func registerSyncRoutes(r fiber.Router, d Deps) {
 	r.Post("/notifications/:id/read", writes, h.ReadNotification)
 }
 
+// registerLearningRoutes 는 하루 신규 학습 상한 API 를 붙인다.
+//
+// 이 두 경로도 앱에는 오래 전부터 있었고 서버에는 없었다. 앱의 저장소는 404 를
+// 만나면 '아직 배포되지 않음'으로 판단해 목업으로 떨어지므로, 상한은 기기 로컬
+// 값으로만 돌아갔다 — 앱을 지우면 초기화되고, 관리자가 콘솔에서 상한을 바꿔도
+// 아무 일도 일어나지 않았다.
+func registerLearningRoutes(r fiber.Router, d Deps) {
+	if d.Learning == nil || !d.Learning.Available() {
+		log.Printf("[learning] 의존성 미주입 — 하루 학습 상한 API 를 등록하지 않습니다")
+		return
+	}
+	h := handler.NewLearningHandler(d.Learning)
+	r.Get("/learning/quota", h.Quota)
+	// 완료 보고는 오프라인 큐를 타고 재전송된다 — 멱등키가 없으면 상한이
+	// 실제보다 빨리 찬다(같은 학습이 두 번 세어진다).
+	r.Post("/learning/complete", middleware.Idempotent(d.Idempotency), h.Complete)
+}
+
 // registerAdminRoutes 는 관리 콘솔(Vue) 전용 API 를 붙인다.
 //
 // 이중 게이트: RequireAuth(로그인했는가) → RequireAdmin(관리자인가).
@@ -244,9 +284,33 @@ func registerAdminRoutes(api fiber.Router, d Deps) {
 	admin.Delete("/cards/:id", h.DeleteCard)
 
 	admin.Get("/reports", h.Reports)
+	admin.Patch("/reports/:id", h.ReviewReport)
+
+	// 공지 — 발송(POST)과 이력(GET)이 같은 자원의 두 면이라 한 경로에 둔다.
+	// /notifications 는 대상 지정이 생기기 전의 이름이라 별칭으로 남긴다
+	// (운영 스크립트가 부르고 있을 수 있고, 없애서 얻는 것이 없다).
+	admin.Get("/announcements", h.Announcements)
+	admin.Post("/announcements", h.Notify)
+	// :id 가 아니라 고정 경로이므로 순서 문제는 없지만, 목록보다 뒤에 두어
+	// "무엇의 하위인지"가 읽히게 한다.
+	admin.Get("/announcements/audience", h.AudiencePreview)
 	admin.Post("/notifications", h.Notify)
 
+	admin.Get("/orgs", h.Orgs)
+
 	admin.Get("/audit", h.AuditLogs)
+
+	// 운영 설정 — 저장소가 없으면 읽기만 열어 둔다. 바꿀 수 없는 화면에
+	// 저장 버튼만 남아 500 을 내는 것보다, 아예 없는 편이 정직하다.
+	if d.Settings != nil {
+		sh := handler.NewSettingsHandler(d.Settings)
+		admin.Get("/settings", sh.Get)
+		if d.Settings.Available() {
+			admin.Put("/settings", sh.Update)
+		} else {
+			log.Printf("[admin] 설정 저장소가 없어 /settings 는 읽기 전용입니다")
+		}
+	}
 
 	// 분석은 저장소가 집계 읽기를 지원할 때만 연다. 없는 기능을 열어 두고
 	// 500 을 돌려주면 화면은 '고장'으로 보인다 — 아예 없는 편이 정직하다.

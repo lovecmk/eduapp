@@ -137,6 +137,9 @@ func (s *SyncService) Report(ctx context.Context, userID string, in ReportInput)
 		Reason:    reason,
 		Detail:    truncate(strings.TrimSpace(in.Detail), maxDetailLen),
 		CreatedAt: s.now(),
+		// 접수 시점의 단계를 명시한다. 빈 값도 Report.Status() 가 미처리로 읽지만,
+		// 저장소에 실제 값이 들어 있어야 상태별 조회가 어댑터마다 다르게 동작하지 않는다.
+		StatusCd: domain.ReportOpen,
 	})
 }
 

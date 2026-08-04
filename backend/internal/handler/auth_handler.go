@@ -5,6 +5,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 
+	"github.com/lovecmk/eduapp/backend/internal/middleware"
 	"github.com/lovecmk/eduapp/backend/internal/ports"
 	"github.com/lovecmk/eduapp/backend/internal/service"
 )
@@ -115,7 +116,7 @@ type updateMeReq struct {
 
 // UpdateMe PATCH /api/auth/me (인증 필요)
 func (h *AuthHandler) UpdateMe(c *fiber.Ctx) error {
-	userID := c.Locals("userID").(string)
+	userID := middleware.UserID(c)
 	var req updateMeReq
 	if err := c.BodyParser(&req); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "잘못된 요청입니다")
@@ -158,7 +159,7 @@ func (h *AuthHandler) Refresh(c *fiber.Ctx) error {
 
 // Me GET /api/auth/me (인증 필요)
 func (h *AuthHandler) Me(c *fiber.Ctx) error {
-	userID := c.Locals("userID").(string)
+	userID := middleware.UserID(c)
 	u, err := h.svc.Me(c.Context(), userID)
 	if err != nil {
 		if errors.Is(err, service.ErrAccountDisabled) {

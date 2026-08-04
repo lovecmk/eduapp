@@ -107,7 +107,7 @@ func RequireActiveAccount(gate *AccountGate) fiber.Handler {
 		if gate == nil {
 			return c.Next()
 		}
-		userID, _ := c.Locals("userID").(string)
+		userID, _ := c.Locals(LocalUserID).(string)
 		if !gate.Active(c.Context(), userID) {
 			return fiber.NewError(fiber.StatusForbidden, "이용이 정지된 계정입니다. 관리자에게 문의해주세요")
 		}

@@ -48,10 +48,12 @@ func main() {
 
 	// 저장소 선택 — 포트-어댑터 구조 덕에 구현만 교체된다(서비스 코드는 동일).
 	var (
-		userRepo  ports.UserRepository
-		cardRepo  ports.CardRepository
-		pushRepo  ports.PushTokenRepository
-		auditRepo ports.AuditRepository
+		userRepo     ports.UserRepository
+		cardRepo     ports.CardRepository
+		pushRepo     ports.PushTokenRepository
+		auditRepo    ports.AuditRepository
+		settingsRepo ports.SettingsRepository
+		annRepo      ports.AnnouncementRepository
 	)
 	var dataRepo ports.UserDataRepository
 	switch cfg.Store {
@@ -61,6 +63,8 @@ func main() {
 		pushRepo = memory.NewPushTokenRepo()
 		auditRepo = memory.NewAuditRepo()
 		dataRepo = memory.NewUserDataRepo()
+		settingsRepo = memory.NewSettingsRepo()
+		annRepo = memory.NewAnnouncementRepo()
 		log.Printf("[store] 인메모리 모드(무 DB)")
 	case "postgres":
 		pool, err := postgresadapter.Connect(ctx, cfg.DatabaseURL)
@@ -77,6 +81,8 @@ func main() {
 		pushRepo = postgresadapter.NewPushTokenRepo(pool)
 		auditRepo = postgresadapter.NewAuditRepo(pool)
 		dataRepo = postgresadapter.NewUserDataRepo(pool)
+		settingsRepo = postgresadapter.NewSettingsRepo(pool)
+		annRepo = postgresadapter.NewAnnouncementRepo(pool)
 	default: // "mongo"
 		db, disconnect, err := mongoadapter.Connect(ctx, cfg.MongoURI, cfg.MongoDB)
 		if err != nil {
@@ -99,6 +105,8 @@ func main() {
 			log.Fatalf("[mongo] 개인 데이터 인덱스 생성 실패: %v", err)
 		}
 		dataRepo = mongoData
+		settingsRepo = mongoadapter.NewSettingsRepo(db)
+		annRepo = mongoadapter.NewAnnouncementRepo(db)
 	}
 
 	tm := token.NewManager(cfg.JWTSecret, cfg.AccessTTL, cfg.RefreshTTL)
@@ -111,7 +119,16 @@ func main() {
 	// 관리 콘솔(Vue) — 요청 지표 수집기와 관리 유스케이스.
 	syncSvc := service.NewSyncService(dataRepo, cardRepo)
 	metrics := service.NewMetrics()
-	adminSvc := service.NewAdminService(userRepo, cardRepo, auditRepo, dataRepo, metrics, cfg.Store)
+	// 운영 설정(점검 모드·하루 상한·공지 배너)과 그것을 소비하는 학습 상한.
+	// 설정은 모든 요청이 읽으므로 서비스가 짧은 캐시를 들고 있다.
+	settingsSvc := service.NewSettingsService(settingsRepo, auditRepo)
+	learningSvc := service.NewLearningService(dataRepo, settingsSvc)
+
+	adminSvc := service.NewAdminService(service.AdminDeps{
+		Users: userRepo, Cards: cardRepo, Audit: auditRepo, Data: dataRepo,
+		Announcements: annRepo, Push: pushSvc, Settings: settingsSvc,
+		Metrics: metrics, StoreKind: cfg.Store,
+	})
 
 	// 분석 읽기는 개인 데이터 저장소가 함께 제공한다(같은 데이터를 다른 각도로 읽을 뿐이라
 	// 사본을 따로 두면 두 벌이 어긋난다). 지원하지 않는 저장소면 분석 API 만 빠진다.
@@ -159,6 +176,8 @@ func main() {
 		Insight:     insightSvc,
 		Metrics:     metrics,
 		Users:       userRepo,
+		Settings:    settingsSvc,
+		Learning:    learningSvc,
 	})
 
 	// 텔레그램 long-polling — 봇 토큰이 설정돼 있고 폴링이 켜져 있으면 백그라운드로 수신 대기.

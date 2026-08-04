@@ -5,6 +5,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 
+	"github.com/lovecmk/eduapp/backend/internal/middleware"
 	"github.com/lovecmk/eduapp/backend/internal/service"
 )
 
@@ -22,7 +23,7 @@ type RegisterPushReq struct {
 
 // Register POST /api/push/register — 로그인한 사용자의 기기 토큰을 저장한다.
 func (h *PushHandler) Register(c *fiber.Ctx) error {
-	userID, _ := c.Locals("userID").(string)
+	userID := middleware.UserID(c)
 	var req RegisterPushReq
 	if err := c.BodyParser(&req); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "잘못된 요청 형식입니다")

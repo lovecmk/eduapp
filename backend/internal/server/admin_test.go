@@ -28,6 +28,7 @@ type adminEnv struct {
 	// (분석처럼 '저장된 것이 화면까지 흘러오는가'를 보려면 원본을 만질 수 있어야 한다)
 	data  *memory.UserDataRepo
 	cards *memory.CardRepo
+	users *memory.UserRepo
 }
 
 // buildAdminApp 은 관리 콘솔 의존성까지 배선한 서버를 만든다.
@@ -61,22 +62,29 @@ func buildAdminApp(t *testing.T) *adminEnv {
 
 	metrics := service.NewMetrics()
 	pushSvc := service.NewPushService(memory.NewPushTokenRepo(), "")
+	settings := service.NewSettingsService(memory.NewSettingsRepo(), audit)
 	app := server.New(server.Deps{
 		Cfg: cfg, Tokens: tm, Auth: authSvc, Cards: cardSvc,
-		Stats:       service.NewStatsService(cardSvc),
-		Community:   service.NewCommunityService(cardSvc),
-		Push:        pushSvc,
-		Telegram:    service.NewTelegramService(service.TelegramConfig{}, pushSvc),
-		Admin:       service.NewAdminService(users, cards, audit, data, metrics, cfg.Store),
+		Stats:     service.NewStatsService(cardSvc),
+		Community: service.NewCommunityService(cardSvc),
+		Push:      pushSvc,
+		Telegram:  service.NewTelegramService(service.TelegramConfig{}, pushSvc),
+		Admin: service.NewAdminService(service.AdminDeps{
+			Users: users, Cards: cards, Audit: audit, Data: data,
+			Announcements: memory.NewAnnouncementRepo(), Push: pushSvc, Settings: settings,
+			Metrics: metrics, StoreKind: cfg.Store,
+		}),
 		Sync:        service.NewSyncService(data, cards),
 		Idempotency: middleware.NewIdempotencyStore(),
 		Data:        data,
 		Metrics:     metrics,
 		Users:       users,
 		Insight:     service.NewInsightService(users, cards, data, data),
+		Settings:    settings,
+		Learning:    service.NewLearningService(data, settings),
 	})
 
-	env := &adminEnv{app: app, data: data, cards: cards}
+	env := &adminEnv{app: app, data: data, cards: cards, users: users}
 	env.adminToken, env.adminID = loginAs(t, app, "admin", "adminpw1234")
 	env.memberToken, _ = loginAs(t, app, "demo", "demo1234")
 	return env

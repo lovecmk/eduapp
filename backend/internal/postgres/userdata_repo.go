@@ -2,8 +2,10 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/lovecmk/eduapp/backend/internal/domain"
@@ -168,9 +170,9 @@ func (r *UserDataRepo) SetEngagement(ctx context.Context, userID, cardID string,
 func (r *UserDataRepo) AddReport(ctx context.Context, rep domain.Report) error {
 	// (user, card, reason) 유니크 — 재전송으로 같은 신고가 여러 건 쌓이지 않게 한다.
 	_, err := r.pool.Exec(ctx,
-		`INSERT INTO reports (id, user_id, card_id, reason, detail, created_at)
-		 VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (user_id, card_id, reason) DO NOTHING`,
-		rep.ID, rep.UserID, rep.CardID, rep.Reason, rep.Detail, rep.CreatedAt)
+		`INSERT INTO reports (id, user_id, card_id, reason, detail, created_at, status_cd)
+		 VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (user_id, card_id, reason) DO NOTHING`,
+		rep.ID, rep.UserID, rep.CardID, rep.Reason, rep.Detail, rep.CreatedAt, string(rep.Status()))
 	return err
 }
 
@@ -192,26 +194,105 @@ func (r *UserDataRepo) ReportedCardIDs(ctx context.Context, userID string) ([]st
 	return out, rows.Err()
 }
 
-func (r *UserDataRepo) ListReports(ctx context.Context, limit int) ([]domain.Report, error) {
+// reportCols 는 신고 조회의 열 목록. 한 곳에 모아 두어 스캔 순서와 어긋나지 않게 한다.
+const reportCols = `id, user_id, card_id, reason, detail, created_at,
+	COALESCE(NULLIF(status_cd, ''), 'OPEN'), resolution_txt, handler_id, handler_name, handled_at`
+
+func scanReport(row pgx.Row) (domain.Report, error) {
+	var rep domain.Report
+	err := row.Scan(&rep.ID, &rep.UserID, &rep.CardID, &rep.Reason, &rep.Detail, &rep.CreatedAt,
+		&rep.StatusCd, &rep.ResolutionTxt, &rep.HandlerID, &rep.HandlerName, &rep.HandledAt)
+	return rep, err
+}
+
+func (r *UserDataRepo) ListReports(ctx context.Context, q ports.ReportQuery) ([]domain.Report, error) {
+	limit := q.Limit
 	if limit <= 0 {
 		limit = 100
 	}
+	// 조건은 반드시 placeholder 로 넘긴다(문자열 결합은 인젝션 통로가 된다).
+	// $1/$2 에 빈 값을 주면 그 조건은 통과하도록 써, 분기마다 SQL 을 새로 쓰지 않는다.
 	rows, err := r.pool.Query(ctx,
-		`SELECT id, user_id, card_id, reason, detail, created_at FROM reports
-		 ORDER BY created_at DESC, id DESC LIMIT $1`, limit)
+		`SELECT `+reportCols+` FROM reports
+		 WHERE ($1 = '' OR COALESCE(NULLIF(status_cd, ''), 'OPEN') = $1)
+		   AND ($2 = '' OR card_id = $2)
+		 ORDER BY created_at DESC, id DESC LIMIT $3`,
+		string(q.Status), q.CardID, limit)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	out := []domain.Report{}
 	for rows.Next() {
-		var rep domain.Report
-		if err := rows.Scan(&rep.ID, &rep.UserID, &rep.CardID, &rep.Reason, &rep.Detail, &rep.CreatedAt); err != nil {
+		rep, err := scanReport(rows)
+		if err != nil {
 			return nil, err
 		}
 		out = append(out, rep)
 	}
 	return out, rows.Err()
+}
+
+func (r *UserDataRepo) CountReportsByStatus(ctx context.Context) (map[string]int64, error) {
+	rows, err := r.pool.Query(ctx,
+		`SELECT COALESCE(NULLIF(status_cd, ''), 'OPEN') AS st, COUNT(*) FROM reports GROUP BY 1`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[string]int64{
+		string(domain.ReportOpen): 0, string(domain.ReportDoing): 0,
+		string(domain.ReportResolved): 0, string(domain.ReportRejected): 0,
+	}
+	for rows.Next() {
+		var st string
+		var n int64
+		if err := rows.Scan(&st, &n); err != nil {
+			return nil, err
+		}
+		out[st] = n
+	}
+	return out, rows.Err()
+}
+
+func (r *UserDataRepo) UpdateReport(ctx context.Context, id string, u ports.ReportUpdate) (*domain.Report, error) {
+	// RETURNING 으로 갱신된 행을 그대로 받는다 — 갱신 후 다시 SELECT 하면
+	// 그 사이 다른 관리자가 또 바꾼 값을 '내가 만든 결과'로 돌려주게 된다.
+	rep, err := scanReport(r.pool.QueryRow(ctx,
+		`UPDATE reports SET status_cd=$2, resolution_txt=$3, handler_id=$4, handler_name=$5, handled_at=$6
+		 WHERE id=$1 RETURNING `+reportCols,
+		id, string(u.Status), u.Resolution, u.HandlerID, u.HandlerName, u.HandledAt))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ports.ErrNotFound{Entity: "report"}
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &rep, nil
+}
+
+func (r *UserDataRepo) LearningCount(ctx context.Context, userID, day string) (int, error) {
+	var n int
+	err := r.pool.QueryRow(ctx,
+		`SELECT new_count FROM learning_daily WHERE user_id=$1 AND day_key=$2`, userID, day).Scan(&n)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, nil // 오늘 아직 학습하지 않았다 — 오류가 아니다
+	}
+	return n, err
+}
+
+func (r *UserDataRepo) AddLearningCount(ctx context.Context, userID, day string, n int) (int, error) {
+	if n <= 0 {
+		return r.LearningCount(ctx, userID, day)
+	}
+	// 더하기를 SQL 안에서 한다 — 읽고 더해서 쓰면 동시 요청 하나가 조용히 사라진다.
+	var total int
+	err := r.pool.QueryRow(ctx,
+		`INSERT INTO learning_daily (user_id, day_key, new_count, updated_at) VALUES ($1,$2,$3, now())
+		 ON CONFLICT (user_id, day_key) DO UPDATE
+		   SET new_count = learning_daily.new_count + EXCLUDED.new_count, updated_at = now()
+		 RETURNING new_count`, userID, day, n).Scan(&total)
+	return total, err
 }
 
 func (r *UserDataRepo) Notifications(ctx context.Context, userID string) ([]domain.Notification, error) {

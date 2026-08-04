@@ -8,6 +8,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 
 	"github.com/lovecmk/eduapp/backend/internal/domain"
+	"github.com/lovecmk/eduapp/backend/internal/middleware"
 	"github.com/lovecmk/eduapp/backend/internal/ports"
 	"github.com/lovecmk/eduapp/backend/internal/service"
 )
@@ -20,7 +21,7 @@ func NewCardHandler(svc *service.CardService) *CardHandler { return &CardHandler
 
 // All GET /api/cards
 func (h *CardHandler) All(c *fiber.Ctx) error {
-	userID := c.Locals("userID").(string)
+	userID := middleware.UserID(c)
 	cards, err := h.svc.All(c.Context(), userID)
 	if err != nil {
 		return err
@@ -32,7 +33,7 @@ func (h *CardHandler) All(c *fiber.Ctx) error {
 // 쿼리: ?difficulty=EASY|MEDIUM|HARD (선택), ?minutes=3 (선택)
 // 개인에게 "3분 학습 분량"을 난이도 규칙에 따라 구성해 돌려준다.
 func (h *CardHandler) Today(c *fiber.Ctx) error {
-	userID := c.Locals("userID").(string)
+	userID := middleware.UserID(c)
 
 	opt := service.SessionOptions{}
 	if d := strings.ToUpper(strings.TrimSpace(query(c, "difficulty"))); d != "" {
@@ -121,7 +122,7 @@ type markReq struct {
 
 // Mark PATCH /api/cards/:id
 func (h *CardHandler) Mark(c *fiber.Ctx) error {
-	userID := c.Locals("userID").(string)
+	userID := middleware.UserID(c)
 	id := param(c, "id")
 
 	var req markReq

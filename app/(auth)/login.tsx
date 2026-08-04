@@ -14,6 +14,7 @@ import { isBiometricAvailable, tryBiometricLogin } from '../../src/data/auth/Bio
 import { useAuthStore } from '../../src/store/authStore';
 import { ROUTES } from '../../src/constants/routes';
 import { APP_NAME } from '../../src/constants/brand';
+import { env } from '../../src/data/network/env';
 
 const SAVED_ID_KEY = 'saved_login_id';
 
@@ -139,13 +140,20 @@ export default function LoginScreen() {
             </View>
           )}
 
-          {/* 간편 로그인 */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 28, marginBottom: 16 }}>
-            <View style={{ flex: 1, height: 1, backgroundColor: c.border }} />
-            <Text style={{ marginHorizontal: 14, color: c.textSecondary, fontSize: 12, fontFamily: fontBody }}>간편 로그인</Text>
-            <View style={{ flex: 1, height: 1, backgroundColor: c.border }} />
-          </View>
-          <SocialButtonRow onPress={onSocial} />
+          {/* 간편 로그인 — 데모(목업)에서만 보인다.
+              실서버에는 이 인증 경로가 없다. 이름·이메일만으로 세션을 내주는
+              계약이라 그대로 서버에 옮기면 비밀번호를 묻지 않는 인증이 되기 때문이다.
+              누를 때마다 실패하는 버튼을 띄워 두면 사용자는 앱이 고장났다고 여긴다. */}
+          {env.useMockData && (
+            <>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 28, marginBottom: 16 }}>
+                <View style={{ flex: 1, height: 1, backgroundColor: c.border }} />
+                <Text style={{ marginHorizontal: 14, color: c.textSecondary, fontSize: 12, fontFamily: fontBody }}>간편 로그인</Text>
+                <View style={{ flex: 1, height: 1, backgroundColor: c.border }} />
+              </View>
+              <SocialButtonRow onPress={onSocial} />
+            </>
+          )}
 
           {/* <Text style={{ textAlign: 'center', color: c.textSecondary, fontSize: 11, marginTop: 22, fontFamily: fontBody }}>
             Bridge와 동일한 계정을 사용합니다
