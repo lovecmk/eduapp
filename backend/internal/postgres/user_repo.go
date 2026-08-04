@@ -128,6 +128,11 @@ func buildUserFilter(q ports.UserQuery) (string, []any) {
 	if q.Membership != "" {
 		add(` AND membership_cd = $%d`, q.Membership)
 	}
+	// 조직은 완전 일치 — Search 의 부분 일치와 달리 대상 지정에 쓰이므로
+	// "영업1팀" 선택이 "영업1팀지원"까지 잡으면 안 된다.
+	if q.Org != "" {
+		add(` AND org_nm = $%d`, q.Org)
+	}
 	return where, args
 }
 

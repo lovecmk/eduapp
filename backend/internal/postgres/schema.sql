@@ -164,6 +164,68 @@ CREATE TABLE IF NOT EXISTS notifications (
 
 CREATE INDEX IF NOT EXISTS notifications_user_idx ON notifications (user_id, created_at DESC);
 
+-- ─────────────────────────────────────────────────────────────────────────────
+-- 신고 처리 이력.
+-- 상태가 없으면 목록은 접수된 순간부터 영원히 같은 모습으로 남아, 운영자가
+-- 어제 본 신고를 오늘 다시 읽고 대시보드의 '신고 N건'도 줄어들지 않는다.
+-- 기존 행은 status_cd 기본값 'OPEN' 으로 자연스럽게 미처리가 된다.
+-- ─────────────────────────────────────────────────────────────────────────────
+ALTER TABLE reports ADD COLUMN IF NOT EXISTS status_cd      TEXT NOT NULL DEFAULT 'OPEN';
+ALTER TABLE reports ADD COLUMN IF NOT EXISTS resolution_txt TEXT NOT NULL DEFAULT '';
+ALTER TABLE reports ADD COLUMN IF NOT EXISTS handler_id     TEXT NOT NULL DEFAULT '';
+ALTER TABLE reports ADD COLUMN IF NOT EXISTS handler_name   TEXT NOT NULL DEFAULT '';
+ALTER TABLE reports ADD COLUMN IF NOT EXISTS handled_at     TIMESTAMPTZ;
+
+-- 미처리 신고만 훑는 것이 가장 잦은 조회다.
+CREATE INDEX IF NOT EXISTS reports_status_idx ON reports (status_cd, created_at DESC, id DESC);
+
+-- 하루 신규 학습 건수. (user, day) 가 곧 정체성이라 복합 기본키를 쓴다.
+-- 상한 판정의 권위가 서버에 있어야, 앱을 지우거나 기기를 바꿔도 상한이 초기화되지 않는다.
+CREATE TABLE IF NOT EXISTS learning_daily (
+    user_id    TEXT NOT NULL,
+    day_key    TEXT NOT NULL,
+    new_count  INTEGER NOT NULL DEFAULT 0,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (user_id, day_key)
+);
+
+-- 운영 설정(점검 모드·하루 상한·공지 배너). 한 줄만 존재한다 —
+-- id 를 고정 상수로 두어 "여러 벌이 생겨 어느 것이 진짜인지 모르는" 상태를 원천 차단한다.
+CREATE TABLE IF NOT EXISTS ops_settings (
+    id               TEXT PRIMARY KEY,
+    maintenance_yn   BOOLEAN NOT NULL DEFAULT FALSE,
+    maintenance_msg  TEXT NOT NULL DEFAULT '',
+    signup_enabled   BOOLEAN NOT NULL DEFAULT TRUE,
+    daily_new_limit  INTEGER NOT NULL DEFAULT 5,
+    notice_txt       TEXT NOT NULL DEFAULT '',
+    notice_level     TEXT NOT NULL DEFAULT 'INFO',
+    updated_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_by       TEXT NOT NULL DEFAULT '',
+    updated_by_name  TEXT NOT NULL DEFAULT ''
+);
+
+-- 발송된 공지 이력(append-only). 공지는 되돌릴 수 없으므로 무엇을 언제 누구에게
+-- 보냈는지가 남아야 한다 — 감사 로그의 한 줄만으로는 대상·수신자 수를 잃는다.
+CREATE TABLE IF NOT EXISTS announcements (
+    id             TEXT PRIMARY KEY,
+    title_txt      TEXT NOT NULL DEFAULT '',
+    desc_txt       TEXT NOT NULL DEFAULT '',
+    type_cd        TEXT NOT NULL DEFAULT 'SYSTEM',
+    audience_cd    TEXT NOT NULL DEFAULT 'ALL',
+    audience_value TEXT NOT NULL DEFAULT '',
+    audience_label TEXT NOT NULL DEFAULT '',
+    recipients     INTEGER NOT NULL DEFAULT 0,
+    push_yn        BOOLEAN NOT NULL DEFAULT FALSE,
+    actor_id       TEXT NOT NULL DEFAULT '',
+    actor_name     TEXT NOT NULL DEFAULT '',
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS announcements_created_at_idx ON announcements (created_at DESC, id DESC);
+
+-- 조직 단위 공지 대상 조회(org_nm 완전 일치)가 이 인덱스를 탄다.
+CREATE INDEX IF NOT EXISTS users_org_idx ON users (org_nm) WHERE org_nm <> '';
+
 -- 문제 수정 시각 — 관리자 동시 편집을 감지하는 데 쓴다.
 -- 두 사람이 같은 문제를 열어 각자 저장하면 나중 저장이 앞의 수정을 통째로 덮어쓰는데,
 -- 이 값을 함께 보내면 서버가 "그 사이 누가 고쳤다"를 판별해 409 로 막을 수 있다.

@@ -6,6 +6,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 
+	"github.com/lovecmk/eduapp/backend/internal/ports"
 	"github.com/lovecmk/eduapp/backend/internal/server"
 )
 
@@ -119,7 +120,7 @@ func TestIdempotentReplay(t *testing.T) {
 		t.Errorf("3번 재전송했는데 신고가 %d건 접수됐다 — 한 건이어야 한다", len(mine.CardIDs))
 	}
 
-	reports, err := deps.Data.ListReports(t.Context(), 100)
+	reports, err := deps.Data.ListReports(t.Context(), ports.ReportQuery{Limit: 100})
 	if err != nil {
 		t.Fatalf("신고 목록: %v", err)
 	}

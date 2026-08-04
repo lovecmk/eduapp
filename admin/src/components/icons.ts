@@ -44,6 +44,9 @@ export const ICON_PATHS = {
   // 접었다 펴는 표시 — 오답 카드에서 해설을 펼칠 때 쓴다.
   'chevron-down': 'M6 9l6 6 6-6',
   'chevron-up': 'M6 15l6-6 6 6',
+  // 운영 설정 — 조절 손잡이. 톱니(기어)를 쓰지 않은 이유는 이 화면이
+  // '앱 설정'이 아니라 **지금 값을 조절하는 곳**이기 때문이다.
+  sliders: 'M4 7h10M18 7h2M4 17h4M12 17h8M16 5v4M8 15v4',
 } as const;
 
 export type IconName = keyof typeof ICON_PATHS;

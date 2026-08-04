@@ -101,8 +101,10 @@ export interface UntouchedCard {
 }
 
 export interface ContentSummary {
-  /** 접수된 신고 건수 — 가장 급한 숫자다. */
+  /** **아직 처리되지 않은** 신고 건수 — 가장 급한 숫자다. 처리하면 줄어든다. */
   reports: number;
+  /** 처리된 것을 포함한 전체 신고 건수(추이 참고용). */
+  reports_total: number;
   total_cards: number;
   by_category: CategoryCount[];
   by_type: LabelCount[];
@@ -131,6 +133,8 @@ export interface Dashboard {
   learning: LearningSummary;
   metrics: MetricsSnapshot;
   service: ServiceStatus;
+  /** 지금 걸려 있는 운영 설정 — 상단 바가 점검 모드를 상시 표시하는 데 쓴다. */
+  ops: OpsSettings;
 }
 
 // ── 사용자 관리 ───────────────────────────────────────────────────────────────
@@ -232,6 +236,9 @@ export interface CardQuery {
 
 // ── 감사 로그 ─────────────────────────────────────────────────────────────────
 
+/** 신고 처리 단계. 빈 값은 서버가 OPEN 으로 해석해서 준다. */
+export type ReportStatus = 'OPEN' | 'DOING' | 'RESOLVED' | 'REJECTED';
+
 /** 접수된 문제 신고 한 건 — 서버가 카드 제목·신고자 이름을 붙여서 준다. */
 export interface AdminReport {
   id: string;
@@ -245,15 +252,107 @@ export interface AdminReport {
   /** 신고된 카드가 이미 삭제됐다. 없는 카드를 계속 찾지 않도록 표시한다. */
   card_missing: boolean;
   reporter_name: string;
+
+  /** 처리 단계 — 서버가 항상 해석된 값을 싣는다(빈 문자열이 오지 않는다). */
+  status_cd: ReportStatus;
+  resolution_txt: string;
+  handler_id: string;
+  handler_name: string;
+  handled_at: string | null;
 }
 
-/** 공지 발송 요청. user_id 가 비면 전체 발송. */
+/**
+ * 신고 목록 한 페이지 + 단계별 **전체** 건수.
+ *
+ * counts 가 목록과 함께 오는 이유: 상태 칩("미처리 3 · 완료 128")은 지금 걸린
+ * 필터 바깥의 숫자까지 보여 줘야 고를 값이 있는지 알 수 있다.
+ */
+export interface ReportPage {
+  items: AdminReport[];
+  counts: Partial<Record<ReportStatus, number>>;
+  /** 아직 손이 필요한 건수(OPEN+DOING) — 상단 바 배지가 읽는 값. */
+  pending: number;
+}
+
+// ── 공지 센터 ─────────────────────────────────────────────────────────────────
+
+/** 공지 수신 대상의 지정 방식. */
+export type AudienceKind = 'ALL' | 'ROLE' | 'MEMBERSHIP' | 'ORG' | 'USER';
+
+/** 공지 발송 요청. audience_cd 가 비면 전체 발송. */
 export interface NotifyInput {
   title_txt: string;
   desc_txt: string;
   type_cd: string;
-  user_id?: string;
+  audience_cd?: AudienceKind;
+  audience_value?: string;
+  /** 켜면 앱 안 알림과 함께 기기 푸시로도 밀어 준다. */
+  push_yn?: boolean;
 }
+
+/** 발송된 공지 한 건의 기록. */
+export interface Announcement {
+  id: string;
+  title_txt: string;
+  desc_txt: string;
+  type_cd: string;
+  audience_cd: AudienceKind;
+  audience_value: string;
+  /** 발송 시점에 얼려 둔 대상 설명 — 조직 이름이 바뀌어도 '그때 누구에게'는 안 변한다. */
+  audience_label: string;
+  recipients: number;
+  push_yn: boolean;
+  actor_id: string;
+  actor_name: string;
+  created_at: string;
+}
+
+export interface AnnounceResult {
+  sent: number;
+  push_sent: number;
+  announcement: Announcement;
+}
+
+/** 보내기 전에 확인하는 대상 규모. */
+export interface AudiencePreview {
+  count: number;
+  label: string;
+}
+
+// ── 운영 설정 ─────────────────────────────────────────────────────────────────
+
+export type NoticeLevel = 'INFO' | 'WARN' | 'DANGER';
+
+/** 재배포 없이 즉시 바꾸는 서비스 동작 값. */
+export interface OpsSettings {
+  maintenance_yn: boolean;
+  maintenance_msg: string;
+  signup_enabled: boolean;
+  daily_new_limit: number;
+  notice_txt: string;
+  notice_level: NoticeLevel;
+  updated_at: string;
+  updated_by: string;
+  updated_by_name: string;
+}
+
+/**
+ * 설정 변경 요청 — **보낼 필드만** 담는다.
+ *
+ * 전부 보내면 화면이 들고 있던 낡은 값이 남의 변경을 덮는다. 공지 문구를 고치는
+ * 사이 다른 관리자가 점검 모드를 켰다면, 통째로 보내는 순간 그것이 꺼진다.
+ */
+export type SettingsPatch = Partial<
+  Pick<
+    OpsSettings,
+    | 'maintenance_yn'
+    | 'maintenance_msg'
+    | 'signup_enabled'
+    | 'daily_new_limit'
+    | 'notice_txt'
+    | 'notice_level'
+  >
+>;
 
 export interface AuditLog {
   id: string;

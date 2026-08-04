@@ -26,6 +26,8 @@ type UserDataRepo struct {
 	reports    []domain.Report
 	notifs     map[string][]domain.Notification
 	updatedAt  map[string]time.Time
+	// learned 는 (사용자, 날짜) 별 신규 학습 건수 — 하루 상한 판정의 권위다.
+	learned map[string]int // key: userID|dayKey
 }
 
 // NewUserDataRepo 는 인메모리 개인 데이터 저장소를 만든다.
@@ -37,6 +39,7 @@ func NewUserDataRepo() *UserDataRepo {
 		engagement: map[string]bool{},
 		notifs:     map[string][]domain.Notification{},
 		updatedAt:  map[string]time.Time{},
+		learned:    map[string]int{},
 	}
 }
 
@@ -174,21 +177,82 @@ func (r *UserDataRepo) ReportedCardIDs(_ context.Context, userID string) ([]stri
 	return out, nil
 }
 
-func (r *UserDataRepo) ListReports(_ context.Context, limit int) ([]domain.Report, error) {
+func (r *UserDataRepo) ListReports(_ context.Context, q ports.ReportQuery) ([]domain.Report, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	sorted := make([]domain.Report, len(r.reports))
-	copy(sorted, r.reports)
-	sort.Slice(sorted, func(i, j int) bool {
-		if sorted[i].CreatedAt.Equal(sorted[j].CreatedAt) {
-			return sorted[i].ID > sorted[j].ID
+
+	matched := make([]domain.Report, 0, len(r.reports))
+	for _, rep := range r.reports {
+		if q.Status != "" && rep.Status() != q.Status {
+			continue
 		}
-		return sorted[i].CreatedAt.After(sorted[j].CreatedAt)
-	})
-	if limit > 0 && limit < len(sorted) {
-		sorted = sorted[:limit]
+		if q.CardID != "" && rep.CardID != q.CardID {
+			continue
+		}
+		matched = append(matched, rep)
 	}
-	return sorted, nil
+	sort.Slice(matched, func(i, j int) bool {
+		if matched[i].CreatedAt.Equal(matched[j].CreatedAt) {
+			return matched[i].ID > matched[j].ID
+		}
+		return matched[i].CreatedAt.After(matched[j].CreatedAt)
+	})
+	limit := q.Limit
+	if limit <= 0 {
+		limit = 100
+	}
+	if limit < len(matched) {
+		matched = matched[:limit]
+	}
+	return matched, nil
+}
+
+func (r *UserDataRepo) CountReportsByStatus(_ context.Context) (map[string]int64, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	// 단계가 하나도 없는 상태에서도 키가 모두 있어야 화면의 칩이 사라지지 않는다.
+	out := map[string]int64{
+		string(domain.ReportOpen): 0, string(domain.ReportDoing): 0,
+		string(domain.ReportResolved): 0, string(domain.ReportRejected): 0,
+	}
+	for _, rep := range r.reports {
+		out[string(rep.Status())]++
+	}
+	return out, nil
+}
+
+func (r *UserDataRepo) UpdateReport(_ context.Context, id string, u ports.ReportUpdate) (*domain.Report, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for i := range r.reports {
+		if r.reports[i].ID != id {
+			continue
+		}
+		r.reports[i].StatusCd = u.Status
+		r.reports[i].ResolutionTxt = u.Resolution
+		r.reports[i].HandlerID = u.HandlerID
+		r.reports[i].HandlerName = u.HandlerName
+		at := u.HandledAt
+		r.reports[i].HandledAt = &at
+		out := r.reports[i]
+		return &out, nil
+	}
+	return nil, ports.ErrNotFound{Entity: "report"}
+}
+
+func (r *UserDataRepo) LearningCount(_ context.Context, userID, day string) (int, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.learned[srsKey(userID, day)], nil
+}
+
+func (r *UserDataRepo) AddLearningCount(_ context.Context, userID, day string, n int) (int, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if n > 0 {
+		r.learned[srsKey(userID, day)] += n
+	}
+	return r.learned[srsKey(userID, day)], nil
 }
 
 func (r *UserDataRepo) Notifications(_ context.Context, userID string) ([]domain.Notification, error) {

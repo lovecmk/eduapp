@@ -1,5 +1,18 @@
 import { describe, it, expect } from 'vitest';
-import { num, pct, ms, uptime, dateTime, dateOnly, timeAgo, statusTone, statusLabel } from './format';
+import {
+  num,
+  pct,
+  ms,
+  uptime,
+  dateTime,
+  dateOnly,
+  timeAgo,
+  statusTone,
+  statusLabel,
+  actionLabel,
+  reportStatusMeta,
+  audienceLabel,
+} from './format';
 
 /**
  * 서식 함수는 화면 전체가 쓴다. 여기서 "-" 대신 NaN 이나 Invalid Date 가 새면
@@ -123,5 +136,53 @@ describe('statusLabel — 계정 상태', () => {
     expect(statusLabel('A')).toBe('활성');
     expect(statusLabel('I')).toBe('정지');
     expect(statusLabel('D')).toBe('삭제');
+  });
+});
+
+describe('reportStatusMeta — 신고 처리 단계', () => {
+  it('네 단계에 이름표와 색을 준다', () => {
+    expect(reportStatusMeta('OPEN').label).toBe('미처리');
+    expect(reportStatusMeta('DOING').label).toBe('확인 중');
+    expect(reportStatusMeta('RESOLVED').label).toBe('처리 완료');
+    expect(reportStatusMeta('REJECTED').label).toBe('반려');
+  });
+
+  it('빈 값·알 수 없는 값은 미처리 쪽으로 떨어진다', () => {
+    // 처리되지 않은 것을 '완료'로 보이게 하는 실수가 훨씬 나쁘다 —
+    // 판독은 항상 '아직 손이 필요하다' 쪽으로 안전하게 기운다.
+    expect(reportStatusMeta('').label).toBe('미처리');
+    expect(reportStatusMeta('').tone).toBe('warn');
+  });
+
+  it('base.css 에 실제로 있는 배지 클래스만 만든다', () => {
+    // statusTone 과 같은 이유 — 색 이름을 돌려주면 없는 클래스가 만들어져
+    // 배지가 통째로 색을 잃는다.
+    const defined = ['ok', 'warn', 'danger', 'neutral', 'accent', 'info'];
+    for (const cd of ['OPEN', 'DOING', 'RESOLVED', 'REJECTED', '', 'WEIRD']) {
+      expect(defined).toContain(reportStatusMeta(cd).tone);
+    }
+  });
+});
+
+describe('audienceLabel — 공지 대상', () => {
+  it('대상 지정 방식을 한국어로', () => {
+    expect(audienceLabel('ALL')).toBe('전체');
+    expect(audienceLabel('ORG')).toBe('조직');
+    expect(audienceLabel('MEMBERSHIP')).toBe('등급');
+    expect(audienceLabel('ROLE')).toBe('권한');
+    expect(audienceLabel('USER')).toBe('개별');
+  });
+
+  it('모르는 값은 그대로 보여 준다(빈칸으로 삼키지 않는다)', () => {
+    expect(audienceLabel('PLANET')).toBe('PLANET');
+  });
+});
+
+describe('actionLabel — 감사 로그', () => {
+  it('새로 생긴 관리 행위도 이름표를 갖는다', () => {
+    // 코드가 그대로 보이면(report.review) 이력 화면이 개발자 로그처럼 읽힌다.
+    expect(actionLabel('report.review')).toBe('신고 처리');
+    expect(actionLabel('notification.send')).toBe('공지 발송');
+    expect(actionLabel('settings.update')).toBe('운영 설정');
   });
 });

@@ -30,24 +30,46 @@ type AdminService struct {
 	// data 는 신고·알림 등 개인 데이터 저장소(없을 수도 있다).
 	data ports.UserDataRepository
 
+	// announcements 는 발송된 공지 이력(없으면 발송은 되고 이력만 남지 않는다).
+	announcements ports.AnnouncementRepository
+	// settings 는 운영 설정. 대시보드가 점검 모드·공지 배너를 함께 실어 주기 위해 읽는다.
+	settings *SettingsService
+	// push 는 공지를 기기 알림으로도 밀어 줄 때 쓴다(없으면 앱 안 알림만).
+	push *PushService
+
 	metrics *Metrics
 	// storeKind 는 현재 저장소 종류("mongo"/"postgres"/"memory") — 서비스 상태 화면용.
 	storeKind string
 	now       func() time.Time
 }
 
+// AdminDeps 는 관리 서비스가 필요로 하는 의존성 묶음이다.
+//
+// 위치 인자 대신 이름 붙은 구조체를 쓰는 이유 — 여기 들어오는 것은 대부분
+// 같은 모양(인터페이스 포인터)이라 순서가 하나만 어긋나도 컴파일은 통과하고
+// 런타임에야 엉뚱한 저장소를 쓴다. 게다가 선택적 의존성(공지 이력·푸시)이
+// 늘어날 때마다 모든 호출부의 인자 개수가 바뀐다.
+type AdminDeps struct {
+	Users ports.UserRepository
+	Cards ports.CardRepository
+	Audit ports.AuditRepository
+	Data  ports.UserDataRepository
+
+	// 선택 — 없으면 그 기능만 조용히 빠진다(서비스 전체가 멈추지는 않는다).
+	Announcements ports.AnnouncementRepository
+	Push          *PushService
+	Settings      *SettingsService
+
+	Metrics   *Metrics
+	StoreKind string
+}
+
 // NewAdminService 는 관리 서비스를 만든다.
-func NewAdminService(
-	users ports.UserRepository,
-	cards ports.CardRepository,
-	audit ports.AuditRepository,
-	data ports.UserDataRepository,
-	metrics *Metrics,
-	storeKind string,
-) *AdminService {
+func NewAdminService(d AdminDeps) *AdminService {
 	return &AdminService{
-		users: users, cards: cards, audit: audit, data: data,
-		metrics: metrics, storeKind: storeKind, now: time.Now,
+		users: d.Users, cards: d.Cards, audit: d.Audit, data: d.Data,
+		announcements: d.Announcements, push: d.Push, settings: d.Settings,
+		metrics: d.Metrics, storeKind: d.StoreKind, now: time.Now,
 	}
 }
 
@@ -80,6 +102,12 @@ type Dashboard struct {
 	Learning LearningSummary `json:"learning"`
 	Metrics  MetricsSnapshot `json:"metrics"`
 	Service  ServiceStatus   `json:"service"`
+	// Ops 는 지금 걸려 있는 운영 설정(점검 모드·공지 배너).
+	//
+	// 대시보드에 실어 주는 이유 — 점검 모드는 "어느 화면에 있든 항상 참"인
+	// 사실이라 상단 바가 상시 보여 줘야 한다. 상단 바가 설정을 따로 폴링하면
+	// 같은 정보를 두 벌로 받아 오게 되고, 두 값이 어긋나는 순간이 생긴다.
+	Ops domain.OpsSettings `json:"ops"`
 }
 
 // UserSummary 는 사용자 규모와 유입.
@@ -99,9 +127,14 @@ type ContentSummary struct {
 	ByType       []LabelCount    `json:"by_type"`
 	ByDifficulty []LabelCount    `json:"by_difficulty"`
 	Untouched    []UntouchedCard `json:"untouched"`
-	// Reports 는 접수된 신고 건수 — 관리자가 가장 먼저 봐야 하는 숫자다.
+	// Reports 는 **아직 처리되지 않은** 신고 건수 — 관리자가 가장 먼저 봐야 하는 숫자다.
 	// 신고는 "지금 잘못된 내용이 배포 중"이라는 뜻이라 다른 지표보다 급하다.
+	//
+	// 처리된 것까지 세면 이 숫자는 시간이 갈수록 커지기만 하고 결코 줄지 않는다.
+	// 줄지 않는 경고는 곧 아무도 보지 않는 경고가 된다.
 	Reports int `json:"reports"`
+	// ReportsTotal 은 처리된 것을 포함한 전체 신고 건수(추이 참고용).
+	ReportsTotal int `json:"reports_total"`
 }
 
 // CategoryCount 는 분야별 카드 수.
@@ -182,9 +215,17 @@ func (s *AdminService) Dashboard(ctx context.Context) (*Dashboard, error) {
 
 	// 신고 건수 — 저장소가 없으면 0 으로 두고 대시보드 전체를 실패시키지 않는다.
 	// 부가 지표 하나 때문에 첫 화면이 통째로 안 뜨는 편이 훨씬 나쁘다.
+	//
+	// 목록을 세지 않고 저장소에 세게 하는 이유: 목록에는 상한이 걸려 있어
+	// 신고가 상한을 넘는 순간 '500건 이상'이 전부 500 으로 보인다.
 	if s.data != nil {
-		if reports, err := s.data.ListReports(ctx, maxReportLimit); err == nil {
-			content.Reports = len(reports)
+		if counts, err := s.data.CountReportsByStatus(ctx); err == nil {
+			for st, n := range counts {
+				content.ReportsTotal += int(n)
+				if domain.ReportStatus(st).Pending() {
+					content.Reports += int(n)
+				}
+			}
 		} else {
 			log.Printf("[admin] 신고 건수 조회 실패(대시보드는 계속 표시): %v", err)
 		}
@@ -205,6 +246,7 @@ func (s *AdminService) Dashboard(ctx context.Context) (*Dashboard, error) {
 		Learning: s.overallLearning(ctx, progress),
 		Metrics:  snapshot,
 		Service:  s.ServiceStatus(ctx),
+		Ops:      s.settings.Get(ctx).Normalized(),
 	}, nil
 }
 
@@ -971,19 +1013,45 @@ type AdminReport struct {
 	// 이 표시가 없으면 관리자는 사라진 카드를 계속 찾아다닌다.
 	CardMissing  bool   `json:"card_missing"`
 	ReporterName string `json:"reporter_name"`
+	// StatusCd 는 빈 값이 올라가지 않도록 항상 해석된 값을 싣는다 —
+	// 화면이 "" 를 만나면 어느 칩에도 넣지 못하고 그 줄을 잃는다.
+	StatusCd domain.ReportStatus `json:"status_cd"`
+}
+
+// ReportPage 는 신고 목록 한 페이지 + 단계별 전체 건수.
+//
+// 건수를 목록과 함께 주는 이유 — 상태 칩("미처리 3 · 완료 128")은 지금 걸린
+// 필터 **바깥**의 숫자까지 보여 줘야 고를 값이 있는지 알 수 있다. 화면이
+// 목록 길이로 그 숫자를 만들면 필터를 걸 때마다 다른 칩들이 0 으로 무너진다.
+type ReportPage struct {
+	Items []AdminReport `json:"items"`
+	// Counts 는 처리 단계별 전체 건수(OPEN/DOING/RESOLVED/REJECTED).
+	Counts map[string]int64 `json:"counts"`
+	// Pending 은 아직 손이 필요한 건수(OPEN+DOING) — 상단 바 배지가 읽는 값.
+	Pending int64 `json:"pending"`
 }
 
 // Reports 는 최근 신고를 카드·신고자 정보와 함께 반환한다.
-func (s *AdminService) Reports(ctx context.Context, limit int) ([]AdminReport, error) {
+func (s *AdminService) Reports(ctx context.Context, q ports.ReportQuery) (*ReportPage, error) {
 	if s.data == nil {
-		return []AdminReport{}, nil
+		return &ReportPage{Items: []AdminReport{}, Counts: map[string]int64{}}, nil
 	}
-	if limit <= 0 || limit > maxReportLimit {
-		limit = 100
+	if q.Limit <= 0 || q.Limit > maxReportLimit {
+		q.Limit = 100
 	}
-	raw, err := s.data.ListReports(ctx, limit)
+	raw, err := s.data.ListReports(ctx, q)
 	if err != nil {
 		return nil, err
+	}
+	counts, err := s.data.CountReportsByStatus(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var pending int64
+	for st, n := range counts {
+		if domain.ReportStatus(st).Pending() {
+			pending += n
+		}
 	}
 
 	// 카드는 한 번만 통째로 읽어 맵으로 쓴다 — 신고마다 조회하면 N+1 이 된다.
@@ -1001,7 +1069,7 @@ func (s *AdminService) Reports(ctx context.Context, limit int) ([]AdminReport, e
 
 	out := make([]AdminReport, 0, len(raw))
 	for _, r := range raw {
-		item := AdminReport{Report: r}
+		item := AdminReport{Report: r, StatusCd: r.Status()}
 		if c, ok := byID[r.CardID]; ok {
 			item.CardTitle = firstNonEmpty(c.TitleTxt, c.QuestionTxt)
 			item.CardCategory = c.CategoryCd
@@ -1030,7 +1098,93 @@ func (s *AdminService) Reports(ctx context.Context, limit int) ([]AdminReport, e
 		}
 		out = append(out, item)
 	}
-	return out, nil
+	return &ReportPage{Items: out, Counts: counts, Pending: pending}, nil
+}
+
+// ReviewReport 는 신고 한 건의 처리 단계를 바꾼다.
+//
+// 처리 메모를 반려에서 필수로 두는 이유 — 반려는 "이 신고는 틀렸다"는 판정이다.
+// 근거가 남지 않으면 같은 신고가 다시 올라왔을 때 앞사람의 판단을 되짚을 수 없고,
+// 결국 두 번째 담당자가 처음부터 다시 확인하게 된다.
+func (s *AdminService) ReviewReport(ctx context.Context, actor Actor, id string, status domain.ReportStatus, resolution string) (*AdminReport, error) {
+	if s.data == nil {
+		return nil, ErrInvalidInput{Reason: "신고 저장소가 연결되어 있지 않습니다"}
+	}
+	st := domain.ParseReportStatus(string(status))
+	if st == "" {
+		return nil, ErrInvalidInput{Reason: "알 수 없는 처리 단계입니다(OPEN/DOING/RESOLVED/REJECTED)"}
+	}
+	resolution = strings.TrimSpace(resolution)
+	if len([]rune(resolution)) > 500 {
+		return nil, ErrInvalidInput{Reason: "처리 메모는 500자를 넘을 수 없습니다"}
+	}
+	if st == domain.ReportRejected && resolution == "" {
+		return nil, ErrInvalidInput{Reason: "반려에는 사유를 남겨야 합니다"}
+	}
+
+	now := s.now()
+	update := ports.ReportUpdate{
+		Status: st, Resolution: resolution,
+		HandlerID: actor.ID, HandlerName: actor.Name, HandledAt: now,
+	}
+	// 다시 미처리로 되돌리는 것은 '처리를 취소한다'는 뜻이다 — 처리자 이름을
+	// 그대로 두면 아무도 손대지 않은 신고에 담당자가 붙어 있는 것처럼 보인다.
+	if st == domain.ReportOpen {
+		update.HandlerID, update.HandlerName = "", ""
+	}
+
+	updated, err := s.data.UpdateReport(ctx, id, update)
+	if err != nil {
+		return nil, err
+	}
+	s.record(ctx, actor, "report.review", "report", id,
+		fmt.Sprintf("신고 처리: %s%s", reportStatusLabel(st), summarySuffix(resolution)))
+
+	// 목록과 **같은 모양**으로 돌려준다.
+	//
+	// 화면은 이 응답으로 목록의 그 줄을 갈아 끼운다(스크롤과 맥락을 잃지 않으려고).
+	// 그래서 여기서 카드 제목이나 신고자 이름을 빼먹으면, 처리 버튼을 누른 순간
+	// 그 줄에서 이름이 사라진다 — 저장은 됐는데 데이터를 잃은 것처럼 보인다.
+	item := AdminReport{Report: *updated, StatusCd: updated.Status()}
+	if card, err := s.cards.FindCard(ctx, updated.CardID); err == nil {
+		item.CardTitle = firstNonEmpty(card.TitleTxt, card.QuestionTxt)
+		item.CardCategory = card.CategoryCd
+	} else if isNotFound(err) {
+		item.CardMissing = true
+	}
+	if u, err := s.users.FindByID(ctx, updated.UserID); err == nil {
+		item.ReporterName = displayName(*u)
+	} else {
+		// 탈퇴했거나 조회에 실패했다 — 신고 자체는 유효하므로 목록과 같은 표기를 쓴다.
+		item.ReporterName = unknownReporter
+	}
+	return &item, nil
+}
+
+// summarySuffix 는 감사 로그 한 줄에 메모를 짧게 덧붙인다(없으면 아무것도 안 붙인다).
+func summarySuffix(note string) string {
+	if note == "" {
+		return ""
+	}
+	runes := []rune(note)
+	if len(runes) > 40 {
+		return " — " + string(runes[:40]) + "…"
+	}
+	return " — " + note
+}
+
+func reportStatusLabel(s domain.ReportStatus) string {
+	switch s {
+	case domain.ReportOpen:
+		return "미처리"
+	case domain.ReportDoing:
+		return "확인 중"
+	case domain.ReportResolved:
+		return "처리 완료"
+	case domain.ReportRejected:
+		return "반려"
+	}
+	return string(s)
 }
 
 // maxReportLimit 은 신고 목록 한 번에 가져갈 수 있는 최대 건수.
@@ -1039,14 +1193,40 @@ const maxReportLimit = 500
 // unknownReporter 는 신고자 계정을 찾지 못했을 때 보여 줄 이름.
 const unknownReporter = "(알 수 없는 사용자)"
 
-// NotifyInput 은 관리자 공지 발송 요청.
-type NotifyInput struct {
+// AnnounceInput 은 관리자 공지 발송 요청.
+type AnnounceInput struct {
 	Title string
 	Body  string
 	// TypeCd 는 앱이 아이콘·색을 고르는 데 쓴다(NEW/REMIND/ACHIEVEMENT/SYSTEM).
 	TypeCd string
-	// UserID 가 비면 전체 발송, 있으면 그 사람에게만.
-	UserID string
+	// Audience 는 대상 지정 방식(ALL/ROLE/MEMBERSHIP/ORG/USER), Value 는 그 값.
+	Audience      domain.AudienceKind
+	AudienceValue string
+	// Push 가 켜지면 앱 안 알림과 함께 기기 푸시로도 밀어 준다.
+	// 기본이 꺼짐인 것은 의도적이다 — 푸시는 잠자는 사람도 깨운다.
+	Push bool
+}
+
+// AnnounceResult 는 발송 결과. 몇 명에게 갔는지는 전체 발송의 유일한 확인 수단이다.
+type AnnounceResult struct {
+	Sent         int                 `json:"sent"`
+	PushSent     int                 `json:"push_sent"`
+	Announcement domain.Announcement `json:"announcement"`
+}
+
+// Audience 는 해석된 발송 대상(수신자 id + 사람이 읽는 설명).
+type Audience struct {
+	UserIDs []string
+	Label   string
+}
+
+// AudiencePreview 는 발송 전에 "몇 명에게 가는가"를 미리 알려 준다.
+//
+// 이것이 없으면 관리자는 되돌릴 수 없는 발송 버튼을 대상 규모를 모른 채 누른다.
+// 조직 이름 오타 하나로 0명에게 보내거나, 전체인 줄 모르고 수천 명을 깨우게 된다.
+type AudiencePreview struct {
+	Count int    `json:"count"`
+	Label string `json:"label"`
 }
 
 // notifyMaxRecipients 는 한 번에 보낼 수 있는 최대 인원.
@@ -1056,45 +1236,33 @@ type NotifyInput struct {
 // 넘어가면 "대상이 너무 많다"고 분명히 알린다(조용히 일부만 보내지 않는다).
 const notifyMaxRecipients = 5000
 
-// Notify 는 알림을 만들어 저장한다(전체 또는 한 사람).
+// Announce 는 공지를 만들어 대상에게 저장하고, 발송 이력을 남긴다.
 //
 // 알림 테이블은 있는데 그것을 만드는 주체가 없었다. 앱은 /api/notifications 를
 // 부르지만 언제나 빈 배열만 받았다 — 기능이 반쪽이었던 셈이다.
-func (s *AdminService) Notify(ctx context.Context, actor Actor, in NotifyInput) (int, error) {
+func (s *AdminService) Announce(ctx context.Context, actor Actor, in AnnounceInput) (*AnnounceResult, error) {
 	if s.data == nil {
-		return 0, ErrInvalidInput{Reason: "알림 저장소가 연결되어 있지 않습니다"}
+		return nil, ErrInvalidInput{Reason: "알림 저장소가 연결되어 있지 않습니다"}
 	}
-	title := strings.TrimSpace(in.Title)
-	body := strings.TrimSpace(in.Body)
-	if title == "" {
-		return 0, ErrInvalidInput{Reason: "제목은 필수입니다"}
-	}
-	if len([]rune(title)) > 60 {
-		return 0, ErrInvalidInput{Reason: "제목은 60자를 넘을 수 없습니다"}
-	}
-	if len([]rune(body)) > 500 {
-		return 0, ErrInvalidInput{Reason: "내용은 500자를 넘을 수 없습니다"}
-	}
-	typeCd := strings.ToUpper(strings.TrimSpace(in.TypeCd))
-	switch typeCd {
-	case "NEW", "REMIND", "ACHIEVEMENT", "SYSTEM":
-	case "":
-		typeCd = "SYSTEM"
-	default:
-		return 0, ErrInvalidInput{Reason: "알 수 없는 알림 종류입니다"}
-	}
-
-	recipients, scope, err := s.notifyRecipients(ctx, strings.TrimSpace(in.UserID))
+	title, body, typeCd, err := validateAnnouncement(in)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
-	if len(recipients) == 0 {
-		return 0, ErrInvalidInput{Reason: "받을 사람이 없습니다"}
+	kind, ok := domain.ParseAudienceKind(string(in.Audience))
+	if !ok {
+		return nil, ErrInvalidInput{Reason: "알 수 없는 발송 대상입니다"}
+	}
+	audience, err := s.resolveAudience(ctx, kind, strings.TrimSpace(in.AudienceValue))
+	if err != nil {
+		return nil, err
+	}
+	if len(audience.UserIDs) == 0 {
+		return nil, ErrInvalidInput{Reason: "받을 사람이 없습니다"}
 	}
 
 	now := s.now()
-	list := make([]domain.Notification, 0, len(recipients))
-	for _, uid := range recipients {
+	list := make([]domain.Notification, 0, len(audience.UserIDs))
+	for _, uid := range audience.UserIDs {
 		list = append(list, domain.Notification{
 			ID:        newID("nt_"),
 			UserID:    uid,
@@ -1105,30 +1273,130 @@ func (s *AdminService) Notify(ctx context.Context, actor Actor, in NotifyInput) 
 		})
 	}
 	if err := s.data.AddNotifications(ctx, list); err != nil {
-		return 0, err
+		return nil, err
 	}
-	s.record(ctx, actor, "notification.send", "notification", "",
-		fmt.Sprintf("%s 알림 발송: %s (%d명)", scope, title, len(list)))
-	return len(list), nil
+
+	rec := domain.Announcement{
+		ID: newID("ann_"), TitleTxt: title, DescTxt: body, TypeCd: typeCd,
+		AudienceCd: kind, AudienceValue: strings.TrimSpace(in.AudienceValue),
+		AudienceLabel: audience.Label, Recipients: len(list), PushYn: in.Push,
+		ActorID: actor.ID, ActorName: actor.Name, CreatedAt: now,
+	}
+
+	// 푸시는 '보조 전달 수단'이다. 실패해도 공지 자체는 이미 저장됐으므로
+	// 되돌리지 않는다 — 여기서 오류를 던지면 관리자는 실패로 알고 다시 보내고,
+	// 그러면 앱 안에는 같은 공지가 두 번 쌓인다.
+	pushSent := 0
+	if in.Push && s.push != nil {
+		n, err := s.push.Broadcast(ctx, title, body, map[string]any{"type": typeCd})
+		if err != nil {
+			log.Printf("[admin] 공지 푸시 발송 실패(앱 알림은 저장됨): %v", err)
+		}
+		pushSent = n
+	}
+
+	// 이력 저장이 실패해도 발송을 되돌리지 않는다(감사 기록과 같은 원칙) —
+	// 대신 흔적을 잃었다는 사실을 반드시 남긴다.
+	if s.announcements != nil {
+		if err := s.announcements.AppendAnnouncement(ctx, rec); err != nil {
+			log.Printf("[admin] 공지 이력 저장 실패 id=%s: %v", rec.ID, err)
+		}
+	}
+	s.record(ctx, actor, "notification.send", "announcement", rec.ID,
+		fmt.Sprintf("%s 공지 발송: %s (%d명)", audience.Label, title, len(list)))
+
+	return &AnnounceResult{Sent: len(list), PushSent: pushSent, Announcement: rec}, nil
 }
 
-// notifyRecipients 는 발송 대상과 그 범위 설명을 만든다.
-func (s *AdminService) notifyRecipients(ctx context.Context, userID string) ([]string, string, error) {
-	if userID != "" {
-		u, err := s.users.FindByID(ctx, userID)
-		if err != nil {
-			return nil, "", err
-		}
-		return []string{u.ID}, "개별", nil
+// validateAnnouncement 는 공지 본문 규칙을 검사하고 다듬은 값을 돌려준다.
+func validateAnnouncement(in AnnounceInput) (title, body, typeCd string, err error) {
+	title = strings.TrimSpace(in.Title)
+	body = strings.TrimSpace(in.Body)
+	if title == "" {
+		return "", "", "", ErrInvalidInput{Reason: "제목은 필수입니다"}
 	}
-	// 전체 발송 — 정지·삭제된 계정은 제외한다. 들어올 수 없는 사람에게 보내 봐야
-	// 읽히지 않고 저장소만 채운다.
-	users, total, err := s.users.List(ctx, ports.UserQuery{Status: "A", Limit: notifyMaxRecipients})
+	if len([]rune(title)) > 60 {
+		return "", "", "", ErrInvalidInput{Reason: "제목은 60자를 넘을 수 없습니다"}
+	}
+	if len([]rune(body)) > 500 {
+		return "", "", "", ErrInvalidInput{Reason: "내용은 500자를 넘을 수 없습니다"}
+	}
+	typeCd = strings.ToUpper(strings.TrimSpace(in.TypeCd))
+	switch typeCd {
+	case "NEW", "REMIND", "ACHIEVEMENT", "SYSTEM":
+	case "":
+		typeCd = "SYSTEM"
+	default:
+		return "", "", "", ErrInvalidInput{Reason: "알 수 없는 알림 종류입니다"}
+	}
+	return title, body, typeCd, nil
+}
+
+// PreviewAudience 는 발송 전에 대상 규모를 알려 준다(실제로 보내지는 않는다).
+func (s *AdminService) PreviewAudience(ctx context.Context, kindRaw, value string) (*AudiencePreview, error) {
+	kind, ok := domain.ParseAudienceKind(kindRaw)
+	if !ok {
+		return nil, ErrInvalidInput{Reason: "알 수 없는 발송 대상입니다"}
+	}
+	audience, err := s.resolveAudience(ctx, kind, strings.TrimSpace(value))
 	if err != nil {
-		return nil, "", err
+		return nil, err
 	}
+	return &AudiencePreview{Count: len(audience.UserIDs), Label: audience.Label}, nil
+}
+
+// resolveAudience 는 대상 지정을 실제 수신자 목록으로 바꾼다.
+//
+// 어느 경로든 **정지·삭제된 계정은 제외**한다(Status: "A"). 들어올 수 없는
+// 사람에게 보내 봐야 읽히지 않고 저장소만 채운다. 개별 발송만은 예외로,
+// 관리자가 특정 계정을 콕 집었다면 그 의도를 존중한다.
+func (s *AdminService) resolveAudience(ctx context.Context, kind domain.AudienceKind, value string) (Audience, error) {
+	if kind == domain.AudienceUser {
+		if value == "" {
+			return Audience{}, ErrInvalidInput{Reason: "받을 사람을 지정해주세요"}
+		}
+		u, err := s.users.FindByID(ctx, value)
+		if err != nil {
+			return Audience{}, err
+		}
+		return Audience{UserIDs: []string{u.ID}, Label: "개별 · " + displayName(*u)}, nil
+	}
+
+	q := ports.UserQuery{Status: "A", Limit: notifyMaxRecipients}
+	label := "전체"
+	switch kind {
+	case domain.AudienceAll:
+	case domain.AudienceRole:
+		if value != string(domain.RoleUser) && value != string(domain.RoleAdmin) {
+			return Audience{}, ErrInvalidInput{Reason: "알 수 없는 권한입니다"}
+		}
+		q.Role = value
+		label = "권한 " + value
+	case domain.AudienceMembership:
+		switch domain.Membership(value) {
+		case domain.Basic, domain.Premium, domain.VIP:
+		default:
+			return Audience{}, ErrInvalidInput{Reason: "알 수 없는 등급입니다"}
+		}
+		q.Membership = value
+		label = "등급 " + value
+	case domain.AudienceOrg:
+		if value == "" {
+			return Audience{}, ErrInvalidInput{Reason: "조직을 지정해주세요"}
+		}
+		q.Org = value
+		label = "조직 " + value
+	default:
+		return Audience{}, ErrInvalidInput{Reason: "알 수 없는 발송 대상입니다"}
+	}
+
+	users, total, err := s.users.List(ctx, q)
+	if err != nil {
+		return Audience{}, err
+	}
+	// 상한을 넘으면 조용히 일부만 보내지 않는다 — 관리자는 전원에게 갔다고 믿는다.
 	if total > int64(len(users)) {
-		return nil, "", ErrInvalidInput{
+		return Audience{}, ErrInvalidInput{
 			Reason: fmt.Sprintf("대상이 %d명으로 한 번에 보낼 수 있는 %d명을 넘습니다", total, notifyMaxRecipients),
 		}
 	}
@@ -1136,5 +1404,38 @@ func (s *AdminService) notifyRecipients(ctx context.Context, userID string) ([]s
 	for _, u := range users {
 		ids = append(ids, u.ID)
 	}
-	return ids, "전체", nil
+	return Audience{UserIDs: ids, Label: label}, nil
+}
+
+// Announcements 는 발송된 공지 이력을 최신순으로 반환한다.
+func (s *AdminService) Announcements(ctx context.Context, limit int) ([]domain.Announcement, error) {
+	if s.announcements == nil {
+		return []domain.Announcement{}, nil
+	}
+	if limit <= 0 || limit > maxAnnouncementLimit {
+		limit = 50
+	}
+	return s.announcements.ListAnnouncements(ctx, limit)
+}
+
+// maxAnnouncementLimit 은 공지 이력 한 번에 가져갈 수 있는 최대 건수.
+const maxAnnouncementLimit = 200
+
+// Orgs 는 지금 존재하는 소속 조직 목록을 준다(공지 대상 고르기용).
+//
+// 자유 입력으로 두지 않는 이유 — 조직명은 사람이 가입할 때 손으로 적은 값이라
+// 오타가 섞인다. 목록에서 고르게 하면 "영업2팀"으로 보내려다 아무도 없는
+// "영업 2팀"에 보내는 사고가 구조적으로 사라진다.
+func (s *AdminService) Orgs(ctx context.Context) ([]LabelCount, error) {
+	users, _, err := s.users.List(ctx, ports.UserQuery{Status: "A", Limit: notifyMaxRecipients})
+	if err != nil {
+		return nil, err
+	}
+	byOrg := map[string]int64{}
+	for _, u := range users {
+		if org := strings.TrimSpace(u.OrgNm); org != "" {
+			byOrg[org]++
+		}
+	}
+	return sortedLabelCounts(byOrg), nil
 }

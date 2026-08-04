@@ -111,8 +111,46 @@ export function actionLabel(action: string): string {
     'card.create': '문제 등록',
     'card.update': '문제 수정',
     'card.delete': '문제 삭제',
+    'report.review': '신고 처리',
+    'notification.send': '공지 발송',
+    'settings.update': '운영 설정',
   };
   return map[action] ?? action;
+}
+
+/**
+ * 신고 처리 단계 → 이름표와 색.
+ *
+ * 한 곳에만 둔다. 목록·서랍·이력이 각자 매핑을 들고 있으면 같은 '반려'가
+ * 화면마다 다른 색으로 나오기 시작하고, 그 순간 색은 뜻을 잃는다.
+ *
+ * 색 이름이 아니라 **토큰 이름**을 돌려주는 것에 유의 — 호출부가
+ * `badge-${tone}` 로 클래스를 만들기 때문에, 'green' 같은 값을 주면
+ * base.css 에 없는 클래스가 만들어져 배지가 통째로 색을 잃는다.
+ */
+export function reportStatusMeta(cd: string): {
+  label: string;
+  tone: 'warn' | 'info' | 'ok' | 'neutral';
+} {
+  const map: Record<string, { label: string; tone: 'warn' | 'info' | 'ok' | 'neutral' }> = {
+    OPEN: { label: '미처리', tone: 'warn' },
+    DOING: { label: '확인 중', tone: 'info' },
+    RESOLVED: { label: '처리 완료', tone: 'ok' },
+    REJECTED: { label: '반려', tone: 'neutral' },
+  };
+  return map[cd] ?? { label: cd || '미처리', tone: 'warn' };
+}
+
+/** 공지 대상 지정 방식 → 이름표. */
+export function audienceLabel(cd: string): string {
+  const map: Record<string, string> = {
+    ALL: '전체',
+    ROLE: '권한',
+    MEMBERSHIP: '등급',
+    ORG: '조직',
+    USER: '개별',
+  };
+  return map[cd] ?? cd;
 }
 
 /** 문제 형식 코드를 이름표로. */

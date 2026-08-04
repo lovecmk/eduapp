@@ -21,15 +21,33 @@ const bare = computed(() => route.meta.public === true);
 const paletteOpen = ref(false);
 const helpOpen = ref(false);
 
-const NAV: { to: string; label: string; icon: IconName; goKey: string }[] = [
-  { to: '/', label: '대시보드', icon: 'grid', goKey: 'd' },
-  { to: '/insight', label: '분석', icon: 'pulse', goKey: 'i' },
-  { to: '/users', label: '사용자', icon: 'users', goKey: 'u' },
-  { to: '/cards', label: '문제 관리', icon: 'cards', goKey: 'c' },
-  { to: '/reports', label: '신고 관리', icon: 'flag', goKey: 'r' },
-  { to: '/service', label: '서비스 상태', icon: 'pulse', goKey: 's' },
-  { to: '/audit', label: '관리 이력', icon: 'history', goKey: 'a' },
+/**
+ * 사이드바 메뉴.
+ *
+ * 두 무리로 나눈다 — 위는 **보는 곳**(현황·데이터), 아래는 **손대는 곳**
+ * (사용자·콘텐츠·발송·설정). 메뉴가 여덟 개를 넘어서면 한 줄로 늘어놓은
+ * 목록에서 원하는 것을 찾는 데 매번 훑어야 하고, 그때부터 단축키만 쓰게 된다.
+ *
+ * 운영 설정을 맨 아래에 둔 것은 관례이자 안전장치다 — 가장 위험한 화면이
+ * 이동 중 손가락에 걸리는 자리에 있으면 안 된다.
+ */
+const NAV: { to: string; label: string; icon: IconName; goKey: string; group: number }[] = [
+  { to: '/', label: '대시보드', icon: 'grid', goKey: 'd', group: 0 },
+  { to: '/insight', label: '분석', icon: 'pulse', goKey: 'i', group: 0 },
+  { to: '/service', label: '서비스 상태', icon: 'monitor', goKey: 's', group: 0 },
+  { to: '/users', label: '사용자', icon: 'users', goKey: 'u', group: 1 },
+  { to: '/cards', label: '문제 관리', icon: 'cards', goKey: 'c', group: 1 },
+  { to: '/reports', label: '신고 관리', icon: 'flag', goKey: 'r', group: 1 },
+  { to: '/announcements', label: '공지', icon: 'bell', goKey: 'n', group: 1 },
+  { to: '/audit', label: '관리 이력', icon: 'history', goKey: 'a', group: 2 },
+  { to: '/settings', label: '운영 설정', icon: 'sliders', goKey: 'g', group: 2 },
 ];
+
+const NAV_GROUPS = computed(() => [
+  NAV.filter((n) => n.group === 0),
+  NAV.filter((n) => n.group === 1),
+  NAV.filter((n) => n.group === 2),
+]);
 
 /** 상세 화면(/users/xxx)에서도 상위 메뉴가 켜져 보이게 한다. */
 function isActive(to: string): boolean {
@@ -87,17 +105,22 @@ async function onLogout(): Promise<void> {
       </div>
 
       <nav class="nav" aria-label="주요 메뉴">
-        <RouterLink
-          v-for="item in NAV"
-          :key="item.to"
-          :to="item.to"
-          class="nav-item"
-          :class="{ on: isActive(item.to) }"
-          :aria-current="isActive(item.to) ? 'page' : undefined"
-        >
-          <AppIcon :name="item.icon" :size="15" />
-          <span>{{ item.label }}</span>
-        </RouterLink>
+        <template v-for="(group, gi) in NAV_GROUPS" :key="gi">
+          <!-- 무리 사이는 선이 아니라 여백으로 가른다. 선을 그으면 메뉴가
+               '섹션'처럼 무거워지고, 사이드바가 이동만 하는 곳이라는 느낌이 흐려진다. -->
+          <span v-if="gi > 0" class="nav-gap" aria-hidden="true" />
+          <RouterLink
+            v-for="item in group"
+            :key="item.to"
+            :to="item.to"
+            class="nav-item"
+            :class="{ on: isActive(item.to) }"
+            :aria-current="isActive(item.to) ? 'page' : undefined"
+          >
+            <AppIcon :name="item.icon" :size="15" />
+            <span>{{ item.label }}</span>
+          </RouterLink>
+        </template>
       </nav>
 
     </aside>
@@ -211,6 +234,12 @@ async function onLogout(): Promise<void> {
   font-weight: 600;
 }
 
+/* 메뉴 무리 사이 숨 — 4px 배수 규칙을 따른다. */
+.nav-gap {
+  height: 8px;
+  flex-shrink: 0;
+}
+
 /* 로그인한 사람 이름 — 상단 바의 계정 자리에 들어간다.
    이름은 늘리지 않는다. 긴 이름 하나 때문에 옆의 버튼들이 밀리면 안 된다. */
 .who {
@@ -239,6 +268,11 @@ async function onLogout(): Promise<void> {
     overflow-x: auto;
     gap: 2px;
     padding-bottom: 2px;
+  }
+  /* 가로 막대에서는 세로 여백이 뜻을 잃는다 — 가로 간격으로 바꾼다. */
+  .nav-gap {
+    width: 8px;
+    height: auto;
   }
   .nav-item {
     white-space: nowrap;

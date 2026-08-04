@@ -22,7 +22,7 @@ const (
 // (관리 API 는 호출량이 적어 이 비용이 문제되지 않는다.)
 func RequireAdmin(users ports.UserRepository) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		userID, _ := c.Locals("userID").(string)
+		userID, _ := c.Locals(LocalUserID).(string)
 		if userID == "" {
 			// RequireAuth 뒤에 놓이지 않았다는 뜻 — 배선 실수를 조용히 통과시키지 않는다.
 			return fiber.NewError(fiber.StatusUnauthorized, "인증이 필요합니다")

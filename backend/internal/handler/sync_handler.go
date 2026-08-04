@@ -7,6 +7,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 
 	"github.com/lovecmk/eduapp/backend/internal/domain"
+	"github.com/lovecmk/eduapp/backend/internal/middleware"
 	"github.com/lovecmk/eduapp/backend/internal/ports"
 	"github.com/lovecmk/eduapp/backend/internal/service"
 )
@@ -32,7 +33,7 @@ func syncError(err error) error {
 }
 
 func userOf(c *fiber.Ctx) string {
-	id, _ := c.Locals("userID").(string)
+	id := middleware.UserID(c)
 	return id
 }
 

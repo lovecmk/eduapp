@@ -3,6 +3,7 @@ package handler
 import (
 	"github.com/gofiber/fiber/v2"
 
+	"github.com/lovecmk/eduapp/backend/internal/middleware"
 	"github.com/lovecmk/eduapp/backend/internal/service"
 )
 
@@ -14,7 +15,7 @@ func NewStatsHandler(svc *service.StatsService) *StatsHandler { return &StatsHan
 
 // Get GET /api/stats
 func (h *StatsHandler) Get(c *fiber.Ctx) error {
-	userID := c.Locals("userID").(string)
+	userID := middleware.UserID(c)
 	st, err := h.svc.Compute(c.Context(), userID)
 	if err != nil {
 		return err

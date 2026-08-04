@@ -339,35 +339,103 @@ func queryInt(c *fiber.Ctx, key string, fallback int) int {
 // 신고 · 공지
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Reports 는 GET /api/admin/reports — 접수된 문제 신고.
+// Reports 는 GET /api/admin/reports — 접수된 문제 신고(처리 단계별 필터).
 func (h *AdminHandler) Reports(c *fiber.Ctx) error {
-	list, err := h.svc.Reports(c.Context(), queryInt(c, "limit", 100))
+	page, err := h.svc.Reports(c.Context(), ports.ReportQuery{
+		Status: domain.ParseReportStatus(query(c, "status")),
+		CardID: query(c, "card_id"),
+		Limit:  queryInt(c, "limit", 100),
+	})
 	if err != nil {
 		return adminError(err)
 	}
-	return c.JSON(fiber.Map{"items": list})
+	// items 를 최상위에 그대로 둔 것은 기존 클라이언트 호환 —
+	// counts/pending 은 더해진 필드라 옛 화면도 그대로 동작한다.
+	return c.JSON(page)
+}
+
+type reviewReportReq struct {
+	Status     string `json:"status_cd"`
+	Resolution string `json:"resolution_txt"`
+}
+
+// ReviewReport 는 PATCH /api/admin/reports/:id — 신고 처리 단계 변경.
+func (h *AdminHandler) ReviewReport(c *fiber.Ctx) error {
+	var req reviewReportReq
+	if err := c.BodyParser(&req); err != nil {
+		return fiber.NewError(fiber.StatusBadRequest, "요청 형식이 올바르지 않습니다")
+	}
+	item, err := h.svc.ReviewReport(c.Context(), actorOf(c), param(c, "id"),
+		domain.ReportStatus(req.Status), req.Resolution)
+	if err != nil {
+		return adminError(err)
+	}
+	return c.JSON(item)
 }
 
 type notifyReq struct {
 	Title  string `json:"title_txt"`
 	Body   string `json:"desc_txt"`
 	TypeCd string `json:"type_cd"`
-	// UserID 가 비면 전체 발송.
+	// Audience 가 비면 전체 발송(ALL). USER 면 AudienceValue 가 사용자 id 다.
+	Audience      string `json:"audience_cd"`
+	AudienceValue string `json:"audience_value"`
+	// UserID 는 대상 지정이 생기기 전의 형식 — 있으면 개별 발송으로 해석한다.
+	// 지우지 않는 이유: 이 API 를 부르는 것은 관리 콘솔만이 아니고(운영 스크립트),
+	// 필드 하나 없앤 것 때문에 공지가 조용히 전체 발송으로 바뀌면 사고가 된다.
 	UserID string `json:"user_id"`
+	Push   bool   `json:"push_yn"`
 }
 
-// Notify 는 POST /api/admin/notifications — 공지 발송.
+// toInput 은 요청을 서비스 입력으로 옮긴다(구형 user_id 를 개별 발송으로 승격).
+func (r notifyReq) toInput() service.AnnounceInput {
+	in := service.AnnounceInput{
+		Title: r.Title, Body: r.Body, TypeCd: r.TypeCd,
+		Audience: domain.AudienceKind(r.Audience), AudienceValue: r.AudienceValue, Push: r.Push,
+	}
+	if r.UserID != "" && in.Audience == "" {
+		in.Audience, in.AudienceValue = domain.AudienceUser, r.UserID
+	}
+	return in
+}
+
+// Notify 는 POST /api/admin/announcements — 공지 발송.
 func (h *AdminHandler) Notify(c *fiber.Ctx) error {
 	var req notifyReq
 	if err := c.BodyParser(&req); err != nil {
 		return fiber.NewError(fiber.StatusBadRequest, "요청 형식이 올바르지 않습니다")
 	}
-	sent, err := h.svc.Notify(c.Context(), actorOf(c), service.NotifyInput{
-		Title: req.Title, Body: req.Body, TypeCd: req.TypeCd, UserID: req.UserID,
-	})
+	res, err := h.svc.Announce(c.Context(), actorOf(c), req.toInput())
 	if err != nil {
 		return adminError(err)
 	}
 	// 몇 명에게 갔는지 돌려준다 — 전체 발송은 결과를 확인할 방법이 이것뿐이다.
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{"sent": sent})
+	return c.Status(fiber.StatusCreated).JSON(res)
+}
+
+// Announcements 는 GET /api/admin/announcements — 발송 이력.
+func (h *AdminHandler) Announcements(c *fiber.Ctx) error {
+	list, err := h.svc.Announcements(c.Context(), queryInt(c, "limit", 50))
+	if err != nil {
+		return adminError(err)
+	}
+	return c.JSON(fiber.Map{"items": list})
+}
+
+// AudiencePreview 는 GET /api/admin/announcements/audience — 발송 전 대상 규모 확인.
+func (h *AdminHandler) AudiencePreview(c *fiber.Ctx) error {
+	preview, err := h.svc.PreviewAudience(c.Context(), query(c, "audience_cd"), query(c, "audience_value"))
+	if err != nil {
+		return adminError(err)
+	}
+	return c.JSON(preview)
+}
+
+// Orgs 는 GET /api/admin/orgs — 존재하는 소속 조직 목록(대상 고르기·필터용).
+func (h *AdminHandler) Orgs(c *fiber.Ctx) error {
+	list, err := h.svc.Orgs(c.Context())
+	if err != nil {
+		return adminError(err)
+	}
+	return c.JSON(fiber.Map{"items": list})
 }

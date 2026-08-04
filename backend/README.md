@@ -100,6 +100,7 @@ EXISTS`) — 신규 배포에 충분하다. 컬럼 변경/데이터 이관이 �
 | Method | Path | 설명 |
 |--------|------|------|
 | GET | `/health`, `/api/health` | 무인증. `{status,version,store,uptime_seconds}` |
+| GET | `/api/config` | 무인증. 점검 모드·공지 배너·하루 상한 등 앱이 부팅 때 읽는 공개 설정 |
 | POST | `/api/auth/login` | `{id,password}` → `{access_token,refresh_token,user}` |
 | POST | `/api/auth/refresh` | `{refresh_token}` → `{access_token}` |
 | POST | `/api/auth/logout` | 스테이트리스(200) |
@@ -108,10 +109,118 @@ EXISTS`) — 신규 배포에 충분하다. 컬럼 변경/데이터 이관이 �
 | GET | `/api/cards/today` | **3분 세션**. `?difficulty=EASY\|MEDIUM\|HARD`, `?minutes=3` |
 | PATCH | `/api/cards/:id` | `{status_cd:NEW\|LEARNING\|MASTERED}` |
 | GET | `/api/stats` | 학습 통계(+파생 `insights`) |
+| GET | `/api/learning/quota` | 오늘 남은 신규 학습 수 `{limit,used,remaining,resets_at}` |
+| POST | `/api/learning/complete` | `{count}` — 새로 배운 수 보고(멱등키 필수) |
 | GET | `/api/community/live` | 커뮤니티 프레즌스(+`leaderboard`/`my_rank`) |
 | POST | `/api/push/register` | `{token,platform}` — 기기 Expo 푸시 토큰 등록 |
 | POST | `/api/telegram/alert` | `{version:"1"\|"2"\|"3"}` — 3버전 알림 브로드캐스트(앱발) |
 | POST | `/api/telegram/webhook` | 텔레그램 웹훅 수신(무인증, secret 헤더 검증) |
+
+### 관리 API (`/api/admin/*`)
+
+전부 **RequireAuth → RequireAdmin** 두 겹 뒤에 있다. 그룹에 걸어 두므로 나중에
+추가되는 라우트도 자동으로 보호된다 — 라우트를 하나씩 감싸는 방식은 새 엔드포인트에서
+빠뜨리기 쉽다. `Admin`/`Users` 의존성이 하나라도 비면 라우트를 **아예 등록하지 않아**,
+배선 실수로 무방비 관리 API 가 열리는 일이 없다.
+
+| Method | Path | 설명 |
+|--------|------|------|
+| GET | `/api/admin/dashboard` | 첫 화면 집계 한 번에(+`ops` 운영 설정) |
+| GET | `/api/admin/status`·`/metrics`·`/stream` | 서비스 상태 · 지표 · 실시간(SSE) |
+| GET/PATCH | `/api/admin/users…` | 목록·상세·권한·상태 |
+| GET/POST/PUT/DELETE | `/api/admin/cards…` | 문제 CRUD(낙관적 동시성) |
+| GET | `/api/admin/reports` | `?status=OPEN\|DOING\|RESOLVED\|REJECTED`, `?card_id=` |
+| PATCH | `/api/admin/reports/:id` | `{status_cd,resolution_txt}` — 신고 처리 |
+| GET/POST | `/api/admin/announcements` | 발송 이력 · 공지 발송 |
+| GET | `/api/admin/announcements/audience` | `?audience_cd=&audience_value=` 대상 규모 미리보기 |
+| GET | `/api/admin/orgs` | 존재하는 소속 조직 목록(대상 고르기용) |
+| GET/PUT | `/api/admin/settings` | 운영 설정 조회·변경 |
+| GET | `/api/admin/audit` | 관리 행위 이력 |
+| GET/POST | `/api/admin/insight…` | 분석(저장소가 집계 읽기를 지원할 때만 등록) |
+
+### 신고 처리 단계
+
+신고는 접수만 되고 **끝나지 않았다**. 상태가 없으니 목록은 접수된 순간부터 영원히
+같은 모습이고, 대시보드의 '신고 N건'은 처리해도 줄지 않는다. 줄지 않는 경고는 며칠이면
+아무도 보지 않는 경고가 된다.
+
+`OPEN`(접수) → `DOING`(확인 중) → `RESOLVED`(처리 완료) / `REJECTED`(반려).
+빈 값은 `OPEN` 으로 읽는다(상태가 없던 시절의 데이터 호환) — 판독은 언제나
+"아직 손이 필요하다" 쪽으로 안전하게 기운다. **반려에는 사유가 필수**다.
+근거 없는 반려는 같은 신고가 다시 올라왔을 때 앞사람의 판단을 되짚을 수 없게 만든다.
+
+대시보드가 세는 것은 `OPEN + DOING` 이고, 그 숫자는 저장소가 `GROUP BY` 로 센다 —
+목록을 세면 상한(100건)에 걸린 순간 500건이 100건으로 보인다.
+
+### 운영 설정 (`ops_settings`)
+
+재배포 없이 지금 당장 바꿔야 하는 값들이다. 환경변수로 두면 바꾸는 데 재기동이
+필요하고, 재기동은 현장에서 학습 중인 사용자의 세션을 끊는다. 게다가 **누가 언제
+바꿨는지가 남지 않는다**(감사 기록은 저장소를 거치는 변경에만 붙는다).
+
+| 값 | 효과 |
+|---|---|
+| `maintenance_yn` + `maintenance_msg` | 일반 사용자의 모든 요청을 **503** 으로 막는다 |
+| `signup_enabled` | 회원가입만 막는다(기존 사용자는 그대로) |
+| `daily_new_limit` | 하루 신규 학습 상한(`/api/learning/quota` 가 읽는다) |
+| `notice_txt` + `notice_level` | 앱 상단 공지 배너 |
+
+**변경은 보낸 필드만 반영한다.** `PUT /api/admin/settings` 의 본문은 전부 포인터라
+"보내지 않음"과 "false 로 바꿈"이 구분된다 — 값 타입이면 공지 문구 하나를 고치는
+요청에 나머지가 `false`/`0` 으로 실려, 문구를 바꾸는 순간 점검 모드가 꺼진다.
+
+읽기는 **5초 TTL 캐시**를 거친다. 점검 모드는 모든 요청이 확인해야 하는데 매번
+저장소를 왕복하면 설정 하나 때문에 전체 API 의 지연이 늘고, 저장소가 흔들릴 때
+서비스가 함께 흔들린다. 조회에 실패하면 **마지막으로 알던 값**을 쓴다(fail-open) —
+설정은 서비스의 전제 조건이 아니라 조절 손잡이다.
+
+#### 점검 모드가 통과시키는 것
+
+라우팅 **앞**에 서 있어서 새로 추가되는 경로도 기본으로 막힌다. 예외는 네 가지뿐이고
+전부 `middleware.Maintenance` 한 곳에 모여 있다.
+
+- **관리자** — 토큰을 직접 파싱해 확인한다. 이 예외가 없으면 점검 모드를 켠 순간
+  그것을 끌 방법이 사라진다.
+- `/api/auth/*` — 관리자가 로그인해서 들어와야 한다.
+- `/api/admin*` — 관리 API 자체가 `RequireAdmin` 으로 막혀 있으므로 여는 것이 안전하다.
+- `/health`, `/api/health`, `/api/config` — 점검 중임을 **알리는** 경로다.
+  이것까지 막으면 앱은 "왜 안 되는지"를 표시하지 못하고 그냥 고장난 것처럼 보인다.
+
+### 공지 — 대상 지정과 발송 이력
+
+공지는 되돌릴 수 없다. 그래서 두 가지를 갖춘다.
+
+- **보내기 전** — `GET /api/admin/announcements/audience` 가 몇 명에게 가는지 센다.
+  세는 코드가 실제 발송 대상을 고르는 코드와 같아야 "미리보기 12명, 실제 40명" 같은
+  어긋남이 생기지 않는다(그래서 화면이 아니라 서버가 센다).
+- **보낸 뒤** — `announcements` 테이블에 무엇을·언제·누구에게·몇 명에게 보냈는지 남는다.
+  감사 로그에도 한 줄이 남지만 그쪽은 관리 행위 전체가 섞이는 흐름이라 공지만
+  훑어보기 어렵고 대상·수신자 수 같은 구조를 잃는다.
+
+대상은 `ALL`(활성 전원) · `ROLE` · `MEMBERSHIP` · `ORG` · `USER` 다. 조직은 **완전 일치**로
+거른다 — 부분 일치면 "영업1팀" 선택이 "영업1팀지원"까지 잡아 엉뚱한 사람에게 간다.
+정지·삭제된 계정은 대상에서 빠지고(들어올 수 없는 사람에게 보내 봐야 저장소만 채운다),
+`notifyMaxRecipients`(5000명)를 넘으면 **조용히 일부만 보내지 않고** 거절한다.
+
+`push_yn` 을 켜면 앱 안 알림과 함께 기기 푸시로도 나간다. 기본이 꺼짐인 것은
+의도적이다 — 앱 안 알림은 사용자가 열 때 보지만 푸시는 자는 사람도 깨운다.
+푸시 발송이 실패해도 공지는 되돌리지 않는다. 여기서 오류를 던지면 관리자는 실패로
+알고 다시 보내고, 그러면 앱 안에는 같은 공지가 두 번 쌓인다.
+
+### 하루 학습 상한
+
+`/api/learning/quota` 와 `/api/learning/complete` 는 앱이 오래 전부터 부르던 경로인데
+서버에는 없었다. 앱의 저장소는 404 를 만나면 '아직 배포되지 않음'으로 판단해 목업으로
+떨어지므로, 상한은 기기 로컬 값으로만 돌아갔다 — 앱을 지우면 초기화되고, 같은 사람이
+태블릿과 휴대폰으로 각각 상한을 채울 수 있었으며, **관리자가 콘솔에서 상한을 바꿔도
+아무 일도 일어나지 않았다.**
+
+보고는 '설정'이 아니라 **더하기**다. 오프라인 큐가 여러 건을 모아 두었다가 한꺼번에
+보내는 일이 흔해서, 마지막 보고로 덮어쓰면 그 사이의 학습이 사라진다. 중복 전송은
+멱등 미들웨어가 막는다. 상한을 넘겼다고 기록을 **거부하지는 않는다** — 앱은 이미
+학습을 마친 뒤에 보고하고(사용자에게는 끝난 일이다), 거절하면 그 기록만 사라져
+화면과 서버가 어긋난다. 상한은 '다음 학습을 열어 줄지'를 정하는 값이지 기록을
+버리는 규칙이 아니다.
 
 ### 헬스체크 두 경로
 

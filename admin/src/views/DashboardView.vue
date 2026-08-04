@@ -41,8 +41,11 @@ const users = computed(() => dash.data.value?.users ?? null);
 const content = computed(() => dash.data.value?.content ?? null);
 const learning = computed(() => dash.data.value?.learning ?? null);
 const service = computed(() => dash.data.value?.service ?? null);
-/** 접수된 신고 건수 — 0이면 줄 자체를 감춘다. */
+/** 아직 처리되지 않은 신고 건수 — 0이면 줄 자체를 감춘다. */
 const reportCount = computed(() => dash.data.value?.content.reports ?? 0);
+
+/** 지금 걸려 있는 운영 설정(점검 모드·공지 배너). 옛 서버는 주지 않을 수 있다. */
+const ops = computed(() => dash.data.value?.ops ?? null);
 
 /** 지표에 색을 입히는 건 '주의가 필요할 때'뿐이다. */
 const errorTone = computed(() => {
@@ -147,7 +150,28 @@ function share(v: number): string {
       <!-- 신고는 '숫자'가 아니라 '처리할 일'이다.
            타일 하나로 세어 두면 지나치기 쉬우므로, 눌러서 바로 갈 수 있는 줄로 만든다.
            건수가 0이면 아무것도 표시하지 않는다 — 할 일이 없을 때의 빈 줄은 소음이다. -->
-      <RouterLink v-if="reportCount > 0" to="/reports" class="callout callout-warn alert-row action-row">
+      <!-- 점검 모드는 '내가 켜 둔 것'이라 장애보다 위에 온다 —
+           서비스가 닫혀 있는데 그 사실을 모른 채 다른 지표를 읽으면 안 된다. -->
+      <RouterLink
+        v-if="ops?.maintenance_yn"
+        to="/settings"
+        class="callout callout-danger alert-row action-row"
+      >
+        <AppIcon name="alert" :size="15" />
+        <span>
+          점검 모드가 켜져 있습니다 — 일반 사용자는 지금 앱을 쓸 수 없습니다.
+          <template v-if="ops.maintenance_msg">“{{ ops.maintenance_msg }}”</template>
+        </span>
+        <span class="action-go">설정 열기</span>
+      </RouterLink>
+
+      <!-- 조건이 걸린 채로 연다 — '확인하기'를 눌렀는데 이미 처리한 것까지
+           섞여 나오면 방금 본 숫자와 화면이 어긋난다. -->
+      <RouterLink
+        v-if="reportCount > 0"
+        to="/reports?status=OPEN"
+        class="callout callout-warn alert-row action-row"
+      >
         <AppIcon name="flag" :size="15" />
         <span>처리되지 않은 신고가 {{ num(reportCount) }}건 있습니다.</span>
         <span class="action-go">확인하기</span>

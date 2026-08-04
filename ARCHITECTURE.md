@@ -77,6 +77,10 @@ eduapp/
 | 가챠 코드 교환 | app/redeem.tsx | data/gachaCodes | collectionStore.redeemCode/redeemedCodes |
 | 설정 전역 검색 | app/settings.tsx, components/settings/SettingsSearch·SettingsFocus | constants/settingsIndex(색인), utils/koreanSearch(초성)·settingsSearch(정렬) | settings.recentSettingIds |
 | 약관·법적 고지 | app/legal.tsx | constants/legal(약관·처리방침·접근권한·오픈소스) | settings.notifications.marketing |
+| 신고 처리 워크플로 | admin/views/ReportsView | backend: domain.ReportStatus·AdminService.ReviewReport | — |
+| 운영 설정·점검 모드 | admin/views/SettingsView | backend: SettingsService(+`/api/config`), middleware.Maintenance | — |
+| 공지 센터(대상·이력) | admin/views/AnnouncementsView | backend: domain.Announcement·AdminService.Announce | — |
+| 하루 학습 상한(서버 권위) | 앱의 기존 화면 그대로 | backend: LearningService(`/api/learning/*`) | store/dailyLearningStore |
 
 ## 설정 화면 규칙
 
@@ -158,8 +162,15 @@ react-query 클라이언트가 `data/network/queryClient.ts` 에 있는 이유�
    auth 엔드포인트는 Go 백엔드에 구현 완료:
    `POST /api/auth/login|register`, `GET /api/auth/username-available|nickname-available`,
    `GET/PATCH /api/auth/me`. (비밀번호 재설정 `reset-password` 는 미구현.)
+   **하루 학습 상한**(`GET /api/learning/quota`, `POST /api/learning/complete`)도 구현
+   완료 — 이제 서버가 권위를 갖고, 상한 값은 관리 콘솔의 운영 설정을 따른다.
+   (아직 서버에 없는 것: 날씨 `weather`, 사용자 디렉터리 `users/search|:id/public`.
+   이 둘은 `withMockFallback` 이 계속 목업으로 떨어뜨린다.)
 3. `data/auth/mockUserDb`, `data/packRules`(규칙 테이블), 출석/컬렉션 로컬 저장을
    서버 API + 관리 콘솔(admin) CRUD 로 대체.
+4. 앱이 `GET /api/config`(무인증)를 읽어 **점검 안내·공지 배너**를 표시하도록 배선.
+   점검 모드 자체는 이미 서버가 503 으로 집행하므로 앱 변경 없이도 동작하지만,
+   배너 문구는 이 경로를 읽는 화면이 있어야 사용자에게 닿는다.
 
 ## 서버 배포 & 이식 (backend/)
 

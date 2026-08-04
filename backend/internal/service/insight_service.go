@@ -119,7 +119,7 @@ func (s *InsightService) build(ctx context.Context) (*Insight, error) {
 
 	// 신고는 없어도 분석 전체를 막을 이유가 없다 — 분야별 신고 수만 비게 둔다.
 	if s.data != nil {
-		if reports, err := s.data.ListReports(ctx, maxReportLimit); err == nil {
+		if reports, err := s.data.ListReports(ctx, ports.ReportQuery{Limit: maxReportLimit}); err == nil {
 			in.Reports = reports
 		}
 	}
