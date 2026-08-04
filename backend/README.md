@@ -21,7 +21,7 @@ handler(HTTP·Fiber) → service(유스케이스) → ports(인터페이스) ←
 |--------|--------|------|
 | domain | `internal/domain` | 순수 비즈니스 모델(카드·유저·진행). 인프라 import 없음 |
 | ports | `internal/ports` | 저장소 인터페이스. 서비스는 이것에만 의존 |
-| service | `internal/service` | 3분 세션 패킹·난이도 규칙·통계·인증 등 유스케이스 |
+| service | `internal/service` | 오늘의 출제 편성·난이도 규칙·통계·인증 등 유스케이스 |
 | adapters | `internal/postgres`, `internal/memory`, `internal/mongo` | ports 구현(`STORE` 로 교체) |
 | handler | `internal/handler` | HTTP ↔ DTO(snake_case) 변환 |
 | infra | `internal/server`,`middleware`,`token`,`config`,`seed` | Fiber 조립·JWT·설정·시드 |
@@ -106,7 +106,7 @@ EXISTS`) — 신규 배포에 충분하다. 컬럼 변경/데이터 이관이 �
 | POST | `/api/auth/logout` | 스테이트리스(200) |
 | GET | `/api/auth/me` | 현재 사용자 |
 | GET | `/api/cards` | 전체 카드(개인 진행 상태 포함) |
-| GET | `/api/cards/today` | **3분 세션**. `?difficulty=EASY\|MEDIUM\|HARD`, `?minutes=3` |
+| GET | `/api/cards/today` | 구형 경로. `/api/learning/today` 와 **같은 편성**을 구형 형식으로 준다 |
 | PATCH | `/api/cards/:id` | `{status_cd:NEW\|LEARNING\|MASTERED}` |
 | GET | `/api/stats` | 학습 통계(+파생 `insights`) |
 | GET | `/api/learning/today` | 오늘 배정된 문제 `{day,difficulty_cd,target_count,cards,done_count}` |
@@ -355,7 +355,7 @@ healthcheck 의 관례적 경로이고, 뒤는 **앱이 부르는 경로**다 �
 제한할 수 있다(비우면 전체 허용). 웹훅 방식을 쓰려면 `TELEGRAM_POLL=false` 로
 두고 `/api/telegram/webhook` 에 텔레그램 `setWebhook` 을 연결한다.
 
-### 3분 학습 세션 규칙 (`GET /api/cards/today`)
+### 3분 학습 세션 규칙 (구 `GET /api/cards/today`)
 
 난이도 3단계(EASY/MEDIUM/HARD) 카드에서 개인에게 **약 3분(180초) 분량**을 구성한다.
 1. `mastered` 제외 → 2. 복습 예정(due) 카드를 오래된 순으로 우선 →

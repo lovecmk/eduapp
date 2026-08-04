@@ -38,7 +38,7 @@ func buildAdminApp(t *testing.T) *adminEnv {
 	ctx := context.Background()
 	cfg := config.Config{
 		JWTSecret: []byte("test-secret"), AccessTTL: 15 * time.Minute,
-		RefreshTTL: time.Hour, CORSOrigins: "*", StudySessionSec: 180,
+		RefreshTTL: time.Hour, CORSOrigins: "*",
 		Store: "memory",
 	}
 	users := memory.NewUserRepo()
@@ -48,7 +48,7 @@ func buildAdminApp(t *testing.T) *adminEnv {
 
 	tm := token.NewManager(cfg.JWTSecret, cfg.AccessTTL, cfg.RefreshTTL)
 	authSvc := service.NewAuthService(users, tm)
-	cardSvc := service.NewCardService(cards, cfg.StudySessionSec)
+	cardSvc := service.NewCardService(cards)
 
 	if _, err := seed.EnsureCards(ctx, cards); err != nil {
 		t.Fatalf("seed: %v", err)

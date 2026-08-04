@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { cardRepository } from '../data/repositories';
-import type { LearningCard, CardStatus, CardDifficulty } from '../domain/models/LearningCard';
+import type { LearningCard, CardStatus } from '../domain/models/LearningCard';
 import type { CardDraft } from '../domain/models/CardDraft';
 
 const CARDS_KEY = 'cards';
@@ -9,14 +9,6 @@ export function useAllCards() {
   return useQuery({
     queryKey: [CARDS_KEY],
     queryFn: () => cardRepository.getAllCards(),
-    staleTime: 30_000,
-  });
-}
-
-export function useTodayCards(difficulty?: CardDifficulty) {
-  return useQuery({
-    queryKey: [CARDS_KEY, 'today', difficulty ?? 'all'],
-    queryFn: () => cardRepository.getTodayCards(difficulty ? { difficulty } : undefined),
     staleTime: 30_000,
   });
 }

@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { serviceConfigRepository } from '../data/repositories';
 import { defaultServiceConfig } from '../domain/models/ServiceConfig';
-import { DAILY_NEW_LIMIT } from '../constants/learning';
+import { DAILY_MIN_CARDS } from '../constants/learning';
 
 /**
  * 서비스 운영 상태(점검 모드·공지 배너·하루 상한).
@@ -27,6 +27,6 @@ export function useServiceConfig() {
   // 못 읽었을 때의 기본값은 '평상시'다 — 실패는 서비스가 열려 있는 쪽으로 기운다.
   return {
     ...query,
-    config: query.data ?? defaultServiceConfig(DAILY_NEW_LIMIT),
+    config: query.data ?? defaultServiceConfig(DAILY_MIN_CARDS),
   };
 }

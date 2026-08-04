@@ -3,6 +3,7 @@ package handler
 import (
 	"github.com/gofiber/fiber/v2"
 
+	"github.com/lovecmk/eduapp/backend/internal/domain"
 	"github.com/lovecmk/eduapp/backend/internal/middleware"
 	"github.com/lovecmk/eduapp/backend/internal/service"
 )
@@ -131,6 +132,32 @@ func (h *LearningHandler) Today(c *fiber.Ctx) error {
 		return err
 	}
 	return c.JSON(plan)
+}
+
+// TodayCards 는 GET /api/cards/today — **구형 계약**(CardDTO 배열)으로 같은 편성을 준다.
+//
+// 이 경로는 오늘의 편성이 생기기 전부터 있었고, 이미 배포된 앱이 부르고 있다.
+// 지우면 그 빌드들의 새로고침이 404 로 실패한다. 그렇다고 예전 규칙(3분 시간
+// 예산 패킹)을 그대로 두면 **선택 엔진이 두 벌**이 되어, 같은 사람이 어느 경로로
+// 묻느냐에 따라 다른 문제를 받는다. 그래서 경로는 남기되 속을 갈아 끼웠다 —
+// 구형 빌드도 신형과 똑같은 오늘의 문제를 본다.
+//
+// 난이도·시간 쿼리 파라미터는 더 이상 읽지 않는다. 오늘의 난이도는 그 사람의
+// 기록이 정하지, 클라이언트가 요청할 수 있는 값이 아니다.
+func (h *LearningHandler) TodayCards(c *fiber.Ctx) error {
+	plan, err := h.svc.Today(c.Context(), middleware.UserID(c))
+	if err != nil {
+		return err
+	}
+	out := make([]CardDTO, 0, len(plan.Cards))
+	for _, tc := range plan.Cards {
+		status := domain.StatusNew
+		if tc.Kind == "REVIEW" {
+			status = domain.StatusLearning
+		}
+		out = append(out, toCardDTO(domain.CardWithProgress{Card: tc.Card, Status: status}))
+	}
+	return c.JSON(out)
 }
 
 type completeReq struct {

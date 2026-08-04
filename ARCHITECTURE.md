@@ -110,6 +110,13 @@ eduapp/
 편성은 그날 처음 물어본 순간 **저장해 얼려 둔다**. 관리자가 낮에 문제를 추가·삭제해도
 오전에 받은 목록이 오후에 달라지지 않는다. 자세한 내용은 `backend/README.md`.
 
+**선택 엔진은 하나뿐이다.** 예전에는 세 곳이 각자 골랐다 — 서버의 3분 세션 패킹,
+앱 목업의 같은 규칙 복제, 그리고 화면(`cards.tsx`)의 즉석 filter/slice. 앱은 앞의
+둘을 부르지 않고 세 번째로 골랐으므로 앞의 둘은 죽은 코드였다. 지금은
+`daily_plan.go`(+오프라인용 `dailyPlan.ts`) 한 규칙만 남았고, 구형 경로
+`/api/cards/today` 도 그 편성을 구형 형식으로 돌려준다 — 이미 배포된 앱이
+그 경로를 부르고 있어 지울 수 없기 때문이다.
+
 ## 설정 화면 규칙
 
 - **depth 는 2단계까지**: 설정 본문 → 상세 화면 1단계. 토글·선택은 전부 본문에서 끝낸다.
@@ -224,7 +231,8 @@ react-query 클라이언트가 `data/network/queryClient.ts` 에 있는 이유�
 
 | 앱 | 서버 | 어긋나면 |
 |---|---|---|
-| `constants/learning.ts` `DAILY_NEW_LIMIT`·`DAILY_TOTAL_LIMIT` | `domain.DefaultDailyMinCards`·`DefaultDailyMaxCards` | 서버에 닿은 기기와 목업으로 떨어진 기기가 서로 다른 분량으로 돈다 |
+| `constants/learning.ts` `DAILY_MIN_CARDS`·`DAILY_MAX_CARDS` | `domain.DefaultDailyMinCards`·`DefaultDailyMaxCards` | 서버에 닿은 기기와 목업으로 떨어진 기기가 서로 다른 분량으로 돈다 |
+| `domain/srs.ts` `MASTERED_BOX` | `service.masteredBoxLevel` | 앱은 '숙달'로 보는 카드를 서버는 후보로 여겨 또 내보낸다 |
 | `src/domain/dailyPlan.ts` | `service/daily_plan.go` | 온라인과 오프라인에서 **서로 다른 문제**가 나간다 |
 | `utils/dateKey.ts` | `service.DayKey` | 학습 이력·출석이 달력의 다른 칸에 찍힌다(month 0-based) |
 

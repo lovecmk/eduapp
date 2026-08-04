@@ -21,7 +21,7 @@ import { calcEmblems, getAcquiredEmblems } from '../../src/utils/emblems';
 import { useFactionStore } from '../../src/store/factionStore';
 import { computeMoment, heroPlayfulCheer, type Moment } from '../../src/utils/moments';
 import { ROUTES } from '../../src/constants/routes';
-import { useAllCards, useTodayCards } from '../../src/hooks/useCards';
+import { useAllCards } from '../../src/hooks/useCards';
 import { useStudyStats } from '../../src/hooks/useStats';
 import { useReview } from '../../src/hooks/useReview';
 import { useDailyQuota } from '../../src/hooks/useDailyQuota';
@@ -67,12 +67,12 @@ export default function HomeScreen() {
   const [moment, setMoment] = useState<Moment | null>(null);
 
   const { data: allCards = [], isLoading: cardsLoading, refetch: refetchAll } = useAllCards();
-  const { refetch: refetchToday } = useTodayCards();
+
   const { data: stats, isLoading: statsLoading, error: statsError, refetch: refetchStats } = useStudyStats();
   const { dueTodayCount } = useReview();
   const quota = useDailyQuota();
   // 오늘 배정된 문제 — 장수는 그날 난이도가 정한다(쉬우면 5, 어려우면 3).
-  const { assignment } = useDailyAssignment();
+  const { assignment, refetch: refetchToday } = useDailyAssignment();
 
   const masteredCount = useMemo(() => allCards.filter((x) => x.status === 'mastered').length, [allCards]);
   // 실제로 지금 배울 수 있는 '신규' 카드 수 — 하루 상한과 별개로 풀이 비었는지 확인용.

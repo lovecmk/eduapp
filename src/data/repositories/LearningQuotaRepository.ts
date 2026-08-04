@@ -1,6 +1,6 @@
 import type { ILearningQuotaRepository } from '../../domain/repositories/ILearningQuotaRepository';
 import type { LearningQuota } from '../../domain/models/LearningQuota';
-import { DAILY_NEW_LIMIT } from '../../constants/learning';
+import { DAILY_MIN_CARDS } from '../../constants/learning';
 import { apiClient } from '../network/ApiClient';
 import { useDailyLearningStore } from '../../store/dailyLearningStore';
 import { dateKey } from '../../utils/dateKey';
@@ -23,7 +23,7 @@ interface QuotaDTO {
 export class LearningQuotaRepository implements ILearningQuotaRepository {
   async getQuota(): Promise<LearningQuota> {
     const dto = await apiClient.get<QuotaDTO>('/api/learning/quota');
-    const limit = dto.limit ?? DAILY_NEW_LIMIT;
+    const limit = dto.limit ?? DAILY_MIN_CARDS;
     const used = dto.used ?? 0;
     return {
       limit,

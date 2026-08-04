@@ -1,9 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
+import { queryClient } from '../data/network/queryClient';
 import { useDailyLearningStore } from '../store/dailyLearningStore';
-import { DAILY_NEW_LIMIT } from '../constants/learning';
+import { DAILY_MIN_CARDS } from '../constants/learning';
 import { dateKey } from '../utils/dateKey';
 import { learningQuotaRepository } from '../data/repositories';
 import { resolveDailyQuota } from '../domain/models/LearningQuota';
+import { DAILY_ASSIGNMENT_KEY } from './useDailyAssignment';
+
+/** 오늘의 진행 캐시 키 — 무효화할 곳이 흩어지지 않게 한 곳에 둔다. */
+export const DAILY_QUOTA_KEY = 'learning-quota';
 
 export interface DailyQuota {
   limit: number;
@@ -27,7 +32,7 @@ export function useDailyQuota(): DailyQuota {
   const localUsed = dayKey === dateKey(new Date()) ? count : 0;
 
   const { data } = useQuery({
-    queryKey: ['learning-quota'],
+    queryKey: [DAILY_QUOTA_KEY],
     queryFn: () => learningQuotaRepository.getQuota(),
     // 상한은 초 단위로 다투는 값이 아니다. 다만 관리자가 바꾼 뒤 '오늘 안에'는
     // 닿아야 하므로, 화면을 다시 여는 정도의 주기로 확인한다.
@@ -36,11 +41,19 @@ export function useDailyQuota(): DailyQuota {
   });
 
   // 합치는 규칙 자체는 도메인에 둔다 — 화면 밖에서 검사할 수 있어야 한다.
-  return resolveDailyQuota(localUsed, data, DAILY_NEW_LIMIT);
+  return resolveDailyQuota(localUsed, data, DAILY_MIN_CARDS);
 }
 
-/** 신규 카드 학습 완료를 기록(로컬 + 서버 보고). 화면에서 카드 완료 시 호출. */
+/**
+ * 신규 카드 학습 완료를 기록(로컬 + 서버 보고). 화면에서 카드 완료 시 호출.
+ *
+ * 기록만 하고 캐시를 그대로 두면, 학습을 마치고 홈으로 돌아왔을 때 진행도가
+ * 한동안 옛 값에 멈춰 있다("2/4" 를 다 풀었는데도 계속 2/4). 사용자는 방금 한
+ * 일이 반영되지 않았다고 느끼고 다시 학습을 시작한다.
+ */
 export function recordNewLearned(count = 1): void {
   // 저장소를 통해 기록 — 목업은 로컬 스토어, 실서버는 로컬 반영 후 POST.
   void learningQuotaRepository.recordCompletion(count);
+  void queryClient.invalidateQueries({ queryKey: [DAILY_QUOTA_KEY] });
+  void queryClient.invalidateQueries({ queryKey: [DAILY_ASSIGNMENT_KEY] });
 }

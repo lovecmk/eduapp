@@ -112,7 +112,7 @@ func main() {
 	tm := token.NewManager(cfg.JWTSecret, cfg.AccessTTL, cfg.RefreshTTL)
 
 	authSvc := service.NewAuthService(userRepo, tm)
-	cardSvc := service.NewCardService(cardRepo, cfg.StudySessionSec)
+	cardSvc := service.NewCardService(cardRepo)
 	statsSvc := service.NewStatsService(cardSvc)
 	commSvc := service.NewCommunityService(cardSvc)
 	pushSvc := service.NewPushService(pushRepo, cfg.ExpoPushURL)

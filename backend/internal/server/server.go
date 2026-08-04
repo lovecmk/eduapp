@@ -172,7 +172,6 @@ func New(d Deps) *fiber.App {
 	)
 
 	protected.Get("/cards", cardH.All)
-	protected.Get("/cards/today", cardH.Today)
 	// 학습 콘텐츠 등록은 관리자만.
 	//
 	// 이 라우트는 문제 등록이 앱 안의 도구이던 시절에 만들어졌고, 그때는 "이 화면을
@@ -245,6 +244,9 @@ func registerLearningRoutes(r fiber.Router, d Deps) {
 	h := handler.NewLearningHandler(d.Learning)
 	// 오늘의 학습 — 사람마다·날마다 새로 편성된다. 앱은 이 목록만 보고 덱을 만든다.
 	r.Get("/learning/today", h.Today)
+	// 구형 경로. 이미 배포된 앱이 부르고 있어 남기되, 속은 같은 편성이다 —
+	// 선택 엔진이 두 벌이면 같은 사람이 어느 경로로 묻느냐에 따라 다른 문제를 받는다.
+	r.Get("/cards/today", h.TodayCards)
 	r.Get("/learning/quota", h.Quota)
 	// 완료 보고는 오프라인 큐를 타고 재전송된다 — 멱등키가 없으면 상한이
 	// 실제보다 빨리 찬다(같은 학습이 두 번 세어진다).

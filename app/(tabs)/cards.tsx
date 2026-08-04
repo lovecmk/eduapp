@@ -37,7 +37,7 @@ import { predictLabel, initialState } from '../../src/domain/srs';
 import { safeInternalPath } from '../../src/utils/safeRoute';
 
 // 하루 학습 정책(운영 지속가능성 · '하루 3분'):
-//  · '오늘의 학습'은 신규 카드만, 하루 상한(DAILY_NEW_LIMIT)까지만 진행할 수 있다.
+//  · '오늘의 학습'은 신규 카드만, 하루 상한(DAILY_MIN_CARDS)까지만 진행할 수 있다.
 //    상한을 채우면 그날은 더 이상 새 학습을 시작할 수 없다.
 //  · 복습은 자유다 — 이전에 학습한 자료는 '복습' 탭에서 상한 없이 계속 볼 수 있다.
 //  상한/사용량은 백엔드(learningQuotaRepository)가 권위를 갖고, 오프라인은 로컬 스토어로 집행한다.
@@ -172,7 +172,7 @@ export default function CardsScreen() {
   // 오늘의 학습 — **서버가 편성한 목록**. 앱이 직접 고르지 않는다.
   const { assignment } = useDailyAssignment();
 
-  // 오늘의 학습 = 신규(≤ 하루 상한) + 복습 도래 카드를 이어 붙여 최대 DAILY_TOTAL_LIMIT장.
+  // 오늘의 학습 = 신규(≤ 하루 상한) + 복습 도래 카드를 이어 붙여 최대 DAILY_MAX_CARDS장.
   // 카테고리 복습은 해당 카테고리 전체. 신규/복습 순서 옵션(섞기·약점우선)은 카테고리 복습에만 적용.
   const computedDeck = useMemo(() => {
     // 단일 카드(focus) 모드는 순서 옵션과 무관(1장).

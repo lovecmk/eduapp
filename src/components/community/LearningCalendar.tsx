@@ -12,7 +12,7 @@ import { AnimatedSheet } from '../ui/AnimatedSheet';
 import { getCategoryIcon, getCategoryColor } from '../../constants/categories';
 import { ROUTES } from '../../constants/routes';
 import { dateKey, dayDiff } from '../../utils/dateKey';
-import { DAILY_NEW_LIMIT } from '../../constants/learning';
+import { DAILY_MIN_CARDS } from '../../constants/learning';
 import { useAllCards } from '../../hooks/useCards';
 import { useSrsStore } from '../../store/srsStore';
 import { useAttendanceStore } from '../../store/attendanceStore';
@@ -164,8 +164,16 @@ export function LearningCalendar() {
               // 근무일(월~금 중 공휴일 제외)만 완료/일부완료 판정 대상.
               // 주말·공휴일은 '학습일'로 세지 않으므로, 기록이 있어도 완료 표시를 하지 않는다.
               const workday = dow !== 0 && dow !== 6 && !holiday;
-              const done = workday && learned >= DAILY_NEW_LIMIT;   // 하루 신규 목표(3장) 달성 → 완료
-              const partial = workday && learned > 0 && !done;      // 1~2장 → 일부완료
+              // 완료 기준은 **최소 출제량**이다.
+              //
+              // 하루 분량은 이제 그날 난이도에 따라 3~5문제로 달라지는데, 지난
+              // 날짜에 몇 문제가 배정됐었는지는 앱이 알지 못한다(서버에만 남는다).
+              // 그때그때 다른 기준으로 칠하면 달력이 스스로 모순되므로, 어느 날이든
+              // "그날의 리추얼을 지켰는가"를 최소치로 판정한다 — 5문제 중 4문제를
+              // 푼 날을 미완료로 칠하는 것보다, 최소를 채운 날을 완료로 보는 편이
+              // 습관을 보여 주는 달력의 목적에 맞는다.
+              const done = workday && learned >= DAILY_MIN_CARDS;
+              const partial = workday && learned > 0 && !done;      // 1~2문제 → 일부완료
               const attended = !!stamps[key];
               return (
                 <Pressable accessibilityRole="button" key={`${w}-${dow}`} style={styles.cell} onPress={() => setSelected(key)}>

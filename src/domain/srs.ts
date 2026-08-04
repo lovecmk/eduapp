@@ -28,6 +28,15 @@ const MIN = 60_000;
 const DAY = 86_400_000;
 export const MAX_BOX = 5;
 
+/**
+ * '충분히 익혔다'로 보는 박스 기준.
+ *
+ * 서버의 `masteredBoxLevel` 과 같은 값이어야 한다 — 갈리면 앱은 '숙달'로
+ * 보여 주는 카드를 서버는 아직 후보로 여겨 오늘의 학습에 또 내보낸다.
+ * 여러 곳에 4를 그대로 적어 두면 한 곳만 고쳐지는 날이 온다.
+ */
+export const MASTERED_BOX = 4;
+
 /** 박스 단계별 기본 복습 간격(일). box 0 은 같은 세션 내 재노출(10분). */
 export const BOX_INTERVAL_DAYS = [0, 1, 3, 7, 16, 35] as const;
 const AGAIN_DELAY = 10 * MIN;

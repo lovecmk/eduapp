@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/lovecmk/eduapp/backend/internal/domain"
+	"github.com/lovecmk/eduapp/backend/internal/service"
 )
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -656,7 +657,12 @@ func TestNicknameExcludeAcceptsAppSideUserID(t *testing.T) {
 	}
 }
 
-// 하루 학습 상한의 기본값은 앱 상수(DAILY_NEW_LIMIT=3)와 같아야 한다.
+// 앱과 짝을 이뤄야 하는 상수들 — 갈리면 두 쪽이 서로 다른 판단을 한다.
+//
+// 언어가 달라 컴파일러가 잡아 주지 못하는 자리라, 값이 바뀌면 여기서 걸리게 한다.
+// (ARCHITECTURE.md 의 '상수의 짝' 표와 같은 목록이다.)
+
+// 하루 출제량의 기본 범위는 앱 상수와 같아야 한다.
 //
 // 두 값이 갈리면, 서버에 닿은 기기와 아직 목업으로 떨어진 기기가 서로 다른
 // 상한으로 돌아간다 — 같은 사람이 태블릿에서는 3장, 휴대폰에서는 5장을 배운다.
@@ -666,6 +672,18 @@ func TestDefaultDailyLimitMatchesApp(t *testing.T) {
 	if domain.DefaultDailyMinCards != appMin || domain.DefaultDailyMaxCards != appMax {
 		t.Errorf("서버 기본 범위=%d~%d, 앱 상수=%d~%d — 같아야 한다",
 			domain.DefaultDailyMinCards, domain.DefaultDailyMaxCards, appMin, appMax)
+	}
+}
+
+// '숙달' 판정 박스도 앱과 같아야 한다.
+//
+// 갈리면 앱은 '숙달'로 보여 주는 카드를 서버는 아직 후보로 여겨 오늘의 학습에
+// 또 내보낸다 — 사용자에게는 다 배운 문제가 계속 나오는 것으로 보인다.
+func TestMasteredBoxMatchesApp(t *testing.T) {
+	const appMasteredBox = 4 // src/domain/srs.ts — MASTERED_BOX
+	if service.MasteredBoxLevel != appMasteredBox {
+		t.Errorf("서버 숙달 기준=%d, 앱 상수=%d — 같아야 한다",
+			service.MasteredBoxLevel, appMasteredBox)
 	}
 }
 
@@ -708,5 +726,35 @@ func TestAdminTodayViewDoesNotCreateAssignment(t *testing.T) {
 	// 일반 사용자는 남의 배정을 볼 수 없다.
 	if r, _ := doJSON(t, env.app, "GET", "/api/admin/users/"+id+"/today", tok, nil); r.StatusCode != 403 {
 		t.Errorf("일반 사용자의 남의 배정 조회 -> %d, want 403", r.StatusCode)
+	}
+}
+
+// 구형 경로와 새 경로가 **같은 문제**를 줘야 한다.
+//
+// `/api/cards/today` 는 오늘의 편성이 생기기 전부터 있었고 이미 배포된 앱이
+// 부르고 있다. 예전 규칙(3분 시간 예산 패킹)을 그대로 두면 선택 엔진이 두 벌이
+// 되어, 같은 사람이 어느 경로로 묻느냐에 따라 다른 문제를 받는다.
+func TestLegacyTodayRouteServesSameAssignment(t *testing.T) {
+	env := buildAdminApp(t)
+	tok := loginToken(t, env.app, "demo", "demo1234")
+
+	plan := todayPlan(t, env, tok)
+
+	res, body := doJSON(t, env.app, "GET", "/api/cards/today", tok, nil)
+	if res.StatusCode != 200 {
+		t.Fatalf("구형 경로: %d %s", res.StatusCode, body)
+	}
+	var legacy []struct {
+		ID       string `json:"id"`
+		StatusCd string `json:"status_cd"`
+	}
+	decode(t, body, &legacy)
+
+	got := make([]string, 0, len(legacy))
+	for _, c := range legacy {
+		got = append(got, c.ID)
+	}
+	if fmt.Sprint(got) != fmt.Sprint(cardIDsOf(plan)) {
+		t.Errorf("두 경로가 다른 문제를 준다:\n구형 %v\n신형 %v", got, cardIDsOf(plan))
 	}
 }

@@ -14,7 +14,7 @@ jest.mock('../../network/ApiClient', () => ({
 
 import { ServiceConfigRepository } from '../ServiceConfigRepository';
 import { MockServiceConfigRepository } from '../ServiceConfigRepository.mock';
-import { DAILY_NEW_LIMIT } from '../../../constants/learning';
+import { DAILY_MIN_CARDS } from '../../../constants/learning';
 
 describe('ServiceConfigRepository — 서버 응답 → 도메인', () => {
   beforeEach(() => get.mockReset());
@@ -51,13 +51,13 @@ describe('ServiceConfigRepository — 서버 응답 → 도메인', () => {
     expect(cfg.maintenance).toBe(false);
     expect(cfg.signupEnabled).toBe(true);
     expect(cfg.noticeText).toBe('');
-    expect(cfg.dailyNewLimit).toBe(DAILY_NEW_LIMIT);
+    expect(cfg.dailyNewLimit).toBe(DAILY_MIN_CARDS);
   });
 
   it('상한이 0 이하이면 앱 상수로 되돌린다', async () => {
     // 0 은 '무제한'이 아니라 실수다. 그대로 쓰면 학습이 통째로 잠긴다.
     get.mockResolvedValue({ daily_new_limit: 0 });
-    expect((await new ServiceConfigRepository().get()).dailyNewLimit).toBe(DAILY_NEW_LIMIT);
+    expect((await new ServiceConfigRepository().get()).dailyNewLimit).toBe(DAILY_MIN_CARDS);
   });
 
   it('모르는 공지 단계는 가장 약한 단계로 떨어진다', async () => {
@@ -77,6 +77,6 @@ describe('MockServiceConfigRepository', () => {
     const cfg = await new MockServiceConfigRepository().get();
     expect(cfg.maintenance).toBe(false);
     expect(cfg.noticeText).toBe('');
-    expect(cfg.dailyNewLimit).toBe(DAILY_NEW_LIMIT);
+    expect(cfg.dailyNewLimit).toBe(DAILY_MIN_CARDS);
   });
 });

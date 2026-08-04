@@ -2,7 +2,6 @@ package handler
 
 import (
 	"errors"
-	"strconv"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
@@ -23,32 +22,6 @@ func NewCardHandler(svc *service.CardService) *CardHandler { return &CardHandler
 func (h *CardHandler) All(c *fiber.Ctx) error {
 	userID := middleware.UserID(c)
 	cards, err := h.svc.All(c.Context(), userID)
-	if err != nil {
-		return err
-	}
-	return c.JSON(toCardDTOList(cards))
-}
-
-// Today GET /api/cards/today
-// 쿼리: ?difficulty=EASY|MEDIUM|HARD (선택), ?minutes=3 (선택)
-// 개인에게 "3분 학습 분량"을 난이도 규칙에 따라 구성해 돌려준다.
-func (h *CardHandler) Today(c *fiber.Ctx) error {
-	userID := middleware.UserID(c)
-
-	opt := service.SessionOptions{}
-	if d := strings.ToUpper(strings.TrimSpace(query(c, "difficulty"))); d != "" {
-		switch domain.Difficulty(d) {
-		case domain.Easy, domain.Medium, domain.Hard:
-			opt.Difficulty = domain.Difficulty(d)
-		}
-	}
-	if m := strings.TrimSpace(query(c, "minutes")); m != "" {
-		if n, err := strconv.Atoi(m); err == nil && n > 0 {
-			opt.TargetSec = n * 60
-		}
-	}
-
-	cards, err := h.svc.TodaySession(c.Context(), userID, opt)
 	if err != nil {
 		return err
 	}

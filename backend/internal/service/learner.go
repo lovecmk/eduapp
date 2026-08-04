@@ -210,7 +210,15 @@ func buildLearnerSummary(in LearnerInput) LearnerSummary {
 }
 
 // masteredBoxLevel 은 '충분히 익혔다'고 보는 기억 상자(저장소 구현과 같은 값).
-const masteredBoxLevel = 4
+// MasteredBoxLevel 은 '충분히 익혔다'로 보는 기억 상자 기준.
+//
+// **앱의 `src/domain/srs.ts` 의 `MASTERED_BOX` 와 같아야 한다.** 갈리면 앱은
+// '숙달'로 보여 주는 카드를 서버는 아직 후보로 여겨 오늘의 학습에 또 내보낸다.
+// 검사로 못박아 뒀다(TestMasteredBoxMatchesApp).
+const MasteredBoxLevel = 4
+
+// masteredBoxLevel 은 패키지 안에서 쓰는 짧은 이름(값은 위와 같다).
+const masteredBoxLevel = MasteredBoxLevel
 
 func buildMissedCards(in LearnerInput, cardByID map[string]domain.Card) []MissedCard {
 	out := []MissedCard{}

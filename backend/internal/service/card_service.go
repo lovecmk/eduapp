@@ -6,7 +6,6 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
-	"sort"
 	"strconv"
 	"time"
 
@@ -14,18 +13,17 @@ import (
 	"github.com/lovecmk/eduapp/backend/internal/ports"
 )
 
-// CardService 는 카드 조회·개인 세션 구성·진행 상태 갱신을 담당한다.
+// CardService 는 카드 조회·등록·진행 상태 갱신을 담당한다.
+//
+// '오늘 무엇을 낼 것인가'는 여기 없다 — 그것은 사람마다 다른 편성이라
+// LearningService(+daily_plan.go)가 맡는다.
 type CardService struct {
-	repo       ports.CardRepository
-	sessionSec int // 개인별 1회 학습 세션 목표 시간(초) — 기본 180(3분)
+	repo ports.CardRepository
 }
 
 // NewCardService 는 카드 서비스를 만든다.
-func NewCardService(repo ports.CardRepository, sessionSec int) *CardService {
-	if sessionSec <= 0 {
-		sessionSec = 180
-	}
-	return &CardService{repo: repo, sessionSec: sessionSec}
+func NewCardService(repo ports.CardRepository) *CardService {
+	return &CardService{repo: repo}
 }
 
 // merge 는 카드 콘텐츠에 사용자 진행 상태를 결합한다.
@@ -53,76 +51,6 @@ func (s *CardService) All(ctx context.Context, userID string) ([]domain.CardWith
 		return nil, err
 	}
 	return s.merge(cards, prog), nil
-}
-
-// SessionOptions 는 오늘의 3분 세션 구성 옵션.
-type SessionOptions struct {
-	// Difficulty 가 지정되면 해당 난이도 카드만으로 세션을 채운다(빈 문자열이면 전체).
-	Difficulty domain.Difficulty
-	// TargetSec 이 0 이면 서비스 기본값(3분)을 사용한다.
-	TargetSec int
-}
-
-// TodaySession 은 "3분 학습 분량"을 개인에게 맞춰 구성한다.
-//
-// 규칙:
-//   - mastered 카드는 제외한다(이미 익힌 카드).
-//   - 복습 예정(due) 카드를 오래된 순으로 우선 배치한다.
-//   - 이후 신규(new) 카드를 난이도 오름차순(초→중→고)으로 채운다.
-//   - 카드별 study_seconds 합이 목표 시간(기본 180초)에 도달하면 멈춘다.
-//     (최소 1장은 보장한다.)
-func (s *CardService) TodaySession(ctx context.Context, userID string, opt SessionOptions) ([]domain.CardWithProgress, error) {
-	all, err := s.All(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-
-	target := opt.TargetSec
-	if target <= 0 {
-		target = s.sessionSec
-	}
-
-	now := time.Now()
-	var due, fresh []domain.CardWithProgress
-	for _, c := range all {
-		if c.Status == domain.StatusMastered {
-			continue
-		}
-		if opt.Difficulty != "" && c.DifficultyCd != opt.Difficulty {
-			continue
-		}
-		if c.Status == domain.StatusLearning && c.DueAt != nil && !c.DueAt.After(now) {
-			due = append(due, c)
-		} else if c.Status == domain.StatusNew {
-			fresh = append(fresh, c)
-		} else if c.Status == domain.StatusLearning {
-			// 아직 예정일이 남은 학습중 카드도 신규 뒤 후보로.
-			fresh = append(fresh, c)
-		}
-	}
-
-	// 복습: 예정일이 오래된 순(가장 오래 방치).
-	sort.SliceStable(due, func(i, j int) bool {
-		return dueTime(due[i]).Before(dueTime(due[j]))
-	})
-	// 신규: 쉬운 난이도부터.
-	sort.SliceStable(fresh, func(i, j int) bool {
-		return diffRank(fresh[i].DifficultyCd) < diffRank(fresh[j].DifficultyCd)
-	})
-
-	ordered := append(due, fresh...)
-
-	// 목표 시간까지 채운다(최소 1장 보장).
-	var session []domain.CardWithProgress
-	acc := 0
-	for _, c := range ordered {
-		if len(session) > 0 && acc >= target {
-			break
-		}
-		session = append(session, c)
-		acc += cardSeconds(c)
-	}
-	return session, nil
 }
 
 // Create 는 새 학습카드(콘텐츠)를 저장하고 저장된 카드를 반환한다.
@@ -197,13 +125,7 @@ func nextDue(status domain.CardStatus) *time.Time {
 	}
 }
 
-func dueTime(c domain.CardWithProgress) time.Time {
-	if c.DueAt != nil {
-		return *c.DueAt
-	}
-	return time.Time{}
-}
-
+// diffRank 는 난이도를 크기 비교가 가능한 순번으로 바꾼다(편성 규칙이 함께 쓴다).
 func diffRank(d domain.Difficulty) int {
 	switch d {
 	case domain.Easy:
@@ -214,11 +136,4 @@ func diffRank(d domain.Difficulty) int {
 		return 2
 	}
 	return 1
-}
-
-func cardSeconds(c domain.CardWithProgress) int {
-	if c.StudySeconds > 0 {
-		return c.StudySeconds
-	}
-	return 40
 }

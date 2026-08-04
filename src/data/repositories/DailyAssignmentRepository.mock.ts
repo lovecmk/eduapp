@@ -1,11 +1,12 @@
 import type { IDailyAssignmentRepository } from '../../domain/repositories/IDailyAssignmentRepository';
 import type { DailyAssignment, DailyCard } from '../../domain/models/DailyAssignment';
 import { buildDailyPlan, type LearnerSignal, type PlanCandidate } from '../../domain/dailyPlan';
-import { DAILY_NEW_LIMIT, DAILY_TOTAL_LIMIT } from '../../constants/learning';
+import { DAILY_MIN_CARDS, DAILY_MAX_CARDS } from '../../constants/learning';
 import { useSrsStore } from '../../store/srsStore';
 import { useAuthStore } from '../../store/authStore';
 import { dateKey } from '../../utils/dateKey';
-import { cardRepository } from './index';
+import { MASTERED_BOX } from '../../domain/srs';
+import { MockCardRepository } from './CardRepository.mock';
 
 /**
  * 오늘의 학습 — 로컬 편성.
@@ -20,9 +21,15 @@ import { cardRepository } from './index';
  * 사라졌다"고 느낀다.
  */
 export class MockDailyAssignmentRepository implements IDailyAssignmentRepository {
+  // 싱글턴(`./index` 의 cardRepository)을 쓰지 않는다 — index 가 이 파일을
+  // import 하므로 순환이 생긴다. 지금은 메서드 안에서만 쓰여 우연히 동작하지만,
+  // 모듈 최상단에서 한 번만 참조하는 형태로 바뀌는 순간 undefined 가 된다.
+  // 목업끼리는 직접 엮어 그 고리를 아예 만들지 않는다.
+  private readonly cards = new MockCardRepository();
+
   async get(): Promise<DailyAssignment> {
     const day = dateKey(new Date());
-    const cards = await cardRepository.getAllCards();
+    const cards = await this.cards.getAllCards();
     const srs = useSrsStore.getState();
     // 로그인 전에도 화면은 그려져야 한다. 사용자를 모르면 기기 공통 시드를 쓴다 —
     // 로그인하면 그 사람의 시드로 바뀌어 목록이 달라지는데, 그것이 맞다.
@@ -49,7 +56,7 @@ export class MockDailyAssignmentRepository implements IDailyAssignmentRepository
       const st = states[card.id];
       // 충분히 익힌 카드는 후보에서 뺀다 — 이미 아는 것을 다시 내면
       // '하루 3분'이 복습으로만 채워져 새로 배우는 것이 멈춘다.
-      if (st && st.box >= 4 && st.dueAt > now) continue;
+      if (st && st.box >= MASTERED_BOX && st.dueAt > now) continue;
       candidates.push({
         cardId: card.id,
         difficulty: card.difficulty,
@@ -59,7 +66,7 @@ export class MockDailyAssignmentRepository implements IDailyAssignmentRepository
       });
     }
 
-    const plan = buildDailyPlan(userId, day, signal, candidates, DAILY_NEW_LIMIT, DAILY_TOTAL_LIMIT);
+    const plan = buildDailyPlan(userId, day, signal, candidates, DAILY_MIN_CARDS, DAILY_MAX_CARDS);
 
     const byId = new Map(cards.map((c) => [c.id, c]));
     const studiedToday = new Set(srs.history?.[day] ?? []);

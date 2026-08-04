@@ -1,7 +1,7 @@
 import type { IServiceConfigRepository } from '../../domain/repositories/IServiceConfigRepository';
 import type { NoticeLevel, ServiceConfig } from '../../domain/models/ServiceConfig';
 import { defaultServiceConfig } from '../../domain/models/ServiceConfig';
-import { DAILY_NEW_LIMIT } from '../../constants/learning';
+import { DAILY_MIN_CARDS } from '../../constants/learning';
 import { apiClient } from '../network/ApiClient';
 
 /** 서버 응답(handler.PublicConfig)과 1:1. */
@@ -39,7 +39,7 @@ function toLevel(raw: string | undefined): NoticeLevel {
 export class ServiceConfigRepository implements IServiceConfigRepository {
   async get(): Promise<ServiceConfig> {
     const dto = await apiClient.get<ConfigDTO>('/api/config');
-    const fallback = defaultServiceConfig(DAILY_NEW_LIMIT);
+    const fallback = defaultServiceConfig(DAILY_MIN_CARDS);
     return {
       maintenance: dto.maintenance_yn === true,
       maintenanceMessage: dto.maintenance_msg?.trim() ?? '',

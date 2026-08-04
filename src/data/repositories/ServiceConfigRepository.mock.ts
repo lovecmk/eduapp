@@ -1,7 +1,7 @@
 import type { IServiceConfigRepository } from '../../domain/repositories/IServiceConfigRepository';
 import type { ServiceConfig } from '../../domain/models/ServiceConfig';
 import { defaultServiceConfig } from '../../domain/models/ServiceConfig';
-import { DAILY_NEW_LIMIT } from '../../constants/learning';
+import { DAILY_MIN_CARDS } from '../../constants/learning';
 import { delay } from './_delay';
 
 /**
@@ -16,7 +16,7 @@ export class MockServiceConfigRepository implements IServiceConfigRepository {
   async get(): Promise<ServiceConfig> {
     await delay(120);
     return {
-      ...defaultServiceConfig(DAILY_NEW_LIMIT),
+      ...defaultServiceConfig(DAILY_MIN_CARDS),
       // noticeText: '이번 주 금요일 안전교육이 있습니다',
       // noticeLevel: 'warn',
       serverVersion: 'mock',

@@ -25,14 +25,14 @@ func buildApp(t *testing.T) *server.Deps {
 	t.Helper()
 	cfg := config.Config{
 		JWTSecret: []byte("test-secret"), AccessTTL: 15 * time.Minute,
-		RefreshTTL: time.Hour, CORSOrigins: "*", StudySessionSec: 180,
+		RefreshTTL: time.Hour, CORSOrigins: "*",
 	}
 	users := memory.NewUserRepo()
 	cards := memory.NewCardRepo()
 
 	tm := token.NewManager(cfg.JWTSecret, cfg.AccessTTL, cfg.RefreshTTL)
 	authSvc := service.NewAuthService(users, tm)
-	cardSvc := service.NewCardService(cards, cfg.StudySessionSec)
+	cardSvc := service.NewCardService(cards)
 
 	if _, err := seed.EnsureCards(context.Background(), cards); err != nil {
 		t.Fatalf("seed: %v", err)
@@ -43,7 +43,12 @@ func buildApp(t *testing.T) *server.Deps {
 
 	pushSvc := service.NewPushService(memory.NewPushTokenRepo(), "")
 	data := memory.NewUserDataRepo()
+	// 오늘의 편성은 운영에서 늘 배선되고, /api/cards/today 도 그 편성을 돌려준다.
+	// 여기서 빼면 테스트만 다른 서버를 검사하게 된다.
+	settings := service.NewSettingsService(memory.NewSettingsRepo(), memory.NewAuditRepo())
 	return &server.Deps{
+		Settings: settings,
+		Learning: service.NewLearningService(data, cards, settings),
 		// Data 는 테스트가 저장 결과를 직접 확인할 수 있도록 노출한다.
 		Data:        data,
 		Sync:        service.NewSyncService(data, cards),

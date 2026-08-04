@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo } from 'react';
 import { useAllCards, useMarkCard } from './useCards';
 import { useSrsStore } from '../store/srsStore';
-import { type Grade } from '../domain/srs';
+import { type Grade, MASTERED_BOX } from '../domain/srs';
 import { buildReviewPlan, REVIEW_SESSION_CAP, type UpcomingDay } from '../domain/reviewPlan';
 import type { LearningCard } from '../domain/models/LearningCard';
 
@@ -76,7 +76,7 @@ export function useReview() {
     const status =
       grade === 'again' || grade === 'hard'
         ? 'learning'
-        : nextBox >= 4
+        : nextBox >= MASTERED_BOX
           ? 'mastered'
           : grade === 'easy' && nextBox >= 3
             ? 'mastered'

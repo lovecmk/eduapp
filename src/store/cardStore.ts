@@ -7,13 +7,11 @@ let opCounter = 0;
 
 interface CardState {
   entities: Record<string, LearningCard>;
-  todayIds: string[];
   allIds: string[];
   loading: boolean;
   error: string | null;
 
   selectCard: (id: string) => LearningCard | undefined;
-  fetchToday: () => Promise<void>;
   fetchAll: () => Promise<void>;
   markCard: (id: string, status: CardStatus) => Promise<void>;
   reset: () => void;
@@ -21,27 +19,12 @@ interface CardState {
 
 export const useCardStore = create<CardState>((set, get) => ({
   entities: {},
-  todayIds: [],
   allIds: [],
   loading: false,
   error: null,
 
   selectCard: (id) => get().entities[id],
 
-  fetchToday: async () => {
-    set({ loading: true, error: null });
-    try {
-      const cards = await cardRepository.getTodayCards();
-      const entities = Object.fromEntries(cards.map((c) => [c.id, c]));
-      set((s) => ({
-        entities: { ...s.entities, ...entities },
-        todayIds: cards.map((c) => c.id),
-        loading: false,
-      }));
-    } catch (e) {
-      set({ error: e instanceof Error ? e.message : '불러오기 실패', loading: false });
-    }
-  },
 
   fetchAll: async () => {
     set({ loading: true, error: null });
@@ -81,6 +64,6 @@ export const useCardStore = create<CardState>((set, get) => ({
 
   reset: () => {
     pendingOps.clear();
-    set({ entities: {}, todayIds: [], allIds: [], loading: false, error: null });
+    set({ entities: {}, allIds: [], loading: false, error: null });
   },
 }));

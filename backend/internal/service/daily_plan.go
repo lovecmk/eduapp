@@ -90,9 +90,6 @@ func countForDifficulty(d domain.Difficulty, min, max int) int {
 	return clampInt(n, min, max)
 }
 
-// masteredBox 는 '충분히 익혔다'로 보는 기억 상자 기준(진단·집계와 같은 값).
-// prescription.go 의 masteredBoxLevel 과 같은 뜻이며, 여기서는 난이도 판정에만 쓴다.
-
 // TargetDifficulty 는 그 사람에게 오늘 맞는 난이도를 고른다.
 //
 // 교육앱에서 난이도는 고정 설정이 아니라 **관찰의 결과**여야 한다. 잘 따라오는
