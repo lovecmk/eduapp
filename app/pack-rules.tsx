@@ -9,7 +9,7 @@ import { useAllCards } from '../src/hooks/useCards';
 import { useSrsStore } from '../src/store/srsStore';
 import { useAttendanceStore } from '../src/store/attendanceStore';
 import { useCollectionStore } from '../src/store/collectionStore';
-import { evaluatePackRules, type PackRuleContext } from '../src/data/packRules';
+import { evaluatePackRules, type PackRuleContext, type PackRuleProgress } from '../src/data/packRules';
 import { dateKey } from '../src/utils/dateKey';
 import { contentColumn } from '../src/theme/layout';
 
@@ -21,8 +21,11 @@ export default function PackRulesScreen() {
   const attStreak = useAttendanceStore((s) => s.currentStreak)();
   const attTotal = useAttendanceStore((s) => s.totalDays)();
   const packs = useCollectionStore((s) => s.packs);
+  const shards = useCollectionStore((s) => s.shards);
+  const owned = useCollectionStore((s) => s.owned);
   const claimedRules = useCollectionStore((s) => s.claimedRules);
   const claimRule = useCollectionStore((s) => s.claimRule);
+  const srsCards = useSrsStore((s) => s.cards);
 
   const ctx: PackRuleContext = useMemo(() => {
     const studyTotal = Object.values(history).reduce((sum, ids) => sum + ids.length, 0);
@@ -30,16 +33,41 @@ export default function PackRulesScreen() {
     // 최근 7일 학습량이 20장 이상이면 이번 주 챌린지 완료로 간주.
     const weekKeys = Array.from({ length: 7 }, (_, i) => { const d = new Date(); d.setDate(d.getDate() - i); return dateKey(d); });
     const weekReviews = weekKeys.reduce((sum, k) => sum + (history[k]?.length ?? 0), 0);
-    return { studyTotal, attendanceStreak: attStreak, attendanceTotal: attTotal, masteredCount, weeklyCleared: weekReviews >= 20 };
-  }, [history, allCards, attStreak, attTotal]);
+
+    // 정확도 — SRS 상태의 누적 복습(reps)과 망각(lapses)에서 직접 뽑는다.
+    // '많이 했다'가 아니라 '제대로 했다'를 보는 조건이라 표본이 적으면 잠긴다.
+    let reps = 0;
+    let lapses = 0;
+    for (const c of Object.values(srsCards)) { reps += c.reps; lapses += c.lapses; }
+    const accuracyPct = reps > 0 ? Math.round(((reps - lapses) / reps) * 100) : 0;
+
+    // 분야별 마스터 — 한 분야를 깊게 판 사람을 인정하는 조건.
+    const perCategory = new Map<string, number>();
+    for (const c of allCards) {
+      if (c.status !== 'mastered') continue;
+      perCategory.set(c.category, (perCategory.get(c.category) ?? 0) + 1);
+    }
+
+    return {
+      studyTotal,
+      attendanceStreak: attStreak,
+      attendanceTotal: attTotal,
+      masteredCount,
+      weeklyCleared: weekReviews >= 20,
+      accuracyPct,
+      accuracyReps: reps,
+      collectedCount: Object.keys(owned).length,
+      bestCategoryMastered: Math.max(0, ...perCategory.values()),
+    };
+  }, [history, allCards, attStreak, attTotal, srsCards, owned]);
 
   const progress = useMemo(() => evaluatePackRules(ctx, claimedRules), [ctx, claimedRules]);
   const totalClaimable = progress.reduce((s, p) => s + p.claimable, 0);
 
-  const onClaim = (ruleId: string, packsReward: number, unitReward: number) => {
-    const times = Math.max(1, Math.round(packsReward / unitReward));
-    claimRule(ruleId, packsReward, times);
-    hapticSuccess();
+  // 얼마를 받을지는 스토어가 현재 상태로 다시 계산한다 — 화면은 '이 규칙을
+  // 받겠다'고만 말한다. 화면이 들고 있던 값이 낡았어도 과지급되지 않는다.
+  const onClaim = (ruleId: string) => {
+    if (claimRule(ruleId, ctx) > 0) hapticSuccess();
   };
 
   return (
@@ -52,7 +80,7 @@ export default function PackRulesScreen() {
             <Ionicons name="gift" size={24} color="#fff" />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={{ color: '#fff', fontSize: 16 * fs, fontFamily: fontCute, fontWeight: '800' }}>보유 카드팩 {packs}개</Text>
+            <Text style={{ color: '#fff', fontSize: 16 * fs, fontFamily: fontCute, fontWeight: '800' }}>보유 카드팩 {packs}개 · 조각 {shards}</Text>
             <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 12 * fs, fontFamily: fontBody, marginTop: 2 }}>
               {totalClaimable > 0 ? `지금 받을 수 있는 팩 ${totalClaimable}개!` : '조건을 달성하면 카드팩을 드려요'}
             </Text>
@@ -60,7 +88,7 @@ export default function PackRulesScreen() {
         </View>
 
         {progress.map((p) => {
-          const done = p.pct >= 1 && p.claimable === 0 && !p.rule.repeatable;
+          const done = p.exhausted && p.claimable === 0;
           return (
             <View key={p.rule.id} style={{ backgroundColor: c.surface, borderWidth: 1, borderColor: p.claimable > 0 ? p.rule.color : c.border, borderRadius: 16, padding: 16, marginBottom: 12 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
@@ -72,7 +100,9 @@ export default function PackRulesScreen() {
                     <Text style={{ color: c.textPrimary, fontSize: 14.5 * fs, fontFamily: fontDisplay }}>{p.rule.title}</Text>
                     {p.rule.repeatable && (
                       <View style={{ backgroundColor: c.surfaceAlt, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 1 }}>
-                        <Text style={{ color: c.textSecondary, fontSize: 9.5, fontFamily: fontBody }}>반복</Text>
+                        <Text style={{ color: c.textSecondary, fontSize: 9.5, fontFamily: fontBody }}>
+                          {p.rule.maxTimes ? `반복 ${p.claimedTimes}/${p.rule.maxTimes}` : '반복'}
+                        </Text>
                       </View>
                     )}
                   </View>
@@ -90,11 +120,11 @@ export default function PackRulesScreen() {
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
                 <Text style={{ color: c.textSecondary, fontSize: 11.5, fontFamily: fontMono }}>
-                  {Math.min(p.current, p.claimedTimes * p.target + p.target)}/{p.claimedTimes * p.target + p.target}
+                  {progressLabel(p)}
                   {p.claimedTimes > 0 ? ` · ${p.claimedTimes}회 수령` : ''}
                 </Text>
                 {p.claimable > 0 ? (
-                  <Pressable accessibilityRole="button" onPress={() => onClaim(p.rule.id, p.claimable, p.rule.reward)}
+                  <Pressable accessibilityRole="button" onPress={() => onClaim(p.rule.id)}
                     style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: p.rule.color, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 6 }}>
                     <Ionicons name="gift" size={13} color="#fff" />
                     <Text style={{ color: '#fff', fontSize: 12.5, fontFamily: fontCute, fontWeight: '800' }}>팩 {p.claimable}개 받기</Text>
@@ -103,6 +133,11 @@ export default function PackRulesScreen() {
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
                     <Ionicons name="checkmark-circle" size={14} color={c.success} />
                     <Text style={{ color: c.success, fontSize: 12, fontFamily: fontCute, fontWeight: '700' }}>완료</Text>
+                  </View>
+                ) : p.lockedReason ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                    <Ionicons name="lock-closed" size={13} color={c.textSecondary} />
+                    <Text style={{ color: c.textSecondary, fontSize: 11.5, fontFamily: fontBody }}>{p.lockedReason}</Text>
                   </View>
                 ) : (
                   <Text style={{ color: c.textSecondary, fontSize: 11.5, fontFamily: fontBody }}>진행 중</Text>
@@ -113,9 +148,19 @@ export default function PackRulesScreen() {
         })}
 
         <Text style={{ color: c.textSecondary, fontSize: 11.5, fontFamily: fontBody, textAlign: 'center', marginTop: 8, lineHeight: 17 }}>
-          획득 조건은 회의 후 확정 예정이에요.{'\n'}지금은 설정 → 카드 수집에서만 열람할 수 있어요.
+          중복으로 나온 카드는 안전 조각이 돼요.{'\n'}조각은 도감에서 원하는 카드와 바로 교환할 수 있어요.
         </Text>
       </ScrollView>
     </View>
   );
+}
+
+/**
+ * 진행도 표시 — 규칙 유형마다 단위가 다르다.
+ * 정답률은 "87% / 목표 80%", 나머지는 "12/50" 형태로 보여준다.
+ */
+function progressLabel(p: PackRuleProgress): string {
+  if (p.rule.type === 'accuracy') return `${p.current}% / 목표 ${p.target}%`;
+  const goal = p.claimedTimes * p.target + p.target;
+  return `${Math.min(p.current, goal)}/${goal}`;
 }

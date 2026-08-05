@@ -29,8 +29,8 @@ eduapp/
 │  │  ├─ network/         # ApiClient, env(빌드 환경변수 단일 소스)
 │  │  ├─ storage/         # secureStorage(네이티브 SecureStore ↔ 웹 localStorage)
 │  │  ├─ dto/ · mappers/  # 서버 DTO ↔ 도메인 매핑
-│  │  ├─ packRules.ts     # 카드팩 획득 규칙 정의 + 평가 엔진
-│  │  └─ collectibles.ts  # 수집 카드 카탈로그
+│  │  ├─ packRules.ts     # 카드팩 획득 규칙 정의 + 평가 엔진(보상액의 단일 출처)
+│  │  └─ collectibles/    # 안전 카드 도감 500종(분야별 catalog.*.ts) + 뽑기 확률표
 │  ├─ store/       # zustand 상태(persist) — auth·settings·attendance·collection ...
 │  ├─ hooks/       # react-query 래핑(useCards·useStats·useReview ...)
 │  ├─ components/  # 재사용 UI (ui/ · home/ · community/ · attendance/ · collection/ ...)
@@ -70,6 +70,7 @@ eduapp/
 | 출석 도장 | components/attendance/AttendanceStampCard | (순수 로직) | store/attendanceStore |
 | 캘린더 고도화 | components/community/LearningCalendar | srs·attendance 파생 | store/srsStore·attendanceStore |
 | 카드팩 획득 조건 | app/pack-rules.tsx | data/packRules(규칙+평가) | store/collectionStore(claimedRules) |
+| 안전 카드 도감 | app/collection-book.tsx | data/collectibles(500종)·domain/packDraw(뽑기) | store/collectionStore(owned·shards·pity) |
 | 관리 콘솔 | app/admin.tsx | mockUserDb·packRules·collectibles | settings·authoredCards |
 | 닉네임·중복확인 | app/(auth)/signup, components/auth/AvailabilityField | AuthRepository.isUsernameTaken/isNicknameTaken, mockUserDb | authStore |
 | 내 정보 수정 | app/edit-profile.tsx | AuthRepository.updateProfile, mockUserDb.updateUser | authStore.updateProfile |
@@ -116,6 +117,43 @@ eduapp/
 `daily_plan.go`(+오프라인용 `dailyPlan.ts`) 한 규칙만 남았고, 구형 경로
 `/api/cards/today` 도 그 편성을 구형 형식으로 돌려준다 — 이미 배포된 앱이
 그 경로를 부르고 있어 지울 수 없기 때문이다.
+
+## 안전 카드 도감 — 확률과 보상
+
+도감은 **500종**(분야 5개 × 100종, 등급 229/166/80/25)이다. 규모가 커지면
+"뽑아도 새 카드가 안 나온다"는 쿠폰 수집가 문제가 실제로 생기므로, 뽑기는
+`src/domain/packDraw.ts` 한 곳에 순수 함수로 모아 두고 세 겹으로 설계한다.
+
+| 장치 | 상수 | 하는 일 |
+|---|---|---|
+| 등급 확률 | `DRAW_WEIGHTS` (0.56/0.30/0.11/0.03) | 팩을 여는 순간의 두근거림 |
+| 미보유 가중 | `NEW_CARD_WEIGHT = 3` | 안 가진 카드를 3배 자주 뽑아 수집이 끝나게 |
+| 천장 | `PITY_EPIC = 10`, `PITY_LEGENDARY_SOFT = 35`, `PITY_LEGENDARY_HARD = 60` | 운이 나빠도 정해진 팩 안에 상위 등급 보장 |
+| 중복 구제 | `SHARD_REWARD` / `SHARD_PRICE` | 중복을 조각으로 바꿔 원하는 카드와 교환 |
+
+이 수치로 시뮬레이션하면 100팩에 65%·전설 12종, 400팩에 사실상 완성이다.
+하루 1.8팩(무료팩 1 + 학습 적립) 기준으로 대략 7개월짜리 사다리다.
+
+**난수는 인자로 받는다.** 예전 `drawOne()` 은 `Math.random()` 을 직접 불러서
+확률을 검사할 방법이 아예 없었다. 지금은 `Rng` 를 주입받으므로 시드를 고정해
+수백 팩을 돌려보는 테스트가 가능하다(`__tests__/packDraw.test.ts`).
+
+**확률표는 '적어두는 것'이 아니라 '재는 것'이다.** 실제로 이 작업에서
+버그를 하나 잡았다 — 천장 보정이 상위 등급만 담은 부분 가중치를 넘기는
+바람에 합계가 `NaN` 이 되어 **보정이 걸릴 때마다 무조건 다이아몬드**가
+나왔다(전설 실측 5.4% vs 표기 3%). 팩당 보장은 통과했으므로 다른
+테스트로는 보이지 않았다. 그래서 바닥 규칙까지 계산에 넣은 기대 분포와
+실측을 맞춰 보는 테스트를 따로 둔다.
+
+**보상액의 출처는 `evaluatePackRules` 하나다.** 예전에는 화면이
+`claimRule(id, packs, times)` 로 줄 팩 수를 직접 지정했고 스토어는 그대로
+더했다 — 화면이 틀리거나 버튼이 두 번 눌리면 그만큼 더 생겼다. 지금 화면은
+`claimRule(id, ctx)` 로 "이 규칙을 받겠다"고만 말하고, 스토어가 현재 상태로
+다시 계산해 지급한다. 반복 규칙에는 전부 `maxTimes` 상한이 있다(테스트가 잠근다).
+
+**적립 단위는 '장'이다.** 세션이 아니라 학습한 카드 수로 센다 — 일일 무료팩의
+조건(`DAILY_PACK_MIN_STUDY`)과 팩 적립(`STUDY_PER_PACK`)이 같은 단위여야
+"하루 한 번 학습하는 사람이 조건을 영영 못 채우는" 일이 안 생긴다.
 
 ## 설정 화면 규칙
 

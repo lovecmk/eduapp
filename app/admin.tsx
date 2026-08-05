@@ -160,7 +160,9 @@ function RulesTab() {
             <Ionicons name={r.icon} size={17} color={r.color} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={{ color: c.textPrimary, fontSize: 13.5, fontFamily: fontDisplay }}>{r.title}{r.repeatable ? ' · 반복' : ''}</Text>
+            <Text style={{ color: c.textPrimary, fontSize: 13.5, fontFamily: fontDisplay }}>
+              {r.title}{r.repeatable ? ` · 반복 최대 ${r.maxTimes ?? '-'}회` : ''}
+            </Text>
             <Text style={{ color: c.textSecondary, fontSize: 11.5, fontFamily: fontBody }}>{r.desc} · 목표 {r.target}</Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>

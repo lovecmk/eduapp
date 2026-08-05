@@ -7,16 +7,18 @@ import { CollectibleCard } from './CollectibleCard';
 import { COLLECTIBLE_BY_ID, JEWEL_META } from '../../data/collectibles';
 import { RARITY_RANK as RANK, type RarityTier } from '../../utils/rarity';
 import { fontCute, fontDisplay } from '../../theme/tokens';
-import type { DrawResult } from '../../store/collectionStore';
+import type { OpenResult } from '../../store/collectionStore';
+import { fontBody } from '../../theme/tokens';
 
 /** 카드팩 개봉 연출 — 닫힌 팩 탭 → 카드가 하나씩 반짝이며 등장. */
-export function PackOpenModal({ results, onClose }: { results: DrawResult[] | null; onClose: () => void }) {
+export function PackOpenModal({ result, onClose }: { result: OpenResult | null; onClose: () => void }) {
   const [opened, setOpened] = useState(false);
   const { width: screenW } = useWindowDimensions();
+  const results = result?.results ?? null;
 
   useEffect(() => {
-    if (results) setOpened(false);
-  }, [results]);
+    if (result) setOpened(false);
+  }, [result]);
 
   const best = useMemo<RarityTier>(() => {
     if (!results) return 'common';
@@ -37,9 +39,9 @@ export function PackOpenModal({ results, onClose }: { results: DrawResult[] | nu
   const bestMeta = JEWEL_META[best];
 
   return (
-    <Modal visible={!!results} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
+    <Modal visible={!!result} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
       <View style={{ flex: 1, backgroundColor: 'rgba(6,8,15,0.94)', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-        {!results ? null : !opened ? (
+        {!result || !results ? null : !opened ? (
           // 닫힌 팩
           <Pressable accessibilityRole="button" onPress={open} style={{ alignItems: 'center' }}>
             <Animated.View entering={ZoomIn.springify()} style={{ width: 180, height: 240, borderRadius: 22, backgroundColor: '#1E1B4B', borderWidth: 2, borderColor: '#6366F1', alignItems: 'center', justifyContent: 'center', gap: 12, boxShadow: '0 12px 40px rgba(99,102,241,0.5)' }}>
@@ -67,6 +69,15 @@ export function PackOpenModal({ results, onClose }: { results: DrawResult[] | nu
                 </Animated.View>
               ))}
             </View>
+            {/* 중복이 나와도 빈손이 아니라는 걸 그 자리에서 보여준다 —
+                조각 화면을 따로 찾아가야 알 수 있으면 중복은 그냥 실망으로 남는다. */}
+            {result.shards > 0 && (
+              <Animated.View entering={FadeIn.delay(results.length * 160 + 260)} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 20, backgroundColor: 'rgba(245,158,11,0.2)', borderRadius: 999, paddingHorizontal: 16, paddingVertical: 8, borderWidth: 1, borderColor: 'rgba(245,158,11,0.6)' }}>
+                <Text style={{ fontSize: 14 }}>🧩</Text>
+                <Text style={{ color: '#fff', fontSize: 12.5, fontFamily: fontBody }}>중복 카드가 안전 조각 {result.shards}개가 됐어요</Text>
+              </Animated.View>
+            )}
+
             <Animated.View entering={FadeIn.delay(results.length * 160 + 300)} style={{ width: '100%', maxWidth: 320, marginTop: 26 }}>
               <Pressable accessibilityRole="button" onPress={onClose} style={{ backgroundColor: '#fff', borderRadius: 16, height: 52, alignItems: 'center', justifyContent: 'center' }}>
                 <Text style={{ color: '#111', fontSize: 15, fontFamily: fontCute, fontWeight: '800' }}>확인</Text>

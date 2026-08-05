@@ -12,7 +12,8 @@ import { PackOpenModal } from '../src/components/collection/PackOpenModal';
 import { COLLECTIBLES, COLLECTIBLE_BY_ID, PACK_SIZE, JEWEL_META, type CollectibleCategory } from '../src/data/collectibles';
 import { RARITY_RANK as RANK, RARITY_ORDER, type RarityTier } from '../src/utils/rarity';
 import { useTilt } from '../src/hooks/useTilt';
-import { useCollectionStore, STUDY_PER_PACK, DAILY_PACK, INITIAL_PACKS, type DrawResult } from '../src/store/collectionStore';
+import { useCollectionStore, STUDY_PER_PACK, DAILY_PACK, INITIAL_PACKS, DAILY_PACK_MIN_STUDY, type OpenResult } from '../src/store/collectionStore';
+import { PITY_EPIC, PITY_LEGENDARY_HARD, SHARD_PRICE, canExchange } from '../src/domain/packDraw';
 import { fontCute, fontBody, fontMono, fontDisplay } from '../src/theme/tokens';
 import { contentColumn, CONTENT_MAX_WIDTH } from '../src/theme/layout';
 
@@ -24,7 +25,7 @@ import { contentColumn, CONTENT_MAX_WIDTH } from '../src/theme/layout';
 const GAP = 10;
 const gridWidth = (screenW: number) => Math.min(screenW, CONTENT_MAX_WIDTH);
 const columnWidth = (screenW: number) => (gridWidth(screenW) - 20 * 2 - GAP * 2) / 3;
-// 한 번에 그리는 카드 수(6줄×3열). 150여 장을 한꺼번에 렌더하지 않고
+// 한 번에 그리는 카드 수(6줄×3열). 500장을 한꺼번에 렌더하지 않고
 // 아래로 스크롤할 때마다 이 단위로 조금씩 불러온다.
 const PAGE = 18;
 // 도감은 높은 등급을 위에 노출(공용 오름차순을 뒤집는다).
@@ -53,17 +54,22 @@ export default function CollectionBookScreen() {
 
   const owned = useCollectionStore((s) => s.owned);
   const packs = useCollectionStore((s) => s.packs);
+  const shards = useCollectionStore((s) => s.shards);
+  const pity = useCollectionStore((s) => s.pity);
   const newIds = useCollectionStore((s) => s.newIds);
+  const todayStudy = useCollectionStore((s) => s.todayStudy);
+  const todayStudyDay = useCollectionStore((s) => s.todayStudyDay);
   const lastDailyPack = useCollectionStore((s) => s.lastDailyPack);
   const studyProgress = useCollectionStore((s) => s.studyProgress);
   const claimDaily = useCollectionStore((s) => s.claimDaily);
   const openPack = useCollectionStore((s) => s.openPack);
+  const exchangeShards = useCollectionStore((s) => s.exchangeShards);
   const clearNew = useCollectionStore((s) => s.clearNew);
 
-  const [drawn, setDrawn] = useState<DrawResult[] | null>(null);
+  const [drawn, setDrawn] = useState<OpenResult | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
 
-  // ── 도감 탐색 필터 상태(150종을 편하게 둘러보도록) ─────────────────
+  // ── 도감 탐색 필터 상태(500종을 편하게 둘러보도록) ─────────────────
   const [query, setQuery] = useState('');
   const [rarityFilter, setRarityFilter] = useState<RarityFilter>('all');
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
@@ -74,7 +80,14 @@ export default function CollectionBookScreen() {
   const total = COLLECTIBLES.length;
   const pct = Math.round((uniqueOwned / total) * 100);
   const today = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })();
-  const canClaimDaily = lastDailyPack !== today;
+  // 무료팩은 '앱을 열었다'가 아니라 '오늘 학습했다'로 열린다.
+  const studiedToday = todayStudyDay === today ? todayStudy : 0;
+  const dailyNeed = Math.max(0, DAILY_PACK_MIN_STUDY - studiedToday);
+  const dailyUnclaimed = lastDailyPack !== today;
+  const canClaimDaily = dailyUnclaimed && dailyNeed === 0;
+  // 천장까지 남은 팩 — "언제쯤 좋은 게 나오나"에 숫자로 답한다.
+  const toEpic = Math.max(1, PITY_EPIC - pity.sinceEpic);
+  const toLegendary = Math.max(1, PITY_LEGENDARY_HARD - pity.sinceLegendary);
 
   const byRarity = useMemo(() => {
     const groups: Record<RarityTier, typeof COLLECTIBLES> = { legendary: [], epic: [], rare: [], common: [] };
@@ -162,7 +175,9 @@ export default function CollectionBookScreen() {
     if (claimDaily()) hapticSuccess();
   };
   const onCloseDraw = () => setDrawn(null);
-  const onDetail = (id: string) => { if (owned[id]) { setDetailId(id); if (newIds.includes(id)) clearNew([id]); } };
+  // 미보유 카드도 열린다 — 조각으로 교환할 수 있으니 '무엇을 살지' 볼 수 있어야 한다.
+  const onDetail = (id: string) => { setDetailId(id); if (newIds.includes(id)) clearNew([id]); };
+  const onExchange = (id: string) => { if (exchangeShards(id)) hapticSuccess(); };
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
@@ -180,9 +195,15 @@ export default function CollectionBookScreen() {
                   <Text style={{ color: c.textSecondary, fontSize: 12 * fs, fontFamily: fontBody }}>수집 {uniqueOwned}/{total} · {pct}% 완성</Text>
                 </View>
               </View>
-              <View style={{ alignItems: 'flex-end' }}>
-                <Text style={{ color: c.primary, fontSize: 24 * fs, fontFamily: fontMono, fontWeight: '900' }}>{packs}</Text>
-                <Text style={{ color: c.textSecondary, fontSize: 10.5, fontFamily: fontBody }}>보유 카드팩</Text>
+              <View style={{ flexDirection: 'row', gap: 14 }}>
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text style={{ color: c.primary, fontSize: 24 * fs, fontFamily: fontMono, fontWeight: '900' }}>{packs}</Text>
+                  <Text style={{ color: c.textSecondary, fontSize: 10.5, fontFamily: fontBody }}>보유 카드팩</Text>
+                </View>
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text style={{ color: c.warning, fontSize: 24 * fs, fontFamily: fontMono, fontWeight: '900' }}>{shards}</Text>
+                  <Text style={{ color: c.textSecondary, fontSize: 10.5, fontFamily: fontBody }}>안전 조각</Text>
+                </View>
               </View>
             </View>
 
@@ -213,20 +234,37 @@ export default function CollectionBookScreen() {
                 <Ionicons name="gift" size={18} color="#fff" />
                 <Text style={{ color: '#fff', fontSize: 14 * fs, fontFamily: fontCute, fontWeight: '800' }}>{packs > 0 ? `카드팩 열기 (${packs})` : '보유한 팩 없음'}</Text>
               </Pressable>
-              {canClaimDaily && (
-                <Pressable accessibilityRole="button" onPress={onClaimDaily}
-                  style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.warning, borderRadius: 14, height: 48, paddingHorizontal: 16 }}>
-                  <Ionicons name="calendar" size={16} color="#fff" />
-                  <Text style={{ color: '#fff', fontSize: 13 * fs, fontFamily: fontCute, fontWeight: '800' }}>오늘의 무료팩</Text>
+              {dailyUnclaimed && (
+                <Pressable accessibilityRole="button" onPress={onClaimDaily} disabled={!canClaimDaily}
+                  style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: canClaimDaily ? c.warning : c.disabled, borderRadius: 14, height: 48, paddingHorizontal: 16 }}>
+                  <Ionicons name={canClaimDaily ? 'calendar' : 'lock-closed'} size={16} color="#fff" />
+                  <Text style={{ color: '#fff', fontSize: 13 * fs, fontFamily: fontCute, fontWeight: '800' }}>
+                    {canClaimDaily ? '오늘의 무료팩' : `학습 ${dailyNeed}장 더`}
+                  </Text>
                 </Pressable>
               )}
+            </View>
+
+            {/* 천장 — "언제쯤 좋은 카드가 나오나"에 숫자로 답한다. 확률만 있고
+                끝이 안 보이면 사람은 금방 지친다. */}
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
+              {([
+                { label: JEWEL_META.epic.label, emoji: JEWEL_META.epic.emoji, color: JEWEL_META.epic.glow, left: toEpic },
+                { label: JEWEL_META.legendary.label, emoji: JEWEL_META.legendary.emoji, color: JEWEL_META.legendary.glow, left: toLegendary },
+              ]).map((g) => (
+                <View key={g.label} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: c.surfaceAlt, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 8 }}>
+                  <Text style={{ fontSize: 12 }}>{g.emoji}</Text>
+                  <Text style={{ color: c.textSecondary, fontSize: 11 * fs, fontFamily: fontBody, flex: 1 }}>{g.label} 확정까지</Text>
+                  <Text style={{ color: g.color, fontSize: 12 * fs, fontFamily: fontMono, fontWeight: '800' }}>{g.left}팩</Text>
+                </View>
+              ))}
             </View>
             {/* 다음 카드팩까지 남은 학습 진행 — '어떻게 더 얻지?'에 즉답 */}
             <View style={{ marginTop: 14 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
                 <Text style={{ color: c.textSecondary, fontSize: 11.5 * fs, fontFamily: fontBody }}>다음 무료 카드팩까지</Text>
                 <Text style={{ color: c.textPrimary, fontSize: 11.5 * fs, fontFamily: fontMono, fontWeight: '700' }}>
-                  학습 {STUDY_PER_PACK - (studyProgress % STUDY_PER_PACK)}회
+                  학습 {STUDY_PER_PACK - (studyProgress % STUDY_PER_PACK)}장
                 </Text>
               </View>
               <View style={{ height: 6, backgroundColor: c.surfaceAlt, borderRadius: 3, overflow: 'hidden' }}>
@@ -246,9 +284,10 @@ export default function CollectionBookScreen() {
             {howtoOpen && (
               <View style={{ marginTop: 10 }}>
                 {[
-                  { icon: 'school', color: c.success, title: `학습 ${STUDY_PER_PACK}회마다 1팩`, desc: '카드를 학습하면 자동으로 적립돼요' },
-                  { icon: 'calendar', color: c.warning, title: `매일 무료팩 ${DAILY_PACK}개`, desc: canClaimDaily ? '오늘 무료팩이 준비돼 있어요!' : '내일 다시 받을 수 있어요' },
-                  { icon: 'gift', color: c.primary, title: `첫 가입 보너스 ${INITIAL_PACKS}팩`, desc: '처음 시작할 때 넉넉히 지급돼요' },
+                  { icon: 'school', color: c.success, title: `학습 ${STUDY_PER_PACK}장마다 1팩`, desc: '카드를 학습하면 자동으로 적립돼요' },
+                  { icon: 'calendar', color: c.warning, title: `매일 무료팩 ${DAILY_PACK}개`, desc: canClaimDaily ? '오늘 무료팩이 준비돼 있어요!' : dailyUnclaimed ? `오늘 ${DAILY_PACK_MIN_STUDY}장을 학습하면 열려요 (${studiedToday}/${DAILY_PACK_MIN_STUDY})` : '내일 다시 받을 수 있어요' },
+                  { icon: 'trophy', color: '#F59E0B', title: '획득 조건 달성 보상', desc: '출석·정확도·수집 조건을 채우면 팩을 드려요' },
+                  { icon: 'gift', color: c.primary, title: `첫 가입 보너스 ${INITIAL_PACKS}팩`, desc: '처음 시작할 때 지급돼요' },
                 ].map((m) => (
                   <View key={m.title} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8 }}>
                     <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: m.color + '18', alignItems: 'center', justifyContent: 'center' }}>
@@ -263,7 +302,14 @@ export default function CollectionBookScreen() {
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8, backgroundColor: c.surfaceAlt, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 9 }}>
                   <Text style={{ fontSize: 13 }}>💎</Text>
                   <Text style={{ color: c.textSecondary, fontSize: 11.5 * fs, fontFamily: fontBody, flex: 1, lineHeight: 16 }}>
-                    한 팩({PACK_SIZE}장)에는 에메랄드 등급 이상 카드가 최소 1장 나와요
+                    한 팩({PACK_SIZE}장)에는 에메랄드 이상이 최소 1장, {PITY_EPIC}팩 안에 루비 이상, {PITY_LEGENDARY_HARD}팩 안에 다이아몬드가 반드시 나와요
+                  </Text>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8, backgroundColor: c.surfaceAlt, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 9 }}>
+                  <Text style={{ fontSize: 13 }}>🧩</Text>
+                  <Text style={{ color: c.textSecondary, fontSize: 11.5 * fs, fontFamily: fontBody, flex: 1, lineHeight: 16 }}>
+                    이미 가진 카드가 또 나오면 안전 조각이 돼요. 미보유 카드를 눌러 조각으로 바로 교환할 수 있어요
+                    (사파이어 {SHARD_PRICE.common} · 에메랄드 {SHARD_PRICE.rare} · 루비 {SHARD_PRICE.epic} · 다이아몬드 {SHARD_PRICE.legendary})
                   </Text>
                 </View>
               </View>
@@ -359,20 +405,37 @@ export default function CollectionBookScreen() {
         </View>
       </ScrollView>
 
-      <PackOpenModal results={drawn} onClose={onCloseDraw} />
-      <CollectibleDetailModal id={detailId} count={detailId ? owned[detailId] ?? 0 : 0} onClose={() => setDetailId(null)} />
+      <PackOpenModal result={drawn} onClose={onCloseDraw} />
+      <CollectibleDetailModal
+        id={detailId}
+        count={detailId ? owned[detailId] ?? 0 : 0}
+        owned={owned}
+        shards={shards}
+        onExchange={onExchange}
+        onClose={() => setDetailId(null)}
+      />
     </View>
   );
 }
 
-/** 카드 상세 — 기기 기울기에 홀로그램 광택이 반응. */
-function CollectibleDetailModal({ id, count, onClose }: { id: string | null; count: number; onClose: () => void }) {
+/** 카드 상세 — 기기 기울기에 홀로그램 광택이 반응. 미보유 카드는 조각 교환을 제안한다. */
+function CollectibleDetailModal({
+  id, count, owned, shards, onExchange, onClose,
+}: {
+  id: string | null;
+  count: number;
+  owned: Record<string, number>;
+  shards: number;
+  onExchange: (id: string) => void;
+  onClose: () => void;
+}) {
   const { fontScale: fs } = useTheme();
   const tilt = useTilt(!!id);
   const col = id ? COLLECTIBLE_BY_ID[id] : null;
   const meta = col ? JEWEL_META[col.rarity] : null;
   const { width: screenW } = useWindowDimensions();
   const bigW = Math.min(gridWidth(screenW) - 120, 240);
+  const offer = id ? canExchange(id, owned, shards) : null;
 
   return (
     <Modal visible={!!id} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
@@ -388,6 +451,18 @@ function CollectibleDetailModal({ id, count, onClose }: { id: string | null; cou
               <Text style={{ fontSize: 15 }}>💡</Text>
               <Text style={{ color: '#fff', fontSize: 12.5 * fs, fontFamily: fontBody, flex: 1, lineHeight: 18 }}>{col.tip}</Text>
             </View>
+
+            {/* 미보유 카드 — 조각으로 바로 데려올 수 있게 한다. */}
+            {count === 0 && offer && (
+              <Pressable accessibilityRole="button" disabled={!offer.ok} onPress={() => id && onExchange(id)}
+                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 16, borderRadius: 14, paddingHorizontal: 20, height: 46, backgroundColor: offer.ok ? meta.glow : 'rgba(255,255,255,0.14)' }}>
+                <Text style={{ fontSize: 14 }}>🧩</Text>
+                <Text style={{ color: '#fff', fontSize: 13.5 * fs, fontFamily: fontCute, fontWeight: '800' }}>
+                  {offer.ok ? `조각 ${offer.price}개로 교환` : `조각 ${offer.price}개 필요 (보유 ${shards})`}
+                </Text>
+              </Pressable>
+            )}
+
             <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11.5 * fs, fontFamily: fontMono, marginTop: 14 }}>{Platform.OS === 'web' ? '마우스를 움직여 홀로그램을 감상하세요' : '기기를 기울여 홀로그램을 감상하세요'}</Text>
           </Pressable>
         )}

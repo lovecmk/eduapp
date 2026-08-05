@@ -453,8 +453,11 @@ export default function CardsScreen() {
 
   useEffect(() => {
     if (!finished) return;
-    // 학습 세션을 마치면 안전 카드팩 적립(3회마다 1팩) — 수집 재미 요소.
-    useCollectionStore.getState().addStudyProgress();
+    // 학습 세션을 마치면 안전 카드팩 적립 — 수집 재미 요소.
+    // **장수(doneCount)로 적립한다.** 세션 단위로 1씩 올리면 하루에 한 번
+    // 학습하는 보통 사용자는 '오늘 몇 장 학습' 조건(일일 무료팩)을 영원히
+    // 못 채운다 — 적립 단위와 조건 단위가 같아야 한다.
+    useCollectionStore.getState().addStudyProgress(doneCount);
     // 단일 카드(focus) 학습만, 원래 보던 컨텐츠로 곧장 복귀(짧게).
     // 오늘의 학습·카테고리 복습은 자동으로 넘기지 않고 완료 화면에서 '대기'한다
     // (사용자가 직접 복습하러 가거나 홈으로 이동). 로딩바/이동 안내 문구도 두지 않는다.
