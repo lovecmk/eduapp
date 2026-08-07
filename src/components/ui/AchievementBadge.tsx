@@ -3,8 +3,9 @@ import { View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useCollectionStore } from '../../store/collectionStore';
 import { useSettingsStore } from '../../store/settingsStore';
-import { COLLECTIBLE_BY_ID } from '../../data/collectibles';
-import { RARITY_RANK, type RarityTier } from '../../utils/rarity';
+import { COLLECTIBLES } from '../../data/collectibles';
+import { collectorTier } from '../../domain/collectorRank';
+import { type RarityTier } from '../../utils/rarity';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
@@ -16,17 +17,16 @@ const BADGE_BY_TIER: Record<RarityTier, { icon: IconName; color: string; label: 
   legendary: { icon: 'trophy', color: '#F59E0B', label: '수호신 수집가' },
 };
 
-/** 보유 카드 중 최고 등급을 계산. 보유가 없으면 null. */
+/**
+ * 수집률로 수집가 등급을 계산. 한 장도 없으면 null.
+ *
+ * 예전엔 '보유한 최고 등급 카드'를 썼는데, 천장 때문에 60팩 안에 누구나
+ * 다이아몬드를 받는다 — 전원이 최고 뱃지를 다는 지표는 뜻이 없다.
+ * 규칙 자체는 domain/collectorRank 에 있다(화면 밖에서 검사 가능하게).
+ */
 export function useTopBadgeTier(): RarityTier | null {
   const owned = useCollectionStore((s) => s.owned);
-  let best: RarityTier | null = null;
-  for (const id of Object.keys(owned)) {
-    if (!owned[id]) continue;
-    const tier = COLLECTIBLE_BY_ID[id]?.rarity;
-    if (!tier) continue;
-    if (best === null || RARITY_RANK[tier] > RARITY_RANK[best]) best = tier;
-  }
-  return best;
+  return collectorTier(Object.keys(owned).filter((id) => owned[id] > 0).length, COLLECTIBLES.length);
 }
 
 interface Props {

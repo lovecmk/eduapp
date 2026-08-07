@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, ScrollView, Pressable, useWindowDimensions, Modal, Platform, type NativeSyntheticEvent, type NativeScrollEvent } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { hapticImpact, hapticSuccess, hapticTap } from '../src/utils/haptics';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTheme } from '../src/theme/ThemeProvider';
@@ -16,6 +17,7 @@ import { useCollectionStore, STUDY_PER_PACK, DAILY_PACK, INITIAL_PACKS, DAILY_PA
 import { PITY_EPIC, PITY_LEGENDARY_HARD, SHARD_PRICE, canExchange } from '../src/domain/packDraw';
 import { fontCute, fontBody, fontMono, fontDisplay } from '../src/theme/tokens';
 import { contentColumn, CONTENT_MAX_WIDTH } from '../src/theme/layout';
+import { ROUTES } from '../src/constants/routes';
 
 // 그리드 열 너비는 '본문 칼럼 폭' 기준으로 계산한다.
 // 창 너비(SCREEN_W)로 계산하면 넓은 화면(웹)에서 본문은 560px 로 제한되는데
@@ -51,6 +53,7 @@ export default function CollectionBookScreen() {
   const c = theme.colors;
   const { width: screenW } = useWindowDimensions();
   const colW = columnWidth(screenW);
+  const router = useRouter();
 
   const owned = useCollectionStore((s) => s.owned);
   const packs = useCollectionStore((s) => s.packs);
@@ -286,7 +289,6 @@ export default function CollectionBookScreen() {
                 {[
                   { icon: 'school', color: c.success, title: `학습 ${STUDY_PER_PACK}장마다 1팩`, desc: '카드를 학습하면 자동으로 적립돼요' },
                   { icon: 'calendar', color: c.warning, title: `매일 무료팩 ${DAILY_PACK}개`, desc: canClaimDaily ? '오늘 무료팩이 준비돼 있어요!' : dailyUnclaimed ? `오늘 ${DAILY_PACK_MIN_STUDY}장을 학습하면 열려요 (${studiedToday}/${DAILY_PACK_MIN_STUDY})` : '내일 다시 받을 수 있어요' },
-                  { icon: 'trophy', color: '#F59E0B', title: '획득 조건 달성 보상', desc: '출석·정확도·수집 조건을 채우면 팩을 드려요' },
                   { icon: 'gift', color: c.primary, title: `첫 가입 보너스 ${INITIAL_PACKS}팩`, desc: '처음 시작할 때 지급돼요' },
                 ].map((m) => (
                   <View key={m.title} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8 }}>
@@ -299,6 +301,20 @@ export default function CollectionBookScreen() {
                     </View>
                   </View>
                 ))}
+                {/* 획득 조건 화면은 설정 깊숙이 있어 스스로 찾기 어렵다 —
+                    "어떻게 더 얻지?"를 묻는 바로 이 자리에서 연결한다. */}
+                <Pressable accessibilityRole="button" onPress={() => { hapticTap(); router.push(ROUTES.packRules as never); }}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8 }}>
+                  <View style={{ width: 34, height: 34, borderRadius: 10, backgroundColor: '#F59E0B18', alignItems: 'center', justifyContent: 'center' }}>
+                    <Ionicons name="trophy" size={17} color="#F59E0B" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: c.textPrimary, fontSize: 13.5 * fs, fontFamily: fontCute, fontWeight: '700' }}>획득 조건 달성 보상</Text>
+                    <Text style={{ color: c.textSecondary, fontSize: 11.5 * fs, fontFamily: fontBody, marginTop: 1 }}>출석·정확도·수집 조건을 채우면 팩을 드려요</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color={c.textSecondary} />
+                </Pressable>
+
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8, backgroundColor: c.surfaceAlt, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 9 }}>
                   <Text style={{ fontSize: 13 }}>💎</Text>
                   <Text style={{ color: c.textSecondary, fontSize: 11.5 * fs, fontFamily: fontBody, flex: 1, lineHeight: 16 }}>

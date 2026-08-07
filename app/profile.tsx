@@ -9,11 +9,11 @@ import { useSettingsStore } from '../src/store/settingsStore';
 import { useCollectionStore } from '../src/store/collectionStore';
 import { ScreenHeader } from '../src/components/ui/ScreenHeader';
 import { Avatar } from '../src/components/ui/Avatar';
-import { AchievementBadge, useTopBadgeTier } from '../src/components/ui/AchievementBadge';
+import { AchievementBadge } from '../src/components/ui/AchievementBadge';
 import { fontCute, fontMono, fontBody, fontDisplay } from '../src/theme/tokens';
 import { MEMBERSHIP_META, displayName } from '../src/domain/models/User';
-import { RARITY_META } from '../src/utils/rarity';
-import { COLLECTIBLE_BY_ID } from '../src/data/collectibles';
+import { RARITY_RANK, type RarityTier } from '../src/utils/rarity';
+import { COLLECTIBLE_BY_ID, JEWEL_META } from '../src/data/collectibles';
 import { useAllCards } from '../src/hooks/useCards';
 import { ROUTES } from '../src/constants/routes';
 import { contentColumn } from '../src/theme/layout';
@@ -31,20 +31,27 @@ export default function ProfileScreen() {
 
   const [draft, setDraft] = useState(bio);
   const [editing, setEditing] = useState(false);
-  const topTier = useTopBadgeTier();
 
   const uniqueOwned = useMemo(() => Object.values(owned).filter(Boolean).length, [owned]);
   const masteredCount = useMemo(() => allCards.filter((k) => k.status === 'mastered').length, [allCards]);
-  // 보유한 최고 등급 카드 이름(자랑거리) — 있으면 소개 아래 배지로 노출.
-  const topCardName = useMemo(() => {
-    let best: { name: string; power: number } | null = null;
+  // 보유한 최고 등급 카드(자랑거리) — 있으면 소개 아래 배지로 노출.
+  //
+  // 뱃지 등급(topTier)과 **따로 계산한다.** 뱃지는 이제 '수집률'을 뜻하므로
+  // 그 값으로 카드를 고르면 엉뚱한 카드가 대표로 뽑힌다(예: 수집률은 낮지만
+  // 루비를 가진 사람에게 사파이어 카드를 보여주게 된다).
+  const topCard = useMemo(() => {
+    let best: { name: string; rarity: RarityTier; power: number } | null = null;
     for (const id of Object.keys(owned)) {
       if (!owned[id]) continue;
       const col = COLLECTIBLE_BY_ID[id];
-      if (col && col.rarity === topTier && (!best || col.power > best.power)) best = { name: col.name, power: col.power };
+      if (!col) continue;
+      const better = !best
+        || RARITY_RANK[col.rarity] > RARITY_RANK[best.rarity]
+        || (col.rarity === best.rarity && col.power > best.power);
+      if (better) best = { name: col.name, rarity: col.rarity, power: col.power };
     }
-    return best?.name ?? null;
-  }, [owned, topTier]);
+    return best;
+  }, [owned]);
 
   const pickImage = async () => {
     if (Platform.OS === 'web') { Alert.alert('안내', '프로필 사진 변경은 앱에서 가능합니다'); return; }
@@ -102,11 +109,11 @@ export default function ProfileScreen() {
             );
           })() : null}
 
-          {topTier && topCardName ? (
+          {topCard ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 10, backgroundColor: c.surfaceAlt, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 5, borderWidth: 1, borderColor: c.border }}>
               <Text style={{ fontSize: 13 }}>🏅</Text>
               <Text style={{ color: c.textSecondary, fontSize: 12, fontFamily: fontCute }}>
-                대표 카드 · <Text style={{ color: c.textPrimary, fontWeight: '800' }}>{RARITY_META[topTier].label} {topCardName}</Text>
+                대표 카드 · <Text style={{ color: c.textPrimary, fontWeight: '800' }}>{JEWEL_META[topCard.rarity].label} {topCard.name}</Text>
               </Text>
             </View>
           ) : null}
