@@ -184,6 +184,66 @@
 ### `GET /api/learning/quota` → `{ "limit": 3, "used": 1, "resets_at": "..." }`
 ### `POST /api/learning/complete` → `{ "count": 1 }`
 ### `POST /api/push/register` → 푸시 토큰 등록
+### `GET /api/collection` → 내 안전 카드 도감
+### `POST /api/collection/sync` → 기기 상태를 병합하고 **병합 결과**를 돌려줌
+### `GET /api/admin/users/:id/collection` → 운영자용 도감 조회(읽기 전용)
+
+---
+
+## 3-1. 안전 카드 도감 동기화 ✅
+
+```jsonc
+// POST /api/collection/sync — req
+{
+  "owned": { "safety-helmet": 2, "elb": 1 },  // 카드 id → 보유 장수
+  "packs_earned": 12, "packs_opened": 9,      // 잔액이 아니라 누적 카운터
+  "shards_earned": 340, "shards_spent": 90,
+  "study_total": 210,
+  "claimed_rules": { "study-50": 3 },
+  "redeemed_codes": ["WELCOME"],
+  "last_daily_pack": "2026-08-07",
+  "since_epic": 4, "since_legendary": 22      // 상위 등급 천장 진행도
+}
+
+// res 200 — 병합된 상태. 앱은 이 응답을 그대로 자기 상태로 삼는다.
+{
+  "owned": { ... }, "packs_earned": 12, "packs_opened": 9, ...,
+  "pack_balance": 3, "shard_balance": 250, "unique_count": 137  // 서버가 계산
+}
+```
+
+### 잔액이 아니라 누적 카운터를 주고받는다
+
+카드팩과 조각은 늘기도 줄기도 하는 **잔액**이다. 잔액을 그대로 동기화하면
+오프라인 앱에서 반드시 깨진다:
+
+```
+기기A(오프라인): 팩 5개를 벌어 3개를 연다 → 잔액 2
+기기B(온라인)  : 팩 1개를 연다            → 잔액 4
+→ 나중에 붙은 쪽이 이기면 상대의 적립이나 개봉이 통째로 사라진다.
+```
+
+그래서 `packs_earned`/`packs_opened` 처럼 **줄어들지 않는 두 값**만 주고받고,
+잔액은 뺄셈으로 만든다. 모든 필드가 단조 증가라 병합이 필드별 최댓값 하나로
+끝난다 — 순서가 뒤바뀌어 도착해도, 같은 요청이 두 번 와도 결과가 같다.
+
+`redeemed_codes` 는 합집합(한 기기에서만 쓴 코드도 재사용 불가),
+`last_daily_pack` 은 더 나중 날(기기를 옮겨 같은 날 두 번 받는 것 방지),
+천장은 **더 큰 값**(기기를 바꿔 천장을 초기화하지 못하게)으로 합친다.
+
+### 뽑기는 서버가 하지 않는다
+
+이 앱은 지하·철골 구조물 안에서 쓰인다 — 연결 없음이 일상이다. 서버가 팩을
+뽑아 주는 설계가 더 안전하지만, 오프라인에서 팩을 못 여는 앱이 되어 기능
+자체가 죽는다. 그래서 개봉은 기기에서 돌고(`src/domain/packDraw.ts`) 서버는
+결과를 보관·병합한다. 서버는 말이 되는 범위로 자르기만 한다(장수·카운터 상한,
+id 길이, 항목 수). 이 구조에서 완전한 위·변조 방지는 불가능하며, 그 사실을
+숨기지 않는다.
+
+### 이상한 값은 거절이 아니라 절삭이다
+
+오프라인 큐가 며칠 뒤에 보내는 요청까지 400 으로 떨구면 그 기간의 기록이
+통째로 사라진다. 범위를 벗어난 값은 깎아서 받아들이고 정상 범위의 기록은 살린다.
 
 ---
 

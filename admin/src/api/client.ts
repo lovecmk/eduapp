@@ -25,6 +25,7 @@ import type {
   OpsSettings,
   SettingsPatch,
   LearnerToday,
+  UserCollection,
   LabelCount,
   RoleCd,
   StatusCd,
@@ -284,6 +285,11 @@ class AdminApi {
       method: 'PATCH',
       body: JSON.stringify({ status_cd: status }),
     });
+  }
+
+  /** 이 사람의 도감 현황 — "팩이 사라졌어요" 같은 문의에 답할 때 쓴다. */
+  userCollection(id: string): Promise<UserCollection> {
+    return this.request<UserCollection>(`/api/admin/users/${encodeURIComponent(id)}/collection`);
   }
 
   /** 그 사람이 오늘 받은 문제 — 편성이 사람마다 다르므로 콘솔에서 확인할 수 있어야 한다. */

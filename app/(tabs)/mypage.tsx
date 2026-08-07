@@ -12,7 +12,7 @@ import { fontMono, fontCute, fontDisplay, fontBody } from '../../src/theme/token
 import { ROUTES } from '../../src/constants/routes';
 import { useAllCards } from '../../src/hooks/useCards';
 import { useBookmarkStore } from '../../src/store/bookmarkStore';
-import { useCollectionStore } from '../../src/store/collectionStore';
+import { useCollectionStore, selectPacks } from '../../src/store/collectionStore';
 import { useFactionStore } from '../../src/store/factionStore';
 import { getFaction } from '../../src/constants/factions';
 import { COLLECTIBLES } from '../../src/data/collectibles';
@@ -28,7 +28,7 @@ export default function MyPageScreen() {
   const profileImage = useSettingsStore((s) => s.profileImage);
   const bookmarkCount = useBookmarkStore((s) => s.ids.length);
   const ownedCollectibles = useCollectionStore((s) => s.owned);
-  const packs = useCollectionStore((s) => s.packs);
+  const packs = useCollectionStore(selectPacks);
   const myFaction = getFaction(useFactionStore((s) => s.faction));
 
   const masteredCount = useMemo(() => allCards.filter((c) => c.status === 'mastered').length, [allCards]);

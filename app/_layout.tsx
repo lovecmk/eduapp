@@ -11,6 +11,7 @@ import { useFonts } from 'expo-font';
 import { Ionicons } from '@expo/vector-icons';
 
 import { ThemeProvider, useTheme } from '../src/theme/ThemeProvider';
+import { useCollectionSync } from '../src/hooks/useCollectionSync';
 import { useAuthStore } from '../src/store/authStore';
 import { useSettingsStore } from '../src/store/settingsStore';
 import { syncPushTokenWithServer } from '../src/data/notifications/NotificationService';
@@ -82,6 +83,12 @@ function RootContent() {
   useEffect(() => {
     if (ready) SplashScreen.hideAsync().catch(() => {});
   }, [ready]);
+
+  // 도감(500종 수집·카드팩·조각)을 서버와 맞춘다.
+  //
+  // 루트에 두는 이유 — 도감 화면은 탭 밖(/collection-book, /pack-rules)에 있고,
+  // 팩은 학습 화면에서도 적립된다. 어느 화면에 있든 기록이 남아야 한다.
+  useCollectionSync();
 
   // 앱 전체 뒤로가기 안전망. 화면별 처리(학습 중 이탈 확인 등)가 우선하고,
   // 아무도 처리하지 않은 뒤로가기만 여기서 받아 앱이 갑자기 종료되는 것을 막는다.

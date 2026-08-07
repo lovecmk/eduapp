@@ -84,6 +84,7 @@ func buildAdminApp(t *testing.T) *adminEnv {
 		Insight:     service.NewInsightService(users, cards, data, data),
 		Settings:    settings,
 		Learning:    learning,
+		Collection:  service.NewCollectionService(memory.NewCollectionRepo()),
 	})
 
 	env := &adminEnv{app: app, data: data, cards: cards, users: users}

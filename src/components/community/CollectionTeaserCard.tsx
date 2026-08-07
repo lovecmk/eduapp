@@ -7,7 +7,7 @@ import { fontDisplay, fontBody, radius } from '../../theme/tokens';
 import { ROUTES } from '../../constants/routes';
 import { COLLECTIBLES } from '../../data/collectibles';
 import { CollectibleCard } from '../collection/CollectibleCard';
-import { useCollectionStore } from '../../store/collectionStore';
+import { useCollectionStore, selectPacks } from '../../store/collectionStore';
 
 // 티저 미리보기용 대표 카드(등급별 하이라이트).
 const RANK_HIGHLIGHTS = ['kfpa-safeguard', 'arc-guardian', 'elb', 'gas-detector', 'safety-helmet', 'extinguisher'];
@@ -18,7 +18,7 @@ export function CollectionTeaserCard() {
   const c = theme.colors;
   const router = useRouter();
   const owned = useCollectionStore((s) => s.owned);
-  const packs = useCollectionStore((s) => s.packs);
+  const packs = useCollectionStore(selectPacks);
   const newIds = useCollectionStore((s) => s.newIds);
 
   const uniqueOwned = Object.keys(owned).length;

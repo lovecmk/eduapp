@@ -6,7 +6,7 @@ import { hapticSuccess, hapticWarning } from '../src/utils/haptics';
 import { ScreenHeader } from '../src/components/ui/ScreenHeader';
 import { Button } from '../src/components/ui/Button';
 import { useTheme } from '../src/theme/ThemeProvider';
-import { useCollectionStore, type RedeemResult } from '../src/store/collectionStore';
+import { useCollectionStore, selectPacks, type RedeemResult } from '../src/store/collectionStore';
 import { listGachaCodes, normalizeGachaCode } from '../src/data/gachaCodes';
 import { fontCute, fontMono, fontBody, fontDisplay } from '../src/theme/tokens';
 
@@ -15,7 +15,7 @@ export default function RedeemScreen() {
   const c = theme.colors;
   const router = useRouter();
   const redeemCode = useCollectionStore((s) => s.redeemCode);
-  const packs = useCollectionStore((s) => s.packs);
+  const packs = useCollectionStore(selectPacks);
   const redeemedCodes = useCollectionStore((s) => s.redeemedCodes);
 
   const [code, setCode] = useState('');

@@ -40,6 +40,9 @@ import type { IUserDirectoryRepository } from '../../domain/repositories/IUserDi
 import type { IProgressRepository } from '../../domain/repositories/IProgressRepository';
 import type { IEngagementRepository } from '../../domain/repositories/IEngagementRepository';
 import type { IReportRepository } from '../../domain/repositories/IReportRepository';
+import type { ICollectionRepository } from '../../domain/repositories/ICollectionRepository';
+import { CollectionRepository } from './CollectionRepository';
+import { MockCollectionRepository } from './CollectionRepository.mock';
 import type { INotificationRepository } from '../../domain/repositories/INotificationRepository';
 import type { IServiceConfigRepository } from '../../domain/repositories/IServiceConfigRepository';
 import type { IDailyAssignmentRepository } from '../../domain/repositories/IDailyAssignmentRepository';
@@ -126,3 +129,14 @@ export const reportRepository: IReportRepository = env.useMockData
 export const notificationRepository: INotificationRepository = env.useMockData
   ? new MockNotificationRepository()
   : new NotificationRepository();
+
+/**
+ * 안전 카드 도감 — 500종 수집 기록·카드팩·조각.
+ *
+ * 폴백을 두지 않는다(위 4개와 같은 이유). 서버가 준비되지 않았는데 목업으로
+ * 떨어지면 기기 로컬 값이 '서버에 저장된 값'인 척하게 되고, 사용자는 앱을
+ * 지워도 남는 줄 믿었다가 몇 달치 수집을 잃는다.
+ */
+export const collectionRepository: ICollectionRepository = env.useMockData
+  ? new MockCollectionRepository()
+  : new CollectionRepository();

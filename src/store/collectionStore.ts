@@ -12,6 +12,13 @@ import {
   type DrawResult,
   type PityState,
 } from '../domain/packDraw';
+import {
+  EMPTY_SNAPSHOT,
+  mergeSnapshots,
+  packBalance,
+  shardBalance,
+  type CollectionSnapshot,
+} from '../domain/models/Collection';
 
 export type { DrawResult } from '../domain/packDraw';
 
@@ -30,7 +37,7 @@ export interface OpenResult {
 }
 
 // ── 지급 정책 ───────────────────────────────────────────────────────────
-// 도감이 150종 → 500종이 되면서 지급률을 조였다. 예전(학습 2회당 1팩)이면
+// 도감이 150종 → 500종이 되면서 지급률을 조였다. 예전(학습 2장당 1팩)이면
 // 하루 학습만으로 팩이 2~3개씩 쌓여, 500종이어도 몇 주면 바닥이 보인다.
 // 지금은 "하루 학습을 다 하면 팩 하나" 정도가 기준선이다.
 
@@ -53,29 +60,15 @@ const todayKey = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
-interface CollectionState {
-  /** 카드 id → 보유 장수 */
-  owned: Record<string, number>;
-  /** 보유 카드팩 수 */
-  packs: number;
-  /** 중복 카드가 바뀐 '안전 조각' — 원하는 카드를 직접 교환할 수 있다. */
-  shards: number;
-  /** 마지막으로 일일 무료팩을 받은 날(YYYY-MM-DD) */
-  lastDailyPack: string | null;
-  /** 학습 적립 진행(STUDY_PER_PACK 회 학습 시 팩 1개) */
-  studyProgress: number;
-  /** 오늘 학습한 횟수(일일 무료팩 조건 판정용) */
+interface CollectionState extends CollectionSnapshot {
+  /** 오늘 학습한 장수(일일 무료팩 조건 판정용) — 기기 로컬 값이라 동기화하지 않는다. */
   todayStudy: number;
   /** todayStudy 가 가리키는 날짜 */
   todayStudyDay: string | null;
-  /** 상위 등급 천장 상태 */
-  pity: PityState;
-  /** 최근 새로 획득해 아직 확인 안 한 카드들(도감 NEW 뱃지) */
+  /** 최근 새로 획득해 아직 확인 안 한 카드들(도감 NEW 뱃지) — 화면 상태라 로컬. */
   newIds: string[];
-  /** 카드팩 획득 규칙 수령 횟수(ruleId → 수령 횟수) */
-  claimedRules: Record<string, number>;
-  /** 이미 교환한 가챠 코드(중복 교환 방지) */
-  redeemedCodes: string[];
+  /** 마지막으로 서버와 맞춘 시각(ISO). 한 번도 못 맞췄으면 null. */
+  lastSyncedAt: string | null;
 
   /** 오늘 무료팩 수령 가능 여부와 남은 조건을 함께 알려준다. */
   dailyStatus: () => { canClaim: boolean; studied: number; need: number };
@@ -83,17 +76,14 @@ interface CollectionState {
   claimDaily: () => boolean;
   /**
    * 획득 조건 규칙을 수령한다 — **스토어가 직접 재평가해서** 지급한다.
-   * 화면이 보상액을 지정하지 못한다(과거의 지급 구멍을 막은 지점).
+   * 화면이 보상액을 지정하지 못한다.
    */
   claimRule: (ruleId: string, ctx: PackRuleContext) => number;
-  /**
-   * 학습한 카드 수를 적립한다 — STUDY_PER_PACK 장마다 팩 1개.
-   * 단위는 '장'이다(세션이 아니라). 일일 무료팩 조건도 같은 단위를 쓴다.
-   */
+  /** 학습한 카드 수를 적립한다 — STUDY_PER_PACK 장마다 팩 1개. */
   addStudyProgress: (cards?: number) => void;
   /** 팩 즉시 지급(디버그/보상). */
   grantPack: (n?: number) => void;
-  /** 가챠 코드를 교환해 카드팩을 지급. 유효하지 않거나 이미 쓴 코드면 ok=false. */
+  /** 가챠 코드를 교환해 카드팩을 지급. */
   redeemCode: (input: string) => RedeemResult;
   /** 팩 1개를 열어 카드를 뽑는다. 팩이 없으면 null. */
   openPack: () => OpenResult | null;
@@ -101,25 +91,36 @@ interface CollectionState {
   exchangeShards: (id: string) => boolean;
   /** 도감에서 NEW 표시를 확인 처리. */
   clearNew: (ids: string[]) => void;
-  /** 데이터 초기화 — 첫 방문 상태(빈 도감 + 기본 지급팩)로 되돌린다. */
+
+  /** 서버로 보낼 스냅샷(동기화 계층이 쓴다). */
+  snapshot: () => CollectionSnapshot;
+  /** 서버가 돌려준 병합 결과를 반영한다 — 덮어쓰지 않고 한 번 더 합친다. */
+  applyServer: (remote: CollectionSnapshot) => void;
+
+  /** 데이터 초기화 — 첫 방문 상태로 되돌린다. */
   reset: () => void;
 }
 
-const EMPTY: Pick<
-  CollectionState,
-  'owned' | 'packs' | 'shards' | 'lastDailyPack' | 'studyProgress' | 'todayStudy' | 'todayStudyDay' | 'pity' | 'newIds' | 'claimedRules' | 'redeemedCodes'
-> = {
-  owned: {},
-  packs: INITIAL_PACKS,
-  shards: 0,
-  lastDailyPack: null,
-  studyProgress: 0,
+// ── 파생 선택자 ─────────────────────────────────────────────────────────
+// 잔액은 저장하지 않는다(카운터에서 계산되는 값이라 따로 두면 어긋난다).
+// 화면은 이 선택자로 읽는다.
+
+/** 보유 카드팩 수. */
+export const selectPacks = (s: CollectionSnapshot) => packBalance(s);
+/** 보유 안전 조각 수. */
+export const selectShards = (s: CollectionSnapshot) => shardBalance(s);
+/** 다음 팩까지 남은 학습 장수. */
+export const selectStudyToNextPack = (s: CollectionSnapshot) =>
+  STUDY_PER_PACK - (s.studyTotal % STUDY_PER_PACK);
+
+const EMPTY = {
+  ...EMPTY_SNAPSHOT,
+  // 첫 방문 보너스는 '적립'으로 기록한다 — 잔액을 직접 세팅하면 카운터와 어긋난다.
+  packsEarned: INITIAL_PACKS,
   todayStudy: 0,
-  todayStudyDay: null,
-  pity: INITIAL_PITY,
-  newIds: [],
-  claimedRules: {},
-  redeemedCodes: [],
+  todayStudyDay: null as string | null,
+  newIds: [] as string[],
+  lastSyncedAt: null as string | null,
 };
 
 export const useCollectionStore = create<CollectionState>()(
@@ -140,7 +141,7 @@ export const useCollectionStore = create<CollectionState>()(
 
       claimDaily: () => {
         if (!get().dailyStatus().canClaim) return false;
-        set((s) => ({ packs: s.packs + DAILY_PACK, lastDailyPack: todayKey() }));
+        set((s) => ({ packsEarned: s.packsEarned + DAILY_PACK, lastDailyPack: todayKey() }));
         return true;
       },
 
@@ -149,18 +150,20 @@ export const useCollectionStore = create<CollectionState>()(
           const n = Math.max(0, Math.floor(cards));
           if (n === 0) return {};
           const today = todayKey();
-          const todayStudy = (s.todayStudyDay === today ? s.todayStudy : 0) + n;
-          // 한 세션에서 여러 장을 마치면 팩도 그만큼 나온다(나머지는 이월).
-          const p = s.studyProgress + n;
+          const studyTotal = s.studyTotal + n;
+          // 적립은 누적 학습량에서 계산한다 — 별도 진행 카운터를 두면
+          // 서버와 맞출 때 두 값이 어긋난다.
+          const earnedBefore = Math.floor(s.studyTotal / STUDY_PER_PACK);
+          const earnedAfter = Math.floor(studyTotal / STUDY_PER_PACK);
           return {
-            todayStudy,
+            studyTotal,
+            todayStudy: (s.todayStudyDay === today ? s.todayStudy : 0) + n,
             todayStudyDay: today,
-            studyProgress: p % STUDY_PER_PACK,
-            packs: s.packs + Math.floor(p / STUDY_PER_PACK),
+            packsEarned: s.packsEarned + (earnedAfter - earnedBefore),
           };
         }),
 
-      grantPack: (n = 1) => set((s) => ({ packs: s.packs + n })),
+      grantPack: (n = 1) => set((s) => ({ packsEarned: s.packsEarned + n })),
 
       redeemCode: (input) => {
         const found = findGachaCode(input);
@@ -171,7 +174,10 @@ export const useCollectionStore = create<CollectionState>()(
         if (get().redeemedCodes.includes(norm)) {
           return { ok: false, packs: 0, message: '이미 사용한 코드예요.' };
         }
-        set((s) => ({ packs: s.packs + found.packs, redeemedCodes: [...s.redeemedCodes, norm] }));
+        set((s) => ({
+          packsEarned: s.packsEarned + found.packs,
+          redeemedCodes: [...s.redeemedCodes, norm],
+        }));
         return { ok: true, packs: found.packs, message: found.label };
       },
 
@@ -185,7 +191,7 @@ export const useCollectionStore = create<CollectionState>()(
         if (progress.claimable <= 0) return 0;
         const times = progress.claimable / rule.reward;
         set((s) => ({
-          packs: s.packs + progress.claimable,
+          packsEarned: s.packsEarned + progress.claimable,
           claimedRules: { ...s.claimedRules, [ruleId]: (s.claimedRules[ruleId] ?? 0) + times },
         }));
         return progress.claimable;
@@ -193,8 +199,9 @@ export const useCollectionStore = create<CollectionState>()(
 
       openPack: () => {
         const state = get();
-        if (state.packs <= 0) return null;
-        const { results, shards, pity } = drawPack(state.owned, state.pity, Math.random);
+        if (packBalance(state) <= 0) return null;
+        const pity: PityState = { sinceEpic: state.sinceEpic, sinceLegendary: state.sinceLegendary };
+        const { results, shards, pity: nextPity } = drawPack(state.owned, pity, Math.random);
         set((s) => {
           const owned = { ...s.owned };
           const newSet = new Set(s.newIds);
@@ -202,18 +209,25 @@ export const useCollectionStore = create<CollectionState>()(
             owned[r.id] = (owned[r.id] ?? 0) + 1;
             if (r.isNew) newSet.add(r.id);
           }
-          return { owned, packs: s.packs - 1, shards: s.shards + shards, pity, newIds: [...newSet] };
+          return {
+            owned,
+            packsOpened: s.packsOpened + 1,
+            shardsEarned: s.shardsEarned + shards,
+            sinceEpic: nextPity.sinceEpic,
+            sinceLegendary: nextPity.sinceLegendary,
+            newIds: [...newSet],
+          };
         });
         return { results, shards };
       },
 
       exchangeShards: (id) => {
         const s = get();
-        const check = canExchange(id, s.owned, s.shards);
+        const check = canExchange(id, s.owned, shardBalance(s));
         if (!check.ok) return false;
         set((cur) => ({
           owned: { ...cur.owned, [id]: (cur.owned[id] ?? 0) + 1 },
-          shards: cur.shards - check.price,
+          shardsSpent: cur.shardsSpent + check.price,
           newIds: cur.newIds.includes(id) ? cur.newIds : [...cur.newIds, id],
         }));
         return true;
@@ -221,40 +235,96 @@ export const useCollectionStore = create<CollectionState>()(
 
       clearNew: (ids) => set((s) => ({ newIds: s.newIds.filter((x) => !ids.includes(x)) })),
 
+      snapshot: () => {
+        const s = get();
+        return {
+          owned: s.owned,
+          packsEarned: s.packsEarned,
+          packsOpened: s.packsOpened,
+          shardsEarned: s.shardsEarned,
+          shardsSpent: s.shardsSpent,
+          studyTotal: s.studyTotal,
+          claimedRules: s.claimedRules,
+          redeemedCodes: s.redeemedCodes,
+          lastDailyPack: s.lastDailyPack,
+          sinceEpic: s.sinceEpic,
+          sinceLegendary: s.sinceLegendary,
+        };
+      },
+
+      applyServer: (remote) =>
+        set((s) => {
+          // 덮어쓰지 않고 한 번 더 합친다 — 요청이 오가는 사이에도 사용자는
+          // 팩을 연다. 그대로 덮으면 그 몇 초 동안의 개봉이 사라진다.
+          const merged = mergeSnapshots(get().snapshot(), remote);
+          // 서버에 있는데 내가 아직 못 본 카드는 NEW 로 띄운다(새 기기 첫 동기화).
+          const fresh = Object.keys(merged.owned).filter((id) => !s.owned[id]);
+          return {
+            ...merged,
+            newIds: [...new Set([...s.newIds, ...fresh])],
+            lastSyncedAt: new Date().toISOString(),
+          };
+        }),
+
       reset: () => set({ ...EMPTY }),
     }),
     {
       name: 'collection',
-      version: 3,
+      version: 4,
       storage: createJSONStorage(() => AsyncStorage),
+      // 파생·화면 상태는 저장하지 않는다(newIds 는 남겨 둔다 — 재실행 후에도
+      // '새로 얻은 카드'를 확인할 수 있어야 한다).
       migrate: (persisted: unknown, from: number) => {
-        const state = persisted as CollectionState | undefined;
+        const state = persisted as (Partial<CollectionState> & Record<string, unknown>) | undefined;
         if (!state) return { ...EMPTY } as CollectionState;
+
         // v1 → v2: 팩 지급을 늘렸으니 기존 사용자에게도 보너스 팩 3개.
-        if (from < 2) state.packs = (state.packs ?? 0) + 3;
-        // v2 → v3: 조각·천장·오늘 학습량이 새로 생겼다. 기존 사용자에게
-        // 이미 모은 중복 장수만큼 조각을 소급 지급한다 — 갑자기 규칙이
-        // 바뀌었다고 그동안의 중복이 그냥 사라지면 억울하니까.
+        if (from < 2) state.packsEarned = ((state.packs as number) ?? 0) + 3;
+
+        // v2 → v3: 조각·천장이 생겼다. 이미 모은 중복을 조각으로 소급 지급한다.
         if (from < 3) {
-          state.shards = state.shards ?? backfillShards(state.owned ?? {});
-          state.pity = state.pity ?? INITIAL_PITY;
+          state.shardsEarned = state.shardsEarned ?? backfillShards(state.owned ?? {});
           state.todayStudy = state.todayStudy ?? 0;
           state.todayStudyDay = state.todayStudyDay ?? null;
         }
-        return state as CollectionState;
+
+        // v3 → v4: 잔액(packs/shards)을 단조 카운터로 바꾼다.
+        //
+        // 예전 값에는 '얼마나 열었는가'가 없다. 그래서 개봉/사용 카운터를 0으로
+        // 두고 적립 카운터에 현재 잔액을 넣는다 — 잔액이 그대로 보존되고,
+        // 이후의 증감만 카운터로 쌓인다. 과거 개봉 횟수는 복원할 수 없지만
+        // 그 값을 쓰는 화면이 없어 잃을 것이 없다.
+        if (from < 4) {
+          const pity = (state.pity as PityState | undefined) ?? INITIAL_PITY;
+          state.packsEarned = (state.packsEarned as number | undefined) ?? (state.packs as number) ?? 0;
+          state.packsOpened = 0;
+          state.shardsEarned = (state.shardsEarned as number | undefined) ?? (state.shards as number) ?? 0;
+          state.shardsSpent = 0;
+          state.sinceEpic = pity.sinceEpic ?? 0;
+          state.sinceLegendary = pity.sinceLegendary ?? 0;
+          // 누적 학습량은 예전에 '다음 팩까지의 진행'만 들고 있었다. 되살릴 수
+          // 없으니 0에서 시작한다 — 적립은 앞으로의 학습으로만 쌓인다.
+          state.studyTotal = state.studyTotal ?? 0;
+          state.lastDailyPack = (state.lastDailyPack as string | null) ?? '';
+          delete state.packs;
+          delete state.shards;
+          delete state.pity;
+          delete state.studyProgress;
+        }
+        return { ...EMPTY, ...state } as CollectionState;
       },
     },
   ),
 );
 
-/** v2 사용자가 이미 쌓아둔 중복을 조각으로 환산한다. */
+/** v2 이하 사용자가 이미 쌓아둔 중복을 조각으로 환산한다. */
 function backfillShards(owned: Record<string, number>): number {
   let total = 0;
   for (const [id, count] of Object.entries(owned)) {
     const card = COLLECTIBLE_BY_ID[id];
     if (!card || count <= 1) continue;
-    // 소급분은 정가(SHARD_REWARD)가 아니라 교환가의 1/20 수준으로 낮게 쳐서,
-    // 예전 규칙으로 쌓은 중복이 새 경제를 단번에 무너뜨리지 않게 한다.
+    // 소급분은 정가가 아니라 교환가의 1/20 수준으로 낮게 쳐서, 예전 규칙으로
+    // 쌓은 중복이 새 경제를 단번에 무너뜨리지 않게 한다.
     total += (count - 1) * Math.round(SHARD_PRICE[card.rarity] / 20);
   }
   return total;

@@ -70,7 +70,7 @@ eduapp/
 | 출석 도장 | components/attendance/AttendanceStampCard | (순수 로직) | store/attendanceStore |
 | 캘린더 고도화 | components/community/LearningCalendar | srs·attendance 파생 | store/srsStore·attendanceStore |
 | 카드팩 획득 조건 | app/pack-rules.tsx | data/packRules(규칙+평가) | store/collectionStore(claimedRules) |
-| 안전 카드 도감 | app/collection-book.tsx | data/collectibles(500종)·domain/packDraw(뽑기) | store/collectionStore(owned·shards·pity) |
+| 안전 카드 도감 | app/collection-book.tsx | data/collectibles(500종)·domain/packDraw(뽑기) | store/collectionStore(카운터) + hooks/useCollectionSync(서버) |
 | 관리 콘솔 | app/admin.tsx | mockUserDb·packRules·collectibles | settings·authoredCards |
 | 닉네임·중복확인 | app/(auth)/signup, components/auth/AvailabilityField | AuthRepository.isUsernameTaken/isNicknameTaken, mockUserDb | authStore |
 | 내 정보 수정 | app/edit-profile.tsx | AuthRepository.updateProfile, mockUserDb.updateUser | authStore.updateProfile |
@@ -154,6 +154,23 @@ eduapp/
 **적립 단위는 '장'이다.** 세션이 아니라 학습한 카드 수로 센다 — 일일 무료팩의
 조건(`DAILY_PACK_MIN_STUDY`)과 팩 적립(`STUDY_PER_PACK`)이 같은 단위여야
 "하루 한 번 학습하는 사람이 조건을 영영 못 채우는" 일이 안 생긴다.
+
+**도감은 서버에 남는다.** 500종 수집·카드팩·조각은 몇 달치 학습의 결과물인데
+지금까지 기기 로컬에만 있었다 — 앱을 지우면 통째로 사라졌다. 지금은
+`GET /api/collection` 과 `POST /api/collection/sync` 로 서버가 보관한다
+(`useCollectionSync` 가 진입 시 한 번, 이후 값이 바뀌고 4초 잠잠하면 보낸다).
+
+저장하는 것이 **잔액이 아니라 누적 카운터**인 점이 이 설계의 핵심이다.
+`packs_earned`/`packs_opened` 처럼 줄어들지 않는 두 값만 주고받고 잔액은
+뺄셈으로 만든다 — 잔액을 그대로 동기화하면 두 기기가 각자 벌고 각자 열었을 때
+나중에 붙은 쪽이 상대의 기록을 통째로 덮어쓴다. 모든 값이 단조 증가라 병합이
+필드별 최댓값 하나로 끝나고, 순서가 뒤바뀌거나 같은 요청이 두 번 와도 결과가
+같다. 병합 규칙은 `domain/models/Collection.ts` 와 `service/collection_service.go`
+양쪽에 **같은 모양**으로 있고 각각 테스트가 잠근다.
+
+뽑기 자체는 기기에서 돈다. 서버가 뽑아 주는 편이 안전하지만 오프라인에서 팩을
+못 여는 앱이 되므로, 서버는 판정하지 않고 보관·절삭만 한다(자세한 이유와 한계는
+`docs/API_CONTRACT.md` 3-1).
 
 **수집가 뱃지는 수집률로 매긴다**(`domain/collectorRank.ts`). 예전엔 '보유한
 최고 등급 카드'였는데, 천장이 60팩 안에 다이아몬드를 보장하므로 한 달만

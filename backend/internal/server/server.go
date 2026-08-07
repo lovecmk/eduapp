@@ -56,6 +56,8 @@ type Deps struct {
 	Settings *service.SettingsService
 	// Learning 은 하루 신규 학습 상한. 없으면 /learning/* 만 빠진다.
 	Learning *service.LearningService
+	// Collection 은 안전 카드 도감의 서버 보관. 없으면 /collection/* 만 빠진다.
+	Collection *service.CollectionService
 }
 
 // New 는 라우트가 모두 등록된 Fiber 앱을 만든다.
@@ -189,6 +191,7 @@ func New(d Deps) *fiber.App {
 
 	registerSyncRoutes(protected, d)
 	registerLearningRoutes(protected, d)
+	registerCollectionRoutes(protected, d)
 
 	registerAdminRoutes(api, d)
 
@@ -228,6 +231,24 @@ func registerSyncRoutes(r fiber.Router, d Deps) {
 	r.Post("/notifications/read-all", writes, h.ReadAllNotifications)
 	// :id 라우트는 read-all 뒤에 둔다 — 먼저 두면 "read-all" 이 id 로 잡힌다.
 	r.Post("/notifications/:id/read", writes, h.ReadNotification)
+}
+
+// registerCollectionRoutes 는 안전 카드 도감의 서버 보관 API 를 붙인다.
+//
+// 도감은 지금까지 기기 로컬에만 있었다 — 앱을 지우거나 기기를 바꾸면 500종
+// 수집 기록과 카드팩·조각이 통째로 사라졌다. 몇 달치 학습의 결과물이라
+// 사용자 입장에서는 가장 아까운 데이터다.
+//
+// 쓰기에 멱등 미들웨어를 거는 이유는 다른 동기화 경로와 같다. 다만 이 경로는
+// 병합 자체가 멱등이라(모든 값이 단조 증가) 두 겹으로 막히는 셈이다.
+func registerCollectionRoutes(r fiber.Router, d Deps) {
+	if d.Collection == nil || !d.Collection.Available() {
+		log.Printf("[collection] 의존성 미주입 — 도감 동기화 API 를 등록하지 않습니다")
+		return
+	}
+	h := handler.NewCollectionHandler(d.Collection)
+	r.Get("/collection", h.Get)
+	r.Post("/collection/sync", middleware.Idempotent(d.Idempotency), h.Sync)
 }
 
 // registerLearningRoutes 는 하루 신규 학습 상한 API 를 붙인다.
@@ -283,6 +304,12 @@ func registerAdminRoutes(api fiber.Router, d Deps) {
 	// 그 사람이 오늘 받은 문제 — 편성이 사람마다 달라, 콘솔에서 확인할 길이
 	// 없으면 "왜 이 문제가 나갔나"에 답할 수 없다.
 	admin.Get("/users/:id/today", h.TodayFor)
+	// 그 사람의 도감 현황 — "팩이 사라졌어요" 같은 문의에 답하려면 필요하다.
+	// 읽기 전용이다. 콘솔에서 팩을 지급할 수 있으면 그때부터 도감 경제에
+	// 감사 추적이 필요해지므로, 조회만 연다.
+	if d.Collection != nil && d.Collection.Available() {
+		admin.Get("/users/:id/collection", handler.NewCollectionHandler(d.Collection).AdminGet)
+	}
 
 	admin.Get("/cards", h.ListCards)
 	admin.Post("/cards", h.CreateCard)

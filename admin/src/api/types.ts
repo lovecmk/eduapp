@@ -698,3 +698,28 @@ export interface LearnerDiagnosis {
   /** 처방을 한 줄로 압축한 것(목록 화면용). */
   needs: string;
 }
+
+/**
+ * 사용자 한 명의 안전 카드 도감 현황(읽기 전용).
+ *
+ * 카드팩·조각을 '잔액'이 아니라 적립/사용 카운터로 들고 있는 것이 핵심이다 —
+ * 오프라인 기기 여러 대가 같은 계정을 쓰기 때문에, 잔액을 그대로 주고받으면
+ * 나중에 붙은 기기가 상대의 기록을 덮어쓴다. 잔액은 서버가 계산해 함께 준다.
+ */
+export interface UserCollection {
+  owned: Record<string, number>;
+  packs_earned: number;
+  packs_opened: number;
+  shards_earned: number;
+  shards_spent: number;
+  study_total: number;
+  claimed_rules: Record<string, number>;
+  redeemed_codes: string[];
+  last_daily_pack: string;
+  since_epic: number;
+  since_legendary: number;
+  /** 서버가 계산해 주는 값 */
+  pack_balance: number;
+  shard_balance: number;
+  unique_count: number;
+}

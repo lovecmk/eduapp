@@ -54,6 +54,8 @@ func main() {
 		auditRepo    ports.AuditRepository
 		settingsRepo ports.SettingsRepository
 		annRepo      ports.AnnouncementRepository
+		// 도감(수집 기록)은 보상 경제라 학습 데이터와 저장소를 따로 둔다.
+		collectionRepo ports.CollectionRepository
 	)
 	var dataRepo ports.UserDataRepository
 	switch cfg.Store {
@@ -64,6 +66,7 @@ func main() {
 		auditRepo = memory.NewAuditRepo()
 		dataRepo = memory.NewUserDataRepo()
 		settingsRepo = memory.NewSettingsRepo()
+		collectionRepo = memory.NewCollectionRepo()
 		annRepo = memory.NewAnnouncementRepo()
 		log.Printf("[store] 인메모리 모드(무 DB)")
 	case "postgres":
@@ -82,6 +85,7 @@ func main() {
 		auditRepo = postgresadapter.NewAuditRepo(pool)
 		dataRepo = postgresadapter.NewUserDataRepo(pool)
 		settingsRepo = postgresadapter.NewSettingsRepo(pool)
+		collectionRepo = postgresadapter.NewCollectionRepo(pool)
 		annRepo = postgresadapter.NewAnnouncementRepo(pool)
 	default: // "mongo"
 		db, disconnect, err := mongoadapter.Connect(ctx, cfg.MongoURI, cfg.MongoDB)
@@ -106,6 +110,7 @@ func main() {
 		}
 		dataRepo = mongoData
 		settingsRepo = mongoadapter.NewSettingsRepo(db)
+		collectionRepo = mongoadapter.NewCollectionRepo(db)
 		annRepo = mongoadapter.NewAnnouncementRepo(db)
 	}
 
@@ -123,6 +128,7 @@ func main() {
 	// 설정은 모든 요청이 읽으므로 서비스가 짧은 캐시를 들고 있다.
 	settingsSvc := service.NewSettingsService(settingsRepo, auditRepo)
 	learningSvc := service.NewLearningService(dataRepo, cardRepo, settingsSvc)
+	collectionSvc := service.NewCollectionService(collectionRepo)
 
 	adminSvc := service.NewAdminService(service.AdminDeps{
 		Users: userRepo, Cards: cardRepo, Audit: auditRepo, Data: dataRepo,
@@ -178,6 +184,7 @@ func main() {
 		Users:       userRepo,
 		Settings:    settingsSvc,
 		Learning:    learningSvc,
+		Collection:  collectionSvc,
 	})
 
 	// 텔레그램 long-polling — 봇 토큰이 설정돼 있고 폴링이 켜져 있으면 백그라운드로 수신 대기.

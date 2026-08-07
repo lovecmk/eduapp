@@ -261,3 +261,30 @@ CREATE TABLE IF NOT EXISTS daily_assignment (
 
 -- 관리 콘솔이 "오늘 누가 무엇을 받았나"를 훑을 때 이 인덱스를 탄다.
 CREATE INDEX IF NOT EXISTS daily_assignment_day_idx ON daily_assignment (day_key, user_id);
+
+-- 안전 카드 도감 — 사용자당 한 행.
+--
+-- 팩과 조각을 '잔액'이 아니라 **줄어들지 않는 두 카운터**로 저장한다
+-- (packs_earned/packs_opened, shards_earned/shards_spent). 잔액을 그대로
+-- 동기화하면 오프라인 앱에서 반드시 깨지기 때문이다 — 두 기기가 각자 벌고
+-- 각자 열면 나중에 붙은 쪽이 상대의 기록을 통째로 덮어쓴다. 카운터는 모두
+-- 단조 증가라 병합이 max 하나로 끝나고 재전송에도 안전하다.
+--
+-- owned/claimed_rules 를 행으로 펼치지 않고 JSONB 로 두는 이유 — 이 데이터는
+-- 항상 통째로 읽고 통째로 쓴다. 500종을 행으로 나누면 사용자당 500행이 되는데
+-- 부분 조회를 하는 화면이 하나도 없어 조인 비용만 남는다.
+CREATE TABLE IF NOT EXISTS user_collection (
+    user_id         TEXT PRIMARY KEY,
+    owned           JSONB NOT NULL DEFAULT '{}'::jsonb,
+    packs_earned    INTEGER NOT NULL DEFAULT 0,
+    packs_opened    INTEGER NOT NULL DEFAULT 0,
+    shards_earned   INTEGER NOT NULL DEFAULT 0,
+    shards_spent    INTEGER NOT NULL DEFAULT 0,
+    study_total     INTEGER NOT NULL DEFAULT 0,
+    claimed_rules   JSONB NOT NULL DEFAULT '{}'::jsonb,
+    redeemed_codes  JSONB NOT NULL DEFAULT '[]'::jsonb,
+    last_daily_pack TEXT NOT NULL DEFAULT '',
+    since_epic      INTEGER NOT NULL DEFAULT 0,
+    since_legendary INTEGER NOT NULL DEFAULT 0,
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);

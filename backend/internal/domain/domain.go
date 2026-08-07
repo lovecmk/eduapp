@@ -461,3 +461,90 @@ type Announcement struct {
 	ActorName string    `bson:"actor_name" json:"actor_name"`
 	CreatedAt time.Time `bson:"created_at" json:"created_at"`
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 안전 카드 도감 — 기기가 바뀌어도 남아야 하는 수집 기록
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Collection 은 한 사용자의 도감 상태다.
+//
+// ── 왜 잔액이 아니라 '누적 카운터'인가 ─────────────────────────────────
+// 카드팩과 조각은 늘기도 하고 줄기도 하는 **잔액**이다. 잔액을 그대로
+// 동기화하면 오프라인 앱에서 반드시 깨진다:
+//
+//	기기A(오프라인): 팩 5개를 벌어 3개를 연다 → 잔액 2
+//	기기B(온라인)  : 팩 1개를 연다           → 잔액 4
+//	→ 나중에 붙은 쪽이 이기면 상대의 적립이나 개봉이 통째로 사라진다.
+//
+// 그래서 잔액을 저장하지 않고 **줄어들지 않는 두 카운터**만 저장한다.
+// 잔액은 뺄셈으로 나온다(PacksEarned-PacksOpened). 두 값 모두 단조 증가라
+// 병합이 max 로 끝나고, 같은 요청을 두 번 보내도 결과가 같다(멱등).
+//
+// 도감(Owned)·규칙 수령(ClaimedRules)도 같은 이유로 '횟수'를 담는다.
+type Collection struct {
+	UserID string `bson:"user_id" json:"-"`
+
+	// Owned 는 카드 id → 보유 장수(중복 포함). 병합은 카드별 최댓값.
+	Owned map[string]int `bson:"owned" json:"owned"`
+
+	// PacksEarned 는 지금까지 지급받은 카드팩 총량(적립·보상·코드 모두 포함).
+	PacksEarned int `bson:"packs_earned" json:"packs_earned"`
+	// PacksOpened 는 지금까지 연 카드팩 총량.
+	PacksOpened int `bson:"packs_opened" json:"packs_opened"`
+	// ShardsEarned 는 중복으로 얻은 안전 조각 총량.
+	ShardsEarned int `bson:"shards_earned" json:"shards_earned"`
+	// ShardsSpent 는 교환에 쓴 안전 조각 총량.
+	ShardsSpent int `bson:"shards_spent" json:"shards_spent"`
+
+	// StudyTotal 은 누적 학습 장수(팩 적립의 근거).
+	StudyTotal int `bson:"study_total" json:"study_total"`
+
+	// ClaimedRules 는 획득 규칙 id → 수령 횟수. 병합은 규칙별 최댓값.
+	ClaimedRules map[string]int `bson:"claimed_rules" json:"claimed_rules"`
+	// RedeemedCodes 는 이미 쓴 가챠 코드(합집합으로 병합 — 재사용을 막는다).
+	RedeemedCodes []string `bson:"redeemed_codes" json:"redeemed_codes"`
+
+	// LastDailyPack 은 마지막으로 일일 무료팩을 받은 날(YYYY-MM-DD).
+	// 날짜 문자열의 최댓값(=가장 나중 날)으로 병합한다 — 기기를 옮겨 가며
+	// 같은 날 무료팩을 두 번 받는 것을 막는다.
+	LastDailyPack string `bson:"last_daily_pack" json:"last_daily_pack"`
+
+	// SinceEpic·SinceLegendary 는 상위 등급 천장 진행도.
+	//
+	// ⚠️ 뽑기는 기기에서 돈다(오프라인이 일상인 앱이라 서버가 뽑아 줄 수 없다).
+	//    서버는 이 값을 **판정하지 않고 보관만** 한다. 다만 말이 되는 범위로
+	//    자르기는 한다 — 클라이언트가 큰 값을 보내 천장을 앞당기지 못하게.
+	SinceEpic      int `bson:"since_epic" json:"since_epic"`
+	SinceLegendary int `bson:"since_legendary" json:"since_legendary"`
+
+	UpdatedAt time.Time `bson:"updated_at" json:"updated_at"`
+}
+
+// PackBalance 는 지금 열 수 있는 카드팩 수.
+func (c Collection) PackBalance() int { return maxInt(0, c.PacksEarned-c.PacksOpened) }
+
+// ShardBalance 는 지금 쓸 수 있는 안전 조각 수.
+func (c Collection) ShardBalance() int { return maxInt(0, c.ShardsEarned-c.ShardsSpent) }
+
+// UniqueCount 는 모은 카드 종수(도감 진행도).
+func (c Collection) UniqueCount() int {
+	n := 0
+	for _, v := range c.Owned {
+		if v > 0 {
+			n++
+		}
+	}
+	return n
+}
+
+// NewCollection 은 빈 도감을 만든다(nil 맵으로 인한 패닉을 원천 차단).
+func NewCollection(userID string) Collection {
+	return Collection{UserID: userID, Owned: map[string]int{}, ClaimedRules: map[string]int{}, RedeemedCodes: []string{}}
+}
+
+func maxInt(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}

@@ -13,7 +13,7 @@ import { PackOpenModal } from '../src/components/collection/PackOpenModal';
 import { COLLECTIBLES, COLLECTIBLE_BY_ID, PACK_SIZE, JEWEL_META, type CollectibleCategory } from '../src/data/collectibles';
 import { RARITY_RANK as RANK, RARITY_ORDER, type RarityTier } from '../src/utils/rarity';
 import { useTilt } from '../src/hooks/useTilt';
-import { useCollectionStore, STUDY_PER_PACK, DAILY_PACK, INITIAL_PACKS, DAILY_PACK_MIN_STUDY, type OpenResult } from '../src/store/collectionStore';
+import { useCollectionStore, selectPacks, selectShards, selectStudyToNextPack, STUDY_PER_PACK, DAILY_PACK, INITIAL_PACKS, DAILY_PACK_MIN_STUDY, type OpenResult } from '../src/store/collectionStore';
 import { PITY_EPIC, PITY_LEGENDARY_HARD, SHARD_PRICE, canExchange } from '../src/domain/packDraw';
 import { fontCute, fontBody, fontMono, fontDisplay } from '../src/theme/tokens';
 import { contentColumn, CONTENT_MAX_WIDTH } from '../src/theme/layout';
@@ -56,14 +56,15 @@ export default function CollectionBookScreen() {
   const router = useRouter();
 
   const owned = useCollectionStore((s) => s.owned);
-  const packs = useCollectionStore((s) => s.packs);
-  const shards = useCollectionStore((s) => s.shards);
-  const pity = useCollectionStore((s) => s.pity);
+  const packs = useCollectionStore(selectPacks);
+  const shards = useCollectionStore(selectShards);
+  const sinceEpic = useCollectionStore((s) => s.sinceEpic);
+  const sinceLegendary = useCollectionStore((s) => s.sinceLegendary);
   const newIds = useCollectionStore((s) => s.newIds);
   const todayStudy = useCollectionStore((s) => s.todayStudy);
   const todayStudyDay = useCollectionStore((s) => s.todayStudyDay);
   const lastDailyPack = useCollectionStore((s) => s.lastDailyPack);
-  const studyProgress = useCollectionStore((s) => s.studyProgress);
+  const studyToNextPack = useCollectionStore(selectStudyToNextPack);
   const claimDaily = useCollectionStore((s) => s.claimDaily);
   const openPack = useCollectionStore((s) => s.openPack);
   const exchangeShards = useCollectionStore((s) => s.exchangeShards);
@@ -89,8 +90,8 @@ export default function CollectionBookScreen() {
   const dailyUnclaimed = lastDailyPack !== today;
   const canClaimDaily = dailyUnclaimed && dailyNeed === 0;
   // 천장까지 남은 팩 — "언제쯤 좋은 게 나오나"에 숫자로 답한다.
-  const toEpic = Math.max(1, PITY_EPIC - pity.sinceEpic);
-  const toLegendary = Math.max(1, PITY_LEGENDARY_HARD - pity.sinceLegendary);
+  const toEpic = Math.max(1, PITY_EPIC - sinceEpic);
+  const toLegendary = Math.max(1, PITY_LEGENDARY_HARD - sinceLegendary);
 
   const byRarity = useMemo(() => {
     const groups: Record<RarityTier, typeof COLLECTIBLES> = { legendary: [], epic: [], rare: [], common: [] };
@@ -267,11 +268,11 @@ export default function CollectionBookScreen() {
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
                 <Text style={{ color: c.textSecondary, fontSize: 11.5 * fs, fontFamily: fontBody }}>다음 무료 카드팩까지</Text>
                 <Text style={{ color: c.textPrimary, fontSize: 11.5 * fs, fontFamily: fontMono, fontWeight: '700' }}>
-                  학습 {STUDY_PER_PACK - (studyProgress % STUDY_PER_PACK)}장
+                  학습 {studyToNextPack}장
                 </Text>
               </View>
               <View style={{ height: 6, backgroundColor: c.surfaceAlt, borderRadius: 3, overflow: 'hidden' }}>
-                <View style={{ width: `${((studyProgress % STUDY_PER_PACK) / STUDY_PER_PACK) * 100}%`, height: '100%', backgroundColor: c.success, borderRadius: 3 }} />
+                <View style={{ width: `${((STUDY_PER_PACK - studyToNextPack) / STUDY_PER_PACK) * 100}%`, height: '100%', backgroundColor: c.success, borderRadius: 3 }} />
               </View>
             </View>
           </View>

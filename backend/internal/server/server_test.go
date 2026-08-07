@@ -49,6 +49,8 @@ func buildApp(t *testing.T) *server.Deps {
 	return &server.Deps{
 		Settings: settings,
 		Learning: service.NewLearningService(data, cards, settings),
+		// 도감도 운영에서 늘 배선된다 — 여기서 빼면 테스트만 다른 서버를 본다.
+		Collection: service.NewCollectionService(memory.NewCollectionRepo()),
 		// Data 는 테스트가 저장 결과를 직접 확인할 수 있도록 노출한다.
 		Data:        data,
 		Sync:        service.NewSyncService(data, cards),

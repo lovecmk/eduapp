@@ -11,6 +11,7 @@ import AppDialog from '../components/AppDialog.vue';
 import AppIcon from '../components/AppIcon.vue';
 import LearnerDiagnosisPanel from '../components/LearnerDiagnosisPanel.vue';
 import TodayAssignmentPanel from '../components/TodayAssignmentPanel.vue';
+import UserCollectionPanel from '../components/UserCollectionPanel.vue';
 
 /**
  * 사용자 상세 — 프로필 + 학습 진행 + 권한·상태 변경.
@@ -123,6 +124,7 @@ onMounted(() => void detail.run());
              권한·상태 변경보다 먼저 봐야 하는 정보다 — 관리자가 이 화면에 오는
              이유는 대개 '이 사람을 어떻게 도울까'이지 권한 조정이 아니다. -->
         <TodayAssignmentPanel v-if="user" :user-id="user.id" />
+        <UserCollectionPanel v-if="user" :user-id="user.id" />
 
         <LearnerDiagnosisPanel v-if="user" :user-id="user.id" />
 

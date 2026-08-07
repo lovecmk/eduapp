@@ -758,3 +758,117 @@ func TestLegacyTodayRouteServesSameAssignment(t *testing.T) {
 		t.Errorf("두 경로가 다른 문제를 준다:\n구형 %v\n신형 %v", got, cardIDsOf(plan))
 	}
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 안전 카드 도감 — 서버 보관
+// ─────────────────────────────────────────────────────────────────────────────
+
+// 도감은 지금까지 기기 로컬에만 있었다. 앱을 지우면 몇 달치 수집이 사라졌다.
+func TestCollectionSurvivesAcrossDevices(t *testing.T) {
+	env := buildAdminApp(t)
+
+	// 기기A: 팩 5개를 벌어 3개를 열고 카드를 모았다.
+	res, _ := doJSON(t, env.app, "POST", "/api/collection/sync", env.memberToken, map[string]any{
+		"packs_earned": 5, "packs_opened": 3,
+		"owned":       map[string]int{"safety-helmet": 2},
+		"study_total": 40,
+	})
+	if res.StatusCode != 200 {
+		t.Fatalf("sync -> %d, want 200", res.StatusCode)
+	}
+
+	// 기기B(=앱을 지우고 다시 깐 상태): 빈 상태로 물어봐도 기록이 남아 있어야 한다.
+	_, body := doJSON(t, env.app, "GET", "/api/collection", env.memberToken, nil)
+	var got struct {
+		PacksEarned  int            `json:"packs_earned"`
+		PacksOpened  int            `json:"packs_opened"`
+		PackBalance  int            `json:"pack_balance"`
+		UniqueCount  int            `json:"unique_count"`
+		Owned        map[string]int `json:"owned"`
+		StudyTotal   int            `json:"study_total"`
+		ShardBalance int            `json:"shard_balance"`
+	}
+	decode(t, body, &got)
+
+	if got.PacksEarned != 5 || got.PacksOpened != 3 {
+		t.Fatalf("카운터가 남지 않음: %s", body)
+	}
+	// 잔액은 서버가 계산해 준다 — 앱이 따로 세지 않아도 되게.
+	if got.PackBalance != 2 {
+		t.Errorf("팩 잔액 2 여야 함, got %d", got.PackBalance)
+	}
+	if got.Owned["safety-helmet"] != 2 || got.UniqueCount != 1 {
+		t.Errorf("보유 카드가 남지 않음: %s", body)
+	}
+	if got.StudyTotal != 40 {
+		t.Errorf("누적 학습이 남지 않음: %d", got.StudyTotal)
+	}
+}
+
+// 오프라인 큐가 같은 요청을 두 번 보내도 팩이 두 배가 되면 안 된다.
+func TestCollectionSyncIsSafeToRetry(t *testing.T) {
+	env := buildAdminApp(t)
+	payload := map[string]any{"packs_earned": 7, "packs_opened": 2, "owned": map[string]int{"elb": 1}}
+
+	doJSON(t, env.app, "POST", "/api/collection/sync", env.memberToken, payload)
+	_, body := doJSON(t, env.app, "POST", "/api/collection/sync", env.memberToken, payload)
+
+	var got struct {
+		PacksEarned int `json:"packs_earned"`
+		PackBalance int `json:"pack_balance"`
+	}
+	decode(t, body, &got)
+	if got.PacksEarned != 7 || got.PackBalance != 5 {
+		t.Fatalf("재전송에 값이 불어남: %s", body)
+	}
+}
+
+// 오래된 스냅샷을 들고 뒤늦게 붙은 기기가 기록을 되감으면 안 된다.
+func TestCollectionSyncNeverRewinds(t *testing.T) {
+	env := buildAdminApp(t)
+
+	doJSON(t, env.app, "POST", "/api/collection/sync", env.memberToken, map[string]any{
+		"packs_earned": 40, "packs_opened": 30, "study_total": 300,
+	})
+	_, body := doJSON(t, env.app, "POST", "/api/collection/sync", env.memberToken, map[string]any{
+		"packs_earned": 2, "packs_opened": 1, "study_total": 5,
+	})
+
+	var got struct {
+		PacksEarned int `json:"packs_earned"`
+		StudyTotal  int `json:"study_total"`
+	}
+	decode(t, body, &got)
+	if got.PacksEarned != 40 || got.StudyTotal != 300 {
+		t.Fatalf("오래된 스냅샷이 기록을 되돌림: %s", body)
+	}
+}
+
+// 도감은 개인 데이터다 — 남의 것이 새어 나오면 안 된다.
+func TestCollectionIsPrivate(t *testing.T) {
+	env := buildAdminApp(t)
+
+	doJSON(t, env.app, "POST", "/api/collection/sync", env.memberToken, map[string]any{"packs_earned": 9})
+
+	// 관리자는 문의 대응을 위해 볼 수 있다.
+	res, body := doJSON(t, env.app, "GET", "/api/admin/users/"+userIDOf(t, env, "demo")+"/collection", env.adminToken, nil)
+	if res.StatusCode != 200 {
+		t.Fatalf("관리자 조회 -> %d, want 200", res.StatusCode)
+	}
+	var got struct {
+		PacksEarned int `json:"packs_earned"`
+	}
+	decode(t, body, &got)
+	if got.PacksEarned != 9 {
+		t.Errorf("콘솔에 도감이 보이지 않음: %s", body)
+	}
+
+	// 일반 사용자는 남의 도감을 볼 수 없다.
+	if r, _ := doJSON(t, env.app, "GET", "/api/admin/users/"+env.adminID+"/collection", env.memberToken, nil); r.StatusCode != 403 {
+		t.Errorf("일반 사용자의 남의 도감 조회 -> %d, want 403", r.StatusCode)
+	}
+	// 토큰 없이도 안 된다.
+	if r, _ := doJSON(t, env.app, "GET", "/api/collection", "", nil); r.StatusCode != 401 {
+		t.Errorf("비로그인 도감 조회 -> %d, want 401", r.StatusCode)
+	}
+}

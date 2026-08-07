@@ -318,3 +318,16 @@ type UserDay struct {
 	UserID string
 	DayKey string
 }
+
+// CollectionRepository 는 안전 카드 도감(수집 기록)을 보관한다.
+//
+// UserDataRepository 에 얹지 않고 따로 둔 이유 — 도감은 학습 데이터가 아니라
+// 보상 경제다. 지급·차감이 걸린 값이라 다른 개인 데이터와 수명·백업·감사 요구가
+// 다르고, 저장소를 따로 두면 "이 사용자에게 팩이 몇 개 생겼나"를 한 곳만 보면 된다.
+type CollectionRepository interface {
+	// LoadCollection 은 사용자의 도감을 준다. 없으면 빈 도감(오류 아님)이다 —
+	// '아직 없음'을 오류로 만들면 첫 실행이 전부 실패한다.
+	LoadCollection(ctx context.Context, userID string) (domain.Collection, error)
+	// SaveCollection 은 도감을 통째로 덮어쓴다. 병합은 서비스가 끝낸 뒤 부른다.
+	SaveCollection(ctx context.Context, c domain.Collection) error
+}
