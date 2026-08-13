@@ -187,33 +187,39 @@ export default function NotificationsScreen() {
                 const muted = mutedTypes[n.type];
                 return (
                   <Animated.View key={n.id} entering={FadeInDown.delay(i * 40).duration(320)} layout={LinearTransition.springify()}>
-                    <Pressable accessibilityRole="button"
-                      onPress={() => openNotification(n)}
-                      style={[styles.item, { backgroundColor: c.surface, borderColor: n.read ? c.border : meta.color + '55' }]}
-                    >
-                      <View style={[styles.itemIcon, { backgroundColor: meta.color + '1A' }]}>
-                        <Ionicons name={meta.icon} size={18} color={meta.color} />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                          <Text numberOfLines={1} style={{ color: c.textPrimary, fontSize: 13.5 * fs, fontFamily: fontDisplay, flex: 1 }}>{n.title}</Text>
-                          {!n.read && <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: meta.color }} />}
+                    {/* 항목 본문과 '⋮' 메뉴는 **형제**여야 한다. 예전엔 메뉴가 본문 Pressable
+                        안에 들어 있었는데, 웹(react-native-web)에서는 둘 다 <button> 으로
+                        렌더되어 버튼 안에 버튼이 생긴다 — 유효하지 않은 DOM 이고, 스크린
+                        리더는 중첩된 컨트롤을 제대로 읽어 주지 못한다. */}
+                    <View style={[styles.item, { backgroundColor: c.surface, borderColor: n.read ? c.border : meta.color + '55' }]}>
+                      <Pressable accessibilityRole="button"
+                        onPress={() => openNotification(n)}
+                        style={styles.itemMain}
+                      >
+                        <View style={[styles.itemIcon, { backgroundColor: meta.color + '1A' }]}>
+                          <Ionicons name={meta.icon} size={18} color={meta.color} />
                         </View>
-                        <Text numberOfLines={2} style={{ color: c.textSecondary, fontSize: 12 * fs, lineHeight: 17, marginTop: 3, fontFamily: fontBody }}>{n.desc}</Text>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 }}>
-                          <Text style={{ color: c.textSecondary, fontSize: 10.5, fontFamily: fontMono }}>{timeAgoLabel(n.minutesAgo)}</Text>
-                          {muted && (
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-                              <Ionicons name="notifications-off" size={10} color={c.textSecondary} />
-                              <Text style={{ color: c.textSecondary, fontSize: 10, fontFamily: fontBody }}>꺼짐</Text>
-                            </View>
-                          )}
+                        <View style={{ flex: 1 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <Text numberOfLines={1} style={{ color: c.textPrimary, fontSize: 13.5 * fs, fontFamily: fontDisplay, flex: 1 }}>{n.title}</Text>
+                            {!n.read && <View style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: meta.color }} />}
+                          </View>
+                          <Text numberOfLines={2} style={{ color: c.textSecondary, fontSize: 12 * fs, lineHeight: 17, marginTop: 3, fontFamily: fontBody }}>{n.desc}</Text>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 }}>
+                            <Text style={{ color: c.textSecondary, fontSize: 10.5, fontFamily: fontMono }}>{timeAgoLabel(n.minutesAgo)}</Text>
+                            {muted && (
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                                <Ionicons name="notifications-off" size={10} color={c.textSecondary} />
+                                <Text style={{ color: c.textSecondary, fontSize: 10, fontFamily: fontBody }}>꺼짐</Text>
+                              </View>
+                            )}
+                          </View>
                         </View>
-                      </View>
+                      </Pressable>
                       <Pressable onPress={() => setSheetItem(n)} hitSlop={8} style={{ padding: 4, marginLeft: 4 }} accessibilityRole="button" accessibilityLabel="이 알림 메뉴">
                         <Ionicons name="ellipsis-vertical" size={16} color={c.textSecondary} />
                       </Pressable>
-                    </Pressable>
+                    </View>
                   </Animated.View>
                 );
               })}
@@ -313,6 +319,8 @@ const styles = StyleSheet.create({
   mutedBar: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 12, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 14 },
   groupLabel: { fontSize: 12, fontFamily: fontDisplay, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8, marginLeft: 2 },
   item: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, borderRadius: 14, borderWidth: 1, padding: 12, marginBottom: 8 },
+  /** 항목 본문(아이콘+텍스트) — 바깥 카드가 아니라 이쪽이 '알림 열기' 버튼이다. */
+  itemMain: { flex: 1, flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   itemIcon: { width: 36, height: 36, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, borderWidth: 1, padding: 20, paddingBottom: 34 },
   sheetHandle: { width: 40, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
