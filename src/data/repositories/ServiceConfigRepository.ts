@@ -1,7 +1,9 @@
 import type { IServiceConfigRepository } from '../../domain/repositories/IServiceConfigRepository';
 import type { NoticeLevel, ServiceConfig } from '../../domain/models/ServiceConfig';
-import { defaultServiceConfig } from '../../domain/models/ServiceConfig';
-import { DAILY_MIN_CARDS } from '../../constants/learning';
+import { defaultServiceConfig, resolveDailyRange } from '../../domain/models/ServiceConfig';
+import { DAILY_MIN_CARDS, DAILY_MAX_CARDS } from '../../constants/learning';
+import { MIN_DAILY_CARDS, MAX_DAILY_CARDS } from '../../domain/dailyPlan';
+import { useServerPolicyStore } from '../../store/serverPolicyStore';
 import { apiClient } from '../network/ApiClient';
 
 /** 서버 응답(handler.PublicConfig)과 1:1. */
@@ -9,7 +11,10 @@ interface ConfigDTO {
   maintenance_yn?: boolean;
   maintenance_msg?: string;
   signup_enabled?: boolean;
+  /** 구형 필드 — 서버가 `daily_max_cards` 와 같은 값을 싣는다. */
   daily_new_limit?: number;
+  daily_min_cards?: number;
+  daily_max_cards?: number;
   notice_txt?: string;
   notice_level?: string;
   version?: string;
@@ -39,7 +44,18 @@ function toLevel(raw: string | undefined): NoticeLevel {
 export class ServiceConfigRepository implements IServiceConfigRepository {
   async get(): Promise<ServiceConfig> {
     const dto = await apiClient.get<ConfigDTO>('/api/config');
-    const fallback = defaultServiceConfig(DAILY_MIN_CARDS);
+    const fallback = defaultServiceConfig(DAILY_MIN_CARDS, DAILY_MAX_CARDS);
+
+    // 하루 출제 범위는 운영자가 재배포 없이 바꾸는 값이라 **서버 쪽이 권위**다.
+    // 다음에 서버에 닿지 못한 채 시작해도 같은 분량이 나가도록 기억해 둔다
+    // (기억은 실서버 응답에서만 — 목업 값으로 덮으면 운영값이 지워진다).
+    const range = resolveDailyRange(
+      { min: dto.daily_min_cards, max: dto.daily_max_cards, legacyLimit: dto.daily_new_limit },
+      { min: fallback.dailyMinCards, max: fallback.dailyMaxCards },
+      { min: MIN_DAILY_CARDS, max: MAX_DAILY_CARDS },
+    );
+    useServerPolicyStore.getState().rememberDailyRange(range);
+
     return {
       maintenance: dto.maintenance_yn === true,
       maintenanceMessage: dto.maintenance_msg?.trim() ?? '',
@@ -50,6 +66,8 @@ export class ServiceConfigRepository implements IServiceConfigRepository {
         typeof dto.daily_new_limit === 'number' && dto.daily_new_limit > 0
           ? dto.daily_new_limit
           : fallback.dailyNewLimit,
+      dailyMinCards: range.min,
+      dailyMaxCards: range.max,
       noticeText: dto.notice_txt?.trim() ?? '',
       noticeLevel: toLevel(dto.notice_level),
       serverVersion: dto.version ?? '',

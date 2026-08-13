@@ -21,6 +21,7 @@ import { useAppUpdate } from '../src/hooks/useAppUpdate';
 import { useAppResume } from '../src/hooks/useAppResume';
 import { useAppBackHandler } from '../src/hooks/useAppBackHandler';
 import { ToastHost } from '../src/components/ui/ToastHost';
+import { MaintenanceGate } from '../src/components/ui/MaintenanceGate';
 import { applyWebTypography } from '../src/theme/webTypography';
 import { APP_FONTS } from '../src/theme/tokens';
 import { applyGlobalFont } from '../src/theme/applyGlobalFont';
@@ -142,6 +143,9 @@ function RootContent() {
         onUpdate={apply}
         onDismiss={dismiss}
       />
+      {/* 점검 중이면 모든 화면(로그인 포함) 위를 덮는다 — 점검이라 로그인조차 못 하는
+          사람에게도 "왜 안 되는지"는 닿아야 한다. 관리자는 통과한다. */}
+      <MaintenanceGate />
     </View>
   );
 }

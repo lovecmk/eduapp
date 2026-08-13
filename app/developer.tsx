@@ -12,6 +12,7 @@ import { apiClient, type HealthResult } from '../src/data/network/ApiClient';
 import { logger } from '../src/utils/logger';
 import { ROUTES } from '../src/constants/routes';
 import { useAuthoredCardsStore } from '../src/store/authoredCardsStore';
+import { useAuthStore } from '../src/store/authStore';
 import { contentColumn } from '../src/theme/layout';
 
 type SendState = 'idle' | 'sending' | 'sent' | 'denied' | 'error';
@@ -27,6 +28,7 @@ export default function DeveloperScreen() {
   const c = theme.colors;
   const router = useRouter();
   const authoredCount = useAuthoredCardsStore((s) => s.cards.length);
+  const isAdmin = useAuthStore((s) => s.user?.isAdmin ?? false);
   const [state, setState] = useState<SendState>('idle');
   const [alertBusy, setAlertBusy] = useState<number | null>(null);
   const [alertMsg, setAlertMsg] = useState<string | null>(null);
@@ -149,18 +151,41 @@ export default function DeveloperScreen() {
           </View>
         </View>
 
-        {/* 콘텐츠 관리 — 문제 등록(웹 등록 도구와 동일 메타데이터 계약) */}
-        <Pressable accessibilityRole="button" onPress={() => router.push(ROUTES.authorCard as never)}
-          style={{ backgroundColor: c.surface, borderColor: c.border, borderWidth: 1, borderRadius: 16, padding: 18, marginBottom: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: c.primary + '18', alignItems: 'center', justifyContent: 'center' }}>
-            <Ionicons name="create-outline" size={20} color={c.primary} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontFamily: fontDisplay }}>문제 등록 · 콘텐츠</Text>
-            <Text style={{ color: c.textSecondary, fontSize: 12.5 * fs, fontFamily: fontBody, marginTop: 2 }}>폼/JSON으로 학습 카드 등록 · 등록 {authoredCount}개</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={c.textSecondary} />
-        </Pressable>
+        {/* 목업 데이터 콘솔 — 목업 모드에서만.
+            운영 콘솔은 브릿지 운영관리로 갔다(docs/PLATFORM_SPLIT.md §1). 여기 남은
+            화면은 이 기기의 목업(회원·팩 규칙·도감·플래그)을 들여다보는 개발 도구라,
+            실서버 모드에서는 보여 줄 것이 없다 — 있으면 운영값으로 오해된다. */}
+        {env.useMockData && (
+          <Pressable accessibilityRole="button" onPress={() => router.push(ROUTES.admin as never)}
+            style={{ backgroundColor: c.surface, borderColor: c.border, borderWidth: 1, borderRadius: 16, padding: 18, marginBottom: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: c.primary + '18', alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="shield-half-outline" size={20} color={c.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontFamily: fontDisplay }}>목업 데이터 콘솔</Text>
+              <Text style={{ color: c.textSecondary, fontSize: 12.5 * fs, fontFamily: fontBody, marginTop: 2 }}>목업 회원 · 팩 규칙 · 도감 · 기능 플래그</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={c.textSecondary} />
+          </Pressable>
+        )}
+
+        {/* 콘텐츠 관리 — 문제 등록(웹 등록 도구와 동일 메타데이터 계약).
+            실서버에서 `POST /api/cards` 는 **관리자만** 통과한다(docs/PLATFORM_SPLIT.md §4).
+            관리자가 아닌 사람에게 이 항목을 보여 주면, 문제를 다 쓰고 저장을 누른
+            다음에야 403 을 만난다. 눌러 봐야 실패할 버튼은 미리 치운다(User.isAdmin). */}
+        {(env.useMockData || isAdmin) && (
+          <Pressable accessibilityRole="button" onPress={() => router.push(ROUTES.authorCard as never)}
+            style={{ backgroundColor: c.surface, borderColor: c.border, borderWidth: 1, borderRadius: 16, padding: 18, marginBottom: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: c.primary + '18', alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="create-outline" size={20} color={c.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontFamily: fontDisplay }}>문제 등록 · 콘텐츠</Text>
+              <Text style={{ color: c.textSecondary, fontSize: 12.5 * fs, fontFamily: fontBody, marginTop: 2 }}>폼/JSON으로 학습 카드 등록 · 등록 {authoredCount}개</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={c.textSecondary} />
+          </Pressable>
+        )}
 
         <View style={{ backgroundColor: c.surface, borderColor: c.border, borderWidth: 1, borderRadius: 16, padding: 18 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>

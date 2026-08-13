@@ -25,13 +25,24 @@ const TABS: { key: Tab; label: string; icon: keyof typeof Ionicons.glyphMap }[] 
 ];
 
 /**
- * 관리 콘솔(웹 우선) — 목업 데이터 계층을 웹에서 열람/제어한다.
- * 실서버 전환 시 각 섹션은 관리 API로 대체된다(사용자/규칙/카드/플래그).
+ * 목업 데이터 콘솔 — **운영 콘솔이 아니다.**
+ *
+ * 진짜 운영 콘솔은 브릿지 운영관리 안으로 옮겨 갔다(docs/PLATFORM_SPLIT.md §1·§6).
+ * 여기 남은 화면이 읽는 것은 전부 이 기기의 목업이다 — `mockUserDb`, `PACK_RULES`,
+ * `COLLECTIBLES`, 로컬 설정 스토어. 실서버 모드에서 열면 운영과 아무 상관 없는
+ * 숫자가 '관리 콘솔'이라는 이름을 달고 나온다. 그래서 두 가지를 손봤다.
+ *
+ *  · 진입은 개발자 모드 안, 그것도 목업 모드에서만 보인다(설정에서는 내렸다).
+ *  · 실서버 모드로 이 경로에 닿으면(북마크·딥링크·웹 주소창) 목업 숫자 대신
+ *    어디로 가야 하는지를 보여 준다. 라우트를 지우지 않은 이유가 이것이다 —
+ *    지우면 같은 주소가 빈 화면이 되고, 사용자는 앱이 고장났다고 여긴다.
  */
 export default function AdminScreen() {
   const { theme } = useTheme();
   const c = theme.colors;
   const [tab, setTab] = useState<Tab>('overview');
+
+  if (!env.useMockData) return <MovedToBridgeNotice />;
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
@@ -60,6 +71,36 @@ export default function AdminScreen() {
             {tab === 'flags' && <FlagsTab />}
           </ScrollView>
         </View>
+      </View>
+    </View>
+  );
+}
+
+/**
+ * 실서버 모드에서 이 경로에 닿았을 때 — 목업 숫자 대신 갈 곳을 알려 준다.
+ * 주소를 적어 주는 것이 핵심이다. "옮겨 갔습니다"만 있으면 어디로 가야 하는지
+ * 물어보는 문의가 그대로 남는다.
+ */
+function MovedToBridgeNotice() {
+  const { theme } = useTheme();
+  const c = theme.colors;
+  return (
+    <View style={{ flex: 1, backgroundColor: c.bg }}>
+      <ScreenHeader title="관리 콘솔" />
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
+        <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: c.primary + '18', alignItems: 'center', justifyContent: 'center', marginBottom: 18 }}>
+          <Ionicons name="open-outline" size={28} color={c.primary} />
+        </View>
+        <Text style={{ color: c.textPrimary, fontSize: 17, fontFamily: fontDisplay, marginBottom: 10, textAlign: 'center' }}>
+          관리 콘솔은 브릿지로 옮겼어요
+        </Text>
+        <Text style={{ color: c.textSecondary, fontSize: 13.5, lineHeight: 21, fontFamily: fontBody, textAlign: 'center' }}>
+          사용자 · 문제 · 신고 · 공지 · 운영 설정은{'\n'}
+          브릿지 운영관리에서 처리합니다.
+        </Text>
+        <Text style={{ color: c.textSecondary, fontSize: 12, fontFamily: fontMono, marginTop: 16, textAlign: 'center' }}>
+          bridge.kfpa.or.kr
+        </Text>
       </View>
     </View>
   );

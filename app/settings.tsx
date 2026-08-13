@@ -487,13 +487,12 @@ function SettingsBody({ scrollRef }: { scrollRef: React.RefObject<ScrollView> })
                 description="내부 테스트용 기능"
                 onPress={go('developer', ROUTES.developer)}
               />
-              <SettingsItem
-                anchorId="admin"
-                icon="shield-half-outline"
-                label="관리 콘솔"
-                description="사용자 · 규칙 · 카드 · 플래그"
-                onPress={go('admin', ROUTES.admin)}
-              />
+              {/* '관리 콘솔' 항목은 여기 없다.
+                  운영 콘솔은 브릿지 운영관리로 옮겨 갔고(docs/PLATFORM_SPLIT.md §1),
+                  앱 안에 남은 화면은 목업 데이터를 들여다보는 개발 도구다. 그것이
+                  설정의 '지원' 그룹에서 모두에게 열려 있으면, 일반 사용자가 들어가
+                  운영과 아무 상관 없는 숫자를 실제 운영값으로 읽는다.
+                  진입은 개발자 모드 안(목업 모드에서만)으로 옮겼다. */}
             </SettingsGroup>
 
             {/* ── 데이터 ───────────────────────────────────────────── */}

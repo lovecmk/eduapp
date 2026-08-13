@@ -16,7 +16,7 @@ eduapp/
 │  ├─ profile.tsx  #   내 프로필(바이오·성취 뱃지)
 │  ├─ pack-rules.tsx   # 카드팩 획득 조건(설정에서만 진입)
 │  ├─ collection-book.tsx / collection/[type].tsx  # 카드 컬렉션
-│  ├─ admin.tsx    #   ── ADMIN (관리 콘솔, 웹 우선) ──
+│  ├─ admin.tsx    #   목업 데이터 콘솔(개발자 모드 · 목업 모드에서만)
 │  └─ ...          #   share·trophy·settings·support·notifications 등
 │
 ├─ src/
@@ -71,7 +71,7 @@ eduapp/
 | 캘린더 고도화 | components/community/LearningCalendar | srs·attendance 파생 | store/srsStore·attendanceStore |
 | 카드팩 획득 조건 | app/pack-rules.tsx | data/packRules(규칙+평가) | store/collectionStore(claimedRules) |
 | 안전 카드 도감 | app/collection-book.tsx | data/collectibles(500종)·domain/packDraw(뽑기) | store/collectionStore(카운터) + hooks/useCollectionSync(서버) |
-| 관리 콘솔 | app/admin.tsx | mockUserDb·packRules·collectibles | settings·authoredCards |
+| 목업 데이터 콘솔 | app/admin.tsx | mockUserDb·packRules·collectibles | settings·authoredCards |
 | 닉네임·중복확인 | app/(auth)/signup, components/auth/AvailabilityField | AuthRepository.isUsernameTaken/isNicknameTaken, mockUserDb | authStore |
 | 내 정보 수정 | app/edit-profile.tsx | AuthRepository.updateProfile, mockUserDb.updateUser | authStore.updateProfile |
 | QR 명함 | app/qr-card.tsx | utils/qrcode(순수 TS 인코더)·components/ui/QRCode(svg) | authStore·settings |
@@ -192,7 +192,12 @@ eduapp/
 
 - **카드 수집·카드팩** 시스템은 회의 확정 전까지 기본 **꺼짐**(`settings.collectionEnabled`).
   설정 → "카드 수집 (베타)" 에서만 켜고, 컬렉션/카드팩 조건 화면으로 진입한다.
-- **관리 콘솔**은 설정 → 지원 및 정보 → "관리 콘솔" 로 진입(웹 우선).
+- **운영 콘솔은 앱 안에 없다.** 브릿지 운영관리로 옮겨 갔다(docs/PLATFORM_SPLIT.md §1).
+  앱에 남은 `app/admin.tsx` 는 이 기기의 목업을 들여다보는 개발 도구라, 설정이 아니라
+  **개발자 모드 안 · 목업 모드에서만** 보인다. 실서버 모드로 그 경로에 닿으면
+  목업 숫자 대신 어디로 가야 하는지를 안내한다.
+- **점검 모드**(`/api/config` 의 `maintenance_yn`)는 배너가 아니라 화면을 덮는다
+  (`components/ui/MaintenanceGate`). 관리자는 통과한다 — 서버도 그렇게 한다.
 
 ## 오프라인 동작 보장 (현장 앱의 전제)
 
@@ -296,6 +301,13 @@ react-query 클라이언트가 `data/network/queryClient.ts` 에 있는 이유�
 | `domain/srs.ts` `MASTERED_BOX` | `service.masteredBoxLevel` | 앱은 '숙달'로 보는 카드를 서버는 후보로 여겨 또 내보낸다 |
 | `src/domain/dailyPlan.ts` | `service/daily_plan.go` | 온라인과 오프라인에서 **서로 다른 문제**가 나간다 |
 | `utils/dateKey.ts` | `service.DayKey` | 학습 이력·출석이 달력의 다른 칸에 찍힌다(month 0-based) |
+
+첫 줄의 앱 상수는 **기본값일 뿐 권위가 아니다.** 하루 출제 범위는 운영자가 콘솔에서
+재배포 없이 바꾸는 값이라(`/api/config` 의 `daily_min_cards`·`daily_max_cards`),
+서버가 값을 주면 그쪽을 쓴다. 받은 범위는 `store/serverPolicyStore` 에 남겨 두고,
+서버에 닿지 못한 채 시작한 날의 오프라인 편성도 그 값으로 돈다 — 그러지 않으면
+같은 사람이 사무실에서 3장, 현장에서 5장을 받는다. (점검 상태는 남기지 않는다.
+지난 점검으로 앱이 잠기면 안 된다.)
 
 ## 서버 배포 & 이식
 

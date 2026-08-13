@@ -3,7 +3,9 @@ import type { CardDifficulty } from './models/LearningCard';
 /**
  * 오늘의 출제 규칙 — 앱 쪽 한 벌.
  *
- * 서버의 `backend/internal/service/daily_plan.go` 와 **같은 규칙**이다.
+ * 서버의 `BE/daily3min/service/daily_plan.go`(브릿지 저장소) 와 **같은 규칙**이다.
+ * 그 파일은 이 저장소에서 열 수 없다 — 규칙을 글로 옮겨 적은 사본이
+ * `docs/PLATFORM_SPLIT.md` §7.2 에 있고, 대조는 그것과 한다.
  * 두 벌을 두는 이유는 오프라인 때문이다. 이 앱은 지하·철골 구조물에서 쓰여
  * 서버에 닿지 못하는 날이 흔한데, 그때 "오늘의 학습이 없습니다"를 띄우면
  * 그날 학습은 그냥 없던 일이 된다. 서버에 닿으면 서버 편성을 쓰고,

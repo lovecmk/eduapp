@@ -1,7 +1,7 @@
 import type { IDailyAssignmentRepository } from '../../domain/repositories/IDailyAssignmentRepository';
 import type { DailyAssignment, DailyCard } from '../../domain/models/DailyAssignment';
 import { buildDailyPlan, type LearnerSignal, type PlanCandidate } from '../../domain/dailyPlan';
-import { DAILY_MIN_CARDS, DAILY_MAX_CARDS } from '../../constants/learning';
+import { currentDailyRange } from '../../store/serverPolicyStore';
 import { useSrsStore } from '../../store/srsStore';
 import { useAuthStore } from '../../store/authStore';
 import { dateKey } from '../../utils/dateKey';
@@ -66,7 +66,11 @@ export class MockDailyAssignmentRepository implements IDailyAssignmentRepository
       });
     }
 
-    const plan = buildDailyPlan(userId, day, signal, candidates, DAILY_MIN_CARDS, DAILY_MAX_CARDS);
+    // 출제 범위는 앱 상수가 아니라 **마지막으로 확인한 운영값**이다. 운영자가
+    // 콘솔에서 범위를 줄였는데 오프라인 편성만 컴파일된 상수로 돌면, 같은 사람이
+    // 사무실에서 3장 · 현장에서 5장을 받는다(store/serverPolicyStore).
+    const range = currentDailyRange();
+    const plan = buildDailyPlan(userId, day, signal, candidates, range.min, range.max);
 
     const byId = new Map(cards.map((c) => [c.id, c]));
     const studiedToday = new Set(srs.history?.[day] ?? []);

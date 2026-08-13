@@ -241,11 +241,9 @@ export const SETTINGS_INDEX: SettingsEntry[] = [
     icon: 'construct-outline', group: 'support', route: '/developer',
     breadcrumb: [S, '지원'], keywords: ['개발자', '디버그', '테스트', 'developer'],
   },
-  {
-    id: 'admin', label: '관리 콘솔', description: '사용자 · 규칙 · 카드 · 플래그',
-    icon: 'shield-half-outline', group: 'support', route: '/admin',
-    breadcrumb: [S, '지원'], keywords: ['관리자', '어드민', '콘솔', 'admin'],
-  },
+  // '관리 콘솔'은 색인에 없다 — 설정에서 항목을 내렸기 때문이다(app/settings.tsx).
+  // 화면만 내리고 색인을 두면 검색으로 그 자리에 들어가고, 하이라이트할 앵커가
+  // 없어 빈 화면만 스크롤된다. 운영 콘솔 자체는 브릿지 운영관리에 있다.
 
   // ── 약관 · 법적 고지 (모두 /legal 한 화면 안) ────────────────────────
   {

@@ -7,8 +7,9 @@ import {
 } from '../dailyPlan';
 import type { CardDifficulty } from '../models/LearningCard';
 
-// 이 규칙은 서버(backend/internal/service/daily_plan.go)와 한 벌이다.
+// 이 규칙은 서버(브릿지 저장소 `BE/daily3min/service/daily_plan.go`)와 한 벌이다.
 // 오프라인에서 서버 없이도 같은 문제가 나와야 하므로, 양쪽에 같은 검사를 둔다.
+// 저쪽 코드는 이 저장소에서 볼 수 없다 — 규칙 사본은 docs/PLATFORM_SPLIT.md §7.2.
 
 const cand = (cardId: string, difficulty: CardDifficulty): PlanCandidate => ({ cardId, difficulty });
 
