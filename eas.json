@@ -8,6 +8,10 @@
       "developmentClient": true,
       "distribution": "internal",
       "channel": "development",
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "http://test.inplat.org:8090",
+        "EXPO_PUBLIC_USE_MOCK_DATA": "false"
+      },
       "ios": {
         "simulator": true
       }
@@ -15,13 +19,21 @@
     "preview": {
       "distribution": "internal",
       "channel": "preview",
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "http://test.inplat.org:8090",
+        "EXPO_PUBLIC_USE_MOCK_DATA": "false"
+      },
       "android": {
         "buildType": "apk"
       }
     },
     "production": {
       "channel": "production",
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "https://bridge.kfpa.or.kr",
+        "EXPO_PUBLIC_USE_MOCK_DATA": "false"
+      }
     }
   },
   "submit": {

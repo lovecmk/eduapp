@@ -38,7 +38,7 @@ export default function LoginScreen() {
   }, []);
 
   const onLogin = async () => {
-    if (!id.trim() || !pw.trim()) { setFormError('아이디와 비밀번호를 모두 입력해주세요'); return; }
+    if (!id.trim() || !pw.trim()) { setFormError('이메일(또는 아이디)과 비밀번호를 모두 입력해주세요'); return; }
     setFormError(null); clearError();
     const ok = await login(id.trim(), pw);
     if (ok) {
@@ -90,10 +90,13 @@ export default function LoginScreen() {
 
           {/* 로그인 */}
           <TextField
-            label="아이디"
+            /* 브릿지 계정으로 로그인한다. 사람들이 외우고 있는 것은 대개
+               브릿지 아이디가 아니라 자기 사내 이메일이라, 서버가 둘 다 받는다.
+               라벨에 그 사실이 안 적혀 있으면 이메일을 넣어 볼 생각을 못 한다. */
+            label="이메일 또는 아이디"
             value={id}
             onChangeText={(t) => { setId(t); if (formError) setFormError(null); }}
-            placeholder="아이디를 입력하세요"
+            placeholder="사내 이메일 또는 브릿지 아이디"
             autoCapitalize="none"
             status={formError ? 'error' : 'default'}
           />
@@ -124,15 +127,32 @@ export default function LoginScreen() {
 
           <Button label="로그인" variant="filled" loading={loading} onPress={onLogin} style={{ marginTop: 4 }} />
 
-          <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 18, gap: 18, alignItems: 'center' }}>
-            <Pressable accessibilityRole="button" onPress={() => router.push(ROUTES.signup)} hitSlop={8}>
-              <Text style={{ color: c.textSecondary, fontSize: 13 * fs, fontFamily: fontBody }}>회원가입</Text>
-            </Pressable>
-            <View style={{ width: 1, height: 12, backgroundColor: c.border }} />
-            <Pressable accessibilityRole="button" onPress={() => router.push(ROUTES.findPw)} hitSlop={8}>
-              <Text style={{ color: c.textSecondary, fontSize: 13 * fs, fontFamily: fontBody }}>비밀번호 찾기</Text>
-            </Pressable>
-          </View>
+          {/*
+            계정은 브릿지(bridge.kfpa.or.kr)가 쥐고 있다.
+            가입·비밀번호 찾기 화면이 있는 곳도 거기다(mybrdg 는 운영관리 콘솔이라
+            일반 회원이 갈 곳이 아니다 — 주소를 잘못 알려 주면 헛걸음을 시킨다).
+
+            실서버에서는 가입도 비밀번호 찾기도 이 앱이 할 수 있는 일이 아니다 —
+            서버가 브릿지 회원을 읽기만 하기 때문이다. 그런데 버튼을 남겨 두면
+            사용자는 양식을 다 채운 뒤에야 "여기서는 안 됩니다"를 듣는다.
+            헛수고를 시킨 뒤 알려 주느니 처음부터 어디로 가야 하는지 말한다.
+            (목업으로 도는 동안에는 앱 안에 가입 화면이 실제로 있으므로 남긴다.)
+          */}
+          {env.useMockData ? (
+            <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 18, gap: 18, alignItems: 'center' }}>
+              <Pressable accessibilityRole="button" onPress={() => router.push(ROUTES.signup)} hitSlop={8}>
+                <Text style={{ color: c.textSecondary, fontSize: 13 * fs, fontFamily: fontBody }}>회원가입</Text>
+              </Pressable>
+              <View style={{ width: 1, height: 12, backgroundColor: c.border }} />
+              <Pressable accessibilityRole="button" onPress={() => router.push(ROUTES.findPw)} hitSlop={8}>
+                <Text style={{ color: c.textSecondary, fontSize: 13 * fs, fontFamily: fontBody }}>비밀번호 찾기</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <Text style={{ color: c.textSecondary, fontSize: 12 * fs, fontFamily: fontBody, textAlign: 'center', marginTop: 18, lineHeight: 18 * fs }}>
+              계정 만들기와 비밀번호 찾기는{'\n'}브릿지(bridge.kfpa.or.kr)에서 진행합니다
+            </Text>
+          )}
 
           {bioAvailable && (
             <View style={{ marginTop: 16 }}>

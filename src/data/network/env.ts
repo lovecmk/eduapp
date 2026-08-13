@@ -126,6 +126,16 @@ export function collectConfigWarnings(): string[] {
   if (!env.useMockData && !apiBaseUrl) {
     w.push('실서버 모드지만 EXPO_PUBLIC_API_BASE_URL 이 비어 있습니다.');
   }
+  // 주소는 채웠는데 목업이 켜져 있는 조합 — 화면은 멀쩡히 돌고 아무것도 저장되지
+  // 않는다. 실패가 눈에 보이지 않아 배포된 뒤에야 드러나는 가장 나쁜 오설정이다.
+  if (env.useMockData && apiBaseUrl) {
+    w.push(`API 주소(${apiBaseUrl})가 있는데 목업 모드입니다 — 서버에 아무것도 저장되지 않습니다. EXPO_PUBLIC_USE_MOCK_DATA=false 로 두세요.`);
+  }
+  // 평문 서버는 사내 테스트 전용이다. 릴리스 빌드에서 평문이 허용되는 것은
+  // app.config.js 가 그때만 예외를 붙이기 때문이고, 운영 주소는 https 여야 한다.
+  if (/^http:\/\//i.test(apiBaseUrl)) {
+    w.push(`평문(http) 서버를 봅니다: "${apiBaseUrl}" — 사내 테스트 빌드가 아니라면 https 주소여야 합니다.`);
+  }
   if (apiBaseUrl && !/^https?:\/\//i.test(apiBaseUrl)) {
     w.push(`API 주소가 http(s):// 로 시작하지 않습니다: "${apiBaseUrl}"`);
   }

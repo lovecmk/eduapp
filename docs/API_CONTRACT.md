@@ -394,20 +394,27 @@ Idempotency-Key: attendance:2026-7-25
 
 ## 8. 관리 콘솔 API (`/api/admin`) — Vue 웹 콘솔 전용
 
-Go 백엔드에 **구현 완료**된 관리 API. 프런트는 `admin/`(Vue 3)이다.
+Go 백엔드에 **구현 완료**된 관리 API. 프런트(Vue 3)는 이 저장소를 떠나 mybrdg
+운영관리 안으로 들어갔다 —
+`FE/mybrdg/src/pages/Operations/Content-Setting/Daily3Min/`
+(`/operations/content/daily3min`). 주소·응답 형식은 그대로다.
 
 ### 접근 제어
 
 모든 `/api/admin/*` 은 두 관문을 통과해야 한다.
 
-1. `RequireAuth` — 유효한 액세스 토큰(없으면 `401`)
+1. 신원 확인 — 유효한 액세스 토큰(`Authorization: Bearer`) **또는** mybrdg 세션
+   쿠키(`access_token_mybrdg`). 콘솔이 mybrdg 안의 한 페이지라, 거기서 이미 한
+   로그인을 다시 요구하지 않는다(없으면 `401`).
 2. `RequireAdmin` — 저장소에서 사용자를 조회해 `role_cd == "ADMIN"` 이고 계정이 활성인지 확인(아니면 `403`)
 
 > **역할을 JWT 에 담지 않는 이유**: 토큰에 박으면 권한을 회수해도 만료(액세스 15분,
 > 리프레시 30일)까지 관리자로 통한다. 관리 권한은 즉시 회수돼야 하므로 매 요청 조회한다.
 > 관리 API 는 호출량이 적어 이 비용이 문제되지 않는다.
 
-`users` 테이블에 `role_cd TEXT NOT NULL DEFAULT 'USER'` 가 추가됐다(기존 행은 마이그레이션에서 `'USER'`).
+KFPA 브릿지에 붙은 지금, 역할·계정 상태의 출처는 브릿지 회원(`cyber_user`)이다 —
+`admin == true` 또는 `level == "1"` 이면 관리자. 자체 회원 모드
+(`D3M_USE_BRIDGE_ACCOUNTS=false`)에서는 `users.role_cd` 를 본다.
 빈 문자열·알 수 없는 값은 모두 `USER` 로 해석한다 — **권한은 명시적으로 부여된 것만 인정한다.**
 
 ### 엔드포인트

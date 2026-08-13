@@ -30,6 +30,15 @@ on:
       - 'app.json'
       - '.github/workflows/build-apk.yml'
   workflow_dispatch:
+    inputs:
+      api:
+        description: '이 APK 가 볼 서버'
+        type: choice
+        default: 'production'
+        options:
+          - production   # https://bridge.kfpa.or.kr (DMZ1 · 배포용)
+          - test         # http://test.inplat.org:8090 (사내망 전용 · 평문)
+          - mock         # 서버 없이 화면만 (목업)
 
 # 릴리스 생성 및 태그 푸시에 필요.
 permissions:
@@ -54,16 +63,33 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # deploy.yml 과 동일한 방식: 시크릿이 비어 있어도 env.ts 가 목업으로 폴백한다.
-      - name: Inject .env from Secrets
+      # 서버 주소는 시크릿이 아니라 여기서 정한다.
+      #
+      # 예전에는 시크릿이 비어 있으면 그대로 빈 값이 들어갔고, env.ts 가 그것을
+      # "주소 없음 → 목업"으로 읽어 **아무것도 저장되지 않는 APK 가 배포되었다**.
+      # 화면은 멀쩡히 돌기 때문에 받아 본 사람도, 만든 사람도 알아채지 못한다.
+      # 주소는 공개된 호스트명이라 감출 이유가 없으므로 워크플로에 적어 두고,
+      # 수동 실행 시 드롭다운으로 테스트/목업을 고를 수 있게 한다.
+      - name: Resolve API target
+        id: api
+        run: |
+          case "${{ inputs.api || 'production' }}" in
+            test) URL="http://test.inplat.org:8090" ;;
+            mock) URL="" ;;
+            *)    URL="https://bridge.kfpa.or.kr" ;;
+          esac
+          echo "url=${URL}" >> "$GITHUB_OUTPUT"
+          echo "이 APK 가 볼 서버: ${URL:-(목업)}"
+
+      - name: Inject .env
         run: |
           cat > .env <<EOF
-          EXPO_PUBLIC_API_BASE_URL=${{ secrets.EXPO_PUBLIC_API_BASE_URL }}
+          EXPO_PUBLIC_API_BASE_URL=${{ steps.api.outputs.url }}
           EXPO_PUBLIC_API_TIMEOUT_MS=${{ secrets.EXPO_PUBLIC_API_TIMEOUT_MS || '10000' }}
-          EXPO_PUBLIC_USE_MOCK_DATA=${{ secrets.EXPO_PUBLIC_USE_MOCK_DATA }}
+          EXPO_PUBLIC_USE_MOCK_DATA=${{ steps.api.outputs.url == '' && 'true' || 'false' }}
           EXPO_PUBLIC_SENTRY_DSN=${{ secrets.EXPO_PUBLIC_SENTRY_DSN }}
           EOF
-          echo ".env 생성 완료 (값은 마스킹됨)"
+          echo ".env 생성 완료"
 
       - name: Type check
         run: npm run typecheck

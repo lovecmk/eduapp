@@ -78,10 +78,10 @@ eduapp/
 | 가챠 코드 교환 | app/redeem.tsx | data/gachaCodes | collectionStore.redeemCode/redeemedCodes |
 | 설정 전역 검색 | app/settings.tsx, components/settings/SettingsSearch·SettingsFocus | constants/settingsIndex(색인), utils/koreanSearch(초성)·settingsSearch(정렬) | settings.recentSettingIds |
 | 약관·법적 고지 | app/legal.tsx | constants/legal(약관·처리방침·접근권한·오픈소스) | settings.notifications.marketing |
-| 신고 처리 워크플로 | admin/views/ReportsView | backend: domain.ReportStatus·AdminService.ReviewReport | — |
-| 운영 설정·점검 모드 | admin/views/SettingsView | backend: SettingsService(+`/api/config`), middleware.Maintenance | — |
-| 공지 센터(대상·이력) | admin/views/AnnouncementsView | backend: domain.Announcement·AdminService.Announce | — |
-| 하루 학습 상한(서버 권위) | hooks/useDailyQuota | backend: LearningService(`/api/learning/*`), domain/models/LearningQuota(합침 규칙) | store/dailyLearningStore |
+| 신고 처리 워크플로 | (콘솔) mybrdg Daily3Min/views/ReportsView | 서버: domain.ReportStatus·AdminService.ReviewReport | — |
+| 운영 설정·점검 모드 | (콘솔) mybrdg Daily3Min/views/SettingsView | 서버: SettingsService(+`/api/config`), middleware.Maintenance | — |
+| 공지 센터(대상·이력) | (콘솔) mybrdg Daily3Min/views/AnnouncementsView | 서버: domain.Announcement·AdminService.Announce | — |
+| 하루 학습 상한(서버 권위) | hooks/useDailyQuota | 서버: LearningService(`/api/learning/*`), domain/models/LearningQuota(합침 규칙) | store/dailyLearningStore |
 | **오늘의 출제(사람마다·날마다 3~5문제)** | hooks/useDailyAssignment, app/(tabs)/cards·index | domain/dailyPlan(규칙) · data/repositories/DailyAssignmentRepository(`/api/learning/today`) | — |
 | 운영 공지 배너·점검 안내 | components/ui/NoticeBanner((tabs)/_layout) | data/repositories/ServiceConfigRepository(`/api/config`) | — |
 
@@ -92,7 +92,7 @@ eduapp/
 
 | | 파일 | 언제 쓰나 |
 |---|---|---|
-| 서버 | `backend/internal/service/daily_plan.go` | 평상시(권위) |
+| 서버 | `BE/daily3min/service/daily_plan.go` | 평상시(권위) |
 | 앱 | `src/domain/dailyPlan.ts` | 서버에 닿지 못할 때 |
 
 두 벌인 이유는 오프라인 때문이다. 이 앱은 지하·철골 구조물에서 쓰여 서버에 닿지
@@ -109,7 +109,7 @@ eduapp/
 학습이 아니라 뽑기가 된다.
 
 편성은 그날 처음 물어본 순간 **저장해 얼려 둔다**. 관리자가 낮에 문제를 추가·삭제해도
-오전에 받은 목록이 오후에 달라지지 않는다. 자세한 내용은 `backend/README.md`.
+오전에 받은 목록이 오후에 달라지지 않는다. 자세한 내용은 `BE/daily3min/README.md`.
 
 **선택 엔진은 하나뿐이다.** 예전에는 세 곳이 각자 골랐다 — 서버의 3분 세션 패킹,
 앱 목업의 같은 규칙 복제, 그리고 화면(`cards.tsx`)의 즉석 filter/slice. 앱은 앞의
@@ -249,7 +249,7 @@ react-query 클라이언트가 `data/network/queryClient.ts` 에 있는 이유�
 관리 콘솔의 정지(I)·삭제(D)는 **로그인·토큰 갱신·세션 복구**에 더해, 인증이 필요한
 **모든 API** 에서 403 으로 집행된다. 마지막 것은 서버의 `AccountGate` 가 계정 상태를
 15초 TTL 로 캐시해 확인한다 — 매 요청 저장소를 왕복하지 않으면서도 정지가 초 단위로
-반영된다. 자세한 내용은 `backend/README.md`.
+반영된다. 자세한 내용은 `BE/daily3min/README.md`.
 
 ## 실서버 전환 체크리스트
 
@@ -297,22 +297,16 @@ react-query 클라이언트가 `data/network/queryClient.ts` 에 있는 이유�
 | `src/domain/dailyPlan.ts` | `service/daily_plan.go` | 온라인과 오프라인에서 **서로 다른 문제**가 나간다 |
 | `utils/dateKey.ts` | `service.DayKey` | 학습 이력·출석이 달력의 다른 칸에 찍힌다(month 0-based) |
 
-## 서버 배포 & 이식 (backend/)
+## 서버 배포 & 이식
 
-Go 백엔드는 **포트-어댑터** 구조라 저장소를 `STORE` 환경변수로 고른다
-(`postgres` 운영 · `memory` 무DB 테스트 · `mongo` 레거시). 호스트가 사내든 외부
-Ubuntu 든 **같은 명령**으로 돌고 설정만 `.env` 로 다르다.
+Go 백엔드는 이 저장소에 없다. **KFPA 브릿지 저장소의 `BE/daily3min/`** 로 옮겨,
+브릿지 서버(kbwiki) 프로세스에 얹혀 함께 뜬다. 따로 배포할 것도, 따로 띄울
+컨테이너도 없다 — 브릿지를 배포하면 같이 올라간다.
 
-- **테스트로 올려보기**: `cd backend && make up-test` — DB 0대·무설정(재시작 시 리셋).
-- **본격 운영**: `.env` 채우고 `make up` — PostgreSQL(볼륨 영속) + Caddy 자동 HTTPS.
-- **이식**: `.env` 복사 + `make backup` 덤프를 새 호스트에서 복원. 규모가 커지면
-  DB 만 관리형(RDS·Cloud SQL·Supabase·Neon)으로 분리, API 컨테이너는 그대로.
+- 환경변수(`D3M_*`), 만들어야 할 DB, 회원·등급 매핑, 다시 떼어 내는 방법:
+  **`BE/daily3min/README.md`**
+- 저장소는 여전히 포트-어댑터라 `D3M_STORE` 로 고른다(`postgres` 권장 ·
+  `mongo` · `memory`). 브릿지가 이미 쓰는 PostgreSQL 에 테이블만 얹어도 되고,
+  `D3M_DATABASE_URL` 로 완전히 다른 서버를 가리켜도 된다.
+- 단독 프로세스로 되돌리는 길도 열려 있다(`daily3min/standalone.go`).
 
-자세한 절차·보안 체크리스트·마이그레이션 전략은 **`backend/README.md`** 참고.
-
-- **Ubuntu KVM/VM 배포**: 우분투 호스트의 KVM 게스트(VM) 한 대에 올리는 절차는
-  **`backend/DEPLOY-KVM.md`**. 포트-어댑터+Compose 구조라 VM 이든 물리서버든 같은
-  명령(`make up`)으로 돌고, VM 특성상 추가로 필요한 것은 **네트워크(브리지/NAT 포워딩)**
-  와 **부팅 자동기동(systemd: `backend/deploy/eduapp.service`)** 정도다. 웹앱까지 한 VM
-  에서 제공하려면 웹을 빌드(`npx expo export --platform web`)한 뒤 `make up-web` 로
-  Caddy(`Caddyfile.web`)가 `dist` 를 정적 제공하고 `/api/*` 만 백엔드로 프록시한다.
