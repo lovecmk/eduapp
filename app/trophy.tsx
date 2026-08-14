@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, ScrollView, Pressable, useWindowDimensions, Modal } from 'react-native';
+import { View, Text, ScrollView, Pressable, useWindowDimensions, Modal, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -152,22 +152,40 @@ function TrophyDetailModal({ trophy, onClose }: { trophy: Trophy | null; onClose
 
   return (
     <Modal visible={!!trophy} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
-      <Pressable accessibilityRole="button" onPress={onClose} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-        {trophy && rarity && (
-          <Pressable accessibilityRole="button" onPress={() => {}}>
-            <View style={{ borderRadius: 28 * (bigW / 320), boxShadow: `0 18px 48px ${rarity.glow === 'transparent' ? 'rgba(37,99,235,0.4)' : rarity.glow + '77'}` }}>
-              <WrappedShareCard snapshot={trophy.snapshot} author={trophy.author} width={bigW} tilt={tilt} animated />
+      {/* 배경은 '탭하면 닫히는 판'이지만 내용을 품지 않는다 — 품으면 웹에서 <button> 안에
+          <button>('닫기')이 되어 유효하지 않은 DOM 이고, 스크린 리더가 중첩된 컨트롤을
+          제대로 읽지 못한다. 화면을 덮는 **형제**로 깔고 그 위에 내용을 얹는다.
+
+          배경은 여백 없는 맨 바깥에 둔다. 여백이 걸린 상자 안에서 absoluteFill 이 그 여백
+          띠까지 덮는지는 구현에 달린 문제라, 안 덮으면 가장자리를 눌러도 닫히지 않는다.
+          가운데 정렬 층은 pointerEvents="box-none" 이라 빈 곳을 누르면 아래 배경이 받는다.
+
+          내용은 그냥 View 면 된다. 형제인 배경은 내용 탭을 받지 못하므로,
+          예전에 탭을 삼키려고 두었던 빈 Pressable(onPress={() => {}})은 필요 없다. */}
+      <View style={{ flex: 1 }}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="닫기"
+          onPress={onClose}
+          style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.85)' }]}
+        />
+        <View pointerEvents="box-none" style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          {trophy && rarity && (
+            <View>
+              <View style={{ borderRadius: 28 * (bigW / 320), boxShadow: `0 18px 48px ${rarity.glow === 'transparent' ? 'rgba(37,99,235,0.4)' : rarity.glow + '77'}` }}>
+                <WrappedShareCard snapshot={trophy.snapshot} author={trophy.author} width={bigW} tilt={tilt} animated />
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, marginTop: 16 }}>
+                <Ionicons name="phone-portrait-outline" size={13} color="rgba(255,255,255,0.7)" />
+                <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12 * fs, fontFamily: fontMono }}>기기를 기울여 광택을 감상하세요 · {rarity.label}</Text>
+              </View>
+              <Pressable accessibilityRole="button" onPress={onClose} style={{ alignSelf: 'center', marginTop: 14, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 999, paddingHorizontal: 22, paddingVertical: 10 }}>
+                <Text style={{ color: '#fff', fontSize: 13 * fs, fontFamily: fontCute, fontWeight: '700' }}>닫기</Text>
+              </Pressable>
             </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, marginTop: 16 }}>
-              <Ionicons name="phone-portrait-outline" size={13} color="rgba(255,255,255,0.7)" />
-              <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12 * fs, fontFamily: fontMono }}>기기를 기울여 광택을 감상하세요 · {rarity.label}</Text>
-            </View>
-            <Pressable accessibilityRole="button" onPress={onClose} style={{ alignSelf: 'center', marginTop: 14, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 999, paddingHorizontal: 22, paddingVertical: 10 }}>
-              <Text style={{ color: '#fff', fontSize: 13 * fs, fontFamily: fontCute, fontWeight: '700' }}>닫기</Text>
-            </Pressable>
-          </Pressable>
-        )}
-      </Pressable>
+          )}
+        </View>
+      </View>
     </Modal>
   );
 }

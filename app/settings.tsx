@@ -564,36 +564,45 @@ function SettingsBody({ scrollRef }: { scrollRef: React.RefObject<ScrollView> })
 
       {/* 알림 시간 설정 */}
       <Modal visible={timePickerOpen} transparent animationType="fade" onRequestClose={() => setTimePickerOpen(false)}>
-        <Pressable accessibilityRole="button" style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center' }} onPress={() => setTimePickerOpen(false)}>
-          <Pressable accessibilityRole="button" onPress={() => {}} style={{ backgroundColor: c.surface, borderRadius: 24, padding: 24, width: 280, borderWidth: 1, borderColor: c.border, boxShadow: '0 12px 40px rgba(0,0,0,0.3)', elevation: 12 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 18 }}>
-              <Ionicons name="alarm-outline" size={20} color={c.primary} />
-              <Text style={{ color: c.textPrimary, fontSize: 17 * fs, fontWeight: '800', textAlign: 'center', fontFamily: fontCute }}>알림 시간 설정</Text>
+        {/* 배경은 '탭하면 닫히는 판'이지만 내용을 품지 않는다 — 품으면 웹에서 <button> 안에
+            <button>(값 올리기/내리기·저장)이 되어 유효하지 않은 DOM 이고, 스크린 리더가
+            중첩된 컨트롤을 제대로 읽지 못한다. 화면을 덮는 **형제**로 깔고 그 위에 내용을 얹는다.
+            가운데 정렬 층은 pointerEvents="box-none" 이라 빈 곳을 누르면 아래 배경이 받는다.
+            내용은 그냥 View 면 된다. 형제인 배경은 내용 탭을 받지 못하므로,
+            예전에 탭을 삼키려고 두었던 빈 Pressable(onPress={() => {}})은 필요 없다. */}
+        <View style={{ flex: 1 }}>
+          <Pressable accessibilityRole="button" accessibilityLabel="닫기" style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.4)' }]} onPress={() => setTimePickerOpen(false)} />
+          <View pointerEvents="box-none" style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <View style={{ backgroundColor: c.surface, borderRadius: 24, padding: 24, width: 280, borderWidth: 1, borderColor: c.border, boxShadow: '0 12px 40px rgba(0,0,0,0.3)', elevation: 12 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 18 }}>
+                <Ionicons name="alarm-outline" size={20} color={c.primary} />
+                <Text style={{ color: c.textPrimary, fontSize: 17 * fs, fontWeight: '800', textAlign: 'center', fontFamily: fontCute }}>알림 시간 설정</Text>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 20, marginBottom: 22 }}>
+                {[
+                  { val: editH, set: (v: number) => setEditH((v + 24) % 24) },
+                  { val: editM, set: (v: number) => setEditM((v + 60) % 60) },
+                ].map((wheel, idx) => (
+                  <React.Fragment key={idx}>
+                    {idx === 1 && <Text style={{ color: c.textSecondary, fontSize: 28, fontWeight: '800' }}>:</Text>}
+                    <View style={{ alignItems: 'center' }}>
+                      <Pressable onPress={() => { hapticSelection(); wheel.set(wheel.val + 1); }} hitSlop={8} style={{ padding: 6 }} accessibilityRole="button" accessibilityLabel="값 올리기">
+                        <Ionicons name="chevron-up" size={20} color={c.textPrimary} />
+                      </Pressable>
+                      <Text style={{ color: c.textPrimary, fontSize: 36, fontWeight: '800', fontFamily: fontMono, paddingVertical: 6 }}>
+                        {String(wheel.val).padStart(2, '0')}
+                      </Text>
+                      <Pressable onPress={() => { hapticSelection(); wheel.set(wheel.val - 1); }} hitSlop={8} style={{ padding: 6 }} accessibilityRole="button" accessibilityLabel="값 내리기">
+                        <Ionicons name="chevron-down" size={20} color={c.textPrimary} />
+                      </Pressable>
+                    </View>
+                  </React.Fragment>
+                ))}
+              </View>
+              <Button label="저장" onPress={saveTime} />
             </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 20, marginBottom: 22 }}>
-              {[
-                { val: editH, set: (v: number) => setEditH((v + 24) % 24) },
-                { val: editM, set: (v: number) => setEditM((v + 60) % 60) },
-              ].map((wheel, idx) => (
-                <React.Fragment key={idx}>
-                  {idx === 1 && <Text style={{ color: c.textSecondary, fontSize: 28, fontWeight: '800' }}>:</Text>}
-                  <View style={{ alignItems: 'center' }}>
-                    <Pressable onPress={() => { hapticSelection(); wheel.set(wheel.val + 1); }} hitSlop={8} style={{ padding: 6 }} accessibilityRole="button" accessibilityLabel="값 올리기">
-                      <Ionicons name="chevron-up" size={20} color={c.textPrimary} />
-                    </Pressable>
-                    <Text style={{ color: c.textPrimary, fontSize: 36, fontWeight: '800', fontFamily: fontMono, paddingVertical: 6 }}>
-                      {String(wheel.val).padStart(2, '0')}
-                    </Text>
-                    <Pressable onPress={() => { hapticSelection(); wheel.set(wheel.val - 1); }} hitSlop={8} style={{ padding: 6 }} accessibilityRole="button" accessibilityLabel="값 내리기">
-                      <Ionicons name="chevron-down" size={20} color={c.textPrimary} />
-                    </Pressable>
-                  </View>
-                </React.Fragment>
-              ))}
-            </View>
-            <Button label="저장" onPress={saveTime} />
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
 
       {/* 고객센터 문의 */}

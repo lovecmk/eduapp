@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, ScrollView, Pressable, useWindowDimensions, Modal, Platform, type NativeSyntheticEvent, type NativeScrollEvent } from 'react-native';
+import { View, Text, ScrollView, Pressable, useWindowDimensions, Modal, Platform, StyleSheet, type NativeSyntheticEvent, type NativeScrollEvent } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { hapticImpact, hapticSuccess, hapticTap } from '../src/utils/haptics';
@@ -456,34 +456,52 @@ function CollectibleDetailModal({
 
   return (
     <Modal visible={!!id} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
-      <Pressable accessibilityRole="button" onPress={onClose} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-        {col && meta && (
-          <Pressable accessibilityRole="button" onPress={() => {}} style={{ alignItems: 'center' }}>
-            <View style={{ borderRadius: 20, boxShadow: `0 18px 48px ${meta.glow === 'transparent' ? 'rgba(255,255,255,0.2)' : meta.glow + '88'}` }}>
-              <CollectibleCard id={col.id} width={bigW} count={count} tilt={tilt} />
-            </View>
-            <Text style={{ color: '#fff', fontSize: 17 * fs, fontFamily: fontCute, fontWeight: '800', marginTop: 18 }}>{col.name}</Text>
-            <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12.5 * fs, fontFamily: fontBody, marginTop: 4, textAlign: 'center' }}>{col.tagline}</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 14, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10, maxWidth: 300 }}>
-              <Text style={{ fontSize: 15 }}>💡</Text>
-              <Text style={{ color: '#fff', fontSize: 12.5 * fs, fontFamily: fontBody, flex: 1, lineHeight: 18 }}>{col.tip}</Text>
-            </View>
+      {/* 배경은 '탭하면 닫히는 판'이지만 내용을 품지 않는다 — 품으면 웹에서 <button> 안에
+          <button>('조각 교환')이 되어 유효하지 않은 DOM 이고, 스크린 리더가 중첩된 컨트롤을
+          제대로 읽지 못한다. 화면을 덮는 **형제**로 깔고 그 위에 내용을 얹는다.
 
-            {/* 미보유 카드 — 조각으로 바로 데려올 수 있게 한다. */}
-            {count === 0 && offer && (
-              <Pressable accessibilityRole="button" disabled={!offer.ok} onPress={() => id && onExchange(id)}
-                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 16, borderRadius: 14, paddingHorizontal: 20, height: 46, backgroundColor: offer.ok ? meta.glow : 'rgba(255,255,255,0.14)' }}>
-                <Text style={{ fontSize: 14 }}>🧩</Text>
-                <Text style={{ color: '#fff', fontSize: 13.5 * fs, fontFamily: fontCute, fontWeight: '800' }}>
-                  {offer.ok ? `조각 ${offer.price}개로 교환` : `조각 ${offer.price}개 필요 (보유 ${shards})`}
-                </Text>
-              </Pressable>
-            )}
+          배경은 여백 없는 맨 바깥에 둔다. 여백이 걸린 상자 안에서 absoluteFill 이 그 여백
+          띠까지 덮는지는 구현에 달린 문제라, 안 덮으면 가장자리를 눌러도 닫히지 않는다.
+          가운데 정렬 층은 pointerEvents="box-none" 이라 빈 곳을 누르면 아래 배경이 받는다.
 
-            <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11.5 * fs, fontFamily: fontMono, marginTop: 14 }}>{Platform.OS === 'web' ? '마우스를 움직여 홀로그램을 감상하세요' : '기기를 기울여 홀로그램을 감상하세요'}</Text>
-          </Pressable>
-        )}
-      </Pressable>
+          내용은 그냥 View 면 된다. 형제인 배경은 내용 탭을 받지 못하므로,
+          예전에 탭을 삼키려고 두었던 빈 Pressable(onPress={() => {}})은 필요 없다. */}
+      <View style={{ flex: 1 }}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="닫기"
+          onPress={onClose}
+          style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.9)' }]}
+        />
+        <View pointerEvents="box-none" style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          {col && meta && (
+            <View style={{ alignItems: 'center' }}>
+              <View style={{ borderRadius: 20, boxShadow: `0 18px 48px ${meta.glow === 'transparent' ? 'rgba(255,255,255,0.2)' : meta.glow + '88'}` }}>
+                <CollectibleCard id={col.id} width={bigW} count={count} tilt={tilt} />
+              </View>
+              <Text style={{ color: '#fff', fontSize: 17 * fs, fontFamily: fontCute, fontWeight: '800', marginTop: 18 }}>{col.name}</Text>
+              <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12.5 * fs, fontFamily: fontBody, marginTop: 4, textAlign: 'center' }}>{col.tagline}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 14, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10, maxWidth: 300 }}>
+                <Text style={{ fontSize: 15 }}>💡</Text>
+                <Text style={{ color: '#fff', fontSize: 12.5 * fs, fontFamily: fontBody, flex: 1, lineHeight: 18 }}>{col.tip}</Text>
+              </View>
+
+              {/* 미보유 카드 — 조각으로 바로 데려올 수 있게 한다. */}
+              {count === 0 && offer && (
+                <Pressable accessibilityRole="button" disabled={!offer.ok} onPress={() => id && onExchange(id)}
+                  style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 16, borderRadius: 14, paddingHorizontal: 20, height: 46, backgroundColor: offer.ok ? meta.glow : 'rgba(255,255,255,0.14)' }}>
+                  <Text style={{ fontSize: 14 }}>🧩</Text>
+                  <Text style={{ color: '#fff', fontSize: 13.5 * fs, fontFamily: fontCute, fontWeight: '800' }}>
+                    {offer.ok ? `조각 ${offer.price}개로 교환` : `조각 ${offer.price}개 필요 (보유 ${shards})`}
+                  </Text>
+                </Pressable>
+              )}
+
+              <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11.5 * fs, fontFamily: fontMono, marginTop: 14 }}>{Platform.OS === 'web' ? '마우스를 움직여 홀로그램을 감상하세요' : '기기를 기울여 홀로그램을 감상하세요'}</Text>
+            </View>
+          )}
+        </View>
+      </View>
     </Modal>
   );
 }

@@ -18,6 +18,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import NotificationsScreen from '../notifications';
 import { ThemeProvider } from '../../src/theme/ThemeProvider';
 import { useNotificationStore } from '../../src/store/notificationStore';
+import { nestedButtonLabels, type TreeNode } from '../../src/test-utils/nestedButtons';
 
 const metrics = {
   frame: { x: 0, y: 0, width: 390, height: 844 },
@@ -33,37 +34,6 @@ const wrap = () =>
     </SafeAreaProvider>,
   );
 
-// react-test-renderer 에는 타입 선언이 없다(@types 를 새로 들이지 않는다 — SDK 52
-// 의존성은 고정이다). 이 검사에 필요한 만큼만 구조적으로 추려 쓴다.
-type TreeNode = {
-  type: unknown;
-  props: Record<string, unknown>;
-  parent: TreeNode | null;
-  findAll: (predicate: (n: TreeNode) => boolean) => TreeNode[];
-};
-
-// 호스트 노드(문자열 타입)만 센다. Pressable 은 트리에 '컴포넌트 + 그것이 그린 View'
-// 두 번 나타나고 둘 다 같은 role 을 들고 있어서, 걸러 내지 않으면 버튼 하나가
-// 저 자신을 감싼 것처럼 보인다. 실제로 DOM 이 되는 것은 호스트 쪽이다.
-const isButton = (node: TreeNode) =>
-  typeof node.type === 'string' && node.props?.accessibilityRole === 'button';
-
-/** 자신이 버튼이면서 조상 중에도 버튼이 있는 노드 — 곧 '버튼 안의 버튼'. */
-function nestedButtons(root: TreeNode): TreeNode[] {
-  return root.findAll(isButton).filter((node) => {
-    for (let p = node.parent; p; p = p.parent) if (isButton(p)) return true;
-    return false;
-  });
-}
-
-/** 노드가 품고 있는 모든 텍스트 — 실패 메시지에서 어느 버튼인지 알아보려고. */
-const labelOf = (n: TreeNode) =>
-  (n.props?.accessibilityLabel as string | undefined) ??
-  n.findAll((x) => typeof x.props?.children === 'string')
-    .map((x) => x.props.children as string)
-    .join(' ')
-    .slice(0, 40);
-
 describe('알림 화면 — 조작 요소 구조', () => {
   beforeEach(() => {
     mockPush.mockClear();
@@ -77,7 +47,6 @@ describe('알림 화면 — 조작 요소 구조', () => {
 
   it('버튼 안에 버튼이 없다', () => {
     wrap();
-    const nested = nestedButtons(screen.UNSAFE_root as unknown as TreeNode);
-    expect(nested.map(labelOf)).toEqual([]);
+    expect(nestedButtonLabels(screen.UNSAFE_root as unknown as TreeNode)).toEqual([]);
   });
 });

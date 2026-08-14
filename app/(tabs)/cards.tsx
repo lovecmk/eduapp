@@ -701,7 +701,19 @@ export default function CardsScreen() {
           {...(isSwipeTrack ? panResponder.panHandlers : {})}
           style={{ flex: 1, transform: [{ translateX }, { translateY: cardTranslateY }, { scale: cardScale }], opacity: cardCombinedOpacity }}
         >
-         <Pressable accessibilityRole="button" onPress={onCardPress} disabled={exiting} style={{ flex: 1 }}>
+         {/* 카드 면 전체를 덮는 '탭하여 뒤집기' 판.
+
+             역할(accessibilityRole)을 일부러 주지 않는다. 이 판 안에는 진짜 버튼들이
+             들어 있고(앞면: 보기 선택·이미지 확대 / 뒷면: 추천·저장·신고), 버튼 안에
+             버튼을 담으면 웹(react-native-web)에서는 <button> 안에 <button> 이 되어
+             유효하지 않은 DOM 이 된다. 더 나쁜 것은 스크린 리더다 — 안쪽 버튼들이
+             바깥 버튼의 이름에 통째로 묻혀, 카드 전체가 이름 하나짜리 덩어리로 읽힌다.
+
+             그래서 이 판은 '이름 붙은 조작 요소'가 아니라 손가락을 위한 지름길로만 둔다.
+             뒤집기라는 **행동 자체는** 이름을 가진 버튼이 따로 맡는다 — 클래식 트랙은
+             아래 '카드 뒤집기' 버튼이, 스와이프 트랙은 아래 안내 줄이 그 역할을 한다.
+             tabIndex={-1} 은 이름도 역할도 없는 자리에 키보드 초점이 멈추지 않게 한다. */}
+         <Pressable tabIndex={-1} onPress={onCardPress} disabled={exiting} style={{ flex: 1 }}>
           {/* 앞면 */}
           <Animated.View
             // Android 는 backfaceVisibility 가 불안정해 숨겨진 뒷면이 터치를 가로챈다.
@@ -874,7 +886,20 @@ export default function CardsScreen() {
         {isSwipeTrack ? (
           // 스와이프 트랙(원진섭) — 뒤집기 버튼 없이 탭/스와이프로 조작.
           !backControls ? (
-            <View style={{ height: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingHorizontal: 12 }}>
+            // 이 안내 줄이 스와이프 트랙의 '이름 붙은 뒤집기 버튼'이다.
+            //
+            // 카드 면은 역할 없는 탭 판이라(위 참조) 스크린 리더·키보드에는 잡히지 않는다.
+            // 클래식 트랙에는 아래에 '카드 뒤집기' 버튼이 있지만 이 트랙에는 없어서,
+            // 그대로 두면 탭도 스와이프도 못 하는 사용자에게 뒤집을 방법이 사라진다.
+            // 눈에 보이는 모습은 그대로 두고(글·아이콘·높이 모두 동일) 조작 가능하게만 한다 —
+            // 마침 이 줄이 하는 말이 '카드를 탭해 뒤집고…' 라, 눌러서 뒤집히는 것이 자연스럽다.
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="카드 뒤집기"
+              onPress={onCardPress}
+              disabled={exiting}
+              style={{ height: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingHorizontal: 12 }}
+            >
               <Ionicons
                 name={nextReviewHint ? 'alarm-outline' : solveHint ? 'alert-circle' : 'swap-horizontal-outline'}
                 size={16}
@@ -885,7 +910,7 @@ export default function CardsScreen() {
                   ? `다음 복습은 ${nextReviewHint} 뒤에 만나요`
                   : solveHint ? '문제를 먼저 풀어주세요!' : '카드를 탭해 뒤집고, 좌우로 넘겨 분류해요'}
               </Text>
-            </View>
+            </Pressable>
           ) : (
             // 버튼 위치 교체 — 왼쪽: 다음에 한번 더 볼게요 / 오른쪽: 이해했어요
             <View style={{ flexDirection: 'row', gap: 10, height: 52 }}>

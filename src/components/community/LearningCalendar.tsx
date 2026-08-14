@@ -230,34 +230,43 @@ export function LearningCalendar() {
 
       {/* 월 선택 */}
       <Modal visible={pickerOpen} transparent animationType="fade" onRequestClose={() => setPickerOpen(false)}>
-        <Pressable accessibilityRole="button" style={styles.modalOverlay} onPress={() => setPickerOpen(false)}>
-          <Pressable accessibilityRole="button" onPress={() => {}} style={[styles.modalCard, { backgroundColor: c.surface, borderColor: c.border }]}>
-            <Text style={{ color: c.textPrimary, fontSize: 16, marginBottom: 16, textAlign: 'center', fontFamily: fontDisplay }}>날짜 선택</Text>
-            <View style={{ flexDirection: 'row', gap: 12, marginBottom: 16 }}>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.pickLbl, { color: c.textSecondary }]}>년도</Text>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-                  {Array.from({ length: 4 }, (_, i) => 2024 + i).map((y) => (
-                    <Pressable accessibilityRole="button" key={y} onPress={() => setPickYear(y)} style={{ paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, backgroundColor: pickYear === y ? c.primary : c.surfaceAlt }}>
-                      <Text style={{ color: pickYear === y ? c.textOnPrimary : c.textPrimary, fontSize: 13, fontFamily: fontBody }}>{y}</Text>
-                    </Pressable>
-                  ))}
+        {/* 배경은 '탭하면 닫히는 판'이지만 내용을 품지 않는다 — 품으면 웹에서 <button> 안에
+            <button>(년도·월 선택, 적용)이 되어 유효하지 않은 DOM 이고, 스크린 리더가 중첩된
+            컨트롤을 제대로 읽지 못한다. 화면을 덮는 형제로 깔고 그 위에 내용을 얹는다.
+            가운데 정렬 층은 pointerEvents="box-none" 이라 빈 곳을 누르면 아래 배경이 받는다.
+            내용은 그냥 View 면 된다. 형제인 배경은 내용 탭을 받지 못하므로,
+            예전에 탭을 삼키려고 두었던 빈 Pressable(onPress={() => {}})은 필요 없다. */}
+        <View style={{ flex: 1 }}>
+          <Pressable accessibilityRole="button" accessibilityLabel="닫기" style={[StyleSheet.absoluteFill, styles.modalScrim]} onPress={() => setPickerOpen(false)} />
+          <View pointerEvents="box-none" style={styles.modalOverlay}>
+            <View style={[styles.modalCard, { backgroundColor: c.surface, borderColor: c.border }]}>
+              <Text style={{ color: c.textPrimary, fontSize: 16, marginBottom: 16, textAlign: 'center', fontFamily: fontDisplay }}>날짜 선택</Text>
+              <View style={{ flexDirection: 'row', gap: 12, marginBottom: 16 }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.pickLbl, { color: c.textSecondary }]}>년도</Text>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                    {Array.from({ length: 4 }, (_, i) => 2024 + i).map((y) => (
+                      <Pressable accessibilityRole="button" key={y} onPress={() => setPickYear(y)} style={{ paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, backgroundColor: pickYear === y ? c.primary : c.surfaceAlt }}>
+                        <Text style={{ color: pickYear === y ? c.textOnPrimary : c.textPrimary, fontSize: 13, fontFamily: fontBody }}>{y}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+                <View style={{ flex: 1.4 }}>
+                  <Text style={[styles.pickLbl, { color: c.textSecondary }]}>월</Text>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                    {MONTHS.map((m, i) => (
+                      <Pressable accessibilityRole="button" key={m} onPress={() => setPickMonth(i)} style={{ paddingVertical: 8, paddingHorizontal: 10, borderRadius: 8, backgroundColor: pickMonth === i ? c.primary : c.surfaceAlt }}>
+                        <Text style={{ color: pickMonth === i ? c.textOnPrimary : c.textPrimary, fontSize: 13, fontFamily: fontBody }}>{m}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
                 </View>
               </View>
-              <View style={{ flex: 1.4 }}>
-                <Text style={[styles.pickLbl, { color: c.textSecondary }]}>월</Text>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-                  {MONTHS.map((m, i) => (
-                    <Pressable accessibilityRole="button" key={m} onPress={() => setPickMonth(i)} style={{ paddingVertical: 8, paddingHorizontal: 10, borderRadius: 8, backgroundColor: pickMonth === i ? c.primary : c.surfaceAlt }}>
-                      <Text style={{ color: pickMonth === i ? c.textOnPrimary : c.textPrimary, fontSize: 13, fontFamily: fontBody }}>{m}</Text>
-                    </Pressable>
-                  ))}
-                </View>
-              </View>
+              <Button label="적용" onPress={() => { setYear(pickYear); setMonth(pickMonth); setPickerOpen(false); }} />
             </View>
-            <Button label="적용" onPress={() => { setYear(pickYear); setMonth(pickMonth); setPickerOpen(false); }} />
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
 
       {/* 날짜 상세 */}
@@ -384,7 +393,9 @@ const styles = StyleSheet.create({
   checkIn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 14, paddingVertical: 13, marginTop: 14 },
   legendText: { fontSize: 10, fontFamily: fontBody },
   legendBox: { width: 12, height: 12, borderRadius: 3 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center' },
+  /** 가운데 정렬만 맡는 층 — 어둡게 까는 일은 아래 modalScrim(형제 배경)이 한다. */
+  modalOverlay: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  modalScrim: { backgroundColor: 'rgba(0,0,0,0.4)' },
   modalCard: { borderRadius: 20, padding: 24, width: 320, borderWidth: 1 },
   pickLbl: { fontSize: 12, marginBottom: 8, fontFamily: fontBody },
   sheetOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
