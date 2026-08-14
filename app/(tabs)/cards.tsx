@@ -16,6 +16,7 @@ import { CategoryTrail } from '../../src/components/ui/CategoryTrail';
 import { CardTimer } from '../../src/components/cards/CardTimer';
 import { CardBackBody } from '../../src/components/cards/CardBackBody';
 import { ScrollFadeEdge } from '../../src/components/ui/ScrollFadeEdge';
+import { useScrollHasMore } from '../../src/hooks/useScrollHasMore';
 import { CardQuiz } from '../../src/components/cards/CardQuiz';
 import { CardReportModal } from '../../src/components/cards/CardReportModal';
 import { fontCute } from '../../src/theme/tokens';
@@ -83,31 +84,31 @@ export default function CardsScreen() {
   const [finished, setFinished] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   /**
-   * 해설 스크롤이 아직 끝에 닿지 않았는가.
+   * 세 스크롤 영역이 각각 '아래에 더 있는가' — 끝이 아니면 아래쪽을 옅게 가려 알린다.
    *
-   * 끝이 아니면 아래쪽을 옅게 가려 '더 있다'를 알린다. 이게 없으면 경계에 걸린
-   * 태그 칩이 반듯하게 잘려, 스크롤 중이 아니라 화면이 깨진 것처럼 보인다.
-   */
-  const [backHasMore, setBackHasMore] = useState(false);
-  /**
-   * 내용 높이와 보이는 높이 — 둘이 다 있어야 '더 있는지'를 판단할 수 있다.
+   * 앞면에도 두는 이유: 스크롤 영역이 직선으로 끝나면 경계에 걸린 글자가 반듯하게
+   * 잘려, 사람은 그것을 '스크롤 중'이 아니라 **'화면이 깨졌다'** 로 읽는다.
+   * 특히 퀴즈를 푼 뒤의 '아쉬워요 — 정답은 ②' 는 카드 경계에서 반으로 잘렸다.
    *
-   * onContentSizeChange 와 onLayout 은 순서가 정해져 있지 않다. 내용 높이만 보고
-   * 판단하면(높이 > 0 이면 더 있다) 스크롤할 것이 없는데도 가림막이 떠서,
-   * 사용자는 있지도 않은 아랫부분을 계속 찾게 된다.
+   * 앞면은 퀴즈형/설명형이 서로 다른 스크롤 영역이라 판단도 따로 해야 한다.
+   * (하나로 묶으면 카드 종류가 바뀔 때 이전 카드의 높이가 남아 잘못 판단한다.)
    */
-  const backContentRef = useRef(0);
-  const backViewportRef = useRef(0);
-  const syncBackHasMore = useCallback(() => {
-    const content = backContentRef.current;
-    const viewport = backViewportRef.current;
-    // 둘 중 하나라도 아직 모르면 판단을 미룬다(가림막은 기본이 '없음').
-    setBackHasMore(viewport > 0 && content > viewport + 2);
-  }, []);
+  const backBody = useScrollHasMore();
+  const quizBody = useScrollHasMore();
+  const frontBody = useScrollHasMore();
   const [exiting, setExiting] = useState(false);
   // 퀴즈형(ox/choice) 앞면 정답 선택 상태.
   const [quizPick, setQuizPick] = useState<number | null>(null);
   const [quizRevealed, setQuizRevealed] = useState(false);
+  /**
+   * 퀴즈 앞면 스크롤 영역 — 채점 직후 피드백 자리로 데려다주려고 잡아 둔다.
+   *
+   * 답을 고르면 보기 아래에 '정답이에요 / 아쉬워요 — 정답은 ②' 와 '카드를 탭하면
+   * 해설을 볼 수 있어요' 가 새로 붙어 내용이 갑자기 길어진다. 그대로 두면 방금 받은
+   * 채점 결과가 카드 경계 아래로 밀려, 사용자는 반쯤 잘린 글자를 보고 직접 밀어
+   * 올려야 한다 — 정답을 확인하는 것은 이 화면에서 가장 중요한 순간인데도.
+   */
+  const quizScrollRef = useRef<ScrollView>(null);
   // 퀴즈 미풀이 상태에서 넘기려 할 때 잠깐 노출되는 안내.
   const [solveHint, setSolveHint] = useState(false);
   // 뒤로가기 시 "어디로 이동할지" 묻는 확인 모달.
@@ -283,6 +284,25 @@ export default function CardsScreen() {
     setQuizRevealed(true);
     notify(correct);
   }, [quizRevealed, card]);
+
+  /**
+   * 채점 직후 — 새로 붙은 피드백이 보이는 자리까지 스크롤한다.
+   *
+   * 한 프레임 늦춰서 부른다. 피드백은 이번 렌더에서 막 붙은 것이라, 곧바로 부르면
+   * 스크롤 영역이 아직 예전 높이를 알고 있어 끝까지 가지 못한다.
+   * 스크롤할 것이 없으면(짧은 카드) 아무 일도 일어나지 않는다.
+   */
+  useEffect(() => {
+    if (!quizRevealed) return;
+    const t = setTimeout(() => quizScrollRef.current?.scrollToEnd({ animated: true }), 60);
+    return () => clearTimeout(t);
+  }, [quizRevealed]);
+
+  // 다음 카드로 넘어가면 앞면은 맨 위에서 시작해야 한다. 스크롤 위치는 카드가
+  // 바뀌어도 남으므로, 그냥 두면 새 문제가 중간부터 보인다.
+  useEffect(() => {
+    quizScrollRef.current?.scrollTo({ y: 0, animated: false });
+  }, [card?.id]);
 
   // 화면 이탈/카드 전환 시 예약된 타이머 정리.
   useEffect(() => () => {
@@ -746,59 +766,73 @@ export default function CardsScreen() {
               <Text style={{ color: c.textSecondary, fontSize: 11, fontFamily: fontCute }}>{index + 1}/{deck.length}</Text>
             </View>
             {isQuiz ? (
-              /* 퀴즈형: 상황·문제 + 앞면 정답 선택 UI */
-              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingVertical: 6 }}>
-                {resolveCardImage(card.imageUrl) && (
-                  <View style={{ width: '100%', marginBottom: 14 }}>
-                    <QuestionImage source={resolveCardImage(card.imageUrl)} height={172} />
-                  </View>
-                )}
-                {!!card.situation && (
-                  <Text style={{ color: c.textPrimary, fontSize: 13.5 * fs, lineHeight: 20, textAlign: 'center', fontFamily: fontCute, marginBottom: 8 }}>
-                    {card.situation}
+              /* 퀴즈형: 상황·문제 + 앞면 정답 선택 UI.
+                 답을 고르면 아래에 '정답/오답' 피드백이 새로 붙어 내용이 길어진다 —
+                 카드 경계에서 반으로 잘리지 않도록 스크롤 영역으로 감싸고 가림막을 얹는다. */
+              <View style={{ flex: 1 }}>
+                <ScrollView
+                  ref={quizScrollRef}
+                  showsVerticalScrollIndicator
+                  contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingVertical: 6 }}
+                  {...quizBody.scrollProps}
+                >
+                  {resolveCardImage(card.imageUrl) && (
+                    <View style={{ width: '100%', marginBottom: 14 }}>
+                      <QuestionImage source={resolveCardImage(card.imageUrl)} height={172} />
+                    </View>
+                  )}
+                  {!!card.situation && (
+                    <Text style={{ color: c.textPrimary, fontSize: 13.5 * fs, lineHeight: 20, textAlign: 'center', fontFamily: fontCute, marginBottom: 8 }}>
+                      {card.situation}
+                    </Text>
+                  )}
+                  <Text style={{ color: c.primary, fontSize: 18 * fs, fontWeight: '800', lineHeight: 26, textAlign: 'center', fontFamily: fontCute, marginBottom: 18 }}>
+                    <Text style={{ fontWeight: '900' }}>Q. </Text>{card.question}
                   </Text>
-                )}
-                <Text style={{ color: c.primary, fontSize: 18 * fs, fontWeight: '800', lineHeight: 26, textAlign: 'center', fontFamily: fontCute, marginBottom: 18 }}>
-                  <Text style={{ fontWeight: '900' }}>Q. </Text>{card.question}
-                </Text>
-                <CardQuiz
-                  card={card}
-                  pick={quizPick}
-                  revealed={quizRevealed}
-                  onPick={handleQuizPick}
-                />
-                {!quizRevealed && (
-                  <View style={{ marginTop: 18, alignItems: 'center' }}>
-                    <CardTimer seconds={card.studySeconds} resetKey={card.id} onExpire={haptic} />
-                  </View>
-                )}
-              </ScrollView>
+                  <CardQuiz
+                    card={card}
+                    pick={quizPick}
+                    revealed={quizRevealed}
+                    onPick={handleQuizPick}
+                  />
+                  {!quizRevealed && (
+                    <View style={{ marginTop: 18, alignItems: 'center' }}>
+                      <CardTimer seconds={card.studySeconds} resetKey={card.id} onExpire={haptic} />
+                    </View>
+                  )}
+                </ScrollView>
+                <ScrollFadeEdge color={frontTint} visible={quizBody.hasMore} />
+              </View>
             ) : (
               /* 설명형 앞면 — 문제/상황이 길면 카드 밖으로 잘리므로 스크롤 가능하게 두고,
                  짧을 때는 flexGrow + center 로 지금처럼 가운데 정렬을 유지한다. */
-              <ScrollView
-                showsVerticalScrollIndicator={false}
-                contentContainerStyle={{ flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 4 }}
-              >
-                {resolveCardImage(card.imageUrl) ? (
-                  <View style={{ width: '100%', marginBottom: 18 }}>
-                    <QuestionImage source={resolveCardImage(card.imageUrl)} height={200} />
-                  </View>
-                ) : (
-                  <Ionicons name={getCategoryIcon(card.category)} size={40 * fs} color={c.primary} style={{ marginBottom: 12, opacity: 0.6 }} />
-                )}
-                {!!card.situation && (
-                  <Text style={{ color: c.textPrimary, fontSize: 16.5 * fs, lineHeight: 25, textAlign: 'center', fontFamily: fontCute, marginBottom: 14 }}>
-                    {card.situation}
+              <View style={{ flex: 1 }}>
+                <ScrollView
+                  showsVerticalScrollIndicator
+                  contentContainerStyle={{ flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 4 }}
+                  {...frontBody.scrollProps}
+                >
+                  {resolveCardImage(card.imageUrl) ? (
+                    <View style={{ width: '100%', marginBottom: 18 }}>
+                      <QuestionImage source={resolveCardImage(card.imageUrl)} height={200} />
+                    </View>
+                  ) : (
+                    <Ionicons name={getCategoryIcon(card.category)} size={40 * fs} color={c.primary} style={{ marginBottom: 12, opacity: 0.6 }} />
+                  )}
+                  {!!card.situation && (
+                    <Text style={{ color: c.textPrimary, fontSize: 16.5 * fs, lineHeight: 25, textAlign: 'center', fontFamily: fontCute, marginBottom: 14 }}>
+                      {card.situation}
+                    </Text>
+                  )}
+                  <Text style={{ color: c.primary, fontSize: 20 * fs, fontWeight: '800', lineHeight: 29, textAlign: 'center', fontFamily: fontCute }}>
+                    <Text style={{ fontWeight: '900' }}>Q. </Text>{card.question}
                   </Text>
-                )}
-                <Text style={{ color: c.primary, fontSize: 20 * fs, fontWeight: '800', lineHeight: 29, textAlign: 'center', fontFamily: fontCute }}>
-                  <Text style={{ fontWeight: '900' }}>Q. </Text>{card.question}
-                </Text>
-                <View style={{ marginTop: 20 }}>
-                  <CardTimer seconds={card.studySeconds} resetKey={card.id} onExpire={haptic} />
-                </View>
-              </ScrollView>
+                  <View style={{ marginTop: 20 }}>
+                    <CardTimer seconds={card.studySeconds} resetKey={card.id} onExpire={haptic} />
+                  </View>
+                </ScrollView>
+                <ScrollFadeEdge color={frontTint} visible={frontBody.hasMore} />
+              </View>
             )}
           </Animated.View>
 
@@ -824,27 +858,14 @@ export default function CardsScreen() {
               <ScrollView
                 style={{ flex: 1 }}
                 showsVerticalScrollIndicator
-                scrollEventThrottle={16}
                 // 마지막 줄이 구분선에 딱 붙지 않도록 넉넉히 띄운다.
                 // 8px 이던 시절에는 태그 줄이 액션 행과 맞닿아 잘린 것처럼 보였다.
                 contentContainerStyle={{ paddingBottom: 22 }}
-                onScroll={(e) => {
-                  const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
-                  // 2px 여유 — 소수점 오차로 '끝'을 영영 못 만나는 것을 막는다.
-                  setBackHasMore(contentOffset.y + layoutMeasurement.height < contentSize.height - 2);
-                }}
-                onContentSizeChange={(_w, h) => {
-                  backContentRef.current = h;
-                  syncBackHasMore();
-                }}
-                onLayout={(e) => {
-                  backViewportRef.current = e.nativeEvent.layout.height;
-                  syncBackHasMore();
-                }}
+                {...backBody.scrollProps}
               >
                 <CardBackBody card={card} />
               </ScrollView>
-              <ScrollFadeEdge color={backTint} visible={backHasMore} />
+              <ScrollFadeEdge color={backTint} visible={backBody.hasMore} />
             </View>
             {/* 카드 내부 오른쪽 하단 — 추천 / 저장 / 신고. 학습자가 조작하는 하단 버튼과 구분되는 '카드에 대한 반응'. */}
             <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 8, paddingTop: 12, borderTopWidth: 1, borderTopColor: c.border }}>
