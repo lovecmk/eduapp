@@ -14,6 +14,7 @@ import { CollectionTeaserCard } from '../../src/components/community/CollectionT
 import { QuestionComposeModal } from '../../src/components/community/QuestionComposeModal';
 import { HelpWantedCard, pickHelpWanted } from '../../src/components/community/HelpWantedCard';
 import { MyContributionLine } from '../../src/components/community/MyContributionLine';
+import { QnaOfflineNotice } from '../../src/components/community/QnaOfflineNotice';
 import { CommunitySkeleton } from '../../src/components/skeletons';
 import { useCommunity } from '../../src/hooks/useCommunity';
 import { fontDisplay, fontBody, fontMono } from '../../src/theme/tokens';
@@ -108,17 +109,31 @@ export default function CommunityScreen() {
           </Pressable>
         </View>
 
+        {/* 서버에 아직 붙지 않았으면 그 사실을 먼저 말한다 — 붙으면 스스로 사라진다 */}
+        <QnaOfflineNotice />
+
         {/* 내 기여 한 줄 — 기여가 있을 때만 조용히 보인다 */}
         <MyContributionLine questions={questions} />
 
         {/* 답변을 기다리는 질문 1건 — 없으면 렌더되지 않는다 */}
         <HelpWantedCard question={highlighted} onPress={(id) => router.push(ROUTES.qna(id) as never)} />
 
-        {visibleQuestions.map((q, i) => (
-          <Animated.View key={`${q.id}-${offset}`} entering={FadeInDown.delay(Math.min(i, 4) * 50).duration(280)}>
-            <QuestionRow question={q} onPress={() => router.push(ROUTES.qna(q.id) as never)} />
-          </Animated.View>
-        ))}
+        {questions.length === 0 ? (
+          // 지어낸 질문으로 채우지 않는다(store/qnaStore 참고). 비어 있으면 비었다고
+          // 말하고, 할 수 있는 일 하나를 가리킨다.
+          <View style={{ alignItems: 'center', paddingVertical: 26, gap: 6 }}>
+            <Ionicons name="chatbubbles-outline" size={26} color={c.textSecondary} />
+            <Text style={{ color: c.textSecondary, fontSize: 12.5, fontFamily: fontBody, textAlign: 'center' }}>
+              아직 올라온 질문이 없어요.{'\n'}현장에서 궁금했던 것을 첫 질문으로 올려보세요.
+            </Text>
+          </View>
+        ) : (
+          visibleQuestions.map((q, i) => (
+            <Animated.View key={`${q.id}-${offset}`} entering={FadeInDown.delay(Math.min(i, 4) * 50).duration(280)}>
+              <QuestionRow question={q} onPress={() => router.push(ROUTES.qna(q.id) as never)} />
+            </Animated.View>
+          ))
+        )}
 
         {/* 3. 이번 주 목표·성과 — 참여 영역 아래로 */}
         {(!liveLoading || liveData) && (

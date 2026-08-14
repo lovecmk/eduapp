@@ -41,6 +41,31 @@ export interface Degradation {
 const degradations = new Map<string, Degradation>();
 
 /**
+ * 장부가 바뀔 때 알림을 받을 구독자들.
+ *
+ * 개발자 화면은 주기적으로 다시 읽어도 되지만, 사용자 화면의 안내 배너는 그럴 수
+ * 없다 — 강등은 '첫 요청이 404 로 돌아온 순간' 일어나므로, 화면이 이미 그려진 뒤다.
+ * 구독이 없으면 배너는 다음에 그 화면을 다시 열 때에야 나타난다.
+ */
+const listeners = new Set<() => void>();
+
+/** 장부 변경 구독 — useSyncExternalStore 용. 해지 함수를 돌려준다. */
+export function subscribeDegradations(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+/**
+ * 특정 기능이 지금 목업으로 돌고 있는가.
+ *
+ * useSyncExternalStore 의 getSnapshot 으로 그대로 쓸 수 있도록 원시값(boolean)을
+ * 돌려준다 — 객체를 돌려주면 매번 새 참조라 렌더가 멈추지 않는다.
+ */
+export function isDegraded(label: string): boolean {
+  return degradations.has(label);
+}
+
+/**
  * 강등 목록을 읽는다.
  *
  * 폴백은 조용한 게 미덕이지만, **아무도 모르는 조용함은 사고**다. 로그 한 줄로만
@@ -54,6 +79,7 @@ export function listDegradations(): Degradation[] {
 /** 테스트용 — 모듈 전역 장부를 비운다. */
 export function __resetDegradationsForTests(): void {
   degradations.clear();
+  listeners.forEach((l) => l());
 }
 
 /**
@@ -105,7 +131,10 @@ export function withMockFallback<T extends object>(live: T, mock: T, label: stri
     // 장부는 매번 갱신한다 — 사유가 '못 닿음'에서 '라우트 없음'으로 바뀌는 것은
     // 화면에 보여야 하는 변화다(전자는 기다리면 되고, 후자는 배포가 필요하다).
     const since = degradations.get(label)?.since ?? Date.now();
+    const before = degradations.get(label);
     degradations.set(label, { label, reason, since });
+    // 상태가 실제로 달라졌을 때만 깨운다 — 매 호출마다 알리면 배너가 계속 다시 그려진다.
+    if (!before || before.reason !== reason) listeners.forEach((l) => l());
     if (warned) return;
     warned = true;
     // 기능 하나가 실서버 대신 목업으로 도는 것은 운영에서도 알아야 하는 상태다
@@ -127,6 +156,9 @@ export function withMockFallback<T extends object>(live: T, mock: T, label: stri
           if (warned) {
             degradations.delete(label);
             warned = false;
+            // 배너를 걷어야 한다 — 장부만 지우고 알리지 않으면 장애가 끝난 뒤에도
+            // 화면에는 '서버에 연결되지 않았습니다'가 그대로 남는다.
+            listeners.forEach((l) => l());
           }
           return result;
         } catch (e) {

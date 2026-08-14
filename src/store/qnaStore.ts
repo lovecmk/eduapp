@@ -16,99 +16,14 @@ import {
  * 보고, 서버가 아직 없을 때만 이 스토어가 그 뒤를 받친다. 서버에 Q&A 라우트가
  * 열리는 순간 화면 코드는 한 줄도 바뀌지 않고 실서버로 넘어간다.
  *
- * 시드 7건은 '커뮤니티가 비어 보이지 않게' 하는 장치다. 서버가 붙으면 실제 질문이
- * 그 자리를 대신한다.
+ * **시드(가짜 질문)는 두지 않는다.** 예전에는 '커뮤니티가 비어 보이지 않게' 하려고
+ * 이안전·한전기 같은 지어낸 사람의 질문 7건을 깔았다. 그런데 서버에 라우트가 없는
+ * 동안에는 그 7건이 화면의 전부라, 사용자는 지어낸 대화를 실제 동료들의 것으로 읽는다.
+ * 안전 교육 앱에서 '현장에서 이렇게 하더라'를 가짜로 보여주는 것은 빈 화면보다 나쁘다.
+ * 비어 있으면 비어 있다고 말하고(안내 배너), 서버가 열리면 진짜 질문이 채운다.
  */
 
 const MINUTE = 60_000;
-
-function seed(): Question[] {
-  const now = Date.now();
-  const at = (minutesAgo: number) => now - minutesAgo * MINUTE;
-  const q = (
-    id: string,
-    author: string,
-    category: string,
-    title: string,
-    body: string,
-    likes: number,
-    minutesAgo: number,
-    answers: Answer[],
-  ): Question =>
-    withDerivedCounts({
-      id,
-      author,
-      color: authorColor(author),
-      category,
-      title,
-      body,
-      answers,
-      likes,
-      likedByMe: false,
-      mine: false,
-      createdAt: at(minutesAgo),
-    });
-  const a = (
-    id: string,
-    author: string,
-    body: string,
-    likes: number,
-    minutesAgo: number,
-    accepted = false,
-  ): Answer => ({
-    id,
-    author,
-    color: authorColor(author),
-    body,
-    likes,
-    likedByMe: false,
-    mine: false,
-    createdAt: at(minutesAgo),
-    accepted,
-  });
-
-  return [
-    q('q1', '이안전', '전기 위험',
-      '분전반 단자 발열, 접촉불량으로 봐야 할까요?',
-      '전선이 끊어진 것도 아닌데 단자부만 유독 뜨겁습니다. 접촉불량만으로도 화재로 이어질 수 있나요?',
-      5, 55, [
-        a('a1', '한전기', '접촉불량이면 접촉저항이 커져 그 부위에서 열이 집중됩니다. 정상 작동해도 내부에서 발열이 쌓여 탄화·아크로 진행될 수 있어요.', 8, 40, true),
-        a('a2', '박설비', '열화상으로 단자부 온도 먼저 찍어보시고, 재체결 토크도 규정값으로 맞추세요.', 3, 20),
-      ]),
-    q('q2', '최공정', '공정 위험',
-      '배기덕트 내부도 위험장소로 관리해야 하나요?',
-      '도장부스 배기덕트는 사람이 작업하지 않는데, 여기도 방폭·위험장소로 봐야 할지 애매합니다.',
-      9, 180, [
-        a('a3', '오도장', '덕트는 인화성 증기·미스트가 지나가는 길이라 잔류물·가연성 혼합기가 생깁니다. 1종(21종) 장소로 보는 게 맞아요.', 6, 120),
-      ]),
-    q('q3', '김점검', '위험물',
-      '마그네슘 화재, CO₂ 소화기 쓰면 안 되나요?',
-      '금속화재라 물은 안 된다고 배웠는데, CO₂ 소화기는 써도 되는지 헷갈립니다.',
-      2, 300, []),
-    q('q4', '정보전', '전기 위험',
-      '누전차단기가 자꾸 떨어지는데 원인 파악 순서가 궁금해요',
-      '설비를 돌리면 간헐적으로 누전차단기가 트립됩니다. 절연저항부터 봐야 할지, 부하 분리부터 해야 할지 순서를 잡기가 어렵습니다.',
-      3, 90, [
-        a('a4', '한전기', '먼저 부하를 하나씩 분리하며 어느 회로에서 트립되는지 좁히고, 해당 구간 절연저항(500V 메거)으로 확인하세요.', 4, 60),
-      ]),
-    q('q5', '서작업', '공정 위험',
-      '밀폐공간 작업 전 산소농도, 몇 %면 진입 가능한가요?',
-      '탱크 내부 청소 작업인데, 산소농도 기준과 측정 위치(상·중·하)를 어떻게 잡아야 안전한지 알고 싶습니다.',
-      6, 240, [
-        a('a5', '오도장', '적정 산소농도는 18~23.5%입니다. 상·중·하 3점 이상 측정하고, 작업 중에도 연속 측정을 유지하세요.', 7, 200, true),
-      ]),
-    q('q6', '문안전', '위험물',
-      '유증기 체류 구역, 방폭등급 어떻게 정하나요?',
-      '도료 보관창고 환기가 약한데, 방폭기구를 어느 등급으로 선정해야 하는지 근거를 잡기 어렵습니다.',
-      4, 420, []),
-    q('q7', '조현장', '공정 위험',
-      '고소작업 안전대 체결 위치, 발밑 걸어도 되나요?',
-      '비계에서 안전대를 발밑 난간에 거는 동료가 있는데, 추락 시 충격이 더 크지 않을까요? 올바른 체결 높이가 궁금합니다.',
-      8, 500, [
-        a('a7', '박설비', '가능하면 D링보다 높은 지점에 체결해 추락거리를 줄여야 합니다. 발밑 체결은 추락거리가 길어져 충격이 커집니다.', 5, 330),
-      ]),
-  ];
-}
 
 interface QnaState {
   questions: Question[];
@@ -121,6 +36,16 @@ interface QnaState {
   setAnswerLike: (questionId: string, answerId: string, liked: boolean) => void;
 }
 
+/**
+ * 저장된 목록에서 '사용자가 손대지 않은 질문'을 걷어낸다 — 곧 예전 가짜 시드다.
+ *
+ * 기준을 id 목록(q1…q7)이 아니라 **손댔는가**로 잡는 이유: 시드 질문에 답변을 달아 둔
+ * 사람이 있으면 그 글은 그 사람이 쓴 진짜 글이다. id 로 지우면 그 답변까지 함께 사라진다.
+ */
+export function dropSeededQuestions(questions: Question[]): Question[] {
+  return questions.filter((q) => q.mine || q.answers.some((a) => a.mine));
+}
+
 /** 공감 수를 원하는 상태에 맞춰 조정한다(같은 상태를 두 번 받아도 변하지 않는다). */
 function applyLike<T extends { likes: number; likedByMe: boolean }>(item: T, liked: boolean): T {
   if (item.likedByMe === liked) return item;
@@ -130,7 +55,7 @@ function applyLike<T extends { likes: number; likedByMe: boolean }>(item: T, lik
 export const useQnaStore = create<QnaState>()(
   persist(
     (set, get) => ({
-      questions: seed(),
+      questions: [],
 
       ask: (draft, author) => {
         const created = withDerivedCounts({
@@ -187,15 +112,26 @@ export const useQnaStore = create<QnaState>()(
     }),
     {
       name: 'qna',
-      version: 2,
+      version: 3,
       storage: createJSONStorage(() => AsyncStorage),
       /**
        * v1 → v2: 상대 시간(minutesAgo)을 절대 시각(createdAt)으로 옮기고
        * 파생 카운터를 채운다. 여기서 그냥 시드로 되돌리면 사용자가 직접 올린
        * 질문·답변이 통째로 사라지므로, 값을 옮겨서 살린다.
+       *
+       * v2 → v3: 이미 깔려 있는 **가짜 시드 질문을 지운다.** 시드를 코드에서 없애도
+       * 기존 기기에는 저장된 채로 남아, 업데이트해도 지어낸 질문이 그대로 보인다.
+       *
+       * 지우는 기준은 '사용자가 손대지 않은 것'이다 — 내가 올린 질문도 아니고
+       * 내가 단 답변도 없는 질문. 시드 질문에 답변을 달아 둔 사람이 있다면 그 글은
+       * 남긴다(id 목록으로 지우면 그 답변까지 함께 사라진다).
        */
       migrate: (persisted, version) => {
-        if (version >= 2) return persisted as QnaState;
+        if (version >= 3) return persisted as QnaState;
+        if (version === 2) {
+          const cur = (persisted ?? {}) as { questions?: Question[] };
+          return { questions: dropSeededQuestions(cur.questions ?? []) } as QnaState;
+        }
         const now = Date.now();
         const old = (persisted ?? {}) as { questions?: LegacyQuestion[] };
         const questions = (old.questions ?? []).map((q) =>
@@ -223,7 +159,8 @@ export const useQnaStore = create<QnaState>()(
             createdAt: now - (q.minutesAgo ?? 0) * MINUTE,
           }),
         );
-        return { questions } as QnaState;
+        // v1 에서 곧장 올라오는 기기도 시드는 함께 털어낸다(v2→v3 과 같은 기준).
+        return { questions: dropSeededQuestions(questions) } as QnaState;
       },
     },
   ),
@@ -239,7 +176,7 @@ interface LegacyQuestion {
   answers?: LegacyAnswer[]; likes?: number; likedByMe?: boolean; mine?: boolean; minutesAgo?: number;
 }
 
-/** 세션 정리(store/sessionScope)가 부르는 초기화 — 다음 사람은 시드부터 시작한다. */
+/** 세션 정리(store/sessionScope)가 부르는 초기화 — 다음 사람은 빈 목록부터 시작한다. */
 export function resetQnaStore(): void {
-  useQnaStore.setState({ questions: seed() });
+  useQnaStore.setState({ questions: [] });
 }
