@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/ThemeProvider';
 import { fontDisplay, fontBody, fontCute } from '../../theme/tokens';
 import { getCategoryColor } from '../../constants/categories';
-import type { Question } from '../../store/qnaStore';
+import { minutesSince, type Question } from '../../domain/models/Qna';
 import { timeAgoLabel } from '../../store/notificationStore';
 
 /**
@@ -26,9 +26,11 @@ import { timeAgoLabel } from '../../store/notificationStore';
  * 화면이 이 결과를 알아야 아래 목록에서 중복 제거를 할 수 있어 밖으로 뺐다.
  */
 export function pickHelpWanted(questions: Question[]): Question | null {
-  const waiting = questions.filter((q) => !q.mine && q.answers.length === 0);
+  // 답변 수는 카운터로 본다 — 목록 응답에는 답변 본문이 실리지 않는다.
+  const waiting = questions.filter((q) => !q.mine && q.answerCount === 0);
   if (waiting.length === 0) return null;
-  return waiting.reduce((a, b) => (b.minutesAgo > a.minutesAgo ? b : a));
+  // 가장 오래 기다린 = 가장 먼저 올라온(작성 시각이 가장 이른) 질문.
+  return waiting.reduce((a, b) => (b.createdAt < a.createdAt ? b : a));
 }
 
 export function HelpWantedCard({
@@ -62,7 +64,7 @@ export function HelpWantedCard({
         <Text style={{ color: c.primary, fontSize: 12.5, fontFamily: fontDisplay }}>답변을 기다리고 있어요</Text>
         <View style={{ flex: 1 }} />
         <Text style={{ color: c.textSecondary, fontSize: 11, fontFamily: fontBody }}>
-          {timeAgoLabel(target.minutesAgo)}
+          {timeAgoLabel(minutesSince(target.createdAt))}
         </Text>
       </View>
 

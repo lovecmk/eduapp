@@ -6,9 +6,8 @@ import { CenterModal } from '../ui/CenterModal';
 import { TextField } from '../ui/TextField';
 import { Button } from '../ui/Button';
 import { ALL_CATEGORIES, CATEGORY_COLOR } from '../../constants/categories';
-import { isMeaningful, textLength, INPUT_LIMITS } from '../../utils/sanitize';
-import { useQnaStore } from '../../store/qnaStore';
-import { useAuthStore } from '../../store/authStore';
+import { textLength, INPUT_LIMITS } from '../../utils/sanitize';
+import { cleanQuestionDraft, useAskQuestion } from '../../hooks/useQna';
 import { useSafeTimeout } from '../../hooks/useSafeTimeout';
 import type { CardCategory } from '../../domain/models/LearningCard';
 
@@ -16,21 +15,28 @@ import type { CardCategory } from '../../domain/models/LearningCard';
 export function QuestionComposeModal({ visible, onClose, onCreated }: { visible: boolean; onClose: () => void; onCreated?: (id: string) => void }) {
   const { theme } = useTheme();
   const c = theme.colors;
-  const addQuestion = useQnaStore((s) => s.addQuestion);
-  const author = useAuthStore((s) => s.user?.name) ?? '나';
+  const ask = useAskQuestion();
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [category, setCategory] = useState<CardCategory | undefined>();
+  const [error, setError] = useState<string | null>(null);
 
   const { run } = useSafeTimeout();
 
-  const reset = () => { setTitle(''); setBody(''); setCategory(undefined); };
+  const reset = () => { setTitle(''); setBody(''); setCategory(undefined); setError(null); };
   const handleClose = () => { onClose(); run(reset, 200); };
 
-  const canSubmit = isMeaningful(title, 4) && isMeaningful(body, 5);
+  const draft = cleanQuestionDraft({ title, body, category });
+  const canSubmit = !!draft && !ask.isPending;
   const submit = () => {
-    const id = addQuestion({ title, body, category, author });
-    if (id) { onCreated?.(id); handleClose(); }
+    if (!draft || ask.isPending) return;
+    setError(null);
+    // 등록은 서버가 id 를 줘야 상세로 넘어갈 수 있다 — 응답을 기다린다.
+    // 실패하면 모달을 닫지 않는다. 닫아 버리면 사용자가 방금 쓴 글이 사라진다.
+    ask.mutate(draft, {
+      onSuccess: (created) => { onCreated?.(created.id); handleClose(); },
+      onError: () => setError('질문을 올리지 못했어요. 잠시 후 다시 시도해주세요.'),
+    });
   };
 
   return (
@@ -58,7 +64,15 @@ export function QuestionComposeModal({ visible, onClose, onCreated }: { visible:
         multiline numberOfLines={4} maxLength={INPUT_LIMITS.supportMessage + 50}
         style={styles.textarea as never} helperText={`${textLength(body)}/${INPUT_LIMITS.supportMessage}`}
       />
-      <Button label="질문 올리기" disabled={!canSubmit} onPress={submit} style={{ width: '100%', marginTop: 4 }} />
+      {error && (
+        <Text style={{ color: c.error, fontSize: 12.5, fontFamily: fontDisplay, marginBottom: 8 }}>{error}</Text>
+      )}
+      <Button
+        label={ask.isPending ? '올리는 중...' : '질문 올리기'}
+        disabled={!canSubmit}
+        onPress={submit}
+        style={{ width: '100%', marginTop: 4 }}
+      />
     </CenterModal>
   );
 }

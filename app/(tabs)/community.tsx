@@ -19,7 +19,8 @@ import { useCommunity } from '../../src/hooks/useCommunity';
 import { fontDisplay, fontBody, fontMono } from '../../src/theme/tokens';
 import { getCategoryColor } from '../../src/constants/categories';
 import { ROUTES } from '../../src/constants/routes';
-import { useQnaStore, type Question } from '../../src/store/qnaStore';
+import { useQuestions } from '../../src/hooks/useQna';
+import { minutesSince, type Question } from '../../src/domain/models/Qna';
 import { timeAgoLabel } from '../../src/store/notificationStore';
 import { contentColumn } from '../../src/theme/layout';
 import { useSafeTimeout } from '../../src/hooks/useSafeTimeout';
@@ -29,11 +30,15 @@ import { useSafeTimeout } from '../../src/hooks/useSafeTimeout';
 // 이제 목록은 고정하고, 갱신은 사용자가 끝까지 내렸을 때만 일어난다.
 const QNA_LIMIT = 5;
 
+/** 로딩 중 참조가 매번 바뀌지 않도록 고정한 빈 목록(불필요한 재계산 방지). */
+const EMPTY_QUESTIONS: Question[] = [];
+
 export default function CommunityScreen() {
   const { theme } = useTheme();
   const c = theme.colors;
   const router = useRouter();
-  const questions = useQnaStore((s) => s.questions);
+  // 질문 목록은 저장소(실서버 또는 목업)에서 온다 — 화면은 어느 쪽인지 모른다.
+  const { data: questions = EMPTY_QUESTIONS, refetch: refetchQna } = useQuestions();
   const collectionEnabled = useSettingsStore((s) => s.collectionEnabled);
   const { data: liveData, isLoading: liveLoading, refetch } = useCommunity();
   const [composeOpen, setComposeOpen] = useState(false);
@@ -69,9 +74,11 @@ export default function CommunityScreen() {
     refreshLockRef.current = true;
     setRefreshing(true);
     setOffset((o) => (pool.length ? (o + QNA_LIMIT) % pool.length : o));
-    try { await refetch(); } catch { /* 무시 */ }
+    // 질문 목록도 함께 다시 받는다 — 새로고침인데 남의 새 질문이 안 들어오면
+    // "여긴 아무도 안 온다"는 인상만 굳는다.
+    try { await Promise.all([refetch(), refetchQna()]); } catch { /* 무시 */ }
     run(() => { setRefreshing(false); refreshLockRef.current = false; }, 700);
-  }, [pool.length, refetch, run]);
+  }, [pool.length, refetch, refetchQna, run]);
 
   const onScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
@@ -142,7 +149,8 @@ function QuestionRow({ question: q, onPress }: { question: Question; onPress: ()
   const { theme } = useTheme();
   const c = theme.colors;
   const accent = q.category ? getCategoryColor(q.category) ?? c.primary : c.primary;
-  const solved = q.answers.some((a) => a.accepted);
+  // 목록 응답에는 답변 본문이 없을 수 있으므로 개수·해결 여부는 카운터를 본다.
+  const solved = q.solved;
   return (
     <Pressable accessibilityRole="button" onPress={onPress} style={[styles.row, { backgroundColor: c.surface, borderColor: c.border }]}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
@@ -163,9 +171,9 @@ function QuestionRow({ question: q, onPress }: { question: Question; onPress: ()
       <View style={styles.meta}>
         <View style={[styles.avatar, { backgroundColor: q.color }]}><Text style={styles.avatarText}>{q.author.charAt(0)}</Text></View>
         <Text style={{ color: c.textSecondary, fontSize: 11, fontFamily: fontBody }}>{q.author}</Text>
-        <Text style={{ color: c.textSecondary, fontSize: 10.5, fontFamily: fontMono }}>· {timeAgoLabel(q.minutesAgo)}</Text>
+        <Text style={{ color: c.textSecondary, fontSize: 10.5, fontFamily: fontMono }}>· {timeAgoLabel(minutesSince(q.createdAt))}</Text>
         <View style={{ flex: 1 }} />
-        <View style={styles.stat}><Ionicons name="chatbubble-outline" size={13} color={q.answers.length ? c.primary : c.textSecondary} /><Text style={{ color: q.answers.length ? c.primary : c.textSecondary, fontSize: 11.5, fontFamily: fontMono }}>{q.answers.length}</Text></View>
+        <View style={styles.stat}><Ionicons name="chatbubble-outline" size={13} color={q.answerCount ? c.primary : c.textSecondary} /><Text style={{ color: q.answerCount ? c.primary : c.textSecondary, fontSize: 11.5, fontFamily: fontMono }}>{q.answerCount}</Text></View>
         <View style={styles.stat}><Ionicons name="heart-outline" size={13} color={c.textSecondary} /><Text style={{ color: c.textSecondary, fontSize: 11.5, fontFamily: fontMono }}>{q.likes}</Text></View>
       </View>
     </Pressable>

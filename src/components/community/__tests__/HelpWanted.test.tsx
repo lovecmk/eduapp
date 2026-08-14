@@ -3,18 +3,23 @@ import { render, screen } from '@testing-library/react-native';
 import { HelpWantedCard, pickHelpWanted } from '../HelpWantedCard';
 import { MyContributionLine } from '../MyContributionLine';
 import { ThemeProvider } from '../../../theme/ThemeProvider';
-import type { Question, Answer } from '../../../store/qnaStore';
+import { withDerivedCounts, type Question, type Answer } from '../../../domain/models/Qna';
+
+const MINUTE = 60_000;
 
 const answer = (mine = false): Answer => ({
   id: `a${Math.random()}`, author: 'x', color: '#000', body: 'b',
-  likes: 0, likedByMe: false, mine, minutesAgo: 1,
+  likes: 0, likedByMe: false, mine, createdAt: Date.now() - MINUTE, accepted: false,
 });
 
-const q = (over: Partial<Question>): Question => ({
-  id: 'q1', author: '홍', color: '#000', title: '제목', body: '본문',
-  category: '전기 위험', answers: [], likes: 0, likedByMe: false, minutesAgo: 10,
-  ...over,
-});
+/** `minutesAgo` 는 테스트가 읽기 쉬우라고 남긴 입력이다(모델은 절대 시각을 쓴다). */
+const q = ({ minutesAgo = 10, ...over }: Partial<Question> & { minutesAgo?: number }): Question =>
+  withDerivedCounts({
+    id: 'q1', author: '홍', color: '#000', title: '제목', body: '본문',
+    category: '전기 위험', answers: [], likes: 0, likedByMe: false, mine: false,
+    createdAt: Date.now() - minutesAgo * MINUTE,
+    ...over,
+  });
 
 const wrap = (ui: React.ReactElement) => render(<ThemeProvider>{ui}</ThemeProvider>);
 

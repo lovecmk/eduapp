@@ -29,6 +29,10 @@ import { ServiceConfigRepository } from './ServiceConfigRepository';
 import { MockServiceConfigRepository } from './ServiceConfigRepository.mock';
 import { DailyAssignmentRepository } from './DailyAssignmentRepository';
 import { MockDailyAssignmentRepository } from './DailyAssignmentRepository.mock';
+import { QnaRepository } from './QnaRepository';
+import { MockQnaRepository } from './QnaRepository.mock';
+import { SettingsRepository } from './SettingsRepository';
+import { MockSettingsRepository } from './SettingsRepository.mock';
 
 import type { IAuthRepository } from '../../domain/repositories/IAuthRepository';
 import type { ICardRepository } from '../../domain/repositories/ICardRepository';
@@ -46,6 +50,8 @@ import { MockCollectionRepository } from './CollectionRepository.mock';
 import type { INotificationRepository } from '../../domain/repositories/INotificationRepository';
 import type { IServiceConfigRepository } from '../../domain/repositories/IServiceConfigRepository';
 import type { IDailyAssignmentRepository } from '../../domain/repositories/IDailyAssignmentRepository';
+import type { IQnaRepository } from '../../domain/repositories/IQnaRepository';
+import type { ISettingsRepository } from '../../domain/repositories/ISettingsRepository';
 
 export const authRepository: IAuthRepository = env.useMockData
   ? new MockAuthRepository()
@@ -103,6 +109,32 @@ export const serviceConfigRepository: IServiceConfigRepository = env.useMockData
 export const userDirectoryRepository: IUserDirectoryRepository = env.useMockData
   ? new MockUserDirectoryRepository()
   : withMockFallback(new UserDirectoryRepository(), new MockUserDirectoryRepository(), 'user-directory');
+
+/**
+ * 질문 & 답변 — 커뮤니티의 유일한 '참여' 기능.
+ *
+ * 서버에 `/api/qna` 라우트(리버스 프록시의 location 블록 포함)가 아직 없다.
+ * 폴백을 걸어 두면 라우트가 없는 동안에는 지금까지처럼 기기 안에서 돌고,
+ * 열리는 날 앱을 다시 배포하지 않아도 **첫 요청부터 실서버를 쓴다**.
+ *
+ * 폴백의 대가는 분명하다 — 그동안 올린 질문은 이 기기에만 남는다. 그래서
+ * 조용히 넘어가지 않고 강등 장부(_fallback.listDegradations)에 남겨
+ * 개발자 화면 '연결 상태'에 그대로 드러낸다.
+ */
+export const qnaRepository: IQnaRepository = env.useMockData
+  ? new MockQnaRepository()
+  : withMockFallback(new QnaRepository(), new MockQnaRepository(), 'qna');
+
+/**
+ * 계정 설정 — 관심 분야·하루 목표·알림 수신·공개 범위·한 줄 소개.
+ *
+ * 여기도 라우트(`/api/settings`)가 열리기 전이다. 폴백된 동안 목업은 값을
+ * 보관하는 척하지 않고 "서버에 기록 없음"이라고 답하므로(SettingsRepository.mock),
+ * 기기 값이 그대로 권위를 유지하다가 라우트가 열리면 그 값이 서버로 올라간다.
+ */
+export const settingsRepository: ISettingsRepository = env.useMockData
+  ? new MockSettingsRepository()
+  : withMockFallback(new SettingsRepository(), new MockSettingsRepository(), 'settings');
 
 // ── 사용자 데이터 동기화 저장소 ─────────────────────────────────────────────
 // 아래 4개는 '사용자가 만든 데이터'를 다룬다. 서버가 준비되지 않았을 때 목업으로

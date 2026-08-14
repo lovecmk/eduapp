@@ -32,9 +32,15 @@
 | 409 | 중복(아이디/닉네임) | `message` 표시 |
 | 5xx | 서버 오류 | 에러 표시 |
 
-> **부분 배포 폴백**: `weather` / `learning-quota` / `user-directory` 3개 보조 기능은
-> 404·501·502·503·504 응답 시 클라이언트가 조용히 목업으로 폴백한다(앱이 안 깨짐).
-> 반면 `auth` / `cards` / `stats` / `community` 는 폴백하지 않고 에러가 그대로 드러난다.
+> **부분 배포 폴백**: `weather` / `learning-quota` / `daily-assignment` / `service-config` /
+> `user-directory` / `qna` / `settings` 는 404·501·502·503·504 응답 시 클라이언트가 조용히
+> 목업으로 폴백한다(앱이 안 깨짐). 반면 `auth` / `cards` / `stats` / `community` 와
+> 사용자 데이터 동기화(`progress` / `engagement` / `reports` / `notifications` / `collection`)는
+> 폴백하지 않고 에러가 그대로 드러난다 — 목업이 실데이터를 위장하면 안 되기 때문이다.
+>
+> 폴백 사유는 구분된다: **404·501 은 영구 래치**(다음 배포 전까지 다시 묻지 않음),
+> **0·502·503·504 는 60초 뒤 자동 재확인**. 강등된 기능은 앱의
+> `개발자 모드 > 환경 설정 > 기능별 연결 상태`에 그대로 표시된다.
 
 ---
 
@@ -176,6 +182,22 @@
   "insights": { /* 선택 — 구버전 호환 위해 없어도 됨 */ }
 }
 ```
+
+### `GET /api/config` → 서비스 운영 상태 (무인증)
+```jsonc
+{ "maintenance_yn": false, "maintenance_msg": "", "signup_enabled": true,
+  "daily_min_cards": 3, "daily_max_cards": 5, "daily_new_limit": 5,
+  "notice_txt": "", "notice_level": "INFO", "version": "1.2.3" }
+```
+- **인증을 요구하지 말 것** — 점검 중이라 로그인조차 못 하는 사람에게도 사유는 닿아야 한다.
+- `notice_level` 은 `INFO`/`WARN`/`DANGER`. 모르는 값은 앱이 `INFO` 로 낮춰 해석한다.
+
+### `GET /api/learning/today` → 오늘의 학습 편성
+```jsonc
+{ "day": "2026-8-14", "difficulty_cd": "EASY", "target_count": 4, "done_count": 1,
+  "cards": [ { /* CardDTO */ "kind": "NEW" /* NEW | REVIEW */, "done": false } ] }
+```
+- 날짜 키는 앱의 `dateKey()` 형식(`YYYY-M-D`)과 같아야 한다.
 
 ### `GET /api/community/live` → 커뮤니티 스냅샷
 ### `GET /api/users/search?q=` → 공개 프로필 요약 배열
@@ -804,3 +826,151 @@ id 만 주면 관리자는 "card_42 를 u_7f3a 가 신고했다"를 읽고 무�
 전체 분석과 달리 한 사람만 보므로 가볍고, 담당자가 이 화면을 여는 시점은 대개
 "방금 무슨 일이 있었나"를 확인할 때다. 그때 1분 전 값을 보여 주면 확인하러 온
 목적 자체가 사라진다.
+
+---
+
+## 12. 질문 & 답변 `/api/qna` 🆕 (미구현 — location 블록 생성 전)
+
+커뮤니티에서 사용자가 실제로 **참여**하는 유일한 기능인데, 지금까지 앱 안에만
+있었다(기기 로컬 zustand 스토어 + 시드 7건). 내가 올린 질문은 남에게 보이지
+않고 남의 질문은 가짜였다 — 화면만 커뮤니티였다.
+
+앱은 이미 이 계약대로 호출한다. 라우트가 열리면 **앱을 다시 배포하지 않아도**
+첫 요청부터 실서버를 쓴다(그전까지는 목업 폴백 + 개발자 화면에 강등 표시).
+
+| 메서드 | 경로 | 하는 일 |
+|---|---|---|
+| GET | `/api/qna?limit=30` | 최신 질문 목록 |
+| GET | `/api/qna/:id` | 질문 상세(답변 본문 포함) |
+| POST | `/api/qna` | 질문 등록 → 생성된 질문 |
+| POST | `/api/qna/:id/answers` | 답변 등록 → 생성된 답변 |
+| POST | `/api/qna/:id/like` | 질문 공감 `{ liked }` |
+| POST | `/api/qna/:qid/answers/:aid/like` | 답변 공감 `{ liked }` |
+
+```jsonc
+// QuestionDTO
+{
+  "id": "q_01",
+  "author_nm": "이안전",          // 비면 앱이 '익명'으로 표기
+  "category_nm": "전기 위험",     // 선택
+  "title_txt": "분전반 단자 발열…",
+  "body_txt": "…",
+  "like_cnt": 5, "liked_yn": false, "mine_yn": false,
+  "answer_cnt": 3,                // ⚠️ 목록에서도 정확해야 한다
+  "my_answer_cnt": 1,             // 내가 단 답변 수('내 기여' 한 줄)
+  "solved_yn": true,              // 채택된 답변 존재 여부
+  "created_at": "2026-08-14T00:00:00.000Z",
+  "answers": [ /* AnswerDTO — 상세에서만 */ ]
+}
+
+// AnswerDTO
+{ "id": "a_01", "author_nm": "한전기", "body_txt": "…",
+  "like_cnt": 8, "liked_yn": false, "mine_yn": false, "accepted_yn": true,
+  "created_at": "2026-08-14T00:00:00.000Z" }
+```
+
+### 목록에 카운터를 반드시 실어야 하는 이유
+
+목록 응답에 답변 본문까지 담으면 질문 30건에 답변 수백 개가 딸려 와 지하에서
+열리지 않는다. 그래서 목록은 본문 없이 내려보내되 **개수는 서버가 세어 준다.**
+`answer_cnt` 가 없으면 앱은 answers 배열(비어 있음)로 세게 되고, 목록의 모든
+질문이 '답변 0'으로 보인다 — 답변을 기다리는 질문 추천 기능이 통째로 오작동한다.
+
+### 목록 응답 형태
+
+배열(`[…]`) 또는 `{ "items": [...] }` 둘 다 받는다. 페이지네이션을 붙일 계획이면
+`items` 형태를 쓰고 나중에 `next_cursor` 를 추가하는 편이 안전하다.
+
+### 공감은 토글이 아니라 '원하는 상태'
+
+`{ "liked": true }` 를 두 번 받아도 결과는 한 번과 같아야 한다. 오프라인 큐가
+재전송하기 때문이다(`Idempotency-Key: qna-like:<qid>:<liked>`).
+
+### 등록은 큐에 넣지 않는다
+
+질문·답변 등록만 `postDurable` 이 아니라 일반 POST 다. 서버가 부여한 id 를 받아야
+상세 화면으로 이동할 수 있고, 큐에 넣어 나중에 보내면 사용자는 "올렸는데 없다"를
+먼저 보게 된다. 실패는 화면에 그대로 노출되고 작성 내용은 모달에 남는다.
+
+### 서버가 지켜야 할 것
+
+- 본문 정제는 앱에서도 하지만(제어문자·제로폭 제거, 제목 80자·본문 1000자) **서버가 재검증**한다.
+- `mine_yn` · `liked_yn` 은 요청자 기준으로 계산한다(캐시를 공유하지 말 것).
+- 삭제된 질문은 `GET /api/qna/:id` 에서 `404` 또는 `null` — 앱은 "질문을 찾을 수 없어요"를 띄운다.
+
+---
+
+## 13. 계정 설정 `/api/settings` 🆕 (미구현 — location 블록 생성 전)
+
+기기가 아니라 **사람을 따라가야 하는 설정**을 서버가 보관한다. 지금까지 전부
+`AsyncStorage` 에만 있어서, 기기를 바꾸면 관심 분야·하루 목표·공개 범위·한 줄
+소개가 초기값으로 돌아갔다. 특히 **마케팅 정보 수신 동의처럼 법적 의미가 있는
+선택이 기기와 함께 사라졌다.**
+
+| 메서드 | 경로 | 하는 일 |
+|---|---|---|
+| GET | `/api/settings` | 내 계정 설정. 기록이 없으면 `200 {}` |
+| POST | `/api/settings` | 전체 덮어쓰기 (`Idempotency-Key: settings:<updated_at>`) |
+
+```jsonc
+{
+  "notifications": {
+    "enabled_yn": true, "daily_reminder_time": "09:00",
+    "review_alerts_yn": true, "weekly_report_yn": true,
+    "in_app_yn": true, "email_yn": false, "marketing_yn": false
+  },
+  "daily_target": 7,
+  "shuffle_yn": true,
+  "prioritize_weak_yn": false,
+  "interests": ["전기시설", "위험물시설"],
+  "bio_txt": "현장 점검 8년차",
+  "flex_prompt_yn": true,
+  "achievement_badge_yn": true,
+  "collection_enabled_yn": false,
+  "visibility": {
+    "searchable_yn": true, "show_progress_yn": true, "show_streak_yn": true,
+    "show_emblems_yn": true, "show_collection_yn": false
+  },
+  "updated_at": "2026-08-14T00:00:00.000Z"
+}
+```
+
+### 기록이 없으면 `200 {}` — `404` 가 아니다
+
+`404` 는 앱에게 "라우트가 없다"는 뜻이라, 그 기능이 **영구 래치로 목업에 갇힌다**
+(다음 앱 실행 전까지 다시 묻지 않는다). 설정을 한 번도 저장하지 않은 신규 계정에는
+빈 객체를 주면 된다. 앱은 그것을 "서버에 기록 없음"으로 읽고 기기 값을 올린다.
+
+### 없는 필드를 기본값으로 채워 보내지 말 것 ⚠️
+
+가장 위험한 실수다. 서버가 알림 항목 하나만 알고 있는 배포에서 나머지를 `false` 로
+채워 내려보내면, 사용자가 켜 둔 알림이 **로그인 한 번으로 조용히 전부 꺼진다.**
+모르는 값은 **필드 자체를 생략**한다 — 앱은 생략된 필드에 기기 값을 남긴다.
+
+### 병합은 시각 기준 마지막 쓰기 우선
+
+도감(단조 증가 카운터)과 달리 껐다 켰다 하는 값이라 필드별 최댓값 병합이 성립하지
+않는다. 앱은 사용자가 마지막으로 손댄 시각을 들고 다니며 서버 `updated_at` 과 비교한다.
+
+| 상황 | 앱 동작 |
+|---|---|
+| 서버에 기록 없음 | 기기 값을 올린다 |
+| 기기에서 한 번도 안 바꿈 | 서버 값을 받는다 |
+| 서버 `updated_at` 이 더 나중 | 서버 값을 받는다 |
+| 기기 쪽이 더 나중 | 기기 값을 올린다 |
+| 내용이 같음 | 아무것도 하지 않는다 |
+
+### 동기화하지 않는 설정
+
+테마·글자 크기·고대비·배경 앰비언트·화면 켜둠·생체인증·햅틱·프로필 이미지는
+**기기 전용**이라 이 엔드포인트에 담기지 않는다. 사무실 웹에서 바꾼 다크 테마가
+조도가 다른 현장 태블릿까지 어둡게 만들면 친절이 아니라 방해다.
+
+### 값 범위(서버도 같은 규칙으로 절삭할 것)
+
+| 필드 | 규칙 |
+|---|---|
+| `daily_target` | 1~50 (밖의 값은 잘라서 저장 — 거절하면 나머지 설정까지 잃는다) |
+| `bio_txt` | 100자 |
+| `daily_reminder_time` | `HH:MM` 24시간. 형식이 틀리면 무시 |
+| `interests` | 앱의 관심 분야 목록에 있는 값만(모르는 값은 버린다) |

@@ -7,20 +7,24 @@ import { useTheme } from '../../src/theme/ThemeProvider';
 import { ScreenHeader } from '../../src/components/ui/ScreenHeader';
 import { fontDisplay, fontBody, fontMono } from '../../src/theme/tokens';
 import { getCategoryColor } from '../../src/constants/categories';
-import { useQnaStore, type Answer } from '../../src/store/qnaStore';
-import { useAuthStore } from '../../src/store/authStore';
+import { minutesSince, type Answer } from '../../src/domain/models/Qna';
 import { timeAgoLabel } from '../../src/store/notificationStore';
-import { isMeaningful } from '../../src/utils/sanitize';
+import {
+  cleanAnswerBody,
+  useAnswerLike,
+  useAnswerQuestion,
+  useQuestion,
+  useQuestionLike,
+} from '../../src/hooks/useQna';
 
 export default function QnaDetailScreen() {
   const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
   const { id } = useLocalSearchParams<{ id: string }>();
-  const question = useQnaStore((s) => s.questions.find((q) => q.id === id));
-  const addAnswer = useQnaStore((s) => s.addAnswer);
-  const toggleQLike = useQnaStore((s) => s.toggleQuestionLike);
-  const toggleALike = useQnaStore((s) => s.toggleAnswerLike);
-  const author = useAuthStore((s) => s.user?.name) ?? '나';
+  const { data: question, isLoading } = useQuestion(id);
+  const answerMutation = useAnswerQuestion(id ?? '');
+  const questionLike = useQuestionLike();
+  const answerLike = useAnswerLike(id ?? '');
   const [draft, setDraft] = useState('');
   const [focused, setFocused] = useState(false);
 
@@ -29,15 +33,24 @@ export default function QnaDetailScreen() {
       <View style={{ flex: 1, backgroundColor: c.bg }}>
         <ScreenHeader title="질문" />
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ color: c.textSecondary, fontFamily: fontBody }}>질문을 찾을 수 없어요</Text>
+          <Text style={{ color: c.textSecondary, fontFamily: fontBody }}>
+            {isLoading ? '질문을 불러오는 중이에요' : '질문을 찾을 수 없어요'}
+          </Text>
         </View>
       </View>
     );
   }
 
   const accent = question.category ? getCategoryColor(question.category) ?? c.primary : c.primary;
-  const canSend = isMeaningful(draft, 3);
-  const submit = () => { if (!canSend) return; addAnswer(question.id, draft, author); setDraft(''); setFocused(false); };
+  const cleaned = cleanAnswerBody(draft);
+  // 전송 중에는 버튼을 잠근다 — 두 번 누르면 같은 답변이 두 개 올라간다.
+  const canSend = !!cleaned && !answerMutation.isPending;
+  const submit = () => {
+    if (!cleaned || answerMutation.isPending) return;
+    answerMutation.mutate(cleaned);
+    setDraft('');
+    setFocused(false);
+  };
   const sorted = [...question.answers].sort((a, b) => Number(b.accepted) - Number(a.accepted) || b.likes - a.likes);
 
   return (
@@ -53,18 +66,18 @@ export default function QnaDetailScreen() {
               </View>
             )}
             <View style={[styles.avatar, { backgroundColor: question.color }]}><Text style={styles.avatarText}>{question.author.charAt(0)}</Text></View>
-            <Text style={{ color: c.textSecondary, fontSize: 12, fontFamily: fontBody }}>{question.author} · {timeAgoLabel(question.minutesAgo)}</Text>
+            <Text style={{ color: c.textSecondary, fontSize: 12, fontFamily: fontBody }}>{question.author} · {timeAgoLabel(minutesSince(question.createdAt))}</Text>
           </View>
           <Text style={{ color: c.textPrimary, fontSize: 18 * fs, lineHeight: 26, fontFamily: fontDisplay }}>{question.title}</Text>
           <Text style={{ color: c.textPrimary, fontSize: 14 * fs, lineHeight: 22, marginTop: 10, fontFamily: fontBody }}>{question.body}</Text>
-          <Pressable accessibilityRole="button" onPress={() => toggleQLike(question.id)} style={[styles.likeBtn, { borderColor: question.likedByMe ? c.error : c.border, backgroundColor: question.likedByMe ? c.error + '12' : 'transparent' }]}>
+          <Pressable accessibilityRole="button" onPress={() => questionLike.mutate({ id: question.id, liked: !question.likedByMe })} style={[styles.likeBtn, { borderColor: question.likedByMe ? c.error : c.border, backgroundColor: question.likedByMe ? c.error + '12' : 'transparent' }]}>
             <Ionicons name={question.likedByMe ? 'heart' : 'heart-outline'} size={15} color={question.likedByMe ? c.error : c.textSecondary} />
             <Text style={{ color: question.likedByMe ? c.error : c.textSecondary, fontSize: 12.5, fontFamily: fontDisplay }}>공감 {question.likes}</Text>
           </Pressable>
 
           {/* 답변 */}
           <View style={[styles.divider, { backgroundColor: c.border }]} />
-          <Text style={{ color: c.textPrimary, fontSize: 14, fontFamily: fontDisplay, marginBottom: 12 }}>답변 {question.answers.length}</Text>
+          <Text style={{ color: c.textPrimary, fontSize: 14, fontFamily: fontDisplay, marginBottom: 12 }}>답변 {question.answerCount}</Text>
           {sorted.length === 0 ? (
             <View style={{ alignItems: 'center', paddingVertical: 24 }}>
               <Ionicons name="chatbubble-ellipses-outline" size={28} color={c.textSecondary} />
@@ -72,7 +85,7 @@ export default function QnaDetailScreen() {
             </View>
           ) : sorted.map((a, i) => (
             <Animated.View key={a.id} entering={FadeInDown.delay(Math.min(i, 5) * 40).duration(280)}>
-              <AnswerRow answer={a} onLike={() => toggleALike(question.id, a.id)} />
+              <AnswerRow answer={a} onLike={() => answerLike.mutate({ answerId: a.id, liked: !a.likedByMe })} />
             </Animated.View>
           ))}
         </ScrollView>
@@ -112,7 +125,7 @@ function AnswerRow({ answer: a, onLike }: { answer: Answer; onLike: () => void }
         <View style={[styles.avatar, { backgroundColor: a.color }]}><Text style={styles.avatarText}>{a.author.charAt(0)}</Text></View>
         <Text style={{ color: c.textPrimary, fontSize: 12.5, fontFamily: fontDisplay }}>{a.author}</Text>
         {a.mine && <View style={{ backgroundColor: c.primary + '1A', borderRadius: 5, paddingHorizontal: 5, paddingVertical: 1 }}><Text style={{ color: c.primary, fontSize: 9.5, fontFamily: fontDisplay }}>나</Text></View>}
-        <Text style={{ color: c.textSecondary, fontSize: 10.5, fontFamily: fontMono }}>{timeAgoLabel(a.minutesAgo)}</Text>
+        <Text style={{ color: c.textSecondary, fontSize: 10.5, fontFamily: fontMono }}>{timeAgoLabel(minutesSince(a.createdAt))}</Text>
       </View>
       <Text style={{ color: c.textPrimary, fontSize: 13.5, lineHeight: 20, fontFamily: fontBody }}>{a.body}</Text>
       <Pressable accessibilityRole="button" onPress={onLike} hitSlop={6} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8, alignSelf: 'flex-start' }}>

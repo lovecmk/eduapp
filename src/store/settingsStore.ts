@@ -2,9 +2,14 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { ProfileVisibility } from '../domain/models/PublicProfile';
-import { type InterestField, isInterestField } from '../constants/interests';
-import { DEFAULT_VISIBILITY } from '../domain/models/PublicProfile';
+import type { InterestField } from '../constants/interests';
 import type { AmbientThemeSetting } from '../constants/ambient';
+import {
+  DEFAULT_ACCOUNT_SETTINGS,
+  normalizeAccountSettings,
+  type AccountSettings,
+  type AccountSettingsPatch,
+} from '../domain/models/UserSettings';
 
 export type ThemeMode = 'light' | 'dark' | 'dim' | 'system';
 export type FontScale = 'xsmall' | 'small' | 'medium' | 'large' | 'xlarge';
@@ -54,6 +59,15 @@ interface SettingsState {
   /** 최근에 연 설정 항목 id(최신 순, 최대 4개) — 설정 검색창의 '최근 본 설정' 바로가기. */
   recentSettingIds: string[];
 
+  // ── 계정 설정 동기화용 메타 ────────────────────────────────────────────
+  // 값 자체가 아니라 '누구 것이고 언제 바뀌었는지'를 기억한다. 이 두 개가 없으면
+  // 서버와 기기 중 어느 쪽이 최신인지 판단할 수 없고(둘 다 덮어쓰기 후보),
+  // 공용 기기에서 앞사람의 관심 분야·한 줄 소개가 다음 사람에게 그대로 남는다.
+  /** 지금 저장된 계정 설정의 주인(사용자 id). 로그인 전에는 null. */
+  accountOwnerId: string | null;
+  /** 계정 설정이 마지막으로 바뀐 시각(epoch ms) — 서버 updated_at 과 비교한다. */
+  accountUpdatedAt: number;
+
   setThemeMode: (mode: ThemeMode) => void;
   setFontScale: (scale: FontScale) => void;
   toggleHighContrast: () => void;
@@ -84,43 +98,33 @@ interface SettingsState {
   pushRecentSetting: (id: string) => void;
   /** 로컬 저장 데이터를 초기화하고 기본 설정으로 되돌린다(방어적 초기화). */
   resetAll: () => void;
+
+  /** 서버에서 받은 계정 설정을 반영한다(동기화 훅 전용). */
+  applyAccountSettings: (patch: AccountSettingsPatch, updatedAt: number, ownerId: string) => void;
+  /** 계정 설정만 기본값으로 되돌린다 — 다른 사람이 로그인했을 때. 기기 취향은 남는다. */
+  resetAccountSettings: (ownerId: string) => void;
+  /** 계정 설정이 사용자 손으로 바뀌었음을 기록한다(마지막 쓰기 우선 판정의 기준). */
+  markAccountSettingsChanged: (at: number) => void;
 }
 
 const DEFAULT_SETTINGS = {
+  // ── 계정 설정(서버와 동기화되는 값) ─────────────────────────────────────
+  // 기본값의 단일 소스는 domain/models/UserSettings 다. 여기서 다시 적으면
+  // 두 벌이 갈라져, 동기화가 "바뀐 적 없는 값"을 계속 주고받게 된다.
+  ...DEFAULT_ACCOUNT_SETTINGS,
+
+  // ── 기기 설정(동기화하지 않는 값) ───────────────────────────────────────
   themeMode: 'system' as ThemeMode,
   fontScale: 'medium' as FontScale,
   highContrast: false,
-  notifications: {
-    enabled: true,
-    dailyReminderTime: '09:00',
-    reviewAlerts: true,
-    weeklyReport: true,
-    inApp: true,
-    email: false,
-    marketing: false,
-  },
   biometricLoginEnabled: false,
-  // 하루 학습 상한 = 신규 3장 + 복습 최대 4장 = 7장(운영 지속가능성·하루 3분).
-  dailyTarget: 7,
-  shuffleCards: true,
   keepScreenOn: false,
   offlineMode: false,
-  prioritizeWeakSpots: false,
   // 기본 켜짐 — '모를 때'만 살짝 진동해 촉감 피드백을 준다. 설정에서 완전히 끌 수 있다.
   dontKnowHaptic: true,
-  interests: [] as InterestField[],
   profileImage: null as string | null,
-  bio: '',
-  // 기본 켜짐 — 목표 달성 순간 자연스럽게 자랑(플렉스)하도록 유도. 설정에서 끌 수 있다.
-  flexPromptEnabled: true,
-  // 기본 켜짐 — 획득한 최고 성취 뱃지를 닉네임 옆에 표출.
-  showAchievementBadge: true,
-  // 기본 꺼짐 — 카드 수집·카드팩 시스템은 회의 확정 전까지 설정으로만 접속.
-  collectionEnabled: false,
   // 기본 꺼짐 — 컬렉션·성취 화면 첫 진입 시 안내를 한 번 자동으로 띄운다.
   rewardsGuideSeen: false,
-  // 프로필 공개 범위 기본값 — 진행도·스트릭·엠블럼 공개, 컬렉션 비공개.
-  profileVisibility: DEFAULT_VISIBILITY,
   // 배경 테마 기본값 — 자동(날씨·시간대 연동). 맑은 낮이면 아무 효과 없이 깔끔한 흰 배경,
   // 비/눈/강풍이면 해당 효과, 밤 9시 이후엔 별이 반짝인다(별은 API 없이 기기 시계만으로 동작).
   // 요청: 배경 테마 초기값은 '없음'(깔끔한 흰 배경). 사용자가 '자동'을 켜면
@@ -133,10 +137,28 @@ const DEFAULT_SETTINGS = {
 /** '최근 본 설정' 최대 보관 개수 — 한 줄에 담기는 만큼만 남겨 화면을 어지럽히지 않는다. */
 const RECENT_SETTINGS_LIMIT = 4;
 
+/** 스토어 상태에서 '계정에 종속된 설정'만 뽑는다(서버로 올라가는 값의 정의). */
+export function selectAccountSettings(s: SettingsState): AccountSettings {
+  return {
+    notifications: { ...s.notifications },
+    dailyTarget: s.dailyTarget,
+    shuffleCards: s.shuffleCards,
+    prioritizeWeakSpots: s.prioritizeWeakSpots,
+    interests: [...s.interests],
+    bio: s.bio,
+    flexPromptEnabled: s.flexPromptEnabled,
+    showAchievementBadge: s.showAchievementBadge,
+    collectionEnabled: s.collectionEnabled,
+    profileVisibility: { ...s.profileVisibility },
+  };
+}
+
 export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
       ...DEFAULT_SETTINGS,
+      accountOwnerId: null,
+      accountUpdatedAt: 0,
 
       setThemeMode: (mode) => set({ themeMode: mode }),
       setFontScale: (scale) => set({ fontScale: scale }),
@@ -165,24 +187,46 @@ export const useSettingsStore = create<SettingsState>()(
       pushRecentSetting: (id) => set((s) => ({
         recentSettingIds: [id, ...s.recentSettingIds.filter((x) => x !== id)].slice(0, RECENT_SETTINGS_LIMIT),
       })),
-      resetAll: () => set({ ...DEFAULT_SETTINGS }),
+      // 초기화도 '방금 사용자가 내린 결정'이다 — 시각을 지금으로 찍어야 서버의
+      // 예전 설정이 다음 동기화에서 되살아나 초기화를 없던 일로 만들지 않는다.
+      resetAll: () => set({ ...DEFAULT_SETTINGS, accountUpdatedAt: Date.now() }),
+
+      applyAccountSettings: (patch, updatedAt, ownerId) =>
+        set((s) => ({
+          ...normalizeAccountSettings(patch, selectAccountSettings(s)),
+          accountOwnerId: ownerId,
+          accountUpdatedAt: updatedAt,
+        })),
+
+      resetAccountSettings: (ownerId) =>
+        set({
+          ...DEFAULT_ACCOUNT_SETTINGS,
+          accountOwnerId: ownerId,
+          // 기본값은 '아직 아무도 정하지 않은 상태'다. 0 으로 두어야 서버에
+          // 남아 있는 이 사람의 진짜 설정이 이 빈 값에 지지 않는다.
+          accountUpdatedAt: 0,
+        }),
+
+      markAccountSettingsChanged: (at) => set({ accountUpdatedAt: at }),
     }),
     {
       name: 'app-settings',
       version: 2,
       storage: createJSONStorage(() => AsyncStorage),
-      // 구버전 저장소에 새 notifications 필드가 없어도 병합해 안전하게 복원한다.
+      // 구버전 저장소에 새 필드가 없어도 병합해 안전하게 복원한다.
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<SettingsState>;
+        const merged = { ...current, ...p };
         return {
-          ...current,
-          ...p,
-          notifications: { ...current.notifications, ...(p.notifications ?? {}) },
-          // 구버전(카드 대분류 기반) 관심 분야 값은 새 설비·시설 목록에 없으므로 걸러낸다.
-          interests: Array.isArray(p.interests) ? p.interests.filter(isInterestField) : current.interests,
+          ...merged,
+          // 계정 설정은 한 번에 정규화한다 — 구버전 관심 분야(카드 대분류) 값 걸러내기,
+          // 범위를 벗어난 하루 목표 절삭, 빠진 알림 항목 채우기가 여기서 함께 끝난다.
+          ...normalizeAccountSettings(p as AccountSettingsPatch, selectAccountSettings(current)),
           recentSettingIds: Array.isArray(p.recentSettingIds)
             ? p.recentSettingIds.filter((x): x is string => typeof x === 'string')
             : current.recentSettingIds,
+          accountOwnerId: typeof p.accountOwnerId === 'string' ? p.accountOwnerId : null,
+          accountUpdatedAt: typeof p.accountUpdatedAt === 'number' ? p.accountUpdatedAt : 0,
         };
       },
     },

@@ -1,4 +1,10 @@
-import { isEndpointUnavailable, withMockFallback, TRANSIENT_RETRY_MS } from '../_fallback';
+import {
+  isEndpointUnavailable,
+  withMockFallback,
+  listDegradations,
+  __resetDegradationsForTests,
+  TRANSIENT_RETRY_MS,
+} from '../_fallback';
 import { ApiError } from '../../network/errors';
 
 (globalThis as unknown as { __DEV__: boolean }).__DEV__ = false;
@@ -112,5 +118,58 @@ describe('withMockFallback — 일시적 단절과 영구 미배포의 구분', 
     expect(await proxied.ping()).toBe('mock');
     jest.advanceTimersByTime(TRANSIENT_RETRY_MS + 1);
     expect(await proxied.ping()).toBe('live');
+  });
+});
+
+// 강등 장부 — 조용한 폴백을 눈에 보이게 하는 장치.
+//
+// 폴백 자체는 화면을 살리지만, 그 사실을 아무도 모르면 "왜 내가 올린 질문이
+// 다른 기기에서 안 보이지?"의 답을 사용자도 운영자도 찾을 수 없다.
+// 개발자 화면의 '기능별 연결 상태'가 이 장부를 그대로 그린다.
+describe('강등 장부(listDegradations)', () => {
+  beforeEach(() => {
+    __resetDegradationsForTests();
+    jest.useRealTimers();
+  });
+
+  it('처음에는 비어 있다(호출되지 않은 기능은 나타나지 않는다)', () => {
+    expect(listDegradations()).toEqual([]);
+  });
+
+  it('라우트가 없어 목업으로 떨어지면 사유와 함께 남는다', async () => {
+    const live: Svc = { ping: async () => { throw new ApiError(404, 'no route'); } };
+    const proxied = withMockFallback(live, { ping: async () => 'mock' }, 'qna');
+    await proxied.ping();
+
+    const [entry] = listDegradations();
+    expect(entry.label).toBe('qna');
+    expect(entry.reason).toBe('not-deployed');
+  });
+
+  it('못 닿은 것과 라우트가 없는 것을 구분한다', async () => {
+    const live: Svc = { ping: async () => { throw new ApiError(0, '연결 없음'); } };
+    const proxied = withMockFallback(live, { ping: async () => 'mock' }, 'settings');
+    await proxied.ping();
+    expect(listDegradations()[0].reason).toBe('unreachable');
+  });
+
+  it('실서버가 되살아나면 장부에서 지운다(끝난 장애를 계속 보여주지 않는다)', async () => {
+    jest.useFakeTimers();
+    let calls = 0;
+    const live: Svc = {
+      ping: async () => {
+        calls++;
+        if (calls === 1) throw new ApiError(503, 'restarting');
+        return 'live';
+      },
+    };
+    const proxied = withMockFallback(live, { ping: async () => 'mock' }, 'weather');
+
+    await proxied.ping();
+    expect(listDegradations()).toHaveLength(1);
+
+    jest.advanceTimersByTime(TRANSIENT_RETRY_MS + 1);
+    expect(await proxied.ping()).toBe('live');
+    expect(listDegradations()).toEqual([]);
   });
 });

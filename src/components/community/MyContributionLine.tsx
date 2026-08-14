@@ -3,7 +3,7 @@ import { View, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/ThemeProvider';
 import { fontBody, fontDisplay } from '../../theme/tokens';
-import type { Question } from '../../store/qnaStore';
+import type { Question } from '../../domain/models/Qna';
 
 /**
  * 내 커뮤니티 기여 한 줄 — "내가 남을 도왔다"는 사실을 조용히 되돌려준다.
@@ -20,9 +20,9 @@ export function MyContributionLine({ questions }: { questions: Question[] }) {
     let answers = 0;
     let helped = 0; // 내가 답변을 단 '질문 수' = 도운 사람 수
     for (const q of questions) {
-      const mineAnswers = q.answers.filter((a) => a.mine).length;
-      if (mineAnswers > 0) {
-        answers += mineAnswers;
+      // 목록 응답에는 답변 본문이 없다 — 서버가 세어 준 '내 답변 수'를 쓴다.
+      if (q.myAnswerCount > 0) {
+        answers += q.myAnswerCount;
         helped += 1;
       }
     }

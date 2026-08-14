@@ -9,6 +9,7 @@ import { fontDisplay, fontBody, fontMono } from '../src/theme/tokens';
 import { sendTestNotification, triggerServerAlert } from '../src/data/notifications/NotificationService';
 import { ENV_SUMMARY, env } from '../src/data/network/env';
 import { apiClient, type HealthResult } from '../src/data/network/ApiClient';
+import { listDegradations, type Degradation } from '../src/data/repositories/_fallback';
 import { logger } from '../src/utils/logger';
 import { ROUTES } from '../src/constants/routes';
 import { useAuthoredCardsStore } from '../src/store/authoredCardsStore';
@@ -16,6 +17,25 @@ import { useAuthStore } from '../src/store/authStore';
 import { contentColumn } from '../src/theme/layout';
 
 type SendState = 'idle' | 'sending' | 'sent' | 'denied' | 'error';
+
+/**
+ * 목업으로 강등된 기능을 사람이 읽는 이름으로. 목록에 없는 라벨은 그대로 보여준다
+ * (저장소를 새로 추가하고 여기 등록을 잊어도 '표시 자체가 사라지지는' 않게).
+ */
+const REPOSITORY_LABELS: Record<string, string> = {
+  weather: '날씨(홈 배경)',
+  'learning-quota': '하루 학습량',
+  'daily-assignment': '오늘의 학습',
+  'service-config': '서비스 운영값',
+  'user-directory': '사용자 검색',
+  qna: '질문 & 답변',
+  settings: '계정 설정',
+};
+
+const DEGRADE_REASON: Record<Degradation['reason'], string> = {
+  'not-deployed': '서버에 라우트 없음 — 이 기기에만 저장됨',
+  unreachable: '서버에 닿지 못함 — 잠시 후 자동 재확인',
+};
 
 const ALERT_VERSIONS = [
   { v: 1 as const, label: '알림 1 · 긴급 안전 점검', icon: 'warning' as const },
@@ -34,6 +54,9 @@ export default function DeveloperScreen() {
   const [alertMsg, setAlertMsg] = useState<string | null>(null);
   const [health, setHealth] = useState<HealthResult | null>(null);
   const [healthBusy, setHealthBusy] = useState(false);
+  // 목업으로 떨어진 기능 목록 — 화면에 들어온 시점의 상태를 보여주고,
+  // 점검 버튼을 누를 때 다시 읽는다(폴백은 요청이 일어나야 갱신된다).
+  const [degraded, setDegraded] = useState<Degradation[]>(() => listDegradations());
 
   // 서버 헬스체크 — 목업 모드에서는 호출할 서버가 없으므로 즉시 안내한다.
   const runHealthCheck = async () => {
@@ -45,6 +68,7 @@ export default function DeveloperScreen() {
     setHealthBusy(true);
     const result = await apiClient.health(); // 내부에서 예외를 흡수해 항상 결과를 반환
     setHealth(result);
+    setDegraded(listDegradations());
     logger.info('health_check', { ok: result.ok, latencyMs: result.latencyMs, version: result.version });
     setHealthBusy(false);
   };
@@ -148,6 +172,43 @@ export default function DeveloperScreen() {
                 </View>
               )}
             </View>
+
+            {/* 기능별 연결 상태 — '조용한 폴백'을 눈에 보이게 한다.
+                엔드포인트가 아직 없으면 그 기능만 목업으로 도는데, 로그로만 남기면
+                "왜 내가 올린 질문이 다른 기기에서 안 보이지?"의 답을 아무도 못 찾는다. */}
+            {!env.useMockData && (
+              <View style={{ marginTop: 14 }}>
+                <Text style={{ color: c.textSecondary, fontSize: 12 * fs, fontFamily: fontDisplay, marginBottom: 8 }}>
+                  기능별 연결 상태
+                </Text>
+                {degraded.length === 0 ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Ionicons name="checkmark-circle" size={14} color={c.success} />
+                    <Text style={{ color: c.textSecondary, fontSize: 11.5 * fs, fontFamily: fontBody, flex: 1 }}>
+                      목업으로 떨어진 기능이 없습니다(아직 호출되지 않은 기능은 표시되지 않습니다).
+                    </Text>
+                  </View>
+                ) : (
+                  degraded.map((d) => (
+                    <View key={d.label} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginBottom: 6 }}>
+                      <Ionicons
+                        name={d.reason === 'not-deployed' ? 'cloud-offline-outline' : 'time-outline'}
+                        size={14}
+                        color={c.warning}
+                      />
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ color: c.textPrimary, fontSize: 12 * fs, fontFamily: fontDisplay }}>
+                          {REPOSITORY_LABELS[d.label] ?? d.label}
+                        </Text>
+                        <Text style={{ color: c.textSecondary, fontSize: 11 * fs, fontFamily: fontBody }}>
+                          {DEGRADE_REASON[d.reason]}
+                        </Text>
+                      </View>
+                    </View>
+                  ))
+                )}
+              </View>
+            )}
           </View>
         </View>
 

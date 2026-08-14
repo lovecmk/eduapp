@@ -22,7 +22,7 @@ jest.mock('../../data/network/queryClient', () => ({ queryClient: { clear: () =>
 
 const setStateSpy = jest.fn();
 const fakeStore = { setState: (v: unknown) => setStateSpy(v) };
-jest.mock('../qnaStore', () => ({ useQnaStore: fakeStore }));
+jest.mock('../qnaStore', () => ({ useQnaStore: fakeStore, resetQnaStore: () => setStateSpy({ questions: [] }) }));
 jest.mock('../shareFeedStore', () => ({ useShareFeedStore: fakeStore }));
 jest.mock('../tipStore', () => ({ useTipStore: fakeStore }));
 

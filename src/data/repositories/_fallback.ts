@@ -29,6 +29,33 @@ const TRANSIENT_STATUS = new Set([0, 502, 503, 504]);
  */
 export const TRANSIENT_RETRY_MS = 60_000;
 
+/** 어떤 기능이 왜 목업으로 돌고 있는가 — 개발자 화면이 읽는 실시간 장부. */
+export interface Degradation {
+  /** 저장소 라벨(weather · qna · settings …) */
+  label: string;
+  reason: 'not-deployed' | 'unreachable';
+  /** 처음 강등된 시각(epoch ms) */
+  since: number;
+}
+
+const degradations = new Map<string, Degradation>();
+
+/**
+ * 강등 목록을 읽는다.
+ *
+ * 폴백은 조용한 게 미덕이지만, **아무도 모르는 조용함은 사고**다. 로그 한 줄로만
+ * 남기면 "왜 내가 올린 질문이 다른 기기에서 안 보이지?"의 답을 찾을 방법이
+ * 사용자에게도 운영자에게도 없다. 개발자 화면이 이 목록을 그대로 보여준다.
+ */
+export function listDegradations(): Degradation[] {
+  return [...degradations.values()].sort((a, b) => a.since - b.since);
+}
+
+/** 테스트용 — 모듈 전역 장부를 비운다. */
+export function __resetDegradationsForTests(): void {
+  degradations.clear();
+}
+
 /**
  * 이번 호출이 '서버에 닿지 못한 것'인지 — 즉 목업으로 대체해도 되는 실패인지.
  * (영구·일시 구분 없이 판단만 한다. 재시도 정책은 withMockFallback 이 정한다.)
@@ -75,6 +102,10 @@ export function withMockFallback<T extends object>(live: T, mock: T, label: stri
   };
 
   const warnOnce = (reason: 'not-deployed' | 'unreachable') => {
+    // 장부는 매번 갱신한다 — 사유가 '못 닿음'에서 '라우트 없음'으로 바뀌는 것은
+    // 화면에 보여야 하는 변화다(전자는 기다리면 되고, 후자는 배포가 필요하다).
+    const since = degradations.get(label)?.since ?? Date.now();
+    degradations.set(label, { label, reason, since });
     if (warned) return;
     warned = true;
     // 기능 하나가 실서버 대신 목업으로 도는 것은 운영에서도 알아야 하는 상태다
@@ -90,7 +121,14 @@ export function withMockFallback<T extends object>(live: T, mock: T, label: stri
       return async (...args: unknown[]) => {
         if (notDeployed || Date.now() < mutedUntil) return callMock(prop, args);
         try {
-          return await (value as (...a: unknown[]) => unknown).apply(target, args);
+          const result = await (value as (...a: unknown[]) => unknown).apply(target, args);
+          // 되살아났다 — 장부에서 지운다. 남겨 두면 화면이 이미 끝난 장애를 계속
+          // 보여주고, 그 표시를 믿지 않게 되는 순간 장부 자체가 쓸모없어진다.
+          if (warned) {
+            degradations.delete(label);
+            warned = false;
+          }
+          return result;
         } catch (e) {
           const kind = classify(e);
           if (!kind) throw e;

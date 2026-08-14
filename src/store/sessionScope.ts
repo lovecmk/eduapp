@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { logger } from '../utils/logger';
 import { queryClient } from '../data/network/queryClient';
 import { resetLearningStores } from './resetAppData';
-import { useQnaStore } from './qnaStore';
+import { resetQnaStore } from './qnaStore';
 import { useShareFeedStore } from './shareFeedStore';
 import { useTipStore } from './tipStore';
 
@@ -72,7 +72,9 @@ let chain: Promise<unknown> = Promise.resolve();
 function purgeUserScopedData(): void {
   // 1) 메모리 — persist 스토어는 setState 시 디스크에 다시 써지므로 여기서 대부분 정리된다.
   resetLearningStores();
-  useQnaStore.setState({ questions: [] });
+  // Q&A 는 비우는 게 아니라 시드로 되돌린다 — 빈 목록으로 두면 다음 사람에게는
+  // 커뮤니티가 '고장난 화면'으로 보인다(실서버가 붙으면 실제 질문이 그 자리를 채운다).
+  resetQnaStore();
   useShareFeedStore.setState({ posts: [] });
   useTipStore.setState({ tips: [] });
   // 2) 서버 응답 캐시 — 프로필·통계·커뮤니티는 앞사람 응답이 그대로 들어 있다.

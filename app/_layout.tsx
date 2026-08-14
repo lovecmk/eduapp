@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { ThemeProvider, useTheme } from '../src/theme/ThemeProvider';
 import { useCollectionSync } from '../src/hooks/useCollectionSync';
+import { useSettingsSync } from '../src/hooks/useSettingsSync';
 import { useAuthStore } from '../src/store/authStore';
 import { useSettingsStore } from '../src/store/settingsStore';
 import { syncPushTokenWithServer } from '../src/data/notifications/NotificationService';
@@ -90,6 +91,11 @@ function RootContent() {
   // 루트에 두는 이유 — 도감 화면은 탭 밖(/collection-book, /pack-rules)에 있고,
   // 팩은 학습 화면에서도 적립된다. 어느 화면에 있든 기록이 남아야 한다.
   useCollectionSync();
+
+  // 계정 설정(관심 분야·하루 목표·알림 수신·공개 범위·한 줄 소개)을 서버와 맞춘다.
+  // 루트에 두는 이유는 도감과 같다 — 설정은 여러 화면(설정·프로필·마이페이지)에서
+  // 바뀌고, 어디서 바꿨든 같은 계정이면 따라가야 한다.
+  useSettingsSync();
 
   // 앱 전체 뒤로가기 안전망. 화면별 처리(학습 중 이탈 확인 등)가 우선하고,
   // 아무도 처리하지 않은 뒤로가기만 여기서 받아 앱이 갑자기 종료되는 것을 막는다.

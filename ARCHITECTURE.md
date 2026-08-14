@@ -84,6 +84,9 @@ eduapp/
 | 하루 학습 상한(서버 권위) | hooks/useDailyQuota | 서버: LearningService(`/api/learning/*`), domain/models/LearningQuota(합침 규칙) | store/dailyLearningStore |
 | **오늘의 출제(사람마다·날마다 3~5문제)** | hooks/useDailyAssignment, app/(tabs)/cards·index | domain/dailyPlan(규칙) · data/repositories/DailyAssignmentRepository(`/api/learning/today`) | — |
 | 운영 공지 배너·점검 안내 | components/ui/NoticeBanner((tabs)/_layout) | data/repositories/ServiceConfigRepository(`/api/config`) | — |
+| **질문 & 답변(커뮤니티 Q&A)** | app/(tabs)/community·app/qna/[id], hooks/useQna | domain/models/Qna · data/repositories/QnaRepository(`/api/qna`, 미배포 → 목업 폴백) | store/qnaStore(목업 원천·오프라인 사본) |
+| **계정 설정 동기화** | hooks/useSettingsSync(app/_layout) | domain/models/UserSettings(계정/기기 구분·병합 규칙) · data/repositories/SettingsRepository(`/api/settings`, 미배포 → 목업 폴백) | store/settingsStore(accountOwnerId·accountUpdatedAt) |
+| 기능별 연결 상태(강등 표시) | app/developer.tsx | data/repositories/_fallback(listDegradations) | — |
 
 ## 오늘의 출제 — 사람마다, 날마다
 
