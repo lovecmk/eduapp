@@ -19,6 +19,7 @@ import { ScrollFadeEdge } from '../../src/components/ui/ScrollFadeEdge';
 import { useScrollHasMore } from '../../src/hooks/useScrollHasMore';
 import { CardQuiz } from '../../src/components/cards/CardQuiz';
 import { CardReportModal } from '../../src/components/cards/CardReportModal';
+import { CardDifficultyAsk } from '../../src/components/cards/CardDifficultyAsk';
 import { fontCute } from '../../src/theme/tokens';
 import { getCategoryIcon } from '../../src/constants/categories';
 import { ROUTES } from '../../src/constants/routes';
@@ -34,6 +35,7 @@ import { useLikeStore } from '../../src/store/likeStore';
 import { useReportStore } from '../../src/store/reportStore';
 import { useCollectionStore } from '../../src/store/collectionStore';
 import { useSrsStore } from '../../src/store/srsStore';
+import { useDiffPollStore, type DiffVote } from '../../src/store/diffPollStore';
 import { predictLabel, initialState } from '../../src/domain/srs';
 import { safeInternalPath } from '../../src/utils/safeRoute';
 
@@ -113,6 +115,18 @@ export default function CardsScreen() {
   const [solveHint, setSolveHint] = useState(false);
   // 뒤로가기 시 "어디로 이동할지" 묻는 확인 모달.
   const [exitConfirm, setExitConfirm] = useState(false);
+  /**
+   * 한 문제를 마치고 넘어가기 직전에 묻는 체감 난이도(쉬움/중간/어려움).
+   *
+   * 카드를 날려보내기 전에 묻는다 — 방금 본 문제가 아직 화면에 있어야
+   * "이 문제"가 무엇인지 헷갈리지 않는다. 답(또는 건너뛰기)을 받고 나서야
+   * 미뤄 둔 넘김 동작을 실행한다.
+   *
+   * 아직 프론트 전용이다 — 로컬에만 남기고 서버로 보내지 않는다.
+   */
+  const [askVisible, setAskVisible] = useState(false);
+  const pendingAdvanceRef = useRef<(() => void) | null>(null);
+  const voteDifficulty = useDiffPollStore((s) => s.vote);
 
   // 카드 뒤집기(rotateY) + 넘김(translate/opacity) 애니메이션 값.
   const flipAnim = useRef(new Animated.Value(0)).current;
@@ -341,6 +355,28 @@ export default function CardsScreen() {
     else setIndex(nextIdx);
   }, [card, index, deck.length, markCardMutation, srsGrade, resetCardAnims, enterAnim, isCategoryMode, isFocusMode]);
 
+  /**
+   * 넘김 동작을 잠시 붙잡고 "이 문제 얼마나 어려웠나요?"를 먼저 묻는다.
+   * 이미 답한 카드는 다시 묻지 않고 곧바로 넘긴다.
+   */
+  const askDifficulty = useCallback((run: () => void) => {
+    if (!card) { run(); return; }
+    if (useDiffPollStore.getState().myVotes[card.id]) { run(); return; }
+    pendingAdvanceRef.current = run;
+    // 스와이프로 밀려 있던 카드는 제자리로 되돌려 놓고 묻는다.
+    Animated.spring(translateX, { toValue: 0, useNativeDriver: true, friction: 6 }).start();
+    setAskVisible(true);
+  }, [card, translateX]);
+
+  /** 난이도를 고르거나 건너뛰면 — 미뤄 둔 넘김 동작을 그때 실행한다. */
+  const resolveAsk = useCallback((choice: DiffVote | null) => {
+    if (choice && card) voteDifficulty(card.id, choice);
+    setAskVisible(false);
+    const run = pendingAdvanceRef.current;
+    pendingAdvanceRef.current = null;
+    run?.();
+  }, [card, voteDifficulty]);
+
   // 새 카드가 화면에 올라올 때 — 과한 바운스 없이 잔잔하게 떠오르며 등장한다(편안한 전환).
   useEffect(() => {
     if (!card || finished) return;
@@ -358,24 +394,28 @@ export default function CardsScreen() {
   // "학습 완료" → 왼쪽으로 넘김.
   const completeLeft = useCallback(() => {
     if (exiting) return;
-    setExiting(true);
-    // '아는 것(학습 완료)'은 조용히 넘긴다 — 넘김 햅틱은 '모를 때'에만.
-    Animated.parallel([
-      Animated.timing(translateX, { toValue: -SCREEN_W - 80, duration: 300, useNativeDriver: true }),
-      Animated.timing(cardOpacity, { toValue: 0, duration: 260, useNativeDriver: true }),
-    ]).start(() => advance('mastered'));
-  }, [exiting, translateX, cardOpacity, advance]);
+    askDifficulty(() => {
+      setExiting(true);
+      // '아는 것(학습 완료)'은 조용히 넘긴다 — 넘김 햅틱은 '모를 때'에만.
+      Animated.parallel([
+        Animated.timing(translateX, { toValue: -SCREEN_W - 80, duration: 300, useNativeDriver: true }),
+        Animated.timing(cardOpacity, { toValue: 0, duration: 260, useNativeDriver: true }),
+      ]).start(() => advance('mastered'));
+    });
+  }, [exiting, translateX, cardOpacity, advance, askDifficulty]);
 
   // "다음에 한번 더"(모를 때 = 빨간 버튼) → 위로 올림. 최소 햅틱을 준다.
   const againUp = useCallback(() => {
     if (exiting) return;
-    setExiting(true);
-    dnkHaptic();
-    Animated.parallel([
-      Animated.timing(translateY, { toValue: -SCREEN_H, duration: 320, useNativeDriver: true }),
-      Animated.timing(cardOpacity, { toValue: 0, duration: 280, useNativeDriver: true }),
-    ]).start(() => advance('learning'));
-  }, [exiting, translateY, cardOpacity, advance, dnkHaptic]);
+    askDifficulty(() => {
+      setExiting(true);
+      dnkHaptic();
+      Animated.parallel([
+        Animated.timing(translateY, { toValue: -SCREEN_H, duration: 320, useNativeDriver: true }),
+        Animated.timing(cardOpacity, { toValue: 0, duration: 280, useNativeDriver: true }),
+      ]).start(() => advance('learning'));
+    });
+  }, [exiting, translateY, cardOpacity, advance, dnkHaptic, askDifficulty]);
 
   // ── 스와이프 트랙(원진섭) 전용 동작 ───────────────────────────────
   const solveHintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -400,14 +440,16 @@ export default function CardsScreen() {
   // 좌/우로 카드를 날려보내며 분류한다. (오른쪽=아는 것=학습 완료, 왼쪽=모르는 것=다시)
   const swipeAway = useCallback((dir: 'left' | 'right', status: 'mastered' | 'learning') => {
     if (exiting) return;
-    setExiting(true);
-    // 왼쪽(모르는 것=다시)만 최소 햅틱, 오른쪽(아는 것)은 조용히.
-    if (status === 'learning') dnkHaptic();
-    Animated.parallel([
-      Animated.timing(translateX, { toValue: dir === 'right' ? SCREEN_W + 100 : -SCREEN_W - 100, duration: 280, useNativeDriver: true }),
-      Animated.timing(cardOpacity, { toValue: 0, duration: 240, useNativeDriver: true }),
-    ]).start(() => advance(status));
-  }, [exiting, translateX, cardOpacity, advance, dnkHaptic]);
+    askDifficulty(() => {
+      setExiting(true);
+      // 왼쪽(모르는 것=다시)만 최소 햅틱, 오른쪽(아는 것)은 조용히.
+      if (status === 'learning') dnkHaptic();
+      Animated.parallel([
+        Animated.timing(translateX, { toValue: dir === 'right' ? SCREEN_W + 100 : -SCREEN_W - 100, duration: 280, useNativeDriver: true }),
+        Animated.timing(cardOpacity, { toValue: 0, duration: 240, useNativeDriver: true }),
+      ]).start(() => advance(status));
+    });
+  }, [exiting, translateX, cardOpacity, advance, dnkHaptic, askDifficulty]);
 
   // 스와이프 시도 — 퀴즈 미풀이면 막고, 아니면 방향에 맞게 분류.
   const trySwipe = useCallback((dir: 'left' | 'right') => {
@@ -490,6 +532,8 @@ export default function CardsScreen() {
 
   const restart = () => {
     if (autoFlipTimer.current) clearTimeout(autoFlipTimer.current);
+    setAskVisible(false);
+    pendingAdvanceRef.current = null;
     // 최신 학습 상태로 덱을 다시 뽑는다.
     setSessionDeck(null);
     setIndex(0);
@@ -534,6 +578,8 @@ export default function CardsScreen() {
   const leaveSession = useCallback((target: string) => {
     if (autoFlipTimer.current) clearTimeout(autoFlipTimer.current);
     setExitConfirm(false);
+    setAskVisible(false);
+    pendingAdvanceRef.current = null;
     endFlow(router, target);
   }, [router]);
 
@@ -979,6 +1025,13 @@ export default function CardsScreen() {
       </View>
 
       <CardReportModal visible={reportOpen} card={card} onClose={() => setReportOpen(false)} />
+
+      {/* 한 문제를 풀고 넘어가기 직전 — 체감 난이도를 한 번 묻는다(프론트 전용). */}
+      <CardDifficultyAsk
+        visible={askVisible}
+        onSelect={(choice) => resolveAsk(choice)}
+        onSkip={() => resolveAsk(null)}
+      />
 
       {/* 뒤로가기 시 이동 위치 확인 — '홈으로 튕기는' UX 방지 */}
       <Modal visible={exitConfirm} transparent animationType="fade" onRequestClose={() => setExitConfirm(false)} statusBarTranslucent>
