@@ -724,6 +724,13 @@ export default function CardsScreen() {
   const frontOpacity = flipAnim.interpolate({ inputRange: [0, 0.499, 0.5, 1], outputRange: [1, 1, 0, 0], extrapolate: 'clamp' });
   const backOpacity = flipAnim.interpolate({ inputRange: [0, 0.499, 0.5, 1], outputRange: [0, 0, 1, 1], extrapolate: 'clamp' });
 
+  // 그림자 애니메이션: 뒤집는 동안(0.5 부근)엔 그림자 0, 앞/뒷면 완료 후 천천히 페이드 인.
+  const shadowOpacity = flipAnim.interpolate({
+    inputRange: [0, 0.3, 0.5, 0.7, 1],
+    outputRange: [1, 0, 0, 0, 1],
+    extrapolate: 'clamp',
+  });
+
   // 스와이프 트랙 — 좌우로 밀 때 나타나는 "아는 것/모르는 것" 라벨 투명도.
   const knowOpacity = translateX.interpolate({ inputRange: [30, 110], outputRange: [0, 1], extrapolate: 'clamp' });
   const dontKnowOpacity = translateX.interpolate({ inputRange: [-110, -30], outputRange: [1, 0], extrapolate: 'clamp' });
@@ -786,12 +793,12 @@ export default function CardsScreen() {
                 transform: [{ perspective: 1600 }, { rotateY: frontRotate }],
                 backfaceVisibility: 'hidden',
                 opacity: frontOpacity,
-                // Floating shadow effect
+                // Floating shadow effect - animated
                 shadowColor: '#000',
                 shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: 0.12,
+                shadowOpacity: shadowOpacity.interpolate({ inputRange: [0, 1], outputRange: [0, 0.12] }),
                 shadowRadius: 12,
-                elevation: 8,
+                elevation: shadowOpacity.interpolate({ inputRange: [0, 1], outputRange: [0, 8] }),
               }}
             >
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
@@ -827,28 +834,30 @@ export default function CardsScreen() {
                       <QuestionImage source={resolveCardImage(card.imageUrl)} height={172} />
                     </View>
                   )}
-                  {!!card.situation && (
-                    <Text style={{ color: c.textPrimary, fontSize: 13.5 * fs, lineHeight: 20, textAlign: 'center', fontFamily: fontCute, marginBottom: 8 }}>
-                      {card.situation}
-                    </Text>
-                  )}
-                  <Text style={{ color: c.primary, fontSize: 18 * fs, fontWeight: '800', lineHeight: 26, textAlign: 'center', fontFamily: fontCute, marginBottom: 18 }}>
-                    <Text style={{ fontWeight: '900' }}>Q. </Text>{card.question}
-                  </Text>
+{!!card.situation && (
+                        <Text style={{ color: c.textPrimary, fontSize: 13.5 * fs, lineHeight: 20, textAlign: 'left', fontFamily: fontCute, marginBottom: 8 }}>
+                          {card.situation}
+                        </Text>
+                      )}
+                      <Text style={{ color: c.primary, fontSize: 18 * fs, fontWeight: '800', lineHeight: 26, textAlign: 'left', fontFamily: fontCute, marginBottom: 18 }}>
+                        <Text style={{ fontWeight: '900' }}>Q. </Text>{card.question}
+                      </Text>
                   <CardQuiz
                     card={card}
                     pick={quizPick}
                     revealed={quizRevealed}
                     onPick={handleQuizPick}
                   />
-                  {!quizRevealed && (
-                    <View style={{ marginTop: 18, alignItems: 'center' }}>
-                      <CardTimer seconds={card.studySeconds} resetKey={card.id} onExpire={haptic} />
-                    </View>
-                  )}
-                </ScrollView>
-                <ScrollFadeEdge color={frontTint} visible={quizBody.hasMore} />
-              </View>
+{!quizRevealed && (
+                      <View style={{ marginTop: 18, alignItems: 'center' }}>
+                        <CardTimer seconds={card.studySeconds} resetKey={card.id} onExpire={haptic} />
+                      </View>
+                    )}
+                    {/* 하단 버튼(이해했어요/다음에 한번 더) 높이만큼 공간 예약 — 앞면에서도 높이 고정 */}
+                    <View style={{ height: 64 }} />
+                  </ScrollView>
+                  <ScrollFadeEdge color={frontTint} visible={quizBody.hasMore} />
+                </View>
             ) : (
               /* 설명형 앞면 — 문제/상황이 길면 카드 밖으로 잘리므로 스크롤 가능하게 두고,
                  짧을 때는 flexGrow + center 로 지금처럼 가운데 정렬을 유지한다. */
@@ -865,20 +874,22 @@ export default function CardsScreen() {
                   ) : (
                     <Ionicons name={getCategoryIcon(card.category)} size={40 * fs} color={c.primary} style={{ marginBottom: 12, opacity: 0.6 }} />
                   )}
-                  {!!card.situation && (
-                    <Text style={{ color: c.textPrimary, fontSize: 16.5 * fs, lineHeight: 25, textAlign: 'center', fontFamily: fontCute, marginBottom: 14 }}>
-                      {card.situation}
-                    </Text>
-                  )}
-                  <Text style={{ color: c.primary, fontSize: 20 * fs, fontWeight: '800', lineHeight: 29, textAlign: 'center', fontFamily: fontCute }}>
-                    <Text style={{ fontWeight: '900' }}>Q. </Text>{card.question}
-                  </Text>
-                  <View style={{ marginTop: 20 }}>
-                    <CardTimer seconds={card.studySeconds} resetKey={card.id} onExpire={haptic} />
-                  </View>
-                </ScrollView>
-                <ScrollFadeEdge color={frontTint} visible={frontBody.hasMore} />
-              </View>
+{!!card.situation && (
+                        <Text style={{ color: c.textPrimary, fontSize: 16.5 * fs, lineHeight: 25, textAlign: 'left', fontFamily: fontCute, marginBottom: 14 }}>
+                          {card.situation}
+                        </Text>
+                      )}
+                      <Text style={{ color: c.primary, fontSize: 20 * fs, fontWeight: '800', lineHeight: 29, textAlign: 'left', fontFamily: fontCute }}>
+                        <Text style={{ fontWeight: '900' }}>Q. </Text>{card.question}
+                      </Text>
+<View style={{ marginTop: 20 }}>
+                      <CardTimer seconds={card.studySeconds} resetKey={card.id} onExpire={haptic} />
+                    </View>
+                    {/* 하단 버튼(이해했어요/다음에 한번 더) 높이만큼 공간 예약 — 앞면에서도 높이 고정 */}
+                    <View style={{ height: 64 }} />
+                  </ScrollView>
+                  <ScrollFadeEdge color={frontTint} visible={frontBody.hasMore} />
+                </View>
             )}
           </Animated.View>
 
@@ -891,12 +902,12 @@ export default function CardsScreen() {
               transform: [{ perspective: 1600 }, { rotateY: backRotate }],
               backfaceVisibility: 'hidden',
               opacity: backOpacity,
-              // Floating shadow effect
+              // Floating shadow effect - animated
               shadowColor: '#000',
               shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.12,
+              shadowOpacity: shadowOpacity.interpolate({ inputRange: [0, 1], outputRange: [0, 0.12] }),
               shadowRadius: 12,
-              elevation: 8,
+              elevation: shadowOpacity.interpolate({ inputRange: [0, 1], outputRange: [0, 8] }),
             }}
           >
             <View style={{ marginBottom: 12 }}>
