@@ -764,18 +764,12 @@ export default function CardsScreen() {
 
   const isQuiz = card.type === 'ox' || card.type === 'choice';
 
-  // 카드 톤 — 앞/뒷면 모두 같은 표면색(surface)을 쓰고, '테두리 색'만 달리해 면을 구분한다.
-  // (배경색을 서로 다르게 칠하면 디자인적으로 튀어, 자연스러운 종이 느낌이 깨진다.)
-  //
-  // 그림자는 카드 면이 아니라 **회전하지 않는 별도의 판**(아래 '그림자 판')이 진다.
-  // 면에 직접 주면 rotateY 로 도는 동안 평면 그림자가 뒤에 남아 잔상(ghosting)이 됐다.
-  // 그 판은 카드가 움직이는 동안 지워졌다가, 멈춘 뒤 서서히 다시 차오른다(shadowAnim).
+  // 카드 톤 — 앞/뒷면 모두 같은 표면색(surface)을 쓴다.
+  // 테두리 색을 없애고 그림자(floating)로 카드 면을 배경에서 띄운다.
+  const frontTint = c.surface;
+  const backTint = c.surface;
   const isLight = theme.mode === 'light';
   const cardShadow = isLight ? '0 10px 26px rgba(15,23,42,0.16)' : '0 10px 26px rgba(0,0,0,0.55)';
-  const frontTint = c.surface; // 앞면: 표면색(중립)
-  const backTint = c.surface; // 뒷면: 동일 표면색 — 배경으로는 구분하지 않는다
-  const frontBorder = c.primary + (isLight ? '80' : 'A6'); // 앞면: 또렷한 파랑 테두리
-  const backBorder = c.success + (isLight ? '80' : 'A6'); // 뒷면: 또렷한 초록 테두리(면 구분은 테두리로만)
   // 태블릿·와이드 화면에서 글자가 좌우로 과하게 퍼지지 않도록 학습 컬럼 폭을 제한(가운데 정렬).
   const COLUMN_MAX = 560;
 
@@ -839,9 +833,13 @@ export default function CardsScreen() {
              아래 '카드 뒤집기' 버튼이, 스와이프 트랙은 아래 안내 줄이 그 역할을 한다.
              tabIndex={-1} 은 이름도 역할도 없는 자리에 키보드 초점이 멈추지 않게 한다. */}
          <Pressable tabIndex={-1} onPress={onCardPress} disabled={exiting} style={{ flex: 1 }}>
-          {/* 그림자 판 — 카드와 같은 크기·모서리로 뒤에 깔린 채 회전하지 않는다.
-              카드가 뒤집히거나 넘어가는 동안에는 opacity 0 이라 잔상이 남지 않고,
-              카드가 자리를 잡으면 서서히 차올라 종이가 내려앉는 것처럼 보인다. */}
+          {/* 그림자 판 — 카드와 같은 크기·모서리로 뒤에 깔린 채 **회전하지 않는다**.
+
+              그림자를 카드 면에 직접 주면 rotateY 로 도는 동안 평면 그림자가 뒤에 남아
+              잔상(ghosting)이 된다. 그리고 shadowOpacity·elevation 은 네이티브 드라이버로
+              굴릴 수 없어(flipAnim 은 useNativeDriver: true) 면에 얹으면 네이티브에서 터진다.
+              그래서 그림자는 이 판이 지고, 판은 opacity(=네이티브 가능) 하나로만 조절한다.
+              카드가 움직이는 동안에는 0 이라 잔상이 없고, 멈추면 서서히 차오른다. */}
           <Animated.View
             pointerEvents="none"
             style={{
@@ -858,8 +856,7 @@ export default function CardsScreen() {
             pointerEvents={flipped ? 'none' : 'auto'}
             style={{
               position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-              backgroundColor: frontTint, borderWidth: 2, borderColor: frontBorder,
-              borderRadius: 20, padding: 24,
+              backgroundColor: frontTint, borderWidth: 0, borderRadius: 20, padding: 21,
               transform: [{ perspective: 1600 }, { rotateY: frontRotate }],
               backfaceVisibility: 'hidden',
               opacity: frontOpacity,
@@ -899,11 +896,11 @@ export default function CardsScreen() {
                     </View>
                   )}
                   {!!card.situation && (
-                    <Text style={{ color: c.textPrimary, fontSize: 13.5 * fs, lineHeight: 20, textAlign: 'center', fontFamily: fontCute, marginBottom: 8 }}>
+                    <Text style={{ color: c.textPrimary, fontSize: 13.5 * fs, lineHeight: 20, textAlign: 'left', fontFamily: fontCute, marginBottom: 8 }}>
                       {card.situation}
                     </Text>
                   )}
-                  <Text style={{ color: c.primary, fontSize: 18 * fs, fontWeight: '800', lineHeight: 26, textAlign: 'center', fontFamily: fontCute, marginBottom: 18 }}>
+                  <Text style={{ color: c.primary, fontSize: 18 * fs, fontWeight: '800', lineHeight: 26, textAlign: 'left', fontFamily: fontCute, marginBottom: 18 }}>
                     <Text style={{ fontWeight: '900' }}>Q. </Text>{card.question}
                   </Text>
                   <CardQuiz
@@ -936,12 +933,15 @@ export default function CardsScreen() {
                   ) : (
                     <Ionicons name={getCategoryIcon(card.category)} size={40 * fs} color={c.primary} style={{ marginBottom: 12, opacity: 0.6 }} />
                   )}
+                  {/* 글은 카드 폭을 꽉 채워 왼쪽으로 정렬한다. 감싼 스크롤이 alignItems: 'center'
+                      라(아이콘·이미지를 가운데 두려고) 그냥 두면 짧은 문장만 가운데로 몰려,
+                      길이에 따라 정렬이 오락가락한다. */}
                   {!!card.situation && (
-                    <Text style={{ color: c.textPrimary, fontSize: 16.5 * fs, lineHeight: 25, textAlign: 'center', fontFamily: fontCute, marginBottom: 14 }}>
+                    <Text style={{ alignSelf: 'stretch', color: c.textPrimary, fontSize: 16.5 * fs, lineHeight: 25, textAlign: 'left', fontFamily: fontCute, marginBottom: 14 }}>
                       {card.situation}
                     </Text>
                   )}
-                  <Text style={{ color: c.primary, fontSize: 20 * fs, fontWeight: '800', lineHeight: 29, textAlign: 'center', fontFamily: fontCute }}>
+                  <Text style={{ alignSelf: 'stretch', color: c.primary, fontSize: 20 * fs, fontWeight: '800', lineHeight: 29, textAlign: 'left', fontFamily: fontCute }}>
                     <Text style={{ fontWeight: '900' }}>Q. </Text>{card.question}
                   </Text>
                   <View style={{ marginTop: 20 }}>
@@ -958,8 +958,7 @@ export default function CardsScreen() {
             pointerEvents={flipped ? 'auto' : 'none'}
             style={{
               position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-              backgroundColor: backTint, borderWidth: 2, borderColor: backBorder,
-              borderRadius: 20, padding: 22,
+              backgroundColor: backTint, borderWidth: 0, borderRadius: 20, padding: 19,
               transform: [{ perspective: 1600 }, { rotateY: backRotate }],
               backfaceVisibility: 'hidden',
               opacity: backOpacity,
@@ -1021,8 +1020,8 @@ export default function CardsScreen() {
 
       {/* 하단 컨트롤 — 학습자가 조작하는 버튼(화면 중간 아래). 버튼 전환은 카드 회전 중간(backControls)에 맞춘다.
 
-          **높이는 어떤 상태에서도 52 로 고정한다.** 이 블록이 커졌다 작아지면 위의 카드 영역
-          (flex: 1)이 그만큼 늘었다 줄어, 카드 높이가 상태에 따라 달라 보인다. 안내 줄이든
+          **높이는 어떤 상태에서도 52 로 고정한다.** 이 블록이 비었다 찼다 하면 위의 카드 영역
+          (flex: 1)이 그만큼 늘었다 줄어, 뒤집을 때마다 카드 높이가 달라진다. 안내 줄이든
           두 개짜리 액션 행이든 같은 높이를 차지하게 두어 학습카드 높이를 항상 같게 유지한다. */}
       <View style={{ paddingHorizontal: 20, paddingBottom: 24, paddingTop: 12, borderTopWidth: 1, borderTopColor: c.border, width: '100%', maxWidth: COLUMN_MAX, alignSelf: 'center' }}>
         {isSwipeTrack ? (
