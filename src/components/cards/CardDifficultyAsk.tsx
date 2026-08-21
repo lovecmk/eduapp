@@ -12,6 +12,16 @@ const OPTIONS: { key: DiffVote; label: string; hint: string; icon: keyof typeof 
   { key: 'hard', label: '어려움', hint: '많이 헷갈렸어요', icon: 'sad-outline', color: '#FF3B30' },
 ];
 
+/** 카드에 대한 반응(추천·저장·신고) — 난이도 카드 하단에 함께 붙는다. */
+export type CardReactions = {
+  liked: boolean;
+  bookmarked: boolean;
+  reported: boolean;
+  onToggleLike: () => void;
+  onToggleBookmark: () => void;
+  onReport: () => void;
+};
+
 /**
  * 한 문제를 풀고 넘어가기 직전에 묻는 체감 난이도.
  *
@@ -19,16 +29,23 @@ const OPTIONS: { key: DiffVote; label: string; hint: string; icon: keyof typeof 
  * 찍어서 맞힌 문제와 확신하고 맞힌 문제는 다음에 다시 만나야 할 시점이 다르므로,
  * 카드를 넘기기 전 그 자리에서 한 번만 묻는다(같은 카드는 다시 묻지 않는다).
  *
+ * 추천·저장·신고도 여기서 받는다. 예전에는 뒷면 해설 아래에 고정으로 붙어 있었는데,
+ * 해설을 읽는 자리를 상시로 차지하면서도 정작 누를 마음이 드는 순간(문제를 다 보고
+ * 넘어갈 때)에는 이미 지나간 뒤였다. 방금 본 문제에 대한 판단을 한 자리에서 모은다.
+ *
  * 지금은 화면 안에서만 쓰는 값이다 — 서버에 보내지 않는다.
  */
 export function CardDifficultyAsk({
   visible,
   onSelect,
   onSkip,
+  reactions,
 }: {
   visible: boolean;
   onSelect: (choice: DiffVote) => void;
   onSkip: () => void;
+  /** 없으면 반응 행을 그리지 않는다(난이도만 묻는 화면). */
+  reactions?: CardReactions;
 }) {
   const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
@@ -70,6 +87,44 @@ export function CardDifficultyAsk({
             ))}
           </View>
 
+          {/* 이 문제에 대한 반응 — 추천 / 저장 / 신고 */}
+          {reactions && (
+            <View style={{ marginTop: 16, paddingTop: 14, borderTopWidth: 1, borderTopColor: c.border }}>
+              <Text style={{ color: c.textSecondary, fontSize: 11.5 * fs, fontFamily: fontCute, marginBottom: 9 }}>
+                이 문제는 어땠나요?
+              </Text>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={reactions.liked ? '추천 취소' : '추천'}
+                  onPress={() => { hapticTap(); reactions.onToggleLike(); }}
+                  style={[reactionStyle(reactions.liked, c.error, c.surfaceAlt)]}
+                >
+                  <Ionicons name={reactions.liked ? 'heart' : 'heart-outline'} size={17} color={reactions.liked ? c.error : c.textSecondary} />
+                  <Text style={{ color: reactions.liked ? c.error : c.textSecondary, fontSize: 13 * fs, fontFamily: fontCute }}>추천</Text>
+                </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={reactions.bookmarked ? '저장 취소' : '저장'}
+                  onPress={() => { hapticTap(); reactions.onToggleBookmark(); }}
+                  style={[reactionStyle(reactions.bookmarked, c.primary, c.surfaceAlt)]}
+                >
+                  <Ionicons name={reactions.bookmarked ? 'bookmark' : 'bookmark-outline'} size={16} color={reactions.bookmarked ? c.primary : c.textSecondary} />
+                  <Text style={{ color: reactions.bookmarked ? c.primary : c.textSecondary, fontSize: 13 * fs, fontFamily: fontCute }}>{reactions.bookmarked ? '저장됨' : '저장'}</Text>
+                </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="이 문제 신고"
+                  onPress={reactions.onReport}
+                  style={[reactionStyle(reactions.reported, c.warning, c.surfaceAlt)]}
+                >
+                  <Ionicons name={reactions.reported ? 'flag' : 'flag-outline'} size={16} color={reactions.reported ? c.warning : c.textSecondary} />
+                  <Text style={{ color: reactions.reported ? c.warning : c.textSecondary, fontSize: 13 * fs, fontFamily: fontCute }}>{reactions.reported ? '신고됨' : '신고'}</Text>
+                </Pressable>
+              </View>
+            </View>
+          )}
+
           <Pressable accessibilityRole="button" onPress={onSkip} hitSlop={6} style={{ alignItems: 'center', paddingVertical: 12, marginTop: 6 }}>
             <Text style={{ color: c.textSecondary, fontSize: 13 * fs, fontFamily: fontCute }}>건너뛰기</Text>
           </Pressable>
@@ -77,4 +132,18 @@ export function CardDifficultyAsk({
       </View>
     </Modal>
   );
+}
+
+/** 반응 버튼 한 칸 — 켜지면 그 색으로 옅게 물든다. */
+function reactionStyle(on: boolean, accent: string, off: string) {
+  return {
+    flex: 1,
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    gap: 4,
+    backgroundColor: on ? accent + '18' : off,
+    borderRadius: 999,
+    paddingVertical: 9,
+  };
 }

@@ -46,7 +46,7 @@ import type { LearningCard } from '../../src/domain/models/LearningCard';
 import type { User } from '../../src/domain/models/User';
 
 // 객관식 + 이미지 카드 — 앞면에 '진짜 버튼'이 가장 많이 생기는 조합이다
-// (보기 4개 + 이미지 확대). 뒷면의 추천·저장·신고는 카드 종류와 무관하게 늘 있다.
+// (보기 4개 + 이미지 확대).
 const mockCard: LearningCard = {
   id: 'c-1',
   category: '전기 위험',
@@ -110,10 +110,10 @@ describe.each([
 ])('학습 카드 화면(%s) — 조작 요소 구조', (_label, name) => {
   it('카드가 실제로 그려진다(빈 화면으로 통과하는 헛검사 방지)', () => {
     wrap(name);
-    // 뒷면의 반응 버튼은 카드가 그려졌을 때만 존재한다(뒤집기 전에도 트리에는 있다).
-    expect(screen.getByText('추천')).toBeTruthy();
-    expect(screen.getByText('저장')).toBeTruthy();
-    expect(screen.getByText('신고')).toBeTruthy();
+    // 앞면의 문제와 보기는 카드가 그려졌을 때만 존재한다.
+    // (추천·저장·신고는 이제 카드 뒷면이 아니라 넘어가기 직전의 난이도 카드에 있다.)
+    expect(screen.getByText(mockCard.situation!)).toBeTruthy();
+    expect(screen.getByText(mockCard.choices![0])).toBeTruthy();
   });
 
   it('버튼 안에 버튼이 없다', () => {

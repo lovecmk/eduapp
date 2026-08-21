@@ -20,6 +20,11 @@ import { AttendanceStamp } from './AttendanceStamp';
 import { CheckInSuccess } from './CheckInSuccess';
 import type { LearningCard } from '../../domain/models/LearningCard';
 
+/** 날짜 동그라미의 지름 — 이어짐 띠의 높이·모서리도 여기서 따라간다. */
+const DAY_SIZE = 30;
+/** 날짜 칸의 위아래 여백 — 띠가 동그라미와 같은 높이에 놓이도록 맞춘다. */
+const CELL_PAD_V = 1;
+
 const DAYS = ['일', '월', '화', '수', '목', '금', '토'];
 const MONTHS = Array.from({ length: 12 }, (_, i) => `${i + 1}월`);
 
@@ -119,6 +124,13 @@ export function LearningCalendar() {
     setJustStamped(dateKey(new Date()));
   };
 
+  /** 근무일인가 — 주말·공휴일은 애초에 학습일로 세지 않는다. */
+  const isWorkdayDate = (date: Date): boolean => {
+    const dow = date.getDay();
+    if (dow === 0 || dow === 6) return false;
+    return !isHoliday(date.getFullYear(), date.getMonth(), date.getDate());
+  };
+
   /**
    * 그날이 '완료된 학습일'인가 — 이어진 학습을 하나의 띠로 그리기 위한 판정.
    *
@@ -128,10 +140,33 @@ export function LearningCalendar() {
    */
   const isDoneDay = (day: number): boolean => {
     const date = new Date(year, month, day);
-    const dow = date.getDay();
-    if (dow === 0 || dow === 6) return false;
-    if (isHoliday(date.getFullYear(), date.getMonth(), date.getDate())) return false;
+    if (!isWorkdayDate(date)) return false;
     return (history[dateKey(date)]?.length ?? 0) >= DAILY_MIN_CARDS;
+  };
+
+  /** 그 날에서 한 방향으로 걸어가 처음 만나는 **근무일**이 완료된 날인가. */
+  const nearestWorkdayDone = (day: number, step: 1 | -1): boolean => {
+    // 연휴가 길어야 열흘 남짓이다 — 그 안에서 근무일을 못 만나면 이어지지 않은 것으로 본다.
+    for (let k = 1; k <= 10; k++) {
+      const date = new Date(year, month, day + step * k);
+      if (isWorkdayDate(date)) return (history[dateKey(date)]?.length ?? 0) >= DAILY_MIN_CARDS;
+    }
+    return false;
+  };
+
+  /**
+   * 그 날이 '이어달리기 안'에 있는가 — 띠를 그릴지 정한다.
+   *
+   * 근무일은 완료했으면 안에 있다. **주말·공휴일은 앞뒤 근무일이 모두 완료면 다리를
+   * 놓는다.** 쉬는 날은 학습일로 세지 않으므로(범례의 '토·일·공휴일 제외') 금요일까지
+   * 하고 월요일에 이어 한 사람은 한 번도 거르지 않은 것이다. 그런데 주말에서 띠를
+   * 끊으면 화면에는 매주 새로 시작하는 것처럼 보여, 실제보다 훨씬 자주 끊긴 것으로 읽힌다.
+   * 다리는 더 옅게 칠해 '그날 학습했다'와는 구분한다.
+   */
+  const inStreak = (day: number): boolean => {
+    const date = new Date(year, month, day);
+    if (isWorkdayDate(date)) return (history[dateKey(date)]?.length ?? 0) >= DAILY_MIN_CARDS;
+    return nearestWorkdayDone(day, -1) && nearestWorkdayDone(day, 1);
   };
 
   const selectedCards = useMemo(() => {
@@ -172,9 +207,16 @@ export function LearningCalendar() {
               if (d === null) return <View key={`e${w}-${dow}`} style={styles.cell} />;
               const key = `${year}-${month}-${d}`;
               const isToday = key === todayStr;
-              // 어제/내일이 이어진 학습일인지 — 같은 주(행) 안에서만 띠로 이을 수 있다.
-              const linkLeft = dow > 0 && isDoneDay(d - 1);
-              const linkRight = dow < 6 && isDoneDay(d + 1);
+              // 어제/내일이 이어달리기 안인지 — **띠**와 **마개**는 판정 범위가 다르다.
+              //  · 띠(band)는 한 줄(주) 안에서만 이어진다. 토요일에서 일요일로 넘어가는
+              //    자리는 화면에서 줄이 바뀌므로 거기서 한 번 끊고 둥글게 닫는다.
+              //  · 마개(cap, 진한 동그라미)는 **이어달리기 전체의 시작과 끝**에만 찍는다.
+              //    주가 바뀌었다고 마개를 찍으면 한 번 달린 것이 두 번 달린 것처럼 보인다.
+              const onStreak = inStreak(d);
+              const contLeft = inStreak(d - 1);
+              const contRight = inStreak(d + 1);
+              const linkLeft = dow > 0 && contLeft;
+              const linkRight = dow < 6 && contRight;
               // 그날 학습한(신규+복습) 카드 수. 근무일 기준으로 완료/일부완료를 판정하고,
               // 미수행(0장)은 아무 표시도 하지 않는다.
               const learned = history[key]?.length ?? 0;
@@ -193,27 +235,35 @@ export function LearningCalendar() {
               const done = workday && learned >= DAILY_MIN_CARDS;
               const partial = workday && learned > 0 && !done;      // 1~2문제 → 일부완료
               const attended = !!stamps[key];
-              // 이어달리기의 **가운데**(앞뒤 모두 이어진 날)는 조금 더 연하게,
-              // 시작·끝(과 하루짜리)은 진하게 칠해 띠의 양끝이 눈에 들어오게 한다.
-              const midOfStreak = done && linkLeft && linkRight;
-              const streakFill = midOfStreak ? c.success + '59' : c.success;
+              // 이어달리기의 시작·끝(과 하루짜리)에만 진한 동그라미를 찍는다.
+              // 사이의 날들은 띠 위에 숫자만 얹혀, 며칠이 하나로 이어진 하나의 덩어리로 읽힌다.
+              const isCap = done && (!contLeft || !contRight);
               return (
                 <Pressable accessibilityRole="button" key={`${w}-${dow}`} style={styles.cell} onPress={() => setSelected(key)}>
-                  {/* 이음쇠 — 칸 사이의 빈 자리를 연한 색으로 메워 며칠이 붙어 보이게 한다.
-                      날짜 칸 뒤에 깔리므로 진한 시작/끝 칸이 띠의 마개처럼 보인다. */}
-                  {done && linkLeft && <View pointerEvents="none" style={[styles.link, { left: 0, right: '50%', backgroundColor: c.success + '59' }]} />}
-                  {done && linkRight && <View pointerEvents="none" style={[styles.link, { left: '50%', right: 0, backgroundColor: c.success + '59' }]} />}
+                  {/* 이어짐 띠 — 칸 **폭 전체**를 옅게 채워 옆 칸과 빈틈 없이 붙는다.
+                      줄이 이어지는 쪽은 각지게, 끊기는 쪽은 둥글게 닫아 알약 모양이 된다.
+                      날짜 동그라미 뒤에 깔리므로 시작/끝의 진한 마개가 띠 위에 얹혀 보인다. */}
+                  {onStreak && (
+                    <View
+                      pointerEvents="none"
+                      style={[
+                        styles.band,
+                        // 학습한 날은 또렷하게, 주말·공휴일 다리는 더 옅게.
+                        { backgroundColor: c.success + (done ? '2E' : '14') },
+                        linkLeft && { borderTopLeftRadius: 0, borderBottomLeftRadius: 0 },
+                        linkRight && { borderTopRightRadius: 0, borderBottomRightRadius: 0 },
+                      ]}
+                    />
+                  )}
                   <View style={[
                     styles.dayCell,
-                    done && { backgroundColor: streakFill },
-                    // 띠 가운데 칸은 모서리를 죽여 앞뒤 칸과 한 덩어리로 이어지게 한다.
-                    done && linkLeft && { borderTopLeftRadius: 0, borderBottomLeftRadius: 0 },
-                    done && linkRight && { borderTopRightRadius: 0, borderBottomRightRadius: 0 },
+                    isCap && { backgroundColor: c.success },
                     partial && { backgroundColor: c.warning + '26', borderWidth: 1.5, borderColor: c.warning },
                     isToday && { borderWidth: 2, borderColor: c.primary },
                   ]}>
                     <Text style={[styles.dayText, {
-                      color: done ? (midOfStreak ? c.textPrimary : '#fff')
+                      color: isCap ? '#fff'
+                        : done ? c.textPrimary
                         : (dow === 0 || holiday) ? '#EF4444'
                         : dow === 6 ? '#3B82F6'
                         : c.textPrimary,
@@ -238,7 +288,7 @@ export function LearningCalendar() {
       <View style={styles.legend}>
         <View style={[styles.legendBox, { backgroundColor: c.success }]} />
         <Text style={[styles.legendText, { color: c.textSecondary }]}>완료</Text>
-        <View style={[styles.legendBox, { backgroundColor: c.success + '59' }]} />
+        <View style={[styles.legendBox, { backgroundColor: c.success + '2E' }]} />
         {/* 위 요약 칩의 '연속'(출석 연속일)과 헷갈리지 않게 다른 말을 쓴다. */}
         <Text style={[styles.legendText, { color: c.textSecondary }]}>이어짐</Text>
         <View style={[styles.legendBox, { backgroundColor: c.warning + '26', borderWidth: 1.5, borderColor: c.warning }]} />
@@ -408,25 +458,29 @@ function CardRow({ card, onPress }: { card: LearningCard; onPress?: () => void }
 const styles = StyleSheet.create({
   // 홈 첫 화면에서 캘린더가 차지하는 세로를 줄인다 — 여백·칸을 조금씩 깎아
   // 아래 카드들이 스크롤 없이 더 많이 보이게 한다(정보량은 그대로).
-  container: { borderRadius: radius.card, borderWidth: 1, padding: 14, marginBottom: 14 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 9 },
+  container: { borderRadius: radius.card, borderWidth: 1, padding: 12, marginBottom: 14 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
   arrow: { padding: 4 },
-  summaryRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
-  summaryPill: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 12, paddingVertical: 6 },
+  summaryRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },
+  summaryPill: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 12, paddingVertical: 5 },
   // 작은 스크린(스마트폰)에서 아래 숫자가 잘리지 않도록 넉넉한 높이를 준다.
-  dotRow: { flexDirection: 'row', gap: 3, minHeight: 11, marginTop: 1, alignItems: 'center', justifyContent: 'center' },
-  weekRow: { flexDirection: 'row', marginBottom: 6 },
-  weekLabel: { flex: 1, textAlign: 'center', fontSize: 12, fontWeight: '600' },
+  dotRow: { flexDirection: 'row', gap: 3, minHeight: 10, alignItems: 'center', justifyContent: 'center' },
+  weekRow: { flexDirection: 'row', marginBottom: 4 },
+  weekLabel: { flex: 1, textAlign: 'center', fontSize: 11.5, fontWeight: '600' },
   grid: {},
   weekCells: { flexDirection: 'row' },
-  cell: { flex: 1, alignItems: 'center', paddingVertical: 2 },
-  dayCell: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  cell: { flex: 1, alignItems: 'center', paddingVertical: CELL_PAD_V },
+  dayCell: { width: DAY_SIZE, height: DAY_SIZE, borderRadius: DAY_SIZE / 2, alignItems: 'center', justifyContent: 'center' },
   dayText: { fontSize: 13, fontWeight: '700', fontFamily: fontMono },
   dueDot: { width: 5, height: 5, borderRadius: 3, marginTop: 2 },
-  /** 이어진 학습일 사이를 메우는 띠 — 날짜 칸과 같은 높이·세로 위치로 절반씩 뻗는다. */
-  link: { position: 'absolute', top: 2, height: 32 },
-  legend: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 10 },
-  checkIn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 14, paddingVertical: 11, marginTop: 10 },
+  /** 이어짐 띠 — 칸 폭을 꽉 채우고 날짜 동그라미와 같은 높이·세로 위치를 갖는다.
+      옆 칸의 띠와 맞닿아 끊김 없는 하나의 알약이 된다. */
+  band: {
+    position: 'absolute', top: CELL_PAD_V, left: 0, right: 0,
+    height: DAY_SIZE, borderRadius: DAY_SIZE / 2,
+  },
+  legend: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8 },
+  checkIn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 14, paddingVertical: 10, marginTop: 8 },
   legendText: { fontSize: 10, fontFamily: fontBody },
   legendBox: { width: 12, height: 12, borderRadius: 3 },
   /** 가운데 정렬만 맡는 층 — 어둡게 까는 일은 아래 modalScrim(형제 배경)이 한다. */

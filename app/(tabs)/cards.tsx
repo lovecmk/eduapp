@@ -50,6 +50,13 @@ const SWIPE_THRESHOLD = 90;
 // 카드 그림자가 다시 차오르는 시간. 카드가 움직이는 동안에는 그림자를 지우고,
 // 자리를 잡은 뒤에 서서히 되살려 '종이가 내려앉는' 느낌을 준다.
 const SHADOW_FADE_MS = 420;
+/**
+ * 카드 그림자가 카드 아래로 번지는 길이(= boxShadow 의 offsetY + blur).
+ *
+ * 카드 영역의 아래 여백으로 그대로 쓴다. 이보다 좁으면 그림자가 하단 컨트롤의
+ * 구분선 위로 올라타 선을 지운 것처럼 흐려 보인다.
+ */
+const CARD_SHADOW_SPILL = 24;
 function haptic() {
   hapticTap();
 }
@@ -114,6 +121,21 @@ export default function CardsScreen() {
    * 올려야 한다 — 정답을 확인하는 것은 이 화면에서 가장 중요한 순간인데도.
    */
   const quizScrollRef = useRef<ScrollView>(null);
+  /**
+   * 뒷면 해설을 손가락으로 끌고 있는 중인가.
+   *
+   * 카드 면 전체가 '탭하면 뒤집기' 판이라, 해설을 조금 끌었다 뗀 동작이 탭으로
+   * 읽히면 읽던 해설이 사라지고 앞면으로 돌아가 버린다. 스크롤이 시작되면 표시해
+   * 두었다가, 손을 뗀 직후 짧은 동안의 탭 한 번을 삼킨다.
+   */
+  const draggingBackRef = useRef(false);
+  const backDragEndRef = useRef(0);
+  const markBackDragEnd = useCallback(() => {
+    draggingBackRef.current = false;
+    backDragEndRef.current = Date.now();
+  }, []);
+  const BACK_DRAG_TAP_GUARD_MS = 220;
+
   // 퀴즈 미풀이 상태에서 넘기려 할 때 잠깐 노출되는 안내.
   const [solveHint, setSolveHint] = useState(false);
   // 뒤로가기 시 "어디로 이동할지" 묻는 확인 모달.
@@ -309,9 +331,10 @@ export default function CardsScreen() {
   const doFlip = useCallback((next: boolean) => {
     haptic();
     setFlipped(next);
-    // 도는 동안에는 그림자를 지우고(잔상 방지), 다 돌아간 뒤 다시 차오르게 한다.
-    hideCardShadow();
-    raiseCardShadow(FLIP_DURATION + 40);
+    // 그림자는 **끄지 않는다.** 예전에는 도는 동안 통째로 지웠는데, 라이트 모드에서는
+    // 카드도 배경도 흰색이라 그림자가 사라진 순간 카드가 배경에 녹아 없어져 보였다.
+    // 지금은 그림자 판이 회전각에 맞춰 가로로 좁아졌다 넓어지므로(shadowScaleX),
+    // 잔상 없이 카드와 함께 자연스럽게 얇아진다 — 지울 이유가 없다.
     // 하단 버튼은 카드가 반쯤 돌아간 시점(≈절반)에 맞춰 나타나거나 사라지게 한다.
     if (controlTimer.current) clearTimeout(controlTimer.current);
     controlTimer.current = setTimeout(() => setBackControls(next), FLIP_DURATION * 0.48);
@@ -323,7 +346,7 @@ export default function CardsScreen() {
       easing: Easing.inOut(Easing.ease),
       useNativeDriver: true,
     }).start();
-  }, [flipAnim, hideCardShadow, raiseCardShadow]);
+  }, [flipAnim]);
 
   // 퀴즈(OX/객관식) 보기 선택 → 정답/오답 이펙트(햅틱)만 주고, 뒤집기는 하지 않는다.
   // 자동으로 넘어가면 정답을 곱씹을 새가 없어, 사용자가 카드를 직접 탭해 해설로 넘어가도록 둔다.
@@ -352,6 +375,10 @@ export default function CardsScreen() {
   // 바뀌어도 남으므로, 그냥 두면 새 문제가 중간부터 보인다.
   useEffect(() => {
     quizScrollRef.current?.scrollTo({ y: 0, animated: false });
+    // 카드가 바뀌면 '해설을 끌던 중' 표시도 함께 지운다 —
+    // 어떤 이유로든 남아 있으면 새 카드의 첫 탭이 통째로 삼켜진다.
+    draggingBackRef.current = false;
+    backDragEndRef.current = 0;
   }, [card?.id]);
 
   // 화면 이탈/카드 전환 시 예약된 타이머 정리.
@@ -512,6 +539,8 @@ export default function CardsScreen() {
   // 카드 탭 — 앞면이면 뒤집고(퀴즈 미풀이면 막음), 뒷면이면 다시 앞으로.
   const onCardPress = useCallback(() => {
     if (exiting) return;
+    // 해설을 끌던 중이거나 방금 놓았다면, 이 탭은 스크롤의 꼬리다 — 뒤집지 않는다.
+    if (draggingBackRef.current || Date.now() - backDragEndRef.current < BACK_DRAG_TAP_GUARD_MS) return;
     if (!flipped) {
       const isQuizCard = card && (card.type === 'ox' || card.type === 'choice');
       if (isQuizCard && !quizRevealed) { shakeMustSolve(); return; }
@@ -550,9 +579,8 @@ export default function CardsScreen() {
         swipeEnabledRef.current && Math.abs(g.dx) > 14 && Math.abs(g.dx) > Math.abs(g.dy) * 1.4,
       onPanResponderMove: (_, g) => {
         markCardTouch();
-        // 손가락을 따라 움직이는 동안에는 그림자를 지운다.
-        shadowAnim.stopAnimation();
-        shadowAnim.setValue(0);
+        // 그림자 판은 카드와 같은 부모 안에 있어 함께 밀린다 — 지울 이유가 없다.
+        // (지우면 라이트 모드에서 미는 동안 카드가 배경에 묻혀 사라져 보였다.)
         translateX.setValue(g.dx);
       },
       onPanResponderRelease: (_, g) => {
@@ -769,7 +797,13 @@ export default function CardsScreen() {
   const frontTint = c.surface;
   const backTint = c.surface;
   const isLight = theme.mode === 'light';
-  const cardShadow = isLight ? '0 10px 26px rgba(15,23,42,0.16)' : '0 10px 26px rgba(0,0,0,0.55)';
+  // 그림자는 **아래로 새는 양**이 곧 카드와 하단 구분선 사이에 필요한 여백이다.
+  // (offsetY + blur) 만큼 카드 밑으로 번지므로, 아래 CARD_SHADOW_SPILL 과 짝을 맞춘다.
+  const cardShadow = isLight ? '0 7px 16px rgba(15,23,42,0.14)' : '0 7px 16px rgba(0,0,0,0.5)';
+  // 카드 면 테두리 — 라이트 모드는 카드(surface)와 배경(bg)이 둘 다 흰색이라
+  // 그림자가 옅어지는 순간(뒤집는 중) 카드가 배경에 녹아 사라져 보인다.
+  // 아주 옅은 테두리를 상시로 둬서 어느 각도에서든 카드의 경계가 남게 한다.
+  const cardEdge = isLight ? 'rgba(15,23,42,0.10)' : c.border;
   // 태블릿·와이드 화면에서 글자가 좌우로 과하게 퍼지지 않도록 학습 컬럼 폭을 제한(가운데 정렬).
   const COLUMN_MAX = 560;
 
@@ -781,6 +815,18 @@ export default function CardsScreen() {
   // 뒤집힘의 절반을 기준으로 보이는 면만 불투명하게 만들어, backfaceVisibility 지원 여부와 무관하게 한 면만 보이도록 한다.
   const frontOpacity = flipAnim.interpolate({ inputRange: [0, 0.499, 0.5, 1], outputRange: [1, 1, 0, 0], extrapolate: 'clamp' });
   const backOpacity = flipAnim.interpolate({ inputRange: [0, 0.499, 0.5, 1], outputRange: [0, 0, 1, 1], extrapolate: 'clamp' });
+
+  // 그림자 판의 가로 배율 — 카드가 도는 동안 **눈에 보이는 폭**을 그대로 따라간다.
+  //
+  // 판은 회전하지 않는다(회전시키면 평면 그림자가 뒤에 남아 잔상이 된다). 대신
+  // |cos(180°·t)| 를 근사해 가로로만 좁혔다 넓힌다. 그러면 카드가 옆으로 설수록
+  // 그림자도 같이 얇아져, 그림자를 껐다 켜지 않아도 어색함이 없다.
+  // 정확히 0 까지 좁히면 한 프레임 동안 그림자가 완전히 사라져 깜빡이므로 살짝 남긴다.
+  const shadowScaleX = flipAnim.interpolate({
+    inputRange: [0, 0.15, 0.3, 0.4, 0.5, 0.6, 0.7, 0.85, 1],
+    outputRange: [1, 0.89, 0.59, 0.31, 0.06, 0.31, 0.59, 0.89, 1],
+    extrapolate: 'clamp',
+  });
 
   // 스와이프 트랙 — 좌우로 밀 때 나타나는 "아는 것/모르는 것" 라벨 투명도.
   const knowOpacity = translateX.interpolate({ inputRange: [30, 110], outputRange: [0, 1], extrapolate: 'clamp' });
@@ -814,8 +860,13 @@ export default function CardsScreen() {
         </View>
       </View>
 
-      {/* 카드(뒤집기 애니메이션) */}
-      <View style={{ flex: 1, padding: 20, paddingBottom: 8, width: '100%', maxWidth: COLUMN_MAX, alignSelf: 'center' }}>
+      {/* 카드(뒤집기 애니메이션)
+
+          아래 여백(CARD_SHADOW_SPILL)은 장식이 아니다. 카드 그림자는 offsetY + blur 만큼
+          카드 밑으로 번지는데, 예전에는 그 여백이 8px 뿐이라 그림자가 하단 컨트롤의
+          구분선을 덮어 선이 흐리게 지워져 보였다. 그림자가 새는 만큼을 여백으로 비워
+          선이 온전히 드러나게 한다(그만큼 카드 높이가 줄어든다). */}
+      <View style={{ flex: 1, padding: 20, paddingBottom: CARD_SHADOW_SPILL, width: '100%', maxWidth: COLUMN_MAX, alignSelf: 'center' }}>
         <Animated.View
           {...(isSwipeTrack ? panResponder.panHandlers : {})}
           style={{ flex: 1, transform: [{ translateX }, { translateY: cardTranslateY }, { scale: cardScale }], opacity: cardCombinedOpacity }}
@@ -838,8 +889,14 @@ export default function CardsScreen() {
               그림자를 카드 면에 직접 주면 rotateY 로 도는 동안 평면 그림자가 뒤에 남아
               잔상(ghosting)이 된다. 그리고 shadowOpacity·elevation 은 네이티브 드라이버로
               굴릴 수 없어(flipAnim 은 useNativeDriver: true) 면에 얹으면 네이티브에서 터진다.
-              그래서 그림자는 이 판이 지고, 판은 opacity(=네이티브 가능) 하나로만 조절한다.
-              카드가 움직이는 동안에는 0 이라 잔상이 없고, 멈추면 서서히 차오른다. */}
+              그래서 그림자는 이 판이 지고, 판은 opacity·scaleX(=둘 다 네이티브 가능)로만 움직인다.
+
+              **뒤집는 동안에도 켜 둔다.** 예전에는 통째로 껐다 켰는데, 라이트 모드에서는
+              카드도 배경도 흰색이라 그림자가 사라진 순간 카드가 배경에 녹아 없어져 보였다.
+              대신 판을 회전각만큼 가로로 좁혀(shadowScaleX) 카드의 보이는 폭을 따라가게 하면,
+              그림자가 돌지 않으면서도 카드와 함께 얇아진다 — 잔상도, 사라짐도 없다.
+              테두리는 **주지 않는다** — 회전한 면과 각도가 어긋나 두 장이 겹쳐 보인다.
+              카드의 경계는 면이 지고(cardEdge), 이 판은 그림자만 진다. */}
           <Animated.View
             pointerEvents="none"
             style={{
@@ -847,6 +904,7 @@ export default function CardsScreen() {
               borderRadius: 20, backgroundColor: c.surface,
               boxShadow: cardShadow, elevation: 8,
               opacity: shadowAnim,
+              transform: [{ scaleX: shadowScaleX }],
             }}
           />
           {/* 앞면 */}
@@ -856,7 +914,7 @@ export default function CardsScreen() {
             pointerEvents={flipped ? 'none' : 'auto'}
             style={{
               position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-              backgroundColor: frontTint, borderWidth: 0, borderRadius: 20, padding: 21,
+              backgroundColor: frontTint, borderWidth: 1, borderColor: cardEdge, borderRadius: 20, padding: 20,
               transform: [{ perspective: 1600 }, { rotateY: frontRotate }],
               backfaceVisibility: 'hidden',
               opacity: frontOpacity,
@@ -958,7 +1016,7 @@ export default function CardsScreen() {
             pointerEvents={flipped ? 'auto' : 'none'}
             style={{
               position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-              backgroundColor: backTint, borderWidth: 0, borderRadius: 20, padding: 19,
+              backgroundColor: backTint, borderWidth: 1, borderColor: cardEdge, borderRadius: 20, padding: 18,
               transform: [{ perspective: 1600 }, { rotateY: backRotate }],
               backfaceVisibility: 'hidden',
               opacity: backOpacity,
@@ -967,39 +1025,32 @@ export default function CardsScreen() {
             <View style={{ marginBottom: 12 }}>
               <CategoryTrail category={card.category} subCategory={card.subCategory} topic={card.topic} size="sm" />
             </View>
-            {/* 해설은 스크롤, 액션 행은 카드 하단에 고정.
-                (예전엔 액션 행도 ScrollView 안에 있어, 해설이 길면 카드 밖으로 밀려
-                 '추천/저장/신고'가 잘려 보이지 않았다.) */}
+            {/* 해설은 카드 **안에서** 끝까지 끌어 내려 읽는다.
+
+                해설이 길면 카드 높이를 넘긴다. 카드를 늘릴 수는 없으니(화면이 정해져 있다)
+                이 영역이 손가락을 따라 스크롤된다. 두 가지를 함께 챙겨야 실제로 읽힌다.
+                 · nestedScrollEnabled / persistentScrollbar — 안드로이드에서 바깥 제스처에
+                   먹히지 않고, 스크롤 막대가 계속 보여 '더 있다'가 눈에 띈다.
+                 · 끌던 손을 뗄 때 카드가 뒤집히지 않아야 한다. 카드 면 전체가 탭 판이라,
+                   짧게 끈 드래그가 탭으로 읽히면 읽던 해설이 사라져 버린다(draggingBackRef). */}
             <View style={{ flex: 1 }}>
               <ScrollView
                 style={{ flex: 1 }}
                 showsVerticalScrollIndicator
-                // 마지막 줄이 구분선에 딱 붙지 않도록 넉넉히 띄운다.
-                // 8px 이던 시절에는 태그 줄이 액션 행과 맞닿아 잘린 것처럼 보였다.
-                contentContainerStyle={{ paddingBottom: 22 }}
+                persistentScrollbar
+                nestedScrollEnabled
+                directionalLockEnabled
+                keyboardShouldPersistTaps="handled"
+                // 마지막 줄이 카드 밑동에 딱 붙지 않도록 넉넉히 띄운다.
+                contentContainerStyle={{ paddingBottom: 20 }}
                 {...backBody.scrollProps}
+                onScrollBeginDrag={() => { draggingBackRef.current = true; }}
+                onScrollEndDrag={() => { markBackDragEnd(); }}
+                onMomentumScrollEnd={() => { markBackDragEnd(); }}
               >
                 <CardBackBody card={card} />
               </ScrollView>
               <ScrollFadeEdge color={backTint} visible={backBody.hasMore} />
-            </View>
-            {/* 카드 내부 오른쪽 하단 — 추천 / 저장 / 신고. 학습자가 조작하는 하단 버튼과 구분되는 '카드에 대한 반응'. */}
-            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 8, paddingTop: 12, borderTopWidth: 1, borderTopColor: c.border }}>
-                <Pressable accessibilityRole="button" onPress={() => { haptic(); toggleLike(card.id); }} hitSlop={6}
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: isLiked ? c.error + '18' : c.surfaceAlt, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8 }}>
-                  <Ionicons name={isLiked ? 'heart' : 'heart-outline'} size={17} color={isLiked ? c.error : c.textSecondary} />
-                  <Text style={{ color: isLiked ? c.error : c.textSecondary, fontSize: 13 * fs, fontFamily: fontCute }}>추천</Text>
-                </Pressable>
-                <Pressable accessibilityRole="button" onPress={() => { haptic(); toggleBookmark(card.id); }} hitSlop={6}
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: isBookmarked ? c.primary + '18' : c.surfaceAlt, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8 }}>
-                  <Ionicons name={isBookmarked ? 'bookmark' : 'bookmark-outline'} size={16} color={isBookmarked ? c.primary : c.textSecondary} />
-                  <Text style={{ color: isBookmarked ? c.primary : c.textSecondary, fontSize: 13 * fs, fontFamily: fontCute }}>{isBookmarked ? '저장됨' : '저장'}</Text>
-                </Pressable>
-                <Pressable accessibilityRole="button" onPress={() => setReportOpen(true)} hitSlop={6}
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: hasReported ? c.warning + '18' : c.surfaceAlt, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 8 }}>
-                  <Ionicons name={hasReported ? 'flag' : 'flag-outline'} size={16} color={hasReported ? c.warning : c.textSecondary} />
-                  <Text style={{ color: hasReported ? c.warning : c.textSecondary, fontSize: 13 * fs, fontFamily: fontCute }}>{hasReported ? '신고됨' : '신고'}</Text>
-                </Pressable>
             </View>
           </Animated.View>
 
@@ -1113,11 +1164,23 @@ export default function CardsScreen() {
 
       <CardReportModal visible={reportOpen} card={card} onClose={() => setReportOpen(false)} />
 
-      {/* 한 문제를 풀고 넘어가기 직전 — 체감 난이도를 한 번 묻는다(프론트 전용). */}
+      {/* 한 문제를 풀고 넘어가기 직전 — 체감 난이도와 이 문제에 대한 반응을 한 자리에서 받는다.
+
+          신고 모달이 열리는 동안에는 이 카드를 잠시 접는다. 두 모달을 겹쳐 띄우면
+          iOS 는 나중에 뜬 것을 아래에 깔아 버려 신고 창이 보이지 않는다.
+          reportOpen 이 풀리면 난이도 카드가 그대로 다시 올라온다(넘김은 아직 대기 중). */}
       <CardDifficultyAsk
-        visible={askVisible}
+        visible={askVisible && !reportOpen}
         onSelect={(choice) => resolveAsk(choice)}
         onSkip={() => resolveAsk(null)}
+        reactions={{
+          liked: isLiked,
+          bookmarked: isBookmarked,
+          reported: hasReported,
+          onToggleLike: () => toggleLike(card.id),
+          onToggleBookmark: () => toggleBookmark(card.id),
+          onReport: () => setReportOpen(true),
+        }}
       />
 
       {/* 뒤로가기 시 이동 위치 확인 — '홈으로 튕기는' UX 방지 */}
