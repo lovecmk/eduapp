@@ -994,13 +994,8 @@ export default function CardsScreen() {
             </View>
           )
         ) : (
-          // 클래식 트랙(이용재) — 뒤집기 버튼을 전/후 동일 위치·크기로 고정.
+          // 클래식 트랙(이용재) — 카드 탭으로 뒤집기, 버튼 제거
           <>
-            <Pressable accessibilityRole="button" onPress={() => doFlip(!flipped)}
-              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.surfaceAlt, borderWidth: 1, borderColor: c.border, borderRadius: 14, height: 50, marginBottom: 10 }}>
-              <Ionicons name="sync-outline" size={18} color={c.primary} />
-              <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontFamily: fontCute }}>카드 뒤집기</Text>
-            </Pressable>
             {backControls ? (
               <View style={{ flexDirection: 'row', gap: 10, height: 52 }}>
                 <Pressable accessibilityRole="button" onPress={completeLeft} disabled={exiting}
@@ -1014,12 +1009,7 @@ export default function CardsScreen() {
                   <Text style={{ color: '#fff', fontSize: 14.5 * fs, fontWeight: '700', fontFamily: fontCute }}>다음에 한번 더 볼게요</Text>
                 </Pressable>
               </View>
-            ) : (
-              // 뒤집기 전 — 액션 버튼 자리를 비워 뒤집기 버튼 위치가 고정되도록 한다.
-              <View style={{ height: 52, alignItems: 'center', justifyContent: 'center' }}>
-                <Text style={{ color: c.textSecondary, fontSize: 12.5 * fs, fontFamily: fontCute }}>카드를 뒤집어 해설을 확인하세요</Text>
-              </View>
-            )}
+            ) : null}
           </>
         )}
       </View>
