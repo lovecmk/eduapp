@@ -47,6 +47,9 @@ import { safeInternalPath } from '../../src/utils/safeRoute';
 const { height: SCREEN_H, width: SCREEN_W } = Dimensions.get('window');
 // 스와이프 트랙(원진섭)에서 좌우로 넘겨 분류하는 최소 이동 거리.
 const SWIPE_THRESHOLD = 90;
+// 카드 그림자가 다시 차오르는 시간. 카드가 움직이는 동안에는 그림자를 지우고,
+// 자리를 잡은 뒤에 서서히 되살려 '종이가 내려앉는' 느낌을 준다.
+const SHADOW_FADE_MS = 420;
 function haptic() {
   hapticTap();
 }
@@ -136,6 +139,14 @@ export default function CardsScreen() {
   const scaleAnim = useRef(new Animated.Value(1)).current; // 뒤집을 때 통통 튀는 스케일(귀여운 효과)
   const enterAnim = useRef(new Animated.Value(0)).current; // 다음 카드가 통통 튀며 등장하는 값(0→1)
   const progressAnim = useRef(new Animated.Value(0)).current;
+  /**
+   * 카드 그림자의 진하기(0=없음, 1=완전).
+   *
+   * 그림자를 카드 면(앞/뒤)에 직접 주면 rotateY 로 도는 동안 평면 그림자가 뒤에 남아
+   * 잔상(ghosting)이 된다. 그래서 그림자는 회전하지 않는 **별도의 판**이 지고,
+   * 카드가 움직이는 동안(뒤집기·스와이프·넘김·등장)에는 그 판을 통째로 지운다.
+   */
+  const shadowAnim = useRef(new Animated.Value(0)).current;
   // 퀴즈 정답 선택 후 자동으로 뒤집기까지의 타이머.
   const autoFlipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -264,18 +275,43 @@ export default function CardsScreen() {
   // const flexPromptEnabled = useSettingsStore((s) => s.flexPromptEnabled); // 학습완료 플렉스 CTA 비활성화로 미사용
   const toggleKeepScreenOn = useSettingsStore((s) => s.toggleKeepScreenOn);
 
+  /** 카드가 움직이기 시작하는 순간 — 그림자를 즉시 지운다(잔상 방지). */
+  const hideCardShadow = useCallback(() => {
+    shadowAnim.stopAnimation();
+    shadowAnim.setValue(0);
+  }, [shadowAnim]);
+
+  /** 카드가 자리를 잡은 뒤 — 그림자를 서서히 되살린다. */
+  const raiseCardShadow = useCallback((delay = 0) => {
+    shadowAnim.stopAnimation();
+    Animated.timing(shadowAnim, {
+      toValue: 1,
+      duration: SHADOW_FADE_MS,
+      delay,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: true,
+    }).start();
+  }, [shadowAnim]);
+
   const resetCardAnims = useCallback(() => {
     flipAnim.setValue(0);
     translateX.setValue(0);
     translateY.setValue(0);
     cardOpacity.setValue(1);
     scaleAnim.setValue(1);
-  }, [flipAnim, translateX, translateY, cardOpacity, scaleAnim]);
+    // 다음 카드는 그림자 없이 등장해, 내려앉으며 생긴다.
+    // 차오르던 중이었다면 먼저 멈춰야 0 으로 되돌린 값이 곧바로 덮어써지지 않는다.
+    shadowAnim.stopAnimation();
+    shadowAnim.setValue(0);
+  }, [flipAnim, translateX, translateY, cardOpacity, scaleAnim, shadowAnim]);
 
   const FLIP_DURATION = 360;
   const doFlip = useCallback((next: boolean) => {
     haptic();
     setFlipped(next);
+    // 도는 동안에는 그림자를 지우고(잔상 방지), 다 돌아간 뒤 다시 차오르게 한다.
+    hideCardShadow();
+    raiseCardShadow(FLIP_DURATION + 40);
     // 하단 버튼은 카드가 반쯤 돌아간 시점(≈절반)에 맞춰 나타나거나 사라지게 한다.
     if (controlTimer.current) clearTimeout(controlTimer.current);
     controlTimer.current = setTimeout(() => setBackControls(next), FLIP_DURATION * 0.48);
@@ -287,7 +323,7 @@ export default function CardsScreen() {
       easing: Easing.inOut(Easing.ease),
       useNativeDriver: true,
     }).start();
-  }, [flipAnim]);
+  }, [flipAnim, hideCardShadow, raiseCardShadow]);
 
   // 퀴즈(OX/객관식) 보기 선택 → 정답/오답 이펙트(햅틱)만 주고, 뒤집기는 하지 않는다.
   // 자동으로 넘어가면 정답을 곱씹을 새가 없어, 사용자가 카드를 직접 탭해 해설로 넘어가도록 둔다.
@@ -365,8 +401,9 @@ export default function CardsScreen() {
     pendingAdvanceRef.current = run;
     // 스와이프로 밀려 있던 카드는 제자리로 되돌려 놓고 묻는다.
     Animated.spring(translateX, { toValue: 0, useNativeDriver: true, friction: 6 }).start();
+    raiseCardShadow(140);
     setAskVisible(true);
-  }, [card, translateX]);
+  }, [card, translateX, raiseCardShadow]);
 
   /** 난이도를 고르거나 건너뛰면 — 미뤄 둔 넘김 동작을 그때 실행한다. */
   const resolveAsk = useCallback((choice: DiffVote | null) => {
@@ -381,6 +418,8 @@ export default function CardsScreen() {
   useEffect(() => {
     if (!card || finished) return;
     enterAnim.setValue(0);
+    // 떠오르는 동안에는 그림자가 없다가, 카드가 자리를 잡을 즈음 서서히 생긴다.
+    hideCardShadow();
     const spring = Animated.spring(enterAnim, {
       toValue: 1,
       useNativeDriver: true,
@@ -388,34 +427,37 @@ export default function CardsScreen() {
       tension: 48,
     });
     spring.start();
+    raiseCardShadow(240);
     return () => spring.stop();
-  }, [card?.id, finished, enterAnim]);
+  }, [card?.id, finished, enterAnim, hideCardShadow, raiseCardShadow]);
 
   // "학습 완료" → 왼쪽으로 넘김.
   const completeLeft = useCallback(() => {
     if (exiting) return;
     askDifficulty(() => {
       setExiting(true);
+      hideCardShadow();
       // '아는 것(학습 완료)'은 조용히 넘긴다 — 넘김 햅틱은 '모를 때'에만.
       Animated.parallel([
         Animated.timing(translateX, { toValue: -SCREEN_W - 80, duration: 300, useNativeDriver: true }),
         Animated.timing(cardOpacity, { toValue: 0, duration: 260, useNativeDriver: true }),
       ]).start(() => advance('mastered'));
     });
-  }, [exiting, translateX, cardOpacity, advance, askDifficulty]);
+  }, [exiting, translateX, cardOpacity, advance, askDifficulty, hideCardShadow]);
 
   // "다음에 한번 더"(모를 때 = 빨간 버튼) → 위로 올림. 최소 햅틱을 준다.
   const againUp = useCallback(() => {
     if (exiting) return;
     askDifficulty(() => {
       setExiting(true);
+      hideCardShadow();
       dnkHaptic();
       Animated.parallel([
         Animated.timing(translateY, { toValue: -SCREEN_H, duration: 320, useNativeDriver: true }),
         Animated.timing(cardOpacity, { toValue: 0, duration: 280, useNativeDriver: true }),
       ]).start(() => advance('learning'));
     });
-  }, [exiting, translateY, cardOpacity, advance, dnkHaptic, askDifficulty]);
+  }, [exiting, translateY, cardOpacity, advance, dnkHaptic, askDifficulty, hideCardShadow]);
 
   // ── 스와이프 트랙(원진섭) 전용 동작 ───────────────────────────────
   const solveHintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -423,6 +465,7 @@ export default function CardsScreen() {
   // 퀴즈를 풀지 않고 넘기려 할 때 — 카드를 좌우로 살짝 흔들고 안내를 띄운다.
   const shakeMustSolve = useCallback(() => {
     notify(false);
+    hideCardShadow();
     Animated.sequence([
       Animated.timing(translateX, { toValue: -12, duration: 55, useNativeDriver: true }),
       Animated.timing(translateX, { toValue: 12, duration: 55, useNativeDriver: true }),
@@ -430,10 +473,11 @@ export default function CardsScreen() {
       Animated.timing(translateX, { toValue: 8, duration: 55, useNativeDriver: true }),
       Animated.spring(translateX, { toValue: 0, useNativeDriver: true, friction: 5 }),
     ]).start();
+    raiseCardShadow(300);
     setSolveHint(true);
     if (solveHintTimer.current) clearTimeout(solveHintTimer.current);
     solveHintTimer.current = setTimeout(() => setSolveHint(false), 1600);
-  }, [translateX]);
+  }, [translateX, hideCardShadow, raiseCardShadow]);
 
   useEffect(() => () => { if (solveHintTimer.current) clearTimeout(solveHintTimer.current); }, []);
 
@@ -442,6 +486,7 @@ export default function CardsScreen() {
     if (exiting) return;
     askDifficulty(() => {
       setExiting(true);
+      hideCardShadow();
       // 왼쪽(모르는 것=다시)만 최소 햅틱, 오른쪽(아는 것)은 조용히.
       if (status === 'learning') dnkHaptic();
       Animated.parallel([
@@ -449,7 +494,7 @@ export default function CardsScreen() {
         Animated.timing(cardOpacity, { toValue: 0, duration: 240, useNativeDriver: true }),
       ]).start(() => advance(status));
     });
-  }, [exiting, translateX, cardOpacity, advance, dnkHaptic, askDifficulty]);
+  }, [exiting, translateX, cardOpacity, advance, dnkHaptic, askDifficulty, hideCardShadow]);
 
   // 스와이프 시도 — 퀴즈 미풀이면 막고, 아니면 방향에 맞게 분류.
   const trySwipe = useCallback((dir: 'left' | 'right') => {
@@ -489,6 +534,14 @@ export default function CardsScreen() {
   const SWIPE_BACK_GUARD_MS = 700;
   const markCardTouch = () => { lastCardTouchRef.current = Date.now(); };
 
+  /** 밀다 만 카드를 제자리로 되돌리고, 멈춘 뒤 그림자를 다시 채운다. */
+  const settleBack = useCallback(() => {
+    Animated.spring(translateX, { toValue: 0, useNativeDriver: true, friction: 6 }).start();
+    raiseCardShadow(140);
+  }, [translateX, raiseCardShadow]);
+  const settleBackRef = useRef(settleBack);
+  settleBackRef.current = settleBack;
+
   const panResponder = useRef(
     PanResponder.create({
       // 터치 시작을 기록만 하고 응답자는 가로채지 않는다(탭·퀴즈 보기 선택은 그대로 동작).
@@ -497,18 +550,21 @@ export default function CardsScreen() {
         swipeEnabledRef.current && Math.abs(g.dx) > 14 && Math.abs(g.dx) > Math.abs(g.dy) * 1.4,
       onPanResponderMove: (_, g) => {
         markCardTouch();
+        // 손가락을 따라 움직이는 동안에는 그림자를 지운다.
+        shadowAnim.stopAnimation();
+        shadowAnim.setValue(0);
         translateX.setValue(g.dx);
       },
       onPanResponderRelease: (_, g) => {
         markCardTouch();
         if (g.dx > SWIPE_THRESHOLD) trySwipeRef.current('right');
         else if (g.dx < -SWIPE_THRESHOLD) trySwipeRef.current('left');
-        else Animated.spring(translateX, { toValue: 0, useNativeDriver: true, friction: 6 }).start();
+        else settleBackRef.current();
       },
       onPanResponderTerminate: () => {
         // 시스템 제스처가 터치를 가져가면 여기로 온다 — 카드는 제자리로 되돌린다.
         markCardTouch();
-        Animated.spring(translateX, { toValue: 0, useNativeDriver: true, friction: 6 }).start();
+        settleBackRef.current();
       },
     }),
   ).current;
@@ -710,9 +766,12 @@ export default function CardsScreen() {
 
   // 카드 톤 — 앞/뒷면 모두 같은 표면색(surface)을 쓰고, '테두리 색'만 달리해 면을 구분한다.
   // (배경색을 서로 다르게 칠하면 디자인적으로 튀어, 자연스러운 종이 느낌이 깨진다.)
-  // 학습카드는 그림자를 아예 두지 않는다 — rotateY(3D 회전) 중 평면 그림자가 뒤에 남아
-  // 잔상(ghosting)을 만들었다. 대신 '또렷한 테두리'로 카드 면을 분명히 세워 눈에 잘 띄게 한다.
+  //
+  // 그림자는 카드 면이 아니라 **회전하지 않는 별도의 판**(아래 '그림자 판')이 진다.
+  // 면에 직접 주면 rotateY 로 도는 동안 평면 그림자가 뒤에 남아 잔상(ghosting)이 됐다.
+  // 그 판은 카드가 움직이는 동안 지워졌다가, 멈춘 뒤 서서히 다시 차오른다(shadowAnim).
   const isLight = theme.mode === 'light';
+  const cardShadow = isLight ? '0 10px 26px rgba(15,23,42,0.16)' : '0 10px 26px rgba(0,0,0,0.55)';
   const frontTint = c.surface; // 앞면: 표면색(중립)
   const backTint = c.surface; // 뒷면: 동일 표면색 — 배경으로는 구분하지 않는다
   const frontBorder = c.primary + (isLight ? '80' : 'A6'); // 앞면: 또렷한 파랑 테두리
@@ -780,6 +839,18 @@ export default function CardsScreen() {
              아래 '카드 뒤집기' 버튼이, 스와이프 트랙은 아래 안내 줄이 그 역할을 한다.
              tabIndex={-1} 은 이름도 역할도 없는 자리에 키보드 초점이 멈추지 않게 한다. */}
          <Pressable tabIndex={-1} onPress={onCardPress} disabled={exiting} style={{ flex: 1 }}>
+          {/* 그림자 판 — 카드와 같은 크기·모서리로 뒤에 깔린 채 회전하지 않는다.
+              카드가 뒤집히거나 넘어가는 동안에는 opacity 0 이라 잔상이 남지 않고,
+              카드가 자리를 잡으면 서서히 차올라 종이가 내려앉는 것처럼 보인다. */}
+          <Animated.View
+            pointerEvents="none"
+            style={{
+              position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+              borderRadius: 20, backgroundColor: c.surface,
+              boxShadow: cardShadow, elevation: 8,
+              opacity: shadowAnim,
+            }}
+          />
           {/* 앞면 */}
           <Animated.View
             // Android 는 backfaceVisibility 가 불안정해 숨겨진 뒷면이 터치를 가로챈다.
@@ -948,7 +1019,11 @@ export default function CardsScreen() {
         </Animated.View>
       </View>
 
-      {/* 하단 컨트롤 — 학습자가 조작하는 버튼(화면 중간 아래). 버튼 전환은 카드 회전 중간(backControls)에 맞춘다. */}
+      {/* 하단 컨트롤 — 학습자가 조작하는 버튼(화면 중간 아래). 버튼 전환은 카드 회전 중간(backControls)에 맞춘다.
+
+          **높이는 어떤 상태에서도 52 로 고정한다.** 이 블록이 커졌다 작아지면 위의 카드 영역
+          (flex: 1)이 그만큼 늘었다 줄어, 카드 높이가 상태에 따라 달라 보인다. 안내 줄이든
+          두 개짜리 액션 행이든 같은 높이를 차지하게 두어 학습카드 높이를 항상 같게 유지한다. */}
       <View style={{ paddingHorizontal: 20, paddingBottom: 24, paddingTop: 12, borderTopWidth: 1, borderTopColor: c.border, width: '100%', maxWidth: COLUMN_MAX, alignSelf: 'center' }}>
         {isSwipeTrack ? (
           // 스와이프 트랙(원진섭) — 뒤집기 버튼 없이 탭/스와이프로 조작.
@@ -994,33 +1069,46 @@ export default function CardsScreen() {
             </View>
           )
         ) : (
-          // 클래식 트랙(이용재) — 뒤집기 버튼을 전/후 동일 위치·크기로 고정.
-          <>
-            <Pressable accessibilityRole="button" onPress={() => doFlip(!flipped)}
-              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.surfaceAlt, borderWidth: 1, borderColor: c.border, borderRadius: 14, height: 50, marginBottom: 10 }}>
-              <Ionicons name="sync-outline" size={18} color={c.primary} />
-              <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontFamily: fontCute }}>카드 뒤집기</Text>
+          // 클래식 트랙(이용재) — 별도 '카드 뒤집기' 버튼 없이 카드를 탭해 뒤집는다.
+          !backControls ? (
+            // 버튼을 없앴어도 뒤집기는 **이름을 가진 조작 요소**로 남아야 한다.
+            //
+            // 카드 면은 역할 없는 탭 판이라(위 참조) 스크린 리더·키보드에는 잡히지 않는다.
+            // 예전에는 아래의 '카드 뒤집기' 버튼이 그 경로였는데, 버튼을 걷어낸 지금은
+            // 이 안내 줄이 그 역할을 이어받는다 — 보이는 모습은 한 줄 안내 그대로 두고,
+            // 눌리면 카드가 뒤집히게 한다(스와이프 트랙과 같은 방식).
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="카드 뒤집기"
+              onPress={onCardPress}
+              disabled={exiting}
+              style={{ height: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingHorizontal: 12 }}
+            >
+              <Ionicons
+                name={nextReviewHint ? 'alarm-outline' : solveHint ? 'alert-circle' : 'sync-outline'}
+                size={16}
+                color={nextReviewHint ? c.primary : solveHint ? c.warning : c.textSecondary}
+              />
+              <Text style={{ color: nextReviewHint ? c.primary : solveHint ? c.warning : c.textSecondary, fontSize: 13 * fs, fontFamily: fontCute, textAlign: 'center' }}>
+                {nextReviewHint
+                  ? `다음 복습은 ${nextReviewHint} 뒤에 만나요`
+                  : solveHint ? '문제를 먼저 풀어주세요!' : '카드를 탭하면 해설을 볼 수 있어요'}
+              </Text>
             </Pressable>
-            {backControls ? (
-              <View style={{ flexDirection: 'row', gap: 10, height: 52 }}>
-                <Pressable accessibilityRole="button" onPress={completeLeft} disabled={exiting}
-                  style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.success, borderRadius: 14, height: 52, boxShadow: `0 3px 8px ${c.success}3D` }}>
-                  <Ionicons name="checkmark-circle" size={19} color="#fff" />
-                  <Text style={{ color: '#fff', fontSize: 14.5 * fs, fontWeight: '700', fontFamily: fontCute }}>이해했어요</Text>
-                </Pressable>
-                <Pressable accessibilityRole="button" onPress={againUp} disabled={exiting}
-                  style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.warning, borderRadius: 14, height: 52, boxShadow: `0 3px 8px ${c.warning}3D` }}>
-                  <Ionicons name="arrow-up-circle" size={19} color="#fff" />
-                  <Text style={{ color: '#fff', fontSize: 14.5 * fs, fontWeight: '700', fontFamily: fontCute }}>다음에 한번 더 볼게요</Text>
-                </Pressable>
-              </View>
-            ) : (
-              // 뒤집기 전 — 액션 버튼 자리를 비워 뒤집기 버튼 위치가 고정되도록 한다.
-              <View style={{ height: 52, alignItems: 'center', justifyContent: 'center' }}>
-                <Text style={{ color: c.textSecondary, fontSize: 12.5 * fs, fontFamily: fontCute }}>카드를 뒤집어 해설을 확인하세요</Text>
-              </View>
-            )}
-          </>
+          ) : (
+            <View style={{ flexDirection: 'row', gap: 10, height: 52 }}>
+              <Pressable accessibilityRole="button" onPress={completeLeft} disabled={exiting}
+                style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.success, borderRadius: 14, height: 52, boxShadow: `0 3px 8px ${c.success}3D` }}>
+                <Ionicons name="checkmark-circle" size={19} color="#fff" />
+                <Text style={{ color: '#fff', fontSize: 14.5 * fs, fontWeight: '700', fontFamily: fontCute }}>이해했어요</Text>
+              </Pressable>
+              <Pressable accessibilityRole="button" onPress={againUp} disabled={exiting}
+                style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.warning, borderRadius: 14, height: 52, boxShadow: `0 3px 8px ${c.warning}3D` }}>
+                <Ionicons name="arrow-up-circle" size={19} color="#fff" />
+                <Text style={{ color: '#fff', fontSize: 14.5 * fs, fontWeight: '700', fontFamily: fontCute }}>다음에 한번 더 볼게요</Text>
+              </Pressable>
+            </View>
+          )
         )}
       </View>
 

@@ -119,6 +119,21 @@ export function LearningCalendar() {
     setJustStamped(dateKey(new Date()));
   };
 
+  /**
+   * 그날이 '완료된 학습일'인가 — 이어진 학습을 하나의 띠로 그리기 위한 판정.
+   *
+   * 셀을 그릴 때 쓰는 규칙(근무일 + 최소 출제량)과 같은 규칙을 그대로 쓴다.
+   * 달의 범위를 벗어난 날(0일·32일 등)은 new Date 가 이웃 달로 넘겨 주므로,
+   * 월초·월말에서도 앞뒤 달과 자연스럽게 이어진다.
+   */
+  const isDoneDay = (day: number): boolean => {
+    const date = new Date(year, month, day);
+    const dow = date.getDay();
+    if (dow === 0 || dow === 6) return false;
+    if (isHoliday(date.getFullYear(), date.getMonth(), date.getDate())) return false;
+    return (history[dateKey(date)]?.length ?? 0) >= DAILY_MIN_CARDS;
+  };
+
   const selectedCards = useMemo(() => {
     if (!selected) return { reviewed: [] as LearningCard[], due: [] as LearningCard[] };
     const reviewed = (history[selected] ?? []).map((id) => cardById.get(id)).filter(Boolean) as LearningCard[];
@@ -157,6 +172,9 @@ export function LearningCalendar() {
               if (d === null) return <View key={`e${w}-${dow}`} style={styles.cell} />;
               const key = `${year}-${month}-${d}`;
               const isToday = key === todayStr;
+              // 어제/내일이 이어진 학습일인지 — 같은 주(행) 안에서만 띠로 이을 수 있다.
+              const linkLeft = dow > 0 && isDoneDay(d - 1);
+              const linkRight = dow < 6 && isDoneDay(d + 1);
               // 그날 학습한(신규+복습) 카드 수. 근무일 기준으로 완료/일부완료를 판정하고,
               // 미수행(0장)은 아무 표시도 하지 않는다.
               const learned = history[key]?.length ?? 0;
@@ -175,16 +193,27 @@ export function LearningCalendar() {
               const done = workday && learned >= DAILY_MIN_CARDS;
               const partial = workday && learned > 0 && !done;      // 1~2문제 → 일부완료
               const attended = !!stamps[key];
+              // 이어달리기의 **가운데**(앞뒤 모두 이어진 날)는 조금 더 연하게,
+              // 시작·끝(과 하루짜리)은 진하게 칠해 띠의 양끝이 눈에 들어오게 한다.
+              const midOfStreak = done && linkLeft && linkRight;
+              const streakFill = midOfStreak ? c.success + '59' : c.success;
               return (
                 <Pressable accessibilityRole="button" key={`${w}-${dow}`} style={styles.cell} onPress={() => setSelected(key)}>
+                  {/* 이음쇠 — 칸 사이의 빈 자리를 연한 색으로 메워 며칠이 붙어 보이게 한다.
+                      날짜 칸 뒤에 깔리므로 진한 시작/끝 칸이 띠의 마개처럼 보인다. */}
+                  {done && linkLeft && <View pointerEvents="none" style={[styles.link, { left: 0, right: '50%', backgroundColor: c.success + '59' }]} />}
+                  {done && linkRight && <View pointerEvents="none" style={[styles.link, { left: '50%', right: 0, backgroundColor: c.success + '59' }]} />}
                   <View style={[
                     styles.dayCell,
-                    done && { backgroundColor: c.success },
+                    done && { backgroundColor: streakFill },
+                    // 띠 가운데 칸은 모서리를 죽여 앞뒤 칸과 한 덩어리로 이어지게 한다.
+                    done && linkLeft && { borderTopLeftRadius: 0, borderBottomLeftRadius: 0 },
+                    done && linkRight && { borderTopRightRadius: 0, borderBottomRightRadius: 0 },
                     partial && { backgroundColor: c.warning + '26', borderWidth: 1.5, borderColor: c.warning },
                     isToday && { borderWidth: 2, borderColor: c.primary },
                   ]}>
                     <Text style={[styles.dayText, {
-                      color: done ? '#fff'
+                      color: done ? (midOfStreak ? c.textPrimary : '#fff')
                         : (dow === 0 || holiday) ? '#EF4444'
                         : dow === 6 ? '#3B82F6'
                         : c.textPrimary,
@@ -209,6 +238,9 @@ export function LearningCalendar() {
       <View style={styles.legend}>
         <View style={[styles.legendBox, { backgroundColor: c.success }]} />
         <Text style={[styles.legendText, { color: c.textSecondary }]}>완료</Text>
+        <View style={[styles.legendBox, { backgroundColor: c.success + '59' }]} />
+        {/* 위 요약 칩의 '연속'(출석 연속일)과 헷갈리지 않게 다른 말을 쓴다. */}
+        <Text style={[styles.legendText, { color: c.textSecondary }]}>이어짐</Text>
         <View style={[styles.legendBox, { backgroundColor: c.warning + '26', borderWidth: 1.5, borderColor: c.warning }]} />
         <Text style={[styles.legendText, { color: c.textSecondary }]}>일부완료</Text>
         <View style={{ flex: 1 }} />
@@ -374,23 +406,27 @@ function CardRow({ card, onPress }: { card: LearningCard; onPress?: () => void }
 }
 
 const styles = StyleSheet.create({
-  container: { borderRadius: radius.card, borderWidth: 1, padding: 16, marginBottom: 14 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  // 홈 첫 화면에서 캘린더가 차지하는 세로를 줄인다 — 여백·칸을 조금씩 깎아
+  // 아래 카드들이 스크롤 없이 더 많이 보이게 한다(정보량은 그대로).
+  container: { borderRadius: radius.card, borderWidth: 1, padding: 14, marginBottom: 14 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 9 },
   arrow: { padding: 4 },
-  summaryRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
-  summaryPill: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 12, paddingVertical: 8 },
+  summaryRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
+  summaryPill: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderRadius: 12, paddingVertical: 6 },
   // 작은 스크린(스마트폰)에서 아래 숫자가 잘리지 않도록 넉넉한 높이를 준다.
-  dotRow: { flexDirection: 'row', gap: 3, minHeight: 13, marginTop: 2, alignItems: 'center', justifyContent: 'center' },
-  weekRow: { flexDirection: 'row', marginBottom: 8 },
+  dotRow: { flexDirection: 'row', gap: 3, minHeight: 11, marginTop: 1, alignItems: 'center', justifyContent: 'center' },
+  weekRow: { flexDirection: 'row', marginBottom: 6 },
   weekLabel: { flex: 1, textAlign: 'center', fontSize: 12, fontWeight: '600' },
   grid: {},
   weekCells: { flexDirection: 'row' },
-  cell: { flex: 1, alignItems: 'center', paddingVertical: 3 },
-  dayCell: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  cell: { flex: 1, alignItems: 'center', paddingVertical: 2 },
+  dayCell: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   dayText: { fontSize: 13, fontWeight: '700', fontFamily: fontMono },
   dueDot: { width: 5, height: 5, borderRadius: 3, marginTop: 2 },
-  legend: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 14 },
-  checkIn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 14, paddingVertical: 13, marginTop: 14 },
+  /** 이어진 학습일 사이를 메우는 띠 — 날짜 칸과 같은 높이·세로 위치로 절반씩 뻗는다. */
+  link: { position: 'absolute', top: 2, height: 32 },
+  legend: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 10 },
+  checkIn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 14, paddingVertical: 11, marginTop: 10 },
   legendText: { fontSize: 10, fontFamily: fontBody },
   legendBox: { width: 12, height: 12, borderRadius: 3 },
   /** 가운데 정렬만 맡는 층 — 어둡게 까는 일은 아래 modalScrim(형제 배경)이 한다. */
