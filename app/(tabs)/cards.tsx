@@ -708,15 +708,10 @@ export default function CardsScreen() {
 
   const isQuiz = card.type === 'ox' || card.type === 'choice';
 
-  // 카드 톤 — 앞/뒷면 모두 같은 표면색(surface)을 쓰고, '테두리 색'만 달리해 면을 구분한다.
-  // (배경색을 서로 다르게 칠하면 디자인적으로 튀어, 자연스러운 종이 느낌이 깨진다.)
-  // 학습카드는 그림자를 아예 두지 않는다 — rotateY(3D 회전) 중 평면 그림자가 뒤에 남아
-  // 잔상(ghosting)을 만들었다. 대신 '또렷한 테두리'로 카드 면을 분명히 세워 눈에 잘 띄게 한다.
-  const isLight = theme.mode === 'light';
-  const frontTint = c.surface; // 앞면: 표면색(중립)
-  const backTint = c.surface; // 뒷면: 동일 표면색 — 배경으로는 구분하지 않는다
-  const frontBorder = c.primary + (isLight ? '80' : 'A6'); // 앞면: 또렷한 파랑 테두리
-  const backBorder = c.success + (isLight ? '80' : 'A6'); // 뒷면: 또렷한 초록 테두리(면 구분은 테두리로만)
+  // 카드 톤 — 앞/뒷면 모두 같은 표면색(surface)을 쓴다.
+  // 테두리 색을 없애고 그림자(floating)로 카드 면을 구분한다.
+  const frontTint = c.surface;
+  const backTint = c.surface;
   // 태블릿·와이드 화면에서 글자가 좌우로 과하게 퍼지지 않도록 학습 컬럼 폭을 제한(가운데 정렬).
   const COLUMN_MAX = 560;
 
@@ -781,19 +776,24 @@ export default function CardsScreen() {
              tabIndex={-1} 은 이름도 역할도 없는 자리에 키보드 초점이 멈추지 않게 한다. */}
          <Pressable tabIndex={-1} onPress={onCardPress} disabled={exiting} style={{ flex: 1 }}>
           {/* 앞면 */}
-          <Animated.View
-            // Android 는 backfaceVisibility 가 불안정해 숨겨진 뒷면이 터치를 가로챈다.
-            // 보이는 면만 터치를 받도록 pointerEvents 를 토글한다(이미지 탭 확대 등 정상화).
-            pointerEvents={flipped ? 'none' : 'auto'}
-            style={{
-              position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-              backgroundColor: frontTint, borderWidth: 2, borderColor: frontBorder,
-              borderRadius: 20, padding: 24,
-              transform: [{ perspective: 1600 }, { rotateY: frontRotate }],
-              backfaceVisibility: 'hidden',
-              opacity: frontOpacity,
-            }}
-          >
+<Animated.View
+              // Android 는 backfaceVisibility 가 불안정해 숨겨진 뒷면이 터치를 가로챈다.
+              // 보이는 면만 터치를 받도록 pointerEvents 를 토글한다(이미지 탭 확대 등 정상화).
+              pointerEvents={flipped ? 'none' : 'auto'}
+              style={{
+                position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                backgroundColor: frontTint, borderWidth: 0, borderRadius: 20, padding: 21,
+                transform: [{ perspective: 1600 }, { rotateY: frontRotate }],
+                backfaceVisibility: 'hidden',
+                opacity: frontOpacity,
+                // Floating shadow effect
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.12,
+                shadowRadius: 12,
+                elevation: 8,
+              }}
+            >
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
               <View style={{ flex: 1, paddingRight: 8 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -887,11 +887,16 @@ export default function CardsScreen() {
             pointerEvents={flipped ? 'auto' : 'none'}
             style={{
               position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-              backgroundColor: backTint, borderWidth: 2, borderColor: backBorder,
-              borderRadius: 20, padding: 22,
+              backgroundColor: backTint, borderWidth: 0, borderRadius: 20, padding: 19,
               transform: [{ perspective: 1600 }, { rotateY: backRotate }],
               backfaceVisibility: 'hidden',
               opacity: backOpacity,
+              // Floating shadow effect
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.12,
+              shadowRadius: 12,
+              elevation: 8,
             }}
           >
             <View style={{ marginBottom: 12 }}>
