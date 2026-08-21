@@ -1,5 +1,6 @@
 import Constants from 'expo-constants';
 import { logger } from '../../utils/logger';
+import { resolveApiBaseUrl, describeServer } from './apiBaseUrl';
 
 /**
  * 빌드 타임 환경 변수 접근 레이어 — PART 5.1
@@ -33,7 +34,18 @@ function readBool(value: string | undefined): boolean | undefined {
   return undefined;
 }
 
-const apiBaseUrl = readString(process.env.EXPO_PUBLIC_API_BASE_URL);
+const resolvedBase = resolveApiBaseUrl(readString(process.env.EXPO_PUBLIC_API_BASE_URL));
+const apiBaseUrl = resolvedBase.url;
+/** 받은 주소를 고쳐 썼다면 무엇을 고쳤는지 — 개발자 화면이 그대로 보여준다. */
+const baseUrlNote = resolvedBase.note;
+if (baseUrlNote) {
+  // 돌아는 가지만 설정이 틀린 상태다. 로그로도 남겨 두면 배포 뒤에 원인을 짚기 쉽다.
+  logger.warn('api_base_url_corrected', {
+    given: process.env.EXPO_PUBLIC_API_BASE_URL,
+    used: apiBaseUrl,
+    note: baseUrlNote,
+  });
+}
 
 /**
  * 목업 사용 여부 결정 규칙(우선순위):
@@ -85,6 +97,8 @@ export const env = {
   },
 } as const;
 
+const { kind: SERVER_KIND, label: SERVER_LABEL } = describeServer(apiBaseUrl);
+
 /**
  * 환경설정 요약 — 개발자 화면에서 "지금 어떤 값으로 돌고 있는지" 한눈에 확인하기 위한
  * 읽기 전용 뷰. 민감정보(토큰·DSN 전체)는 노출하지 않고 마스킹/유무만 표시한다.
@@ -92,8 +106,18 @@ export const env = {
 export const ENV_SUMMARY: { label: string; value: string; ok: boolean }[] = [
   {
     label: 'API 주소',
-    value: apiBaseUrl || '(미설정 · 목업 폴백)',
-    ok: env.useMockData || apiBaseUrl.length > 0,
+    value: baseUrlNote ? `${apiBaseUrl}  (${baseUrlNote})` : apiBaseUrl || '(미설정 · 목업 폴백)',
+    // 값을 고쳐서 쓰고 있다면 설정이 틀린 것이다 — 돌아는 가더라도 짚어 준다.
+    ok: !baseUrlNote && (env.useMockData || apiBaseUrl.length > 0),
+  },
+  {
+    // '어느 서버인가'는 주소만 봐서는 헷갈린다. 이 줄이 없으면 개발자 화면을 보고
+    // "왜 테스트 주소지?" 를 매번 다시 묻게 된다 — 빌드를 어느 프로필로 떴는지는
+    // 앱 안에서 알 방법이 없기 때문이다.
+    label: '서버',
+    value: SERVER_LABEL,
+    // 운영만 '정상'이다. 테스트·목업 빌드가 사용자 손에 가 있으면 그 자체가 사고다.
+    ok: SERVER_KIND === 'production',
   },
   {
     label: '데이터 소스',
