@@ -113,7 +113,7 @@ export const userDirectoryRepository: IUserDirectoryRepository = env.useMockData
 /**
  * 질문 & 답변 — 커뮤니티의 유일한 '참여' 기능.
  *
- * 서버에 `/api/qna` 라우트(리버스 프록시의 location 블록 포함)가 아직 없다.
+ * 서버에 `/inner/api/v1/qna` 라우트(리버스 프록시의 location 블록 포함)가 아직 없다.
  * 폴백을 걸어 두면 라우트가 없는 동안에는 지금까지처럼 기기 안에서 돌고,
  * 열리는 날 앱을 다시 배포하지 않아도 **첫 요청부터 실서버를 쓴다**.
  *
@@ -128,7 +128,7 @@ export const qnaRepository: IQnaRepository = env.useMockData
 /**
  * 계정 설정 — 관심 분야·하루 목표·알림 수신·공개 범위·한 줄 소개.
  *
- * 여기도 라우트(`/api/settings`)가 열리기 전이다. 폴백된 동안 목업은 값을
+ * 여기도 라우트(`/inner/api/v1/settings`)가 열리기 전이다. 폴백된 동안 목업은 값을
  * 보관하는 척하지 않고 "서버에 기록 없음"이라고 답하므로(SettingsRepository.mock),
  * 기기 값이 그대로 권위를 유지하다가 라우트가 열리면 그 값이 서버로 올라간다.
  */

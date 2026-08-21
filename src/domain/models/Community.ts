@@ -49,7 +49,7 @@ export interface BuildingMonth {
 
 /**
  * 함께 짓는 안전 빌딩 — 매월 1일 0층부터 새로 쌓고, 지난 달 기록은 명예의
- * 전당(히스토리)에 남긴다. 서버가 생기면 `GET /api/community/building` 응답을
+ * 전당(히스토리)에 남긴다. 서버가 생기면 `GET /inner/api/v1/community/building` 응답을
  * 그대로 매핑하면 되도록 월별 스냅샷 형태로 모델링한다.
  */
 export interface SafetyBuilding {

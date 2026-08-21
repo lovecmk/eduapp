@@ -125,7 +125,7 @@ export async function cancelAllReminders(): Promise<void> {
 // ─────────────────────────────────────────────────────────────────────────────
 // 원격 푸시(Expo Push Token) — "실제 모바일 알림" 강화.
 // 로컬 스케줄 알림과 별개로, 서버·텔레그램 명령이 이 기기로 직접 알림을 보낼 수
-// 있도록 Expo 푸시 토큰을 발급받아 백엔드(/api/push/register)에 등록한다.
+// 있도록 Expo 푸시 토큰을 발급받아 백엔드(/inner/api/v1/push/register)에 등록한다.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** EAS projectId 를 안전하게 조회한다(원격 푸시 토큰 발급에 필요). */
@@ -165,7 +165,7 @@ export async function syncPushTokenWithServer(): Promise<boolean> {
   const token = await getExpoPushToken();
   if (!token) return false;
   try {
-    await apiClient.post('/api/push/register', { token, platform: Platform.OS });
+    await apiClient.post('/inner/api/v1/push/register', { token, platform: Platform.OS });
     return true;
   } catch {
     // 미로그인/네트워크 오류 등은 조용히 무시 — 다음 진입 시 재시도된다.
@@ -189,7 +189,7 @@ export interface ServerAlertResult {
 export async function triggerServerAlert(version: 1 | 2 | 3): Promise<ServerAlertResult | null> {
   if (env.useMockData || !env.apiBaseUrl) return null;
   try {
-    return await apiClient.post<ServerAlertResult>('/api/telegram/alert', { version: String(version) });
+    return await apiClient.post<ServerAlertResult>('/inner/api/v1/telegram/alert', { version: String(version) });
   } catch {
     return null;
   }

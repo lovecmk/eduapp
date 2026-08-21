@@ -52,12 +52,12 @@ function toDTO(s: CollectionSnapshot): CollectionDTO {
 
 /**
  * 실서버 도감 저장소.
- *  · pull() → GET  /api/collection
- *  · sync() → POST /api/collection/sync
+ *  · pull() → GET  /inner/api/v1/collection
+ *  · sync() → POST /inner/api/v1/collection/sync
  */
 export class CollectionRepository implements ICollectionRepository {
   async pull(): Promise<CollectionSnapshot> {
-    return toDomain(await apiClient.get<CollectionDTO>('/api/collection'));
+    return toDomain(await apiClient.get<CollectionDTO>('/inner/api/v1/collection'));
   }
 
   async sync(local: CollectionSnapshot): Promise<CollectionSnapshot> {
@@ -65,7 +65,7 @@ export class CollectionRepository implements ICollectionRepository {
     try {
       // 먼저 평범한 post — **병합 결과를 받아야** 여러 기기가 같은 값에 수렴한다.
       // postDurable 은 성공/큐잉만 알려주고 응답 본문을 주지 않아 여기서는 못 쓴다.
-      return toDomain(await apiClient.post<CollectionDTO>('/api/collection/sync', body));
+      return toDomain(await apiClient.post<CollectionDTO>('/inner/api/v1/collection/sync', body));
     } catch (e) {
       const err = toApiError(e);
       // 서버가 거절한 것(4xx)이라면 큐에 담아도 영원히 실패한다 — 그대로 던진다.
@@ -76,7 +76,7 @@ export class CollectionRepository implements ICollectionRepository {
       // 멱등키는 보내는 내용에서 만든다 — 같은 상태를 두 번 보내면 같은 키가 되어
       // 큐가 재전송해도 서버가 한 번만 처리한다(병합 자체도 멱등이라 두 겹이다).
       const key = `collection-sync:${local.packsEarned}:${local.packsOpened}:${local.shardsEarned}:${local.shardsSpent}:${local.studyTotal}`;
-      await apiClient.postDurable('/api/collection/sync', body, key);
+      await apiClient.postDurable('/inner/api/v1/collection/sync', body, key);
       // 큐에 담긴 요청의 응답은 받을 수 없다. 보낸 값을 그대로 쓰고, 병합 결과는
       // 다음 pull 에서 맞춘다(모든 값이 단조 증가라 늦게 맞춰도 손실이 없다).
       return local;

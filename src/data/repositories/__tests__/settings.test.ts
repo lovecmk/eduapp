@@ -80,7 +80,7 @@ describe('SettingsRepository — push', () => {
     await repo.push({ ...DEFAULT_ACCOUNT_SETTINGS, dailyTarget: 9, bio: '소개' }, at);
 
     const [path, body, key] = postDurable.mock.calls[0] as [string, Record<string, unknown>, string];
-    expect(path).toBe('/api/settings');
+    expect(path).toBe('/inner/api/v1/settings');
     expect(body.daily_target).toBe(9);
     expect(body.bio_txt).toBe('소개');
     expect(body.updated_at).toBe(at.toISOString());

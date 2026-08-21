@@ -94,7 +94,7 @@ describe('QnaRepository — 상세·쓰기', () => {
   it('질문 등록은 응답을 기다린다(서버가 준 id 로 상세로 이동해야 하므로)', async () => {
     post.mockResolvedValue({ id: 'server-1', title_txt: '제목' });
     const created = await repo.ask({ title: '제목', body: '본문', category: '전기 위험' });
-    expect(post).toHaveBeenCalledWith('/api/qna', {
+    expect(post).toHaveBeenCalledWith('/inner/api/v1/qna', {
       title_txt: '제목', body_txt: '본문', category_nm: '전기 위험',
     });
     expect(created.id).toBe('server-1');
@@ -103,11 +103,11 @@ describe('QnaRepository — 상세·쓰기', () => {
   it('공감은 오프라인 큐로 보내고, 멱등키에 원하는 상태를 담는다', async () => {
     postDurable.mockResolvedValue('sent');
     await repo.setQuestionLike('q1', true);
-    expect(postDurable).toHaveBeenCalledWith('/api/qna/q1/like', { liked: true }, 'qna-like:q1:true');
+    expect(postDurable).toHaveBeenCalledWith('/inner/api/v1/qna/q1/like', { liked: true }, 'qna-like:q1:true');
 
     await repo.setAnswerLike('q1', 'a2', false);
     expect(postDurable).toHaveBeenCalledWith(
-      '/api/qna/q1/answers/a2/like',
+      '/inner/api/v1/qna/q1/answers/a2/like',
       { liked: false },
       'qna-answer-like:a2:false',
     );
@@ -116,7 +116,7 @@ describe('QnaRepository — 상세·쓰기', () => {
   it('id 에 이상한 문자가 있어도 경로가 깨지지 않는다', async () => {
     get.mockResolvedValue(null);
     await repo.get('a/b?c');
-    expect(get).toHaveBeenCalledWith('/api/qna/a%2Fb%3Fc');
+    expect(get).toHaveBeenCalledWith('/inner/api/v1/qna/a%2Fb%3Fc');
   });
 });
 

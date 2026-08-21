@@ -151,7 +151,7 @@ export default function DeveloperScreen() {
             ))}
           </View>
 
-          {/* 서버 헬스체크 — 배포 후 스모크 확인용(GET /api/health) */}
+          {/* 서버 헬스체크 — 배포 후 스모크 확인용(GET /inner/api/v1/health) */}
           <View style={{ marginTop: 14, borderTopWidth: 1, borderTopColor: c.surfaceAlt, paddingTop: 14 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
               <Pressable accessibilityRole="button" onPress={runHealthCheck} disabled={healthBusy}
@@ -231,7 +231,7 @@ export default function DeveloperScreen() {
         )}
 
         {/* 콘텐츠 관리 — 문제 등록(웹 등록 도구와 동일 메타데이터 계약).
-            실서버에서 `POST /api/cards` 는 **관리자만** 통과한다(docs/PLATFORM_SPLIT.md §4).
+            실서버에서 `POST /inner/api/v1/cards` 는 **관리자만** 통과한다(docs/PLATFORM_SPLIT.md §4).
             관리자가 아닌 사람에게 이 항목을 보여 주면, 문제를 다 쓰고 저장을 누른
             다음에야 403 을 만난다. 눌러 봐야 실패할 버튼은 미리 치운다(User.isAdmin). */}
         {(env.useMockData || isAdmin) && (

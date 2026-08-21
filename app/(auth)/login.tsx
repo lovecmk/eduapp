@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, KeyboardAvoidingView, Platform, ScrollView, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,6 +15,9 @@ import { useAuthStore } from '../../src/store/authStore';
 import { ROUTES } from '../../src/constants/routes';
 import { APP_NAME } from '../../src/constants/brand';
 import { env } from '../../src/data/network/env';
+import { ADMIN_DEMO_USER, ADMIN_TAP_COUNT, ADMIN_TAP_WINDOW_MS } from '../../src/data/auth/adminDemoAccount';
+import { useSafeTimeout } from '../../src/hooks/useSafeTimeout';
+import { toast } from '../../src/store/toastStore';
 
 const SAVED_ID_KEY = 'saved_login_id';
 
@@ -27,7 +30,10 @@ export default function LoginScreen() {
   const [formError, setFormError] = useState<string | null>(null);
   const [bioAvailable, setBioAvailable] = useState(false);
   const [rememberId, setRememberId] = useState(false);
-  const { login, socialLogin, loading, error: authError, clearError } = useAuthStore();
+  const { login, socialLogin, adminLogin, loading, error: authError, clearError } = useAuthStore();
+  const { run: runLater, cancelAll: cancelTapReset } = useSafeTimeout();
+  // 로고 연속 두드리기 횟수 — 화면을 다시 그릴 이유가 없으므로 ref 로 센다.
+  const logoTaps = useRef(0);
 
   useEffect(() => { isBiometricAvailable().then(setBioAvailable); }, []);
   // 저장해 둔 아이디가 있으면 자동으로 채우고 '아이디 저장'을 켜둔다.
@@ -38,7 +44,7 @@ export default function LoginScreen() {
   }, []);
 
   const onLogin = async () => {
-    if (!id.trim() || !pw.trim()) { setFormError('이메일(또는 아이디)과 비밀번호를 모두 입력해주세요'); return; }
+    if (!id.trim() || !pw.trim()) { setFormError('아이디와 비밀번호를 모두 입력해주세요'); return; }
     setFormError(null); clearError();
     const ok = await login(id.trim(), pw);
     if (ok) {
@@ -67,6 +73,32 @@ export default function LoginScreen() {
     if (ok) router.replace(ROUTES.home);
   };
 
+  /**
+   * 로고 연속 5번 두드리기 → 관리자 모드(이용재)로 진입한다.
+   *
+   * 눈에 보이는 버튼으로 두지 않는 이유는 adminDemoAccount 주석에 적어 두었다.
+   * 두드림 사이가 ADMIN_TAP_WINDOW_MS 보다 벌어지면 처음부터 다시 센다 —
+   * 무심코 한 번씩 누른 것이 쌓여서 열리면 그건 숨긴 게 아니다.
+   */
+  const onLogoTap = () => {
+    cancelTapReset();
+    logoTaps.current += 1;
+    if (logoTaps.current < ADMIN_TAP_COUNT) {
+      runLater(() => { logoTaps.current = 0; }, ADMIN_TAP_WINDOW_MS);
+      return;
+    }
+    logoTaps.current = 0;
+    void enterAdminMode();
+  };
+
+  const enterAdminMode = async () => {
+    setFormError(null); clearError();
+    const ok = await adminLogin();
+    if (!ok) return;
+    toast(`관리자 모드 · ${ADMIN_DEMO_USER.name}님으로 로그인했어요`, 'success');
+    router.replace(ROUTES.home);
+  };
+
   const onBiometric = async () => {
     const ok = await tryBiometricLogin();
     if (ok) router.replace(ROUTES.home);
@@ -78,25 +110,34 @@ export default function LoginScreen() {
         <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingHorizontal: 28, paddingVertical: 32 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           {/* 브랜드 */}
           <View style={{ alignItems: 'center', marginBottom: 36 }}>
-            <View style={{
-              width: 82, height: 82, borderRadius: 24, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border,
-              alignItems: 'center', justifyContent: 'center', boxShadow: `0 10px 30px ${c.primary}22`,
-            }}>
+            {/* 로고 자리는 관리자 모드 입구이기도 하다(onLogoTap).
+                accessibilityRole 을 button 으로 두지 않는 이유 — 스크린리더가
+                "버튼"이라고 읽으면 숨겨 둔 의미가 없고, 일반 사용자에게는
+                누를 것이 없는 장식이기 때문이다. */}
+            <Pressable
+              onPress={onLogoTap}
+              accessible={false}
+              importantForAccessibility="no-hide-descendants"
+              style={{
+                width: 82, height: 82, borderRadius: 24, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border,
+                alignItems: 'center', justifyContent: 'center', boxShadow: `0 10px 30px ${c.primary}22`,
+              }}
+            >
               <AppLogo size={52} />
-            </View>
+            </Pressable>
             <Text style={{ color: c.textPrimary, fontSize: 24 * fs, fontFamily: fontDisplay, marginTop: 18, letterSpacing: 1 }}>{APP_NAME}</Text>
             <Text style={{ color: c.textSecondary, fontSize: 13 * fs, marginTop: 6, fontFamily: fontBody }}>현장 안전학습, 매일 3분이면 충분합니다</Text>
           </View>
 
           {/* 로그인 */}
           <TextField
-            /* 브릿지 계정으로 로그인한다. 사람들이 외우고 있는 것은 대개
-               브릿지 아이디가 아니라 자기 사내 이메일이라, 서버가 둘 다 받는다.
-               라벨에 그 사실이 안 적혀 있으면 이메일을 넣어 볼 생각을 못 한다. */
-            label="이메일 또는 아이디"
+            /* 브릿지 계정으로 로그인한다. 서버는 사내 이메일도 브릿지 아이디도
+               같은 '아이디'로 받으므로 라벨은 하나로 두고, 어떤 모양이면 되는지는
+               placeholder 의 실제 예시가 대신 말해 준다. */
+            label="아이디"
             value={id}
             onChangeText={(t) => { setId(t); if (formError) setFormError(null); }}
-            placeholder="사내 이메일 또는 브릿지 아이디"
+            placeholder="bridge@kfpa.or.kr"
             autoCapitalize="none"
             status={formError ? 'error' : 'default'}
           />

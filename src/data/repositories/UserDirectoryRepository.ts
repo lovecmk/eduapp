@@ -21,8 +21,8 @@ interface ProfileDTO extends SummaryDTO {
 
 /**
  * 실서버 사용자 디렉터리.
- *  · search(q)      → GET /api/users/search?q=
- *  · getProfile(id) → GET /api/users/:id/public
+ *  · search(q)      → GET /inner/api/v1/users/search?q=
+ *  · getProfile(id) → GET /inner/api/v1/users/:id/public
  *
  * 서버가 각 사용자의 공개 범위를 적용해 '허용한 값만' 내려주는 것을 전제로 한다
  * (비공개 필드는 응답에서 생략). 클라이언트는 온 값만 그린다.
@@ -31,12 +31,12 @@ export class UserDirectoryRepository implements IUserDirectoryRepository {
   async search(query: string): Promise<PublicProfileSummary[]> {
     const q = query.trim();
     if (!q) return [];
-    const list = await apiClient.get<SummaryDTO[]>(`/api/users/search?q=${encodeURIComponent(q)}`);
+    const list = await apiClient.get<SummaryDTO[]>(`/inner/api/v1/users/search?q=${encodeURIComponent(q)}`);
     return (list ?? []).map((d) => ({ id: d.id, nickname: d.nickname, org: d.org, membership: d.membership ?? 'basic' }));
   }
 
   async getProfile(id: string): Promise<PublicProfile | null> {
-    const d = await apiClient.get<ProfileDTO | null>(`/api/users/${encodeURIComponent(id)}/public`);
+    const d = await apiClient.get<ProfileDTO | null>(`/inner/api/v1/users/${encodeURIComponent(id)}/public`);
     if (!d) return null;
     const visibility: ProfileVisibility = {
       searchable: d.visibility?.searchable ?? true,

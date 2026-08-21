@@ -157,7 +157,7 @@ class ApiClient {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), env.apiTimeoutMs);
     try {
-      const res = await fetch(`${env.apiBaseUrl}/api/auth/refresh`, {
+      const res = await fetch(`${env.apiBaseUrl}/inner/api/v1/auth/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refresh_token: refreshToken }),
@@ -268,14 +268,14 @@ class ApiClient {
   }
 
   /**
-   * 서버 상태 점검(GET /api/health) — 개발자 화면·배포 후 스모크 체크용.
+   * 서버 상태 점검(GET /inner/api/v1/health) — 개발자 화면·배포 후 스모크 체크용.
    * 던지지 않고 결과 객체로 돌려주므로 호출부에서 try/catch 가 필요 없다.
    * 백엔드 계약: 200 + { status: 'ok', version?: string } 을 인증 없이 응답할 것.
    */
   async health(): Promise<HealthResult> {
     const startedAt = Date.now();
     try {
-      const body = await this.request<{ status?: string; version?: string }>('/api/health', { method: 'GET' });
+      const body = await this.request<{ status?: string; version?: string }>('/inner/api/v1/health', { method: 'GET' });
       return {
         ok: body?.status === 'ok',
         latencyMs: Date.now() - startedAt,

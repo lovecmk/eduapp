@@ -6,8 +6,8 @@
 지식을 여기에 옮겨 적는다.**
 
 > 이 문서는 **2026-08-13 기준 사본**이다. 저쪽이 바뀌어도 여기가 자동으로 따라오지
-> 않는다. 의심스러우면 실제 서버에 물어 확인한다 — `GET /api/health`(버전),
-> `GET /api/config`(지금 운영값). 엔드포인트 명세 자체는
+> 않는다. 의심스러우면 실제 서버에 물어 확인한다 — `GET /inner/api/v1/health`(버전),
+> `GET /inner/api/v1/config`(지금 운영값). 엔드포인트 명세 자체는
 > [API_CONTRACT.md](./API_CONTRACT.md) 가 정본이고 그것은 이 저장소에 있다.
 
 ## 1. 지형
@@ -20,16 +20,17 @@
 | 회원·등급 | 브릿지 회원 테이블(`cyber_user`) | 서버가 **읽기만** 한다 |
 
 서버는 **브릿지 웹 서버 프로세스 안에 얹혀** 돈다. 별도 프로세스가 아니다.
-API 주소는 분리 전과 같다(`/api/auth/...`, `/api/progress`, `/api/admin/...`) —
-이미 배포된 앱이 그 주소를 알고 있어 바꾸지 않았다.
+앱이 부르는 API 는 전부 `/inner/api/v1` 아래다(`/inner/api/v1/auth/...`,
+`/inner/api/v1/progress` …). 콘솔 전용 주소(`/api/admin/...`)는 그대로다 —
+접두사를 나눠 둔 덕에 프록시에서 앱 트래픽과 콘솔 트래픽을 따로 다룰 수 있다.
 
 ## 2. 서버가 어떤 조건에서 도는가 (앱에 영향 있는 것만)
 
 | 사실 | 앱에서 무엇을 뜻하나 |
 |---|---|
-| 프록시가 `/api/*` 를 브릿지 프로세스로 넘겨야 붙는다 | 새 환경에서 안 붙으면 **먼저 `GET /api/health` 가 인증 없이 200 인지** 본다. 여기서 막히면 앱 코드 문제가 아니다 |
+| 프록시가 `/inner/api/v1/*` 를 브릿지 프로세스로 넘겨야 붙는다 | 새 환경에서 안 붙으면 **먼저 `GET /inner/api/v1/health` 가 인증 없이 200 인지** 본다. 여기서 막히면 앱 코드 문제가 아니다 |
 | `D3M_ENABLED=false` 로 서버만 통째로 끌 수 있다 | 브릿지 웹은 멀쩡한데 앱만 전부 실패하는 상태가 **정상 운영 절차**로 존재한다 |
-| 속도 제한 기본 **분당 240회/호출자** (`/api/health` 제외) | 오프라인 큐가 복구 순간 한꺼번에 몰리면 **429**. 재전송은 몰아치지 말고 간격을 둬야 한다 |
+| 속도 제한 기본 **분당 240회/호출자** (`/inner/api/v1/health` 제외) | 오프라인 큐가 복구 순간 한꺼번에 몰리면 **429**. 재전송은 몰아치지 말고 간격을 둬야 한다 |
 | 호출자는 `X-Forwarded-For` 맨 앞으로 센다 | 프록시가 그 헤더를 안 채우면 **전 사용자가 버킷 하나를 공유**한다 — 남의 폭주로 내 로그인이 429 가 된다 |
 | 액세스 토큰 15분 · 리프레시 30일(기본값) | 15분마다 refresh 가 돈다. 리프레시가 죽으면 30일 안에 전원이 로그아웃된다 |
 | 배선 실패는 "그 기능 미등록 + 로그" 로 끝난다 | 서버가 반쯤 뜬 상태가 가능하다 — **일부 경로만 404** 인 상황이 정상적으로 존재한다(§6 폴백) |
@@ -66,36 +67,36 @@ API 주소는 분리 전과 같다(`/api/auth/...`, `/api/progress`, `/api/admin
 
 | 경로 | |
 |---|---|
-| `GET /api/health`, `GET /api/daily3min/health` | 속도 제한·점검 모드 모두 통과 |
-| `GET /api/config` | 운영값 공개 (§5) |
+| `GET /inner/api/v1/health`, `GET /inner/api/v1/daily3min/health` | 속도 제한·점검 모드 모두 통과 |
+| `GET /inner/api/v1/config` | 운영값 공개 (§5) |
 
 ### 로그인
 
-`POST /api/auth/login` · `refresh` · `logout` · `register`(가입 개방 시에만) ·
-`GET /api/auth/username-available` · `nickname-available` ·
-`GET/PATCH /api/auth/me`
+`POST /inner/api/v1/auth/login` · `refresh` · `logout` · `register`(가입 개방 시에만) ·
+`GET /inner/api/v1/auth/username-available` · `nickname-available` ·
+`GET/PATCH /inner/api/v1/auth/me`
 
 ### 학습·콘텐츠 (토큰 필요)
 
-`GET /api/cards` · `PATCH /api/cards/:id` · `GET /api/stats` ·
-`GET /api/community/live` · `GET /api/cards/images/:id` ·
-`POST /api/push/register` · `POST /api/telegram/alert`
+`GET /inner/api/v1/cards` · `PATCH /inner/api/v1/cards/:id` · `GET /inner/api/v1/stats` ·
+`GET /inner/api/v1/community/live` · `GET /inner/api/v1/cards/images/:id` ·
+`POST /inner/api/v1/push/register` · `POST /inner/api/v1/telegram/alert`
 
-> `POST /api/cards`(문제 등록)는 **관리자만** 통과한다. 앱 안에 문제 등록 화면이
+> `POST /inner/api/v1/cards`(문제 등록)는 **관리자만** 통과한다. 앱 안에 문제 등록 화면이
 > 있던 시절의 잔재이고, 지금은 토큰만으로 부를 수 없다.
 
 ### 동기화 (토큰 필요, 쓰기는 전부 멱등)
 
-`GET /api/progress` · `POST /api/progress/grade` · `POST /api/progress/attendance` ·
-`GET /api/engagement` · `POST /api/engagement/like` · `bookmark` ·
-`POST /api/reports` · `GET /api/reports/mine` ·
-`GET /api/notifications` · `POST /api/notifications/read-all` · `POST /api/notifications/:id/read` ·
-`GET /api/collection` · `POST /api/collection/sync`
+`GET /inner/api/v1/progress` · `POST /inner/api/v1/progress/grade` · `POST /inner/api/v1/progress/attendance` ·
+`GET /inner/api/v1/engagement` · `POST /inner/api/v1/engagement/like` · `bookmark` ·
+`POST /inner/api/v1/reports` · `GET /inner/api/v1/reports/mine` ·
+`GET /inner/api/v1/notifications` · `POST /inner/api/v1/notifications/read-all` · `POST /inner/api/v1/notifications/:id/read` ·
+`GET /inner/api/v1/collection` · `POST /inner/api/v1/collection/sync`
 
 ### 하루 학습 (토큰 필요)
 
-`GET /api/learning/today` · `GET /api/learning/quota` ·
-`POST /api/learning/complete`(멱등) · `GET /api/cards/today`(구형, 같은 편성을 구형 형식으로)
+`GET /inner/api/v1/learning/today` · `GET /inner/api/v1/learning/quota` ·
+`POST /inner/api/v1/learning/complete`(멱등) · `GET /inner/api/v1/cards/today`(구형, 같은 편성을 구형 형식으로)
 
 > **멱등키가 진짜로 동작한다.** 위 쓰기 경로는 `Idempotency-Key` 헤더를 서버가
 > 읽는다. 분리 전에는 앱이 헤더를 보내는데 서버가 무시해서, 오프라인 큐가
@@ -104,11 +105,11 @@ API 주소는 분리 전과 같다(`/api/auth/...`, `/api/progress`, `/api/admin
 
 ### 사진 주소는 하나뿐이다
 
-앱이 쓰는 것은 `GET /api/cards/images/:id`(앱 Bearer 토큰)뿐이다. 발행된 문제의
+앱이 쓰는 것은 `GET /inner/api/v1/cards/images/:id`(앱 Bearer 토큰)뿐이다. 발행된 문제의
 `image_url` 에도 이 주소가 실린다. 콘솔용 주소(`/api/admin/studio/images/:id`)는
 브릿지 세션 쿠키를 요구하므로 **앱에서 부르면 401** 이다.
 
-## 5. 운영자가 재배포 없이 바꾸는 값 — `GET /api/config`
+## 5. 운영자가 재배포 없이 바꾸는 값 — `GET /inner/api/v1/config`
 
 콘솔의 **운영 설정** 화면이 이 값을 즉시 바꾼다. 앱은 이것을 **권위로 받아야
 하고 오래 캐시하면 안 된다.**
@@ -154,7 +155,7 @@ API 주소는 분리 전과 같다(`/api/auth/...`, `/api/progress`, `/api/admin
 | 사용자 목록/상세 | 조회. **권한·상태 변경은 막혀 있다**(409) | 없음 — 계정은 브릿지가 쥔다 |
 | 문제 관리(목록·편집기) | 문제를 손으로 쓰고 고친다 | 발행된 문제가 곧 앱의 학습 카드 |
 | 생성·검수 스튜디오 | 프로젝트 → 원본(PDF·사진) → AI 생성 → 배정 → 검수 → 발행 | 통과한 것만 발행된다 |
-| 신고 처리 | 앱에서 올라온 `POST /api/reports` 를 단계별로 처리 | `GET /api/reports/mine` 의 상태가 바뀐다 |
+| 신고 처리 | 앱에서 올라온 `POST /inner/api/v1/reports` 를 단계별로 처리 | `GET /inner/api/v1/reports/mine` 의 상태가 바뀐다 |
 | 공지 센터 | 등급을 대상으로 공지 발송(대상 규모 미리보기 후) | 앱 알림 목록에 꽂힌다 |
 | 운영 설정 | §5 의 값들 | 즉시 반영돼야 한다 |
 | 관리 이력 | 변경만 기록(조회는 안 남긴다) | 없음 |
@@ -253,7 +254,7 @@ API 주소는 분리 전과 같다(`/api/auth/...`, `/api/progress`, `/api/admin
 ### 9.2 앱 안의 카드 제작 — `app/author-card.tsx` ✅
 
 문제 제작은 콘솔의 생성·검수 스튜디오로 갔다. 남은 입구는 개발자 모드 하나이고,
-거기서도 **목업 모드이거나 관리자일 때만** 보인다 — 실서버의 `POST /api/cards` 는
+거기서도 **목업 모드이거나 관리자일 때만** 보인다 — 실서버의 `POST /inner/api/v1/cards` 는
 관리자만 통과하므로(§4), 그렇지 않은 사람에게 보여 주면 문제를 다 쓰고 저장을
 누른 다음에야 403 을 만난다.
 

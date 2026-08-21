@@ -37,6 +37,26 @@ export interface QueuedWrite {
 }
 
 const STORAGE_KEY = 'offline-write-queue';
+
+/**
+ * 접두사가 바뀌기 전(`/api/...`)에 쌓인 항목을 지금 주소로 옮긴다.
+ *
+ * 리버스 프록시의 location 블록이 바뀌면서 앱이 부르는 주소가 통째로
+ * `/inner/api/v1` 아래로 옮겨졌다. 그 전에 큐에 들어간 출석·채점 기록은 업데이트
+ * 뒤에 옛 주소로 나가 **404** 를 받는데, 404 는 '다시 보내도 소용없는 실패'라
+ * 큐가 그대로 버린다 — 사용자는 이미 찍었다고 믿는 출석이 조용히 사라진다.
+ * 유실 방지가 존재 이유인 큐에서 그건 있을 수 없어, 읽어 들일 때 한 번 고쳐 준다.
+ *
+ * (구버전 앱이 남긴 디스크만 해당한다. 큐를 다 비운 뒤에는 아무 일도 하지 않는다.)
+ */
+const LEGACY_PATH_PREFIX = '/api/';
+const PATH_PREFIX = '/inner/api/v1/';
+
+function migrateLegacyPath(item: QueuedWrite): QueuedWrite {
+  if (typeof item?.path !== 'string' || !item.path.startsWith(LEGACY_PATH_PREFIX)) return item;
+  return { ...item, path: PATH_PREFIX + item.path.slice(LEGACY_PATH_PREFIX.length) };
+}
+
 /** 큐 최대 길이 — 넘치면 가장 오래된 항목부터 버린다(무한 성장 방지). */
 export const MAX_QUEUE = 100;
 /** 이 횟수만큼 실패하면 포기한다(영구 실패 항목이 큐를 막지 않도록). */
@@ -71,7 +91,7 @@ async function ensureLoaded(): Promise<void> {
       try {
         const raw = await AsyncStorage.getItem(STORAGE_KEY);
         const parsed: unknown = raw ? JSON.parse(raw) : [];
-        if (Array.isArray(parsed)) restored = parsed as QueuedWrite[];
+        if (Array.isArray(parsed)) restored = (parsed as QueuedWrite[]).map(migrateLegacyPath);
       } catch {
         // 손상된 큐는 버린다(앱 시작을 막지 않는다).
       }

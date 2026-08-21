@@ -60,10 +60,10 @@ describe('apiClient.health', () => {
     expect(r.error).toBeDefined();
   });
 
-  it('/api/health 경로를 호출한다', async () => {
+  it('/inner/api/v1/health 경로를 호출한다', async () => {
     const fetchMock = jest.fn(async (_url: string) => resp(200, { status: 'ok' }));
     global.fetch = fetchMock as unknown as typeof fetch;
     await apiClient.health();
-    expect(String(fetchMock.mock.calls[0][0])).toBe('https://api.test/api/health');
+    expect(String(fetchMock.mock.calls[0][0])).toBe('https://api.test/inner/api/v1/health');
   });
 });

@@ -43,8 +43,8 @@ describe('OfflineBanner — 연결 상태와 대기 중인 쓰기 안내', () =>
   });
 
   it('대기 중인 쓰기가 있으면 건수를 함께 보여준다', async () => {
-    await enqueue('POST', '/api/progress/attendance', { day: '2026-7-26' });
-    await enqueue('POST', '/api/reports', { card_id: 'c1' });
+    await enqueue('POST', '/inner/api/v1/progress/attendance', { day: '2026-7-26' });
+    await enqueue('POST', '/inner/api/v1/reports', { card_id: 'c1' });
     wrap();
     act(() => emit({ isConnected: false }));
     await waitFor(() => expect(screen.getByText(/2건은 연결되면 자동 전송돼요/)).toBeTruthy());
@@ -52,7 +52,7 @@ describe('OfflineBanner — 연결 상태와 대기 중인 쓰기 안내', () =>
 
   it('복귀하면 쌓인 쓰기를 전송하고 결과를 짧게 알린다', async () => {
     const flush = jest.spyOn(apiClient, 'flushPendingWrites').mockResolvedValue(3);
-    await enqueue('POST', '/api/progress/attendance', { day: '2026-7-26' });
+    await enqueue('POST', '/inner/api/v1/progress/attendance', { day: '2026-7-26' });
     wrap();
     act(() => emit({ isConnected: false }));
     await waitFor(() => expect(screen.getByText(/자동 전송돼요/)).toBeTruthy());

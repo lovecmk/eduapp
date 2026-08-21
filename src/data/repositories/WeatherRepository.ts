@@ -4,7 +4,7 @@ import { normalizeOpenWeather, weatherLabel } from '../../domain/models/Weather'
 import { apiClient } from '../network/ApiClient';
 
 /**
- * 실서버 날씨 저장소 — `GET /api/weather/current` 응답을 도메인으로 매핑.
+ * 실서버 날씨 저장소 — `GET /inner/api/v1/weather/current` 응답을 도메인으로 매핑.
  *
  * ⚠️ 아직 실제 날씨 API 는 연동 전이다(사용자가 추후 붙일 예정).
  *    이 클래스는 "연동 지점(seam)"을 미리 만들어 둔 것으로, 응답 스키마만
@@ -33,7 +33,7 @@ const VALID = new Set(['clear', 'clouds', 'rain', 'snow', 'thunderstorm', 'mist'
 
 export class WeatherRepository implements IWeatherRepository {
   async getCurrent(): Promise<Weather> {
-    const dto = await apiClient.get<WeatherDTO>('/api/weather/current');
+    const dto = await apiClient.get<WeatherDTO>('/inner/api/v1/weather/current');
 
     // 1) 서버가 이미 정규화 상태를 주면 그대로 신뢰(유효값일 때).
     // 2) 아니면 OpenWeather 원본에서 정규화.

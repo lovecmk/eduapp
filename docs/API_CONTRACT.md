@@ -7,7 +7,7 @@
 
 | 항목 | 규칙 |
 |---|---|
-| Base URL | `EXPO_PUBLIC_API_BASE_URL` (끝에 `/` 금지 — 경로가 `//api/...` 로 중복됨) |
+| Base URL | `EXPO_PUBLIC_API_BASE_URL` (끝에 `/` 금지 — 경로가 `//inner/api/v1/...` 로 중복됨) |
 | 요청 본문 | `application/json` |
 | 필드 표기 | **응답은 snake_case** (프론트 Mapper 가 camelCase 도메인 모델로 변환) |
 | 인증 | `Authorization: Bearer <access_token>` |
@@ -44,9 +44,9 @@
 
 ---
 
-## 1. 인증 (`/api/auth`)
+## 1. 인증 (`/inner/api/v1/auth`)
 
-### `POST /api/auth/login`
+### `POST /inner/api/v1/auth/login`
 ```jsonc
 // req
 { "id": "hong", "password": "safe1234" }
@@ -54,13 +54,13 @@
 { "access_token": "...", "refresh_token": "...", "user": { /* UserDTO */ } }
 ```
 
-### `POST /api/auth/social`
+### `POST /inner/api/v1/auth/social`
 ```jsonc
 // req  { "name": "원진섭", "email": "won@example.com" }
 // res 200 — login 과 동일
 ```
 
-### `POST /api/auth/register`
+### `POST /inner/api/v1/auth/register`
 ```jsonc
 // req
 { "username": "hong", "password": "safe1234", "name": "홍길동",
@@ -68,7 +68,7 @@
 // res 200 — login 과 동일 / 409 — 아이디·닉네임 중복
 ```
 
-### `POST /api/auth/refresh` ⚠️ 중요
+### `POST /inner/api/v1/auth/refresh` ⚠️ 중요
 ```jsonc
 // req  { "refresh_token": "..." }
 // res 200
@@ -78,30 +78,30 @@
   클라이언트는 반환된 값을 저장하며, 없으면 기존 토큰을 유지한다.
 - 클라이언트는 동시 401 이 여러 개여도 refresh 를 **1회만** 호출한다(single-flight).
 
-### `POST /api/auth/logout`
+### `POST /inner/api/v1/auth/logout`
 ```jsonc
 // req {} · res 200 — 서버는 refresh 토큰을 폐기할 것
 ```
 
-### `GET /api/auth/me` / `PATCH /api/auth/me`
+### `GET /inner/api/v1/auth/me` / `PATCH /inner/api/v1/auth/me`
 ```jsonc
 // GET  res 200 — UserDTO
 // PATCH req { "name"?, "nickname"?, "email"?, "org"?, "jobTitle"? } → res 200 UserDTO
 ```
 
-### `POST /api/auth/reset-password`
+### `POST /inner/api/v1/auth/reset-password`
 ```jsonc
 // req { "username": "hong", "email": "hong@example.com", "newPassword": "safe1234" }
 // res 200 (본문 무관)
 ```
 
-### `GET /api/auth/username-available?username=...`
-### `GET /api/auth/nickname-available?nickname=...&exclude=<userId>`
+### `GET /inner/api/v1/auth/username-available?username=...`
+### `GET /inner/api/v1/auth/nickname-available?nickname=...&exclude=<userId>`
 ```jsonc
 // res 200 { "taken": true }
 ```
 
-### `POST /api/auth/email/request-code` 🔐
+### `POST /inner/api/v1/auth/email/request-code` 🔐
 ```jsonc
 // req { "email": "hong@example.com" }
 // res 200 {}   ← 코드를 응답에 절대 포함하지 말 것(포함 시 인증 우회 가능)
@@ -109,7 +109,7 @@
 - 코드는 **서버가 생성해 이메일로만** 전달한다.
 - 권장: 6자리 숫자, TTL 5분, 검증 시도 5회 초과 시 무효화, 1회용, 발송 rate limit.
 
-### `POST /api/auth/email/verify-code` 🔐
+### `POST /inner/api/v1/auth/email/verify-code` 🔐
 ```jsonc
 // req { "email": "hong@example.com", "code": "123456" }
 // res 200 { "verified": true }   ← 비교는 반드시 서버에서
@@ -132,14 +132,14 @@
 
 ---
 
-## 2. 학습 카드 (`/api/cards`)
+## 2. 학습 카드 (`/inner/api/v1/cards`)
 
 | 메서드 | 경로 | 설명 |
 |---|---|---|
-| GET | `/api/cards` | 전체 카드 — `CardDTO[]` |
-| GET | `/api/cards/today?limit=&mode=` | 오늘의 학습 세션 — `CardDTO[]` |
-| PATCH | `/api/cards/:id` | `{ "status_cd": "NEW"\|"LEARNING"\|"MASTERED" }` → `CardDTO` |
-| POST | `/api/cards` | 카드 등록 → `CardDTO` |
+| GET | `/inner/api/v1/cards` | 전체 카드 — `CardDTO[]` |
+| GET | `/inner/api/v1/cards/today?limit=&mode=` | 오늘의 학습 세션 — `CardDTO[]` |
+| PATCH | `/inner/api/v1/cards/:id` | `{ "status_cd": "NEW"\|"LEARNING"\|"MASTERED" }` → `CardDTO` |
+| POST | `/inner/api/v1/cards` | 카드 등록 → `CardDTO` |
 
 **CardDTO** (주요 필드)
 ```jsonc
@@ -170,7 +170,7 @@
 
 ## 3. 통계 · 커뮤니티 · 기타
 
-### `GET /api/stats` → `StatsDTO`
+### `GET /inner/api/v1/stats` → `StatsDTO`
 ```jsonc
 {
   "streak_days": 5, "best_streak": 12, "total_learned": 130, "total_cards": 300,
@@ -183,7 +183,7 @@
 }
 ```
 
-### `GET /api/config` → 서비스 운영 상태 (무인증)
+### `GET /inner/api/v1/config` → 서비스 운영 상태 (무인증)
 ```jsonc
 { "maintenance_yn": false, "maintenance_msg": "", "signup_enabled": true,
   "daily_min_cards": 3, "daily_max_cards": 5, "daily_new_limit": 5,
@@ -192,22 +192,22 @@
 - **인증을 요구하지 말 것** — 점검 중이라 로그인조차 못 하는 사람에게도 사유는 닿아야 한다.
 - `notice_level` 은 `INFO`/`WARN`/`DANGER`. 모르는 값은 앱이 `INFO` 로 낮춰 해석한다.
 
-### `GET /api/learning/today` → 오늘의 학습 편성
+### `GET /inner/api/v1/learning/today` → 오늘의 학습 편성
 ```jsonc
 { "day": "2026-8-14", "difficulty_cd": "EASY", "target_count": 4, "done_count": 1,
   "cards": [ { /* CardDTO */ "kind": "NEW" /* NEW | REVIEW */, "done": false } ] }
 ```
 - 날짜 키는 앱의 `dateKey()` 형식(`YYYY-M-D`)과 같아야 한다.
 
-### `GET /api/community/live` → 커뮤니티 스냅샷
-### `GET /api/users/search?q=` → 공개 프로필 요약 배열
-### `GET /api/users/:id/public` → 공개 프로필(공개 범위 적용) 또는 `null`
-### `GET /api/weather/current` → 현재 날씨(홈 배경 앰비언트용)
-### `GET /api/learning/quota` → `{ "limit": 3, "used": 1, "resets_at": "..." }`
-### `POST /api/learning/complete` → `{ "count": 1 }`
-### `POST /api/push/register` → 푸시 토큰 등록
-### `GET /api/collection` → 내 안전 카드 도감
-### `POST /api/collection/sync` → 기기 상태를 병합하고 **병합 결과**를 돌려줌
+### `GET /inner/api/v1/community/live` → 커뮤니티 스냅샷
+### `GET /inner/api/v1/users/search?q=` → 공개 프로필 요약 배열
+### `GET /inner/api/v1/users/:id/public` → 공개 프로필(공개 범위 적용) 또는 `null`
+### `GET /inner/api/v1/weather/current` → 현재 날씨(홈 배경 앰비언트용)
+### `GET /inner/api/v1/learning/quota` → `{ "limit": 3, "used": 1, "resets_at": "..." }`
+### `POST /inner/api/v1/learning/complete` → `{ "count": 1 }`
+### `POST /inner/api/v1/push/register` → 푸시 토큰 등록
+### `GET /inner/api/v1/collection` → 내 안전 카드 도감
+### `POST /inner/api/v1/collection/sync` → 기기 상태를 병합하고 **병합 결과**를 돌려줌
 ### `GET /api/admin/users/:id/collection` → 운영자용 도감 조회(읽기 전용)
 
 ---
@@ -215,7 +215,7 @@
 ## 3-1. 안전 카드 도감 동기화 ✅
 
 ```jsonc
-// POST /api/collection/sync — req
+// POST /inner/api/v1/collection/sync — req
 {
   "owned": { "safety-helmet": 2, "elb": 1 },  // 카드 id → 보유 장수
   "packs_earned": 12, "packs_opened": 9,      // 잔액이 아니라 누적 카운터
@@ -269,7 +269,7 @@ id 길이, 항목 수). 이 구조에서 완전한 위·변조 방지는 불가�
 
 ---
 
-## 4. 헬스체크 `GET /api/health` ✅
+## 4. 헬스체크 `GET /inner/api/v1/health` ✅
 
 ```jsonc
 // res 200 — 인증 없이 응답할 것
@@ -310,19 +310,19 @@ id 길이, 항목 수). 이 구조에서 완전한 위·변조 방지는 불가�
 **서버는 같은 키의 요청을 한 번만 반영해야 한다.**
 
 ```
-POST /api/progress/attendance
+POST /inner/api/v1/progress/attendance
 Idempotency-Key: attendance:2026-7-25
 ```
 - 처음 받은 키 → 정상 처리 후 키를 (최소 24시간) 보관
 - 이미 처리한 키 → **다시 반영하지 말고 200 으로 응답**(409 아님 — 재전송은 정상 흐름)
 - 키 보관 실패보다 중복 반영이 더 위험하다(출석 2회, 신고 중복 접수 등)
 
-### 6-1. 학습 진행 `/api/progress`
+### 6-1. 학습 진행 `/inner/api/v1/progress`
 
 앱에서 가장 중요한 데이터(복습 일정·학습 이력·출석).
 
 ```jsonc
-// GET /api/progress → 200
+// GET /inner/api/v1/progress → 200
 {
   "cards": {                       // 카드 id → SRS 상태
     "c-001": {
@@ -343,54 +343,54 @@ Idempotency-Key: attendance:2026-7-25
 - `due_at`/`last_reviewed_at` 이 파싱 불가하면 클라이언트가 현재 시각으로 폴백한다.
 
 ```jsonc
-// POST /api/progress/grade   (Idempotency-Key: grade:<cardId>:<lastReviewedAt>)
+// POST /inner/api/v1/progress/grade   (Idempotency-Key: grade:<cardId>:<lastReviewedAt>)
 { "card_id": "c-001", "grade": "good", "box": 2, "ease": 2.56,
   "due_at": "2026-08-01T00:00:00.000Z", "reps": 3, "lapses": 1 }
 // → 200 (본문 무관)
 
-// POST /api/progress/attendance   (Idempotency-Key: attendance:<dayKey>)
+// POST /inner/api/v1/progress/attendance   (Idempotency-Key: attendance:<dayKey>)
 { "day": "2026-7-25" }
 // → 200. 하루 1회만 유효 — 같은 날 재요청은 조용히 200.
 ```
 
-### 6-2. 카드 반응 `/api/engagement`
+### 6-2. 카드 반응 `/inner/api/v1/engagement`
 
 ```jsonc
-// GET /api/engagement → 200
+// GET /inner/api/v1/engagement → 200
 { "liked_ids": ["c-001"], "bookmarked_ids": ["c-002", "c-003"] }
 
-// POST /api/engagement/like      (Idempotency-Key: like:<cardId>:<liked>)
+// POST /inner/api/v1/engagement/like      (Idempotency-Key: like:<cardId>:<liked>)
 { "card_id": "c-001", "liked": true }
-// POST /api/engagement/bookmark  (Idempotency-Key: bookmark:<cardId>:<bookmarked>)
+// POST /inner/api/v1/engagement/bookmark  (Idempotency-Key: bookmark:<cardId>:<bookmarked>)
 { "card_id": "c-002", "bookmarked": false }
 ```
 - **토글이 아니라 '원하는 상태'를 보낸다.** 재전송돼도 결과가 같아야 하기 때문이다.
 
-### 6-3. 카드 신고 `/api/reports`
+### 6-3. 카드 신고 `/inner/api/v1/reports`
 
 ```jsonc
-// POST /api/reports   (Idempotency-Key: report:<cardId>:<reason>)
+// POST /inner/api/v1/reports   (Idempotency-Key: report:<cardId>:<reason>)
 { "card_id": "c-001",
   "reason": "wrong_answer",   // wrong_question | wrong_answer | typo | outdated | etc
   "detail": "KEC 개정으로 기준이 바뀌었습니다" }   // 선택, 300자 이내(클라이언트에서 정제)
 // → 200
 
-// GET /api/reports/mine → 200
+// GET /inner/api/v1/reports/mine → 200
 { "card_ids": ["c-001"] }
 ```
 - 신고는 운영자 확인이 필요한 데이터다. 접수 후 운영 콘솔에서 볼 수 있어야 한다.
 
-### 6-4. 알림 `/api/notifications`
+### 6-4. 알림 `/inner/api/v1/notifications`
 
 ```jsonc
-// GET /api/notifications → 200 (최신순 배열)
+// GET /inner/api/v1/notifications → 200 (최신순 배열)
 [{ "id": "n1", "type_cd": "SYSTEM",       // NEW | REMIND | ACHIEVEMENT | SYSTEM
    "title_txt": "업데이트 안내", "desc_txt": "복습 알고리즘이 개선되었어요",
    "created_at": "2026-07-25T08:00:00.000Z", "read_yn": false, "category_nm": "공지" }]
 
-// POST /api/notifications/:id/read   (Idempotency-Key: notif-read:<id>)
-// POST /api/notifications/read-all   (Idempotency-Key: notif-read-all:<date>)
-// POST /api/push/register            (Idempotency-Key: push:<token>)
+// POST /inner/api/v1/notifications/:id/read   (Idempotency-Key: notif-read:<id>)
+// POST /inner/api/v1/notifications/read-all   (Idempotency-Key: notif-read-all:<date>)
+// POST /inner/api/v1/push/register            (Idempotency-Key: push:<token>)
 { "token": "ExponentPushToken[...]", "platform": "ios" }
 ```
 - 목록이 배열이 아니면 클라이언트는 빈 목록으로 처리한다(화면은 깨지지 않음).
@@ -535,17 +535,17 @@ data: {"uptime_seconds":420,"total_requests":35,"error_rate":0,"active_users":2,
 
 | 메서드 | 경로 | 하는 일 |
 |---|---|---|
-| GET | `/api/progress` | 복원용 전체 스냅샷 `{cards, history, attendance, updated_at}` |
-| POST | `/api/progress/grade` | 카드 채점 보고 |
-| POST | `/api/progress/attendance` | 출석 도장 |
-| GET | `/api/engagement` | `{liked_ids, bookmarked_ids}` |
-| POST | `/api/engagement/like` | `{card_id, liked}` — 토글이 아니라 **설정** |
-| POST | `/api/engagement/bookmark` | `{card_id, bookmarked}` |
-| POST | `/api/reports` | 문제 신고 접수 (201) |
-| GET | `/api/reports/mine` | 내가 신고한 카드 id |
-| GET | `/api/notifications` | 알림 배열 |
-| POST | `/api/notifications/read-all` | 전체 읽음 |
-| POST | `/api/notifications/:id/read` | 하나 읽음 |
+| GET | `/inner/api/v1/progress` | 복원용 전체 스냅샷 `{cards, history, attendance, updated_at}` |
+| POST | `/inner/api/v1/progress/grade` | 카드 채점 보고 |
+| POST | `/inner/api/v1/progress/attendance` | 출석 도장 |
+| GET | `/inner/api/v1/engagement` | `{liked_ids, bookmarked_ids}` |
+| POST | `/inner/api/v1/engagement/like` | `{card_id, liked}` — 토글이 아니라 **설정** |
+| POST | `/inner/api/v1/engagement/bookmark` | `{card_id, bookmarked}` |
+| POST | `/inner/api/v1/reports` | 문제 신고 접수 (201) |
+| GET | `/inner/api/v1/reports/mine` | 내가 신고한 카드 id |
+| GET | `/inner/api/v1/notifications` | 알림 배열 |
+| POST | `/inner/api/v1/notifications/read-all` | 전체 읽음 |
+| POST | `/inner/api/v1/notifications/:id/read` | 하나 읽음 |
 
 ### 멱등성 — 이제 서버가 실제로 지킨다
 
@@ -572,7 +572,7 @@ data: {"uptime_seconds":420,"total_requests":35,"error_rate":0,"active_users":2,
 
 ## 10. 동시성·권한에 관한 계약
 
-### 콘텐츠 등록은 관리자만 (`POST /api/cards` → 403)
+### 콘텐츠 등록은 관리자만 (`POST /inner/api/v1/cards` → 403)
 
 이 라우트는 문제 등록이 앱 안의 도구이던 시절에 만들어져, 로그인만 하면 누구나 호출할
 수 있었다. 그렇게 들어간 카드는 검증도 감사 기록도 없이 전 사용자에게 배포된다.
@@ -599,7 +599,7 @@ data: {"uptime_seconds":420,"total_requests":35,"error_rate":0,"active_users":2,
 
 ### 무인증 경로의 속도 제한 (429)
 
-`/api/auth/*` 는 IP 당 분당 20회. 아이디 존재 확인(`username-available`,
+`/inner/api/v1/auth/*` 는 IP 당 분당 20회. 아이디 존재 확인(`username-available`,
 `nickname-available`)도 같은 제한에 묶인다 — 열어 두면 공격자가 유효한 아이디 목록을
 먼저 만든 뒤 그 목록만 집중해서 두드릴 수 있다.
 
@@ -632,7 +632,7 @@ id 만 주면 관리자는 "card_42 를 u_7f3a 가 신고했다"를 읽고 무�
 { "title_txt": "...", "desc_txt": "...", "type_cd": "SYSTEM", "user_id": "(비면 전체)" }
 ```
 
-알림 테이블은 있는데 **그것을 만드는 주체가 없었다.** 앱은 `/api/notifications` 를
+알림 테이블은 있는데 **그것을 만드는 주체가 없었다.** 앱은 `/inner/api/v1/notifications` 를
 부르지만 언제나 빈 배열만 받았다 — 기능이 반쪽이었던 셈이다.
 
 - 전체 발송은 **활성 계정만** 대상으로 한다. 들어올 수 없는 사람에게 보내 봐야
@@ -829,7 +829,7 @@ id 만 주면 관리자는 "card_42 를 u_7f3a 가 신고했다"를 읽고 무�
 
 ---
 
-## 12. 질문 & 답변 `/api/qna` 🆕 (미구현 — location 블록 생성 전)
+## 12. 질문 & 답변 `/inner/api/v1/qna` 🆕 (미구현 — location 블록 생성 전)
 
 커뮤니티에서 사용자가 실제로 **참여**하는 유일한 기능인데, 지금까지 앱 안에만
 있었다(기기 로컬 zustand 스토어 + 시드 7건). 내가 올린 질문은 남에게 보이지
@@ -840,12 +840,12 @@ id 만 주면 관리자는 "card_42 를 u_7f3a 가 신고했다"를 읽고 무�
 
 | 메서드 | 경로 | 하는 일 |
 |---|---|---|
-| GET | `/api/qna?limit=30` | 최신 질문 목록 |
-| GET | `/api/qna/:id` | 질문 상세(답변 본문 포함) |
-| POST | `/api/qna` | 질문 등록 → 생성된 질문 |
-| POST | `/api/qna/:id/answers` | 답변 등록 → 생성된 답변 |
-| POST | `/api/qna/:id/like` | 질문 공감 `{ liked }` |
-| POST | `/api/qna/:qid/answers/:aid/like` | 답변 공감 `{ liked }` |
+| GET | `/inner/api/v1/qna?limit=30` | 최신 질문 목록 |
+| GET | `/inner/api/v1/qna/:id` | 질문 상세(답변 본문 포함) |
+| POST | `/inner/api/v1/qna` | 질문 등록 → 생성된 질문 |
+| POST | `/inner/api/v1/qna/:id/answers` | 답변 등록 → 생성된 답변 |
+| POST | `/inner/api/v1/qna/:id/like` | 질문 공감 `{ liked }` |
+| POST | `/inner/api/v1/qna/:qid/answers/:aid/like` | 답변 공감 `{ liked }` |
 
 ```jsonc
 // QuestionDTO
@@ -896,11 +896,11 @@ id 만 주면 관리자는 "card_42 를 u_7f3a 가 신고했다"를 읽고 무�
 
 - 본문 정제는 앱에서도 하지만(제어문자·제로폭 제거, 제목 80자·본문 1000자) **서버가 재검증**한다.
 - `mine_yn` · `liked_yn` 은 요청자 기준으로 계산한다(캐시를 공유하지 말 것).
-- 삭제된 질문은 `GET /api/qna/:id` 에서 `404` 또는 `null` — 앱은 "질문을 찾을 수 없어요"를 띄운다.
+- 삭제된 질문은 `GET /inner/api/v1/qna/:id` 에서 `404` 또는 `null` — 앱은 "질문을 찾을 수 없어요"를 띄운다.
 
 ---
 
-## 13. 계정 설정 `/api/settings` 🆕 (미구현 — location 블록 생성 전)
+## 13. 계정 설정 `/inner/api/v1/settings` 🆕 (미구현 — location 블록 생성 전)
 
 기기가 아니라 **사람을 따라가야 하는 설정**을 서버가 보관한다. 지금까지 전부
 `AsyncStorage` 에만 있어서, 기기를 바꾸면 관심 분야·하루 목표·공개 범위·한 줄
@@ -909,8 +909,8 @@ id 만 주면 관리자는 "card_42 를 u_7f3a 가 신고했다"를 읽고 무�
 
 | 메서드 | 경로 | 하는 일 |
 |---|---|---|
-| GET | `/api/settings` | 내 계정 설정. 기록이 없으면 `200 {}` |
-| POST | `/api/settings` | 전체 덮어쓰기 (`Idempotency-Key: settings:<updated_at>`) |
+| GET | `/inner/api/v1/settings` | 내 계정 설정. 기록이 없으면 `200 {}` |
+| POST | `/inner/api/v1/settings` | 전체 덮어쓰기 (`Idempotency-Key: settings:<updated_at>`) |
 
 ```jsonc
 {

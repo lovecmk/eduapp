@@ -6,7 +6,7 @@ import type { CardDifficulty, LearningCard } from './LearningCard';
  * "매일 3~5문제"라는 이 앱의 약속이 실제로 지켜지는 자리다. 장수는 그날의
  * 난이도가 정하고(쉬우면 5, 어려우면 3), 목록은 사람마다·날마다 다르다.
  *
- * 서버(`GET /api/learning/today`)가 권위를 갖고, 그날 처음 물어본 순간 얼려 둔다 —
+ * 서버(`GET /inner/api/v1/learning/today`)가 권위를 갖고, 그날 처음 물어본 순간 얼려 둔다 —
  * 관리자가 낮에 문제를 추가·삭제해도 오전에 받은 목록이 오후에 달라지지 않는다.
  */
 export interface DailyAssignment {

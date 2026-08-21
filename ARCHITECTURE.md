@@ -79,13 +79,13 @@ eduapp/
 | 설정 전역 검색 | app/settings.tsx, components/settings/SettingsSearch·SettingsFocus | constants/settingsIndex(색인), utils/koreanSearch(초성)·settingsSearch(정렬) | settings.recentSettingIds |
 | 약관·법적 고지 | app/legal.tsx | constants/legal(약관·처리방침·접근권한·오픈소스) | settings.notifications.marketing |
 | 신고 처리 워크플로 | (콘솔) mybrdg Daily3Min/views/ReportsView | 서버: domain.ReportStatus·AdminService.ReviewReport | — |
-| 운영 설정·점검 모드 | (콘솔) mybrdg Daily3Min/views/SettingsView | 서버: SettingsService(+`/api/config`), middleware.Maintenance | — |
+| 운영 설정·점검 모드 | (콘솔) mybrdg Daily3Min/views/SettingsView | 서버: SettingsService(+`/inner/api/v1/config`), middleware.Maintenance | — |
 | 공지 센터(대상·이력) | (콘솔) mybrdg Daily3Min/views/AnnouncementsView | 서버: domain.Announcement·AdminService.Announce | — |
-| 하루 학습 상한(서버 권위) | hooks/useDailyQuota | 서버: LearningService(`/api/learning/*`), domain/models/LearningQuota(합침 규칙) | store/dailyLearningStore |
-| **오늘의 출제(사람마다·날마다 3~5문제)** | hooks/useDailyAssignment, app/(tabs)/cards·index | domain/dailyPlan(규칙) · data/repositories/DailyAssignmentRepository(`/api/learning/today`) | — |
-| 운영 공지 배너·점검 안내 | components/ui/NoticeBanner((tabs)/_layout) | data/repositories/ServiceConfigRepository(`/api/config`) | — |
-| **질문 & 답변(커뮤니티 Q&A)** | app/(tabs)/community·app/qna/[id], hooks/useQna | domain/models/Qna · data/repositories/QnaRepository(`/api/qna`, 미배포 → 목업 폴백) | store/qnaStore(목업 원천·오프라인 사본) |
-| **계정 설정 동기화** | hooks/useSettingsSync(app/_layout) | domain/models/UserSettings(계정/기기 구분·병합 규칙) · data/repositories/SettingsRepository(`/api/settings`, 미배포 → 목업 폴백) | store/settingsStore(accountOwnerId·accountUpdatedAt) |
+| 하루 학습 상한(서버 권위) | hooks/useDailyQuota | 서버: LearningService(`/inner/api/v1/learning/*`), domain/models/LearningQuota(합침 규칙) | store/dailyLearningStore |
+| **오늘의 출제(사람마다·날마다 3~5문제)** | hooks/useDailyAssignment, app/(tabs)/cards·index | domain/dailyPlan(규칙) · data/repositories/DailyAssignmentRepository(`/inner/api/v1/learning/today`) | — |
+| 운영 공지 배너·점검 안내 | components/ui/NoticeBanner((tabs)/_layout) | data/repositories/ServiceConfigRepository(`/inner/api/v1/config`) | — |
+| **질문 & 답변(커뮤니티 Q&A)** | app/(tabs)/community·app/qna/[id], hooks/useQna | domain/models/Qna · data/repositories/QnaRepository(`/inner/api/v1/qna`, 미배포 → 목업 폴백) | store/qnaStore(목업 원천·오프라인 사본) |
+| **계정 설정 동기화** | hooks/useSettingsSync(app/_layout) | domain/models/UserSettings(계정/기기 구분·병합 규칙) · data/repositories/SettingsRepository(`/inner/api/v1/settings`, 미배포 → 목업 폴백) | store/settingsStore(accountOwnerId·accountUpdatedAt) |
 | 기능별 연결 상태(강등 표시) | app/developer.tsx | data/repositories/_fallback(listDegradations) | — |
 
 ## 오늘의 출제 — 사람마다, 날마다
@@ -118,7 +118,7 @@ eduapp/
 앱 목업의 같은 규칙 복제, 그리고 화면(`cards.tsx`)의 즉석 filter/slice. 앱은 앞의
 둘을 부르지 않고 세 번째로 골랐으므로 앞의 둘은 죽은 코드였다. 지금은
 `daily_plan.go`(+오프라인용 `dailyPlan.ts`) 한 규칙만 남았고, 구형 경로
-`/api/cards/today` 도 그 편성을 구형 형식으로 돌려준다 — 이미 배포된 앱이
+`/inner/api/v1/cards/today` 도 그 편성을 구형 형식으로 돌려준다 — 이미 배포된 앱이
 그 경로를 부르고 있어 지울 수 없기 때문이다.
 
 ## 안전 카드 도감 — 확률과 보상
@@ -160,7 +160,7 @@ eduapp/
 
 **도감은 서버에 남는다.** 500종 수집·카드팩·조각은 몇 달치 학습의 결과물인데
 지금까지 기기 로컬에만 있었다 — 앱을 지우면 통째로 사라졌다. 지금은
-`GET /api/collection` 과 `POST /api/collection/sync` 로 서버가 보관한다
+`GET /inner/api/v1/collection` 과 `POST /inner/api/v1/collection/sync` 로 서버가 보관한다
 (`useCollectionSync` 가 진입 시 한 번, 이후 값이 바뀌고 4초 잠잠하면 보낸다).
 
 저장하는 것이 **잔액이 아니라 누적 카운터**인 점이 이 설계의 핵심이다.
@@ -199,7 +199,7 @@ eduapp/
   앱에 남은 `app/admin.tsx` 는 이 기기의 목업을 들여다보는 개발 도구라, 설정이 아니라
   **개발자 모드 안 · 목업 모드에서만** 보인다. 실서버 모드로 그 경로에 닿으면
   목업 숫자 대신 어디로 가야 하는지를 안내한다.
-- **점검 모드**(`/api/config` 의 `maintenance_yn`)는 배너가 아니라 화면을 덮는다
+- **점검 모드**(`/inner/api/v1/config` 의 `maintenance_yn`)는 배너가 아니라 화면을 덮는다
   (`components/ui/MaintenanceGate`). 관리자는 통과한다 — 서버도 그렇게 한다.
 
 ## 오프라인 동작 보장 (현장 앱의 전제)
@@ -277,7 +277,7 @@ react-query 클라이언트가 `data/network/queryClient.ts` 에 있는 이유�
 | ✅ 구현 | cards · stats · community/live · push/register · telegram/alert | |
 | ✅ 구현 | progress(+grade·attendance) · engagement(+like·bookmark) · reports(+mine) · notifications | 쓰기는 전부 멱등키 |
 | ✅ 구현 | `learning/today` · `learning/quota` · `learning/complete` | 오늘의 편성(3~5문제)과 그 진도 |
-| ✅ 구현 | `GET /api/config`(무인증) | 점검 안내·공지 배너·상한 |
+| ✅ 구현 | `GET /inner/api/v1/config`(무인증) | 점검 안내·공지 배너·상한 |
 | ⛔️ 열지 않음 | `auth/social` | 이름·이메일만으로 세션을 내주는 계약 — 비밀번호를 묻지 않는 인증이 된다 |
 | ⛔️ 열지 않음 | `auth/reset-password` | 아이디+이메일만으로 계정 탈취가 가능해진다. 메일 인증이 선행되어야 한다 |
 | ⛔️ 열지 않음 | `auth/email/request-code`·`verify-code` | 지금 배포에 메일 발송 경로가 없다 |
@@ -306,7 +306,7 @@ react-query 클라이언트가 `data/network/queryClient.ts` 에 있는 이유�
 | `utils/dateKey.ts` | `service.DayKey` | 학습 이력·출석이 달력의 다른 칸에 찍힌다(month 0-based) |
 
 첫 줄의 앱 상수는 **기본값일 뿐 권위가 아니다.** 하루 출제 범위는 운영자가 콘솔에서
-재배포 없이 바꾸는 값이라(`/api/config` 의 `daily_min_cards`·`daily_max_cards`),
+재배포 없이 바꾸는 값이라(`/inner/api/v1/config` 의 `daily_min_cards`·`daily_max_cards`),
 서버가 값을 주면 그쪽을 쓴다. 받은 범위는 `store/serverPolicyStore` 에 남겨 두고,
 서버에 닿지 못한 채 시작한 날의 오프라인 편성도 그 값으로 돈다 — 그러지 않으면
 같은 사람이 사무실에서 3장, 현장에서 5장을 받는다. (점검 상태는 남기지 않는다.

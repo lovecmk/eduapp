@@ -12,6 +12,6 @@ import type { CardDraft } from '../models/CardDraft';
 export interface ICardRepository {
   getAllCards(): Promise<LearningCard[]>;
   markCard(id: string, status: CardStatus): Promise<LearningCard>;
-  /** 문제(카드) 등록 — 초안 배열을 저장(서버 전환 시 POST /api/cards). 등록된 카드를 반환. */
+  /** 문제(카드) 등록 — 초안 배열을 저장(서버 전환 시 POST /inner/api/v1/cards). 등록된 카드를 반환. */
   createCards(drafts: CardDraft[]): Promise<LearningCard[]>;
 }

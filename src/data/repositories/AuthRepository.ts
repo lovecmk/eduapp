@@ -43,7 +43,7 @@ export class AuthRepository implements IAuthRepository {
 
   async login(id: string, password: string): Promise<AuthSession> {
     return this.persistSession(
-      await apiClient.post<AuthResultDTO>('/api/auth/login', { id, password }),
+      await apiClient.post<AuthResultDTO>('/inner/api/v1/auth/login', { id, password }),
     );
   }
 
@@ -69,7 +69,7 @@ export class AuthRepository implements IAuthRepository {
 
   async register(input: SignupInput): Promise<AuthSession> {
     return this.persistSession(
-      await apiClient.post<AuthResultDTO>('/api/auth/register', input),
+      await apiClient.post<AuthResultDTO>('/inner/api/v1/auth/register', input),
     );
   }
 
@@ -116,18 +116,18 @@ export class AuthRepository implements IAuthRepository {
   }
 
   async isUsernameTaken(username: string): Promise<boolean> {
-    const dto = await apiClient.get<{ taken: boolean }>(`/api/auth/username-available?username=${encodeURIComponent(username)}`);
+    const dto = await apiClient.get<{ taken: boolean }>(`/inner/api/v1/auth/username-available?username=${encodeURIComponent(username)}`);
     return dto.taken;
   }
 
   async isNicknameTaken(nickname: string, excludeUserId?: string): Promise<boolean> {
     const q = excludeUserId ? `&exclude=${encodeURIComponent(excludeUserId)}` : '';
-    const dto = await apiClient.get<{ taken: boolean }>(`/api/auth/nickname-available?nickname=${encodeURIComponent(nickname)}${q}`);
+    const dto = await apiClient.get<{ taken: boolean }>(`/inner/api/v1/auth/nickname-available?nickname=${encodeURIComponent(nickname)}${q}`);
     return dto.taken;
   }
 
   async updateProfile(userId: string, patch: ProfileUpdateInput): Promise<User> {
-    const dto = await apiClient.patch<UserDTO>('/api/auth/me', patch);
+    const dto = await apiClient.patch<UserDTO>('/inner/api/v1/auth/me', patch);
     await this.cacheUser(dto); // 캐시가 옛 이름을 들고 있으면 오프라인 복구 때 되돌아간 것처럼 보인다
     return UserMapper.toDomain(dto);
   }
@@ -141,7 +141,7 @@ export class AuthRepository implements IAuthRepository {
 
   async logout(): Promise<void> {
     try {
-      await apiClient.post('/api/auth/logout', {});
+      await apiClient.post('/inner/api/v1/auth/logout', {});
     } finally {
       await this.clearSession();
     }
@@ -157,7 +157,7 @@ export class AuthRepository implements IAuthRepository {
     const token = await secureStorage.getItem(StorageKeys.accessToken);
     if (!token) return null;
     try {
-      const dto = await apiClient.get<UserDTO>('/api/auth/me', { retries: 0 });
+      const dto = await apiClient.get<UserDTO>('/inner/api/v1/auth/me', { retries: 0 });
       await this.cacheUser(dto);
       return UserMapper.toDomain(dto);
     } catch (e) {

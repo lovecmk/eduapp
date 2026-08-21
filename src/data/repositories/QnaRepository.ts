@@ -87,11 +87,11 @@ const LIST_LIMIT = 30;
 
 /**
  * 실서버 질문 & 답변.
- *  · list()  → GET  /api/qna?limit=
- *  · get(id) → GET  /api/qna/:id
- *  · ask()   → POST /api/qna
- *  · answer()→ POST /api/qna/:id/answers
- *  · 공감    → POST /api/qna/:id/like · /api/qna/:qid/answers/:aid/like
+ *  · list()  → GET  /inner/api/v1/qna?limit=
+ *  · get(id) → GET  /inner/api/v1/qna/:id
+ *  · ask()   → POST /inner/api/v1/qna
+ *  · answer()→ POST /inner/api/v1/qna/:id/answers
+ *  · 공감    → POST /inner/api/v1/qna/:id/like · /inner/api/v1/qna/:qid/answers/:aid/like
  *
  * 공감만 `postDurable`(오프라인 큐 + 멱등키)을 쓴다. 질문·답변 등록은 서버가
  * 부여한 id 를 받아야 화면이 상세로 이동할 수 있어 응답을 기다려야 하고,
@@ -99,18 +99,18 @@ const LIST_LIMIT = 30;
  */
 export class QnaRepository implements IQnaRepository {
   async list(): Promise<Question[]> {
-    const res = await apiClient.get<ListDTO>(`/api/qna?limit=${LIST_LIMIT}`);
+    const res = await apiClient.get<ListDTO>(`/inner/api/v1/qna?limit=${LIST_LIMIT}`);
     const items = Array.isArray(res) ? res : res?.items ?? [];
     return items.map(toQuestion);
   }
 
   async get(id: string): Promise<Question | null> {
-    const d = await apiClient.get<QuestionDTO | null>(`/api/qna/${encodeURIComponent(id)}`);
+    const d = await apiClient.get<QuestionDTO | null>(`/inner/api/v1/qna/${encodeURIComponent(id)}`);
     return d ? toQuestion(d) : null;
   }
 
   async ask(draft: QuestionDraft): Promise<Question> {
-    const d = await apiClient.post<QuestionDTO>('/api/qna', {
+    const d = await apiClient.post<QuestionDTO>('/inner/api/v1/qna', {
       title_txt: draft.title,
       body_txt: draft.body,
       category_nm: draft.category ?? null,
@@ -120,7 +120,7 @@ export class QnaRepository implements IQnaRepository {
 
   async answer(questionId: string, body: string): Promise<Answer> {
     const d = await apiClient.post<AnswerDTO>(
-      `/api/qna/${encodeURIComponent(questionId)}/answers`,
+      `/inner/api/v1/qna/${encodeURIComponent(questionId)}/answers`,
       { body_txt: body },
     );
     return toAnswer(d);
@@ -128,7 +128,7 @@ export class QnaRepository implements IQnaRepository {
 
   async setQuestionLike(questionId: string, liked: boolean): Promise<void> {
     await apiClient.postDurable(
-      `/api/qna/${encodeURIComponent(questionId)}/like`,
+      `/inner/api/v1/qna/${encodeURIComponent(questionId)}/like`,
       { liked },
       `qna-like:${questionId}:${liked}`,
     );
@@ -136,7 +136,7 @@ export class QnaRepository implements IQnaRepository {
 
   async setAnswerLike(questionId: string, answerId: string, liked: boolean): Promise<void> {
     await apiClient.postDurable(
-      `/api/qna/${encodeURIComponent(questionId)}/answers/${encodeURIComponent(answerId)}/like`,
+      `/inner/api/v1/qna/${encodeURIComponent(questionId)}/answers/${encodeURIComponent(answerId)}/like`,
       { liked },
       `qna-answer-like:${answerId}:${liked}`,
     );

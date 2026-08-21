@@ -107,8 +107,8 @@ function toDTO(s: AccountSettings, updatedAt: Date): SettingsDTO {
 
 /**
  * 실서버 계정 설정.
- *  · pull() → GET  /api/settings
- *  · push() → POST /api/settings  (Idempotency-Key: settings:<updated_at>)
+ *  · pull() → GET  /inner/api/v1/settings
+ *  · push() → POST /inner/api/v1/settings  (Idempotency-Key: settings:<updated_at>)
  *
  * 쓰기에 `postDurable` 을 쓰는 이유는 출석·채점과 같다 — 지하에서 알림을 끈
  * 사용자의 선택이 연결이 끊겼다는 이유로 사라지면 안 된다. 같은 스냅샷을 다시
@@ -116,7 +116,7 @@ function toDTO(s: AccountSettings, updatedAt: Date): SettingsDTO {
  */
 export class SettingsRepository implements ISettingsRepository {
   async pull(): Promise<AccountSettingsSnapshot> {
-    const dto = await apiClient.get<SettingsDTO | null>('/api/settings');
+    const dto = await apiClient.get<SettingsDTO | null>('/inner/api/v1/settings');
     // 200 + 빈 본문 = "이 계정에 저장된 설정이 아직 없다". 기기 값이 권위를 갖는다.
     if (!dto || Object.keys(dto).length === 0) {
       return { settings: {}, updatedAt: null, present: false };
@@ -126,7 +126,7 @@ export class SettingsRepository implements ISettingsRepository {
 
   async push(settings: AccountSettings, updatedAt: Date): Promise<void> {
     await apiClient.postDurable(
-      '/api/settings',
+      '/inner/api/v1/settings',
       toDTO(settings, updatedAt),
       `settings:${updatedAt.toISOString()}`,
     );

@@ -36,14 +36,14 @@ function toLevel(raw: string | undefined): NoticeLevel {
 
 /**
  * 실서버 서비스 운영 상태.
- *  · get() → GET /api/config (무인증)
+ *  · get() → GET /inner/api/v1/config (무인증)
  *
  * 이 경로는 인증을 요구하지 않는다 — 점검 중이라 로그인조차 못 하는 사람에게도
  * "왜 안 되는지"는 전달되어야 하기 때문이다.
  */
 export class ServiceConfigRepository implements IServiceConfigRepository {
   async get(): Promise<ServiceConfig> {
-    const dto = await apiClient.get<ConfigDTO>('/api/config');
+    const dto = await apiClient.get<ConfigDTO>('/inner/api/v1/config');
     const fallback = defaultServiceConfig(DAILY_MIN_CARDS, DAILY_MAX_CARDS);
 
     // 하루 출제 범위는 운영자가 재배포 없이 바꾸는 값이라 **서버 쪽이 권위**다.

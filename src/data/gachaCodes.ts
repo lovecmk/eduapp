@@ -1,5 +1,5 @@
 // 가챠(카드팩) 교환 코드 카탈로그 — 이벤트/시연용.
-// 실서버 전환 시 이 테이블은 서버 검증(POST /api/gacha/redeem)으로 대체된다.
+// 실서버 전환 시 이 테이블은 서버 검증(POST /inner/api/v1/gacha/redeem)으로 대체된다.
 // 코드는 대소문자 구분 없이 비교한다(입력 시 정규화).
 
 export interface GachaCode {
@@ -18,7 +18,7 @@ const CODES: GachaCode[] = [
   { code: 'FIRE3MIN', packs: 2, label: '매일 3분 챌린지 카드팩 2개' },
 ];
 
-/** 진행 중인 이벤트 쿠폰 목록(공개용). 실서버 전환 시 GET /api/events 로 대체. */
+/** 진행 중인 이벤트 쿠폰 목록(공개용). 실서버 전환 시 GET /inner/api/v1/events 로 대체. */
 export function listGachaCodes(): GachaCode[] {
   return CODES;
 }

@@ -14,12 +14,12 @@ const STATUS_TO_CD: Record<CardStatus, string> = {
 
 export class CardRepository implements ICardRepository {
   async getAllCards(): Promise<LearningCard[]> {
-    const dtos = await apiClient.get<CardDTO[]>('/api/cards');
+    const dtos = await apiClient.get<CardDTO[]>('/inner/api/v1/cards');
     return CardMapper.toDomainList(dtos);
   }
 
   async markCard(id: string, status: CardStatus): Promise<LearningCard> {
-    const dto = await apiClient.patch<CardDTO>(`/api/cards/${id}`, { status_cd: STATUS_TO_CD[status] });
+    const dto = await apiClient.patch<CardDTO>(`/inner/api/v1/cards/${id}`, { status_cd: STATUS_TO_CD[status] });
     return CardMapper.toDomain(dto);
   }
 
@@ -27,7 +27,7 @@ export class CardRepository implements ICardRepository {
   async createCards(drafts: CardDraft[]): Promise<LearningCard[]> {
     const created: LearningCard[] = [];
     for (const d of drafts) {
-      const dto = await apiClient.post<CardDTO>('/api/cards', draftToDTO(d));
+      const dto = await apiClient.post<CardDTO>('/inner/api/v1/cards', draftToDTO(d));
       created.push(CardMapper.toDomain(dto));
     }
     return created;

@@ -29,14 +29,14 @@ function minutesSince(iso: string | undefined, now: number): number {
 
 /**
  * 알림 저장소(실서버).
- *  · GET  /api/notifications           → 목록
- *  · POST /api/notifications/:id/read  → 읽음
- *  · POST /api/notifications/read-all  → 전체 읽음
- *  · POST /api/push/register           → 푸시 토큰 등록
+ *  · GET  /inner/api/v1/notifications           → 목록
+ *  · POST /inner/api/v1/notifications/:id/read  → 읽음
+ *  · POST /inner/api/v1/notifications/read-all  → 전체 읽음
+ *  · POST /inner/api/v1/push/register           → 푸시 토큰 등록
  */
 export class NotificationRepository implements INotificationRepository {
   async list(): Promise<AppNotification[]> {
-    const dtos = await apiClient.get<NotificationDTO[]>('/api/notifications');
+    const dtos = await apiClient.get<NotificationDTO[]>('/inner/api/v1/notifications');
     const now = Date.now();
     // 배열이 아닌 응답(서버 오류·프록시 HTML 등)에도 화면이 깨지지 않게 방어한다.
     if (!Array.isArray(dtos)) return [];
@@ -52,15 +52,15 @@ export class NotificationRepository implements INotificationRepository {
   }
 
   async markRead(id: string): Promise<void> {
-    await apiClient.postDurable(`/api/notifications/${encodeURIComponent(id)}/read`, {}, `notif-read:${id}`);
+    await apiClient.postDurable(`/inner/api/v1/notifications/${encodeURIComponent(id)}/read`, {}, `notif-read:${id}`);
   }
 
   async markAllRead(): Promise<void> {
     // 전체 읽음은 '지금 시각'까지의 상태라 멱등키에 날짜를 넣어 하루 단위로 묶는다.
-    await apiClient.postDurable('/api/notifications/read-all', {}, `notif-read-all:${new Date().toDateString()}`);
+    await apiClient.postDurable('/inner/api/v1/notifications/read-all', {}, `notif-read-all:${new Date().toDateString()}`);
   }
 
   async registerPushToken(token: string, platform: string): Promise<void> {
-    await apiClient.postDurable('/api/push/register', { token, platform }, `push:${token}`);
+    await apiClient.postDurable('/inner/api/v1/push/register', { token, platform }, `push:${token}`);
   }
 }

@@ -77,7 +77,7 @@ function buildActivities(count: number): LiveActivity[] {
 /**
  * 실시간 커뮤니티 프레즌스 목업.
  * 시간대 곡선 + 약간의 난수로 폴링할 때마다 값이 자연스럽게 요동쳐 "라이브"처럼 보인다.
- * 실서버(기존 플랫폼 or Golang/Mongo)의 `GET /api/community/live` 로 교체 가능.
+ * 실서버(기존 플랫폼 or Golang/Mongo)의 `GET /inner/api/v1/community/live` 로 교체 가능.
  */
 export class MockCommunityRepository implements ICommunityRepository {
   async getSnapshot(): Promise<CommunitySnapshot> {

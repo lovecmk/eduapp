@@ -1,4 +1,4 @@
-// TODO: 실제 API 연동 필요 - 담당: 백엔드팀 (POST /api/auth/login, /register, /reset-password)
+// TODO: 실제 API 연동 필요 - 담당: 백엔드팀 (POST /inner/api/v1/auth/login, /register, /reset-password)
 import type { IAuthRepository, AuthSession, SignupInput, ProfileUpdateInput, EmailCodeRequestResult } from '../../domain/repositories/IAuthRepository';
 import type { User } from '../../domain/models/User';
 import { secureStorage, StorageKeys } from '../storage/secureStorage';

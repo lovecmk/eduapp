@@ -1,4 +1,4 @@
-// 서비스 운영 상태(/api/config) 매핑 — 관리 콘솔이 바꾼 값이 앱까지 오는 길.
+// 서비스 운영 상태(/inner/api/v1/config) 매핑 — 관리 콘솔이 바꾼 값이 앱까지 오는 길.
 //
 // 여기서 어긋나면 증상이 조용하다. 배너가 안 뜨거나(관리자는 올렸다고 믿는다),
 // 반대로 아무 일 없는 날 화면이 빨개진다. 서버 필드 이름 하나만 바뀌어도
@@ -53,7 +53,7 @@ describe('ServiceConfigRepository — 서버 응답 → 도메인', () => {
 
     const cfg = await new ServiceConfigRepository().get();
 
-    expect(get).toHaveBeenCalledWith('/api/config');
+    expect(get).toHaveBeenCalledWith('/inner/api/v1/config');
     expect(cfg).toEqual({
       maintenance: true,
       maintenanceMessage: '설비 교체 중',

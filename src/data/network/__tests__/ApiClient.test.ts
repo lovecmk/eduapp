@@ -56,17 +56,17 @@ describe('요청/응답 기본', () => {
       return resp(200, { hello: 'world' });
     }) as unknown as typeof fetch;
 
-    await expect(apiClient.get('/api/thing')).resolves.toEqual({ hello: 'world' });
+    await expect(apiClient.get('/inner/api/v1/thing')).resolves.toEqual({ hello: 'world' });
   });
 
   it('non-401 에러는 상태·메시지를 담은 ApiError 로 정규화한다', async () => {
     global.fetch = jest.fn(async () => resp(400, { message: '잘못된 요청' })) as unknown as typeof fetch;
-    await expect(apiClient.get('/api/thing')).rejects.toMatchObject({ status: 400, message: '잘못된 요청' });
+    await expect(apiClient.get('/inner/api/v1/thing')).rejects.toMatchObject({ status: 400, message: '잘못된 요청' });
   });
 
   it('네트워크 단절은 status 0 ApiError 로 정규화한다', async () => {
     global.fetch = jest.fn(async () => { throw new TypeError('Network request failed'); }) as unknown as typeof fetch;
-    await expect(apiClient.get('/api/thing')).rejects.toMatchObject({ status: 0 });
+    await expect(apiClient.get('/inner/api/v1/thing')).rejects.toMatchObject({ status: 0 });
   });
 });
 
@@ -75,23 +75,23 @@ describe('401 → refresh 재시도', () => {
     await seedTokens('expired', 'r-1');
     global.fetch = jest.fn(async (url, init?: Init) => {
       const u = String(url);
-      if (u.endsWith('/api/auth/refresh')) return resp(200, { access_token: 'fresh', refresh_token: 'r-2' });
+      if (u.endsWith('/inner/api/v1/auth/refresh')) return resp(200, { access_token: 'fresh', refresh_token: 'r-2' });
       // 새 토큰(Bearer fresh)일 때만 통과
       return init?.headers?.Authorization === 'Bearer fresh' ? resp(200, { ok: true }) : resp(401, {});
     }) as unknown as typeof fetch;
 
-    await expect(apiClient.get('/api/protected')).resolves.toEqual({ ok: true });
+    await expect(apiClient.get('/inner/api/v1/protected')).resolves.toEqual({ ok: true });
   });
 
   it('[F1] refresh 응답의 회전된 refresh_token 을 저장한다', async () => {
     await seedTokens('expired', 'r-1');
     global.fetch = jest.fn(async (url, init?: Init) => {
       const u = String(url);
-      if (u.endsWith('/api/auth/refresh')) return resp(200, { access_token: 'fresh', refresh_token: 'r-2' });
+      if (u.endsWith('/inner/api/v1/auth/refresh')) return resp(200, { access_token: 'fresh', refresh_token: 'r-2' });
       return init?.headers?.Authorization === 'Bearer fresh' ? resp(200, { ok: true }) : resp(401, {});
     }) as unknown as typeof fetch;
 
-    await apiClient.get('/api/protected');
+    await apiClient.get('/inner/api/v1/protected');
     expect(await secureStorage.getItem(StorageKeys.accessToken)).toBe('fresh');
     expect(await secureStorage.getItem(StorageKeys.refreshToken)).toBe('r-2'); // 회전 반영
   });
@@ -100,11 +100,11 @@ describe('401 → refresh 재시도', () => {
     await seedTokens('expired', 'r-1');
     global.fetch = jest.fn(async (url) => {
       const u = String(url);
-      if (u.endsWith('/api/auth/refresh')) return resp(200, {}); // 빈 응답
+      if (u.endsWith('/inner/api/v1/auth/refresh')) return resp(200, {}); // 빈 응답
       return resp(401, {});
     }) as unknown as typeof fetch;
 
-    await expect(apiClient.get('/api/protected')).rejects.toMatchObject({ status: 401 });
+    await expect(apiClient.get('/inner/api/v1/protected')).rejects.toMatchObject({ status: 401 });
     // 토큰이 정리되어야 한다(undefined 저장 금지)
     expect(await secureStorage.getItem(StorageKeys.accessToken)).toBeNull();
     expect(await secureStorage.getItem(StorageKeys.refreshToken)).toBeNull();
@@ -115,9 +115,9 @@ describe('401 → refresh 재시도', () => {
     const fetchMock = jest.fn(async (_url: string) => resp(401, {}));
     global.fetch = fetchMock as unknown as typeof fetch;
 
-    await expect(apiClient.get('/api/protected')).rejects.toMatchObject({ status: 401 });
+    await expect(apiClient.get('/inner/api/v1/protected')).rejects.toMatchObject({ status: 401 });
     // refresh 엔드포인트는 호출되지 않아야 한다
-    const calledRefresh = fetchMock.mock.calls.some(([u]) => String(u).endsWith('/api/auth/refresh'));
+    const calledRefresh = fetchMock.mock.calls.some(([u]) => String(u).endsWith('/inner/api/v1/auth/refresh'));
     expect(calledRefresh).toBe(false);
   });
 
@@ -126,7 +126,7 @@ describe('401 → refresh 재시도', () => {
     let refreshCalls = 0;
     global.fetch = jest.fn(async (url, init?: Init) => {
       const u = String(url);
-      if (u.endsWith('/api/auth/refresh')) {
+      if (u.endsWith('/inner/api/v1/auth/refresh')) {
         refreshCalls++;
         // 회전: 두 번째 이후 호출은 실패해야 정상(토큰 무효화) — single-flight 라면 애초에 1회
         return resp(200, { access_token: 'fresh', refresh_token: 'r-2' });
@@ -135,9 +135,9 @@ describe('401 → refresh 재시도', () => {
     }) as unknown as typeof fetch;
 
     const results = await Promise.all([
-      apiClient.get('/api/a'),
-      apiClient.get('/api/b'),
-      apiClient.get('/api/c'),
+      apiClient.get('/inner/api/v1/a'),
+      apiClient.get('/inner/api/v1/b'),
+      apiClient.get('/inner/api/v1/c'),
     ]);
     expect(results).toEqual([{ ok: true }, { ok: true }, { ok: true }]);
     expect(refreshCalls).toBe(1); // 쇄도(stampede) 방지
@@ -156,12 +156,12 @@ describe('본문 없는 성공 응답', () => {
 
   it('204 No Content 를 성공으로 다룬다', async () => {
     global.fetch = jest.fn(async () => emptyResp(204)) as unknown as typeof fetch;
-    await expect(apiClient.delete('/api/admin/cards/c1')).resolves.toEqual({});
+    await expect(apiClient.delete('/inner/api/v1/admin/cards/c1')).resolves.toEqual({});
   });
 
   it('본문이 빈 200 도 성공으로 다룬다', async () => {
     global.fetch = jest.fn(async () => emptyResp(200)) as unknown as typeof fetch;
-    await expect(apiClient.post('/api/auth/logout', {})).resolves.toEqual({});
+    await expect(apiClient.post('/inner/api/v1/auth/logout', {})).resolves.toEqual({});
   });
 
   it('JSON 이 아닌 본문(프록시 HTML 오류 페이지)은 형식 오류로 알린다', async () => {
@@ -172,13 +172,13 @@ describe('본문 없는 성공 응답', () => {
       text: async () => '<html>502 Bad Gateway</html>',
     })) as unknown as typeof fetch;
     // 원시 SyntaxError 가 아니라 화면이 다룰 수 있는 ApiError 로 정규화되어야 한다.
-    await expect(apiClient.get('/api/thing', { retries: 0 })).rejects.toBeInstanceOf(ApiError);
+    await expect(apiClient.get('/inner/api/v1/thing', { retries: 0 })).rejects.toBeInstanceOf(ApiError);
   });
 
   it('retries:0 이면 일시적 실패에도 다시 시도하지 않는다(부팅 경로용)', async () => {
     const fetchMock = jest.fn(async () => resp(503, {}));
     global.fetch = fetchMock as unknown as typeof fetch;
-    await expect(apiClient.get('/api/auth/me', { retries: 0 })).rejects.toMatchObject({ status: 503 });
+    await expect(apiClient.get('/inner/api/v1/auth/me', { retries: 0 })).rejects.toMatchObject({ status: 503 });
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
@@ -188,7 +188,7 @@ describe('토큰 갱신 경합 — 연달아 도착한 401', () => {
     await seedTokens('tok-old', 'r-1');
     let refreshCalls = 0;
     global.fetch = jest.fn(async (url: string, init?: Init & { method?: string }) => {
-      if (String(url).endsWith('/api/auth/refresh')) {
+      if (String(url).endsWith('/inner/api/v1/auth/refresh')) {
         refreshCalls += 1;
         return resp(200, { access_token: 'tok-new', refresh_token: 'r-2' });
       }
@@ -199,7 +199,7 @@ describe('토큰 갱신 경합 — 연달아 도착한 401', () => {
       return resp(401, {});
     }) as unknown as typeof fetch;
 
-    await expect(apiClient.get('/api/thing', { retries: 0 })).resolves.toEqual({ ok: true });
+    await expect(apiClient.get('/inner/api/v1/thing', { retries: 0 })).resolves.toEqual({ ok: true });
     // 이미 새 토큰이 있으므로 refresh 는 한 번도 나가면 안 된다.
     // (돌았다면 회전된 refresh 토큰이 거부되고 clearTokens 가 새 토큰을 지운다.)
     expect(refreshCalls).toBe(0);
@@ -209,7 +209,7 @@ describe('토큰 갱신 경합 — 연달아 도착한 401', () => {
   it('refresh 가 실패해도 그 사이 남이 갱신해 두었다면 토큰을 지우지 않는다', async () => {
     await seedTokens('tok-old', 'r-1');
     global.fetch = jest.fn(async (url: string, init?: Init & { method?: string }) => {
-      if (String(url).endsWith('/api/auth/refresh')) {
+      if (String(url).endsWith('/inner/api/v1/auth/refresh')) {
         // 내 refresh 는 실패하지만, 그 사이 다른 흐름이 갱신에 성공한 상태를 만든다.
         await secureStorage.setItem(StorageKeys.accessToken, 'tok-new');
         return resp(401, {});
@@ -218,7 +218,7 @@ describe('토큰 갱신 경합 — 연달아 도착한 401', () => {
       return resp(401, {});
     }) as unknown as typeof fetch;
 
-    await expect(apiClient.get('/api/thing', { retries: 0 })).resolves.toEqual({ ok: true });
+    await expect(apiClient.get('/inner/api/v1/thing', { retries: 0 })).resolves.toEqual({ ok: true });
     expect(await secureStorage.getItem(StorageKeys.accessToken)).toBe('tok-new');
     expect(await secureStorage.getItem(StorageKeys.refreshToken)).toBe('r-1');
   });
@@ -239,7 +239,7 @@ describe('본문 읽기 중단', () => {
       },
     })) as unknown as typeof fetch;
 
-    const err: unknown = await apiClient.get('/api/thing', { retries: 0 }).catch((e: unknown) => e);
+    const err: unknown = await apiClient.get('/inner/api/v1/thing', { retries: 0 }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ApiError);
     // 여기서 kind 가 'unknown' 이면 retryable=false 가 되어
     // 오프라인 큐가 사용자의 출석·채점 기록을 버린다.

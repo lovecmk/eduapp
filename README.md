@@ -16,8 +16,9 @@
 "어느 쪽 비밀번호가 진짜인가 / 퇴사 처리했는데 왜 앱은 계속 열리는가" 가 영원히
 따라다닌다. 그래서 서버를 브릿지 옆으로 옮기고 회원은 브릿지 것 하나만 본다.
 
-API 주소는 옮기면서도 **바꾸지 않았다**(`/api/auth/login`, `/api/progress` …).
-이미 배포된 앱이 그 주소를 알고 있기 때문이다.
+API 는 모두 `/inner/api/v1` 아래에 있다(`/inner/api/v1/auth/login`,
+`/inner/api/v1/progress` …). 리버스 프록시의 location 블록이 이 접두사를 브릿지
+프로세스로 넘긴다 — 앱이 부르는 주소도 전부 이것 하나로 맞춰져 있다.
 
 ## 로그인
 
@@ -80,7 +81,7 @@ eas build --profile preview --platform android      # → http://test.inplat.org
 `production` / `test` / `mock` 을 고른다. main 푸시로 자동 실행되면 `production` 이다.
 
 **로컬 확인** — 앱의 `개발자 모드 > 환경 설정` 화면에 지금 보는 주소와
-`실서버(Live)/목업(Mock)` 이 그대로 표시된다. 서버 점검 버튼은 `GET /api/health` 를
+`실서버(Live)/목업(Mock)` 이 그대로 표시된다. 서버 점검 버튼은 `GET /inner/api/v1/health` 를
 때려 응답 시간과 서버 버전을 보여준다.
 
 > 목업으로 배포되는 사고를 막는 장치가 둘 있다. 워크플로가 주소를 스스로 정하고
@@ -102,6 +103,6 @@ API 계약은 `docs/API_CONTRACT.md` 에 그대로 남아 있다 — 주소가 �
 **[docs/PLATFORM_SPLIT.md](./docs/PLATFORM_SPLIT.md)**.
 
 서버가 도는 조건(속도 제한·토큰 수명·반쯤 뜬 상태), 회원·등급 매핑, 실제로 등록된
-경로 목록, 운영자가 재배포 없이 바꾸는 값(`/api/config`)과 콘솔 화면이 앱에 미치는
+경로 목록, 운영자가 재배포 없이 바꾸는 값(`/inner/api/v1/config`)과 콘솔 화면이 앱에 미치는
 영향, 두 저장소에 걸쳐 **함께 고쳐야 하는 짝**(하루 출제 범위·출제 알고리즘·폴백
 판단), 그리고 분리하면서 앱 안에 남은 뒷정리 목록이 있다.

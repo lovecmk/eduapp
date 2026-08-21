@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import type { User } from '../domain/models/User';
 import type { SignupInput, ProfileUpdateInput } from '../domain/repositories/IAuthRepository';
 import { authRepository } from '../data/repositories';
+import { ADMIN_DEMO_USER } from '../data/auth/adminDemoAccount';
 import { setQueueOwner } from '../data/network/offlineQueue';
 import { applySessionOwner } from './sessionScope';
 
@@ -14,6 +15,8 @@ interface AuthState {
   error: string | null;
   login: (id: string, password: string) => Promise<boolean>;
   socialLogin: (name: string, email: string) => Promise<boolean>;
+  /** 관리자 모드 진입 — 로그인 화면 로고 5번 두드리기 전용(아래 구현의 주석 참고). */
+  adminLogin: () => Promise<boolean>;
   logout: () => Promise<void>;
   restore: () => Promise<void>;
   register: (input: SignupInput) => Promise<boolean>;
@@ -68,6 +71,36 @@ export const useAuthStore = create<AuthState>((set) => ({
       return true;
     } catch (e) {
       set({ error: e instanceof Error ? e.message : '간편 로그인에 실패했습니다', loading: false });
+      return false;
+    }
+  },
+
+  /**
+   * 관리자 모드 진입 — 로그인 화면의 로고를 연속 5번 두드렸을 때만 불린다.
+   *
+   * 목업 모드에는 이 계정이 mockUserDb 에 실제로 심겨 있으므로 평소 로그인 경로를
+   * 그대로 타고 들어간다(세션이 저장돼 앱을 다시 켜도 유지된다). 실서버 모드에는
+   * 이 경로가 없어 socialLogin 이 501 로 끊기는데, 그때는 **화면만 관리자로 여는
+   * 로컬 세션**을 만든다.
+   *
+   * 로컬 세션에는 서버 토큰이 없다 — 관리자 전용 화면이 열릴 뿐 권한이 생기지는
+   * 않고, 서버가 필요한 요청은 그대로 막힌다. 그게 맞다. 권한은 서버가 쥔다.
+   */
+  adminLogin: async () => {
+    set({ loading: true, error: null });
+    try {
+      let user: User;
+      try {
+        const session = await authRepository.socialLogin(ADMIN_DEMO_USER.name, ADMIN_DEMO_USER.email);
+        user = { ...session.user, isAdmin: true };
+      } catch {
+        user = { ...ADMIN_DEMO_USER };
+      }
+      await bindSession(user);
+      set({ user, loading: false });
+      return true;
+    } catch (e) {
+      set({ error: e instanceof Error ? e.message : '관리자 모드 진입에 실패했습니다', loading: false });
       return false;
     }
   },

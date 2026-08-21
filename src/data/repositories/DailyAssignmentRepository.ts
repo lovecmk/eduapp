@@ -23,14 +23,14 @@ const DIFFICULTY: Record<string, CardDifficulty> = {
 
 /**
  * 실서버 오늘의 학습.
- *  · get() → GET /api/learning/today
+ *  · get() → GET /inner/api/v1/learning/today
  *
  * 편성은 서버가 정한다. 앱이 직접 고르면 기기마다 다른 목록이 나오고, 앱을
  * 지우면 진도가 초기화되며, 관리자가 출제 정책을 바꿔도 아무 일이 일어나지 않는다.
  */
 export class DailyAssignmentRepository implements IDailyAssignmentRepository {
   async get(): Promise<DailyAssignment> {
-    const dto = await apiClient.get<TodayPlanDTO>('/api/learning/today');
+    const dto = await apiClient.get<TodayPlanDTO>('/inner/api/v1/learning/today');
     const cards: DailyCard[] = (dto.cards ?? []).map((c) => ({
       card: CardMapper.toDomain(c),
       // 모르는 값은 '새로 배우는 것'으로 본다 — 복습이라고 잘못 말하면

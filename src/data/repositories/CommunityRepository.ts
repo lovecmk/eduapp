@@ -47,10 +47,10 @@ function timeAgo(sec: number): string {
   return `${Math.floor(sec / 3600)}시간 전`;
 }
 
-/** 실서버 커뮤니티 프레즌스. `GET /api/community/live` 응답을 도메인으로 매핑. */
+/** 실서버 커뮤니티 프레즌스. `GET /inner/api/v1/community/live` 응답을 도메인으로 매핑. */
 export class CommunityRepository implements ICommunityRepository {
   async getSnapshot(): Promise<CommunitySnapshot> {
-    const dto = await apiClient.get<CommunityDTO>('/api/community/live');
+    const dto = await apiClient.get<CommunityDTO>('/inner/api/v1/community/live');
     return {
       onlineNow: dto.online_now ?? 0,
       studiedToday: dto.studied_today ?? 0,

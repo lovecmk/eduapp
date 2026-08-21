@@ -1,6 +1,6 @@
 // 학습 통계(목업) — 하드코딩된 가짜 수치 대신 '실제 로컬 학습 상태'에서 파생한다.
 // 그래야 데이터 초기화 직후엔 0/빈 값이 되고, 학습할수록 정직하게 늘어난다(엄격한 상태 관리).
-// (실서버 연동 시 GET /api/stats 로 대체 — 담당: 백엔드팀)
+// (실서버 연동 시 GET /inner/api/v1/stats 로 대체 — 담당: 백엔드팀)
 import type { IStatsRepository } from '../../domain/repositories/IStatsRepository';
 import type { StudyStats, CategoryBreakdown } from '../../domain/models/StudyStats';
 import { CARD_SEED } from '../cards.seed';

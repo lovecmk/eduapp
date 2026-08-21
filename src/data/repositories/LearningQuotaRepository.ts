@@ -14,15 +14,15 @@ interface QuotaDTO {
 
 /**
  * 실서버 하루 학습 할당량 저장소.
- *  · getQuota()       → GET  /api/learning/quota
- *  · recordCompletion → POST /api/learning/complete
+ *  · getQuota()       → GET  /inner/api/v1/learning/quota
+ *  · recordCompletion → POST /inner/api/v1/learning/complete
  *
  * 서버가 오늘 학습 수의 권위를 갖는다. 로컬 스토어도 함께 갱신해 오프라인/즉시 UI에
  * 일관성을 유지한다.
  */
 export class LearningQuotaRepository implements ILearningQuotaRepository {
   async getQuota(): Promise<LearningQuota> {
-    const dto = await apiClient.get<QuotaDTO>('/api/learning/quota');
+    const dto = await apiClient.get<QuotaDTO>('/inner/api/v1/learning/quota');
     const limit = dto.limit ?? DAILY_MIN_CARDS;
     const used = dto.used ?? 0;
     return {
@@ -43,7 +43,7 @@ export class LearningQuotaRepository implements ILearningQuotaRepository {
       // 유실 방지가 존재 이유인 오프라인 큐(postDurable)로 보낸다.
       // 멱등키에 날짜와 시각을 담아, 큐가 재전송해도 이중 집계되지 않게 한다.
       const key = `learning-complete:${dateKey(new Date())}:${Date.now()}:${count}`;
-      await apiClient.postDurable('/api/learning/complete', { count }, key);
+      await apiClient.postDurable('/inner/api/v1/learning/complete', { count }, key);
     } catch (e) {
       // 완료 보고 엔드포인트가 아직 서버에 없으면(부분 배포) 조용히 넘어간다 —
       // 로컬은 이미 반영됐고 목업 폴백과 결과가 같으므로 여기서 다시 목업을 태우면

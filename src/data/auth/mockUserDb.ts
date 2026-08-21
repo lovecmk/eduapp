@@ -3,6 +3,7 @@
 // 실서버 전환 시 이 파일은 통째로 폐기되고 AuthRepository(HTTP) 가 대체한다.
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { User } from '../../domain/models/User';
+import { ADMIN_DEMO_USER } from './adminDemoAccount';
 
 export interface MockAccount {
   username: string;
@@ -43,6 +44,13 @@ const SEED: MockAccount[] = [
       createdAt: new Date('2025-01-01'),
       isActive: true, isAdmin: false,
     },
+  },
+  // 관리자 모드 데모 계정 — 로그인 화면 로고 5번 두드리기로도 들어온다(adminDemoAccount).
+  // 목업 모드에서는 아이디/비밀번호로도 그대로 로그인되도록 여기 함께 심어 둔다.
+  {
+    username: ADMIN_DEMO_USER.loginId ?? ADMIN_DEMO_USER.name,
+    password: 'demo1234',
+    user: ADMIN_DEMO_USER,
   },
 ];
 

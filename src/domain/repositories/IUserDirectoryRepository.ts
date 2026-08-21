@@ -6,8 +6,8 @@ import type { PublicProfile, PublicProfileSummary } from '../models/PublicProfil
  * (비공개 값은 응답에 아예 포함되지 않도록). 목업도 동일하게 동작한다.
  *
  * 실서버 연동 시:
- *  · search(q)      → GET /api/users/search?q=
- *  · getProfile(id) → GET /api/users/:id/public
+ *  · search(q)      → GET /inner/api/v1/users/search?q=
+ *  · getProfile(id) → GET /inner/api/v1/users/:id/public
  */
 export interface IUserDirectoryRepository {
   /** 닉네임(부분 일치) 검색 — 검색 허용(searchable) 사용자만 반환. */

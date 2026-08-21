@@ -9,7 +9,7 @@ const MEDALS = ['🥇', '🥈', '🥉'];
 
 /**
  * 이번 주 기여 랭킹 — "혼자가 아닌 함께" 경쟁형 학습 강화.
- * 서버(GET /api/community/live)의 leaderboard/my_rank 를 그대로 소비한다.
+ * 서버(GET /inner/api/v1/community/live)의 leaderboard/my_rank 를 그대로 소비한다.
  */
 export function CommunityLeaderboardCard() {
   const { theme } = useTheme();

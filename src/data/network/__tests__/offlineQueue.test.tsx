@@ -12,6 +12,7 @@ import {
 } from '../offlineQueue';
 import { ApiError } from '../errors';
 import { setLogSink, resetLogSink } from '../../../utils/logger';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 beforeAll(() => setLogSink(() => {}));
 afterAll(() => resetLogSink());
@@ -24,18 +25,37 @@ beforeEach(async () => {
 
 describe('오프라인 쓰기 큐', () => {
   it('쓰기를 쌓고 개수를 알려준다', async () => {
-    await enqueue('POST', '/api/progress/attendance', { day: '2026-7-25' });
-    await enqueue('POST', '/api/reports', { card_id: 'c1' });
+    await enqueue('POST', '/inner/api/v1/progress/attendance', { day: '2026-7-25' });
+    await enqueue('POST', '/inner/api/v1/reports', { card_id: 'c1' });
     expect(await pendingCount()).toBe(2);
+  });
+
+  // 접두사가 `/api` → `/inner/api/v1` 로 옮겨진 업데이트를 건너온 기기.
+  // 옛 주소로 그대로 나가면 404 → '재시도 무의미' 판정 → 큐가 버린다. 즉 사용자가
+  // 이미 찍었다고 믿는 출석이 사라진다. 읽어 들이는 순간 고쳐져야 한다.
+  it('구버전이 남긴 옛 접두사(/api/)를 지금 주소로 옮겨 놓는다', async () => {
+    __resetQueueForTests();
+    await AsyncStorage.setItem('offline-write-queue', JSON.stringify([
+      {
+        id: 'old-1', method: 'POST', path: '/api/progress/attendance',
+        body: { day: '2026-7-25' }, idempotencyKey: 'attendance:2026-7-25',
+        createdAt: Date.now(), attempts: 0,
+      },
+    ]));
+
+    const sent: string[] = [];
+    setQueueSender(async (i: QueuedWrite) => { sent.push(i.path); });
+    expect(await flushQueue()).toBe(1);
+    expect(sent).toEqual(['/inner/api/v1/progress/attendance']);
   });
 
   it('전송이 성공하면 큐에서 빠진다', async () => {
     const sent: string[] = [];
     setQueueSender(async (i: QueuedWrite) => { sent.push(i.path); });
-    await enqueue('POST', '/api/a', {});
-    await enqueue('POST', '/api/b', {});
+    await enqueue('POST', '/inner/api/v1/a', {});
+    await enqueue('POST', '/inner/api/v1/b', {});
     expect(await flushQueue()).toBe(2);
-    expect(sent).toEqual(['/api/a', '/api/b']);
+    expect(sent).toEqual(['/inner/api/v1/a', '/inner/api/v1/b']);
     expect(await pendingCount()).toBe(0);
   });
 
@@ -49,8 +69,8 @@ describe('오프라인 쓰기 큐', () => {
 
   it('일시적 실패(오프라인)면 큐에 남기고 그 자리에서 멈춘다', async () => {
     setQueueSender(async () => { throw new ApiError(0, ''); });
-    await enqueue('POST', '/api/a', {});
-    await enqueue('POST', '/api/b', {});
+    await enqueue('POST', '/inner/api/v1/a', {});
+    await enqueue('POST', '/inner/api/v1/b', {});
     expect(await flushQueue()).toBe(0);
     expect(await pendingCount()).toBe(2); // 순서 보존을 위해 뒤 항목도 건드리지 않는다
   });
@@ -79,19 +99,19 @@ describe('오프라인 쓰기 큐', () => {
   it('멱등키를 지정하면 그대로 보존한다(서버 중복 반영 방지)', async () => {
     const keys: string[] = [];
     setQueueSender(async (i: QueuedWrite) => { keys.push(i.idempotencyKey); });
-    await enqueue('POST', '/api/progress/attendance', { day: 'd' }, 'attendance:2026-7-25');
+    await enqueue('POST', '/inner/api/v1/progress/attendance', { day: 'd' }, 'attendance:2026-7-25');
     await flushQueue();
     expect(keys).toEqual(['attendance:2026-7-25']);
   });
 
   it('전송기가 없으면 아무것도 보내지 않는다(초기화 전 안전)', async () => {
     __resetQueueForTests();
-    await enqueue('POST', '/api/a', {});
+    await enqueue('POST', '/inner/api/v1/a', {});
     expect(await flushQueue()).toBe(0);
   });
 
   it('clearQueue 는 대기 항목을 모두 비운다(로그아웃 시)', async () => {
-    await enqueue('POST', '/api/a', {});
+    await enqueue('POST', '/inner/api/v1/a', {});
     await clearQueue();
     expect(await pendingCount()).toBe(0);
   });
@@ -104,15 +124,15 @@ describe('오프라인 쓰기 큐', () => {
       setQueueSender(async (i: QueuedWrite) => { sent.push(i.path); });
 
       setQueueOwner('user-a');
-      await enqueue('POST', '/api/progress/attendance', { day: 'd' });
+      await enqueue('POST', '/inner/api/v1/progress/attendance', { day: 'd' });
 
       // A 로그아웃 → B 로그인
       setQueueOwner(null);
       setQueueOwner('user-b');
-      await enqueue('POST', '/api/reports', { card_id: 'c1' });
+      await enqueue('POST', '/inner/api/v1/reports', { card_id: 'c1' });
 
       expect(await flushQueue()).toBe(1);
-      expect(sent).toEqual(['/api/reports']); // A 의 출석은 건드리지 않는다
+      expect(sent).toEqual(['/inner/api/v1/reports']); // A 의 출석은 건드리지 않는다
       expect(await pendingCount()).toBe(1);
     });
 
@@ -121,24 +141,24 @@ describe('오프라인 쓰기 큐', () => {
       setQueueSender(async (i: QueuedWrite) => { sent.push(i.path); });
 
       setQueueOwner('user-a');
-      await enqueue('POST', '/api/progress/attendance', { day: 'd' });
+      await enqueue('POST', '/inner/api/v1/progress/attendance', { day: 'd' });
 
       setQueueOwner('user-b');
       expect(await flushQueue()).toBe(0); // B 세션에서는 아무것도 안 나간다
 
       setQueueOwner('user-a'); // A 가 돌아왔다
       expect(await flushQueue()).toBe(1);
-      expect(sent).toEqual(['/api/progress/attendance']);
+      expect(sent).toEqual(['/inner/api/v1/progress/attendance']);
     });
 
     it('로그인 전에 쌓인 쓰기(주인 없음)는 누구 세션에서든 나간다', async () => {
       const sent: string[] = [];
       setQueueSender(async (i: QueuedWrite) => { sent.push(i.path); });
 
-      await enqueue('POST', '/api/anon', {}); // 주인 미지정
+      await enqueue('POST', '/inner/api/v1/anon', {}); // 주인 미지정
       setQueueOwner('user-a');
       expect(await flushQueue()).toBe(1);
-      expect(sent).toEqual(['/api/anon']);
+      expect(sent).toEqual(['/inner/api/v1/anon']);
     });
   });
 

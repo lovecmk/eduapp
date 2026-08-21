@@ -1,5 +1,5 @@
 // 문제(학습카드) 등록용 작성 초안 — "웹 등록 도구가 내보내는 메타데이터 계약".
-// 서버 이관 후에도 이 형태(JSON)를 그대로 POST /api/cards 로 보내면 되도록 단일화한다.
+// 서버 이관 후에도 이 형태(JSON)를 그대로 POST /inner/api/v1/cards 로 보내면 되도록 단일화한다.
 import { ALL_CATEGORIES } from '../../constants/categories';
 import type { CardCategory, CardDifficulty, CardType, SeedCard } from './LearningCard';
 
@@ -109,7 +109,7 @@ export function draftToSeedCard(d: CardDraft, id?: string): SeedCard {
   };
 }
 
-/** 서버 전송용 DTO(snake_case) 매핑 — 실서버 POST /api/cards body. */
+/** 서버 전송용 DTO(snake_case) 매핑 — 실서버 POST /inner/api/v1/cards body. */
 export function draftToDTO(d: CardDraft) {
   const type = d.type ?? 'explanation';
   return {

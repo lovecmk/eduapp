@@ -88,7 +88,7 @@ interface ShareFeedState {
   /** 성취 카드를 인앱 피드에 업로드한다(서버 전환 시 이 함수 본문만 교체). 반환값은 새 글 id. */
   uploadShareCard: (input: ShareCardUpload) => string;
   toggleLike: (id: string) => void;
-  /** 퀵 리액션 토글(👏/🔥/👍). 서버 전환 시 POST /api/feed/:id/react 로 매핑. */
+  /** 퀵 리액션 토글(👏/🔥/👍). 서버 전환 시 POST /inner/api/v1/feed/:id/react 로 매핑. */
   react: (id: string, kind: ReactionKind) => void;
 }
 

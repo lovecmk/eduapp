@@ -22,15 +22,15 @@ function toEpoch(iso: string | null | undefined, fallback: number): number {
 
 /**
  * 학습 진행 동기화 저장소(실서버).
- *  · GET   /api/progress          → 전체 스냅샷
- *  · POST  /api/progress/grade    → 카드 채점 보고
- *  · POST  /api/progress/attendance → 출석 도장 보고
+ *  · GET   /inner/api/v1/progress          → 전체 스냅샷
+ *  · POST  /inner/api/v1/progress/grade    → 카드 채점 보고
+ *  · POST  /inner/api/v1/progress/attendance → 출석 도장 보고
  *
  * 쓰기는 postDurable 을 써서 네트워크가 끊겨도 유실되지 않는다(오프라인 큐 + 멱등키).
  */
 export class ProgressRepository implements IProgressRepository {
   async pull(): Promise<ProgressSnapshot> {
-    const dto = await apiClient.get<ProgressDTO>('/api/progress');
+    const dto = await apiClient.get<ProgressDTO>('/inner/api/v1/progress');
     const now = Date.now();
 
     const cards: Record<string, SrsCardState> = {};
@@ -63,7 +63,7 @@ export class ProgressRepository implements IProgressRepository {
   async pushGrade(cardId: string, grade: Grade, state: SrsCardState): Promise<void> {
     // 멱등키에 '카드+채점시각'을 넣어, 재전송돼도 같은 채점이 두 번 반영되지 않게 한다.
     const key = `grade:${cardId}:${state.lastReviewedAt ?? Date.now()}`;
-    await apiClient.postDurable('/api/progress/grade', {
+    await apiClient.postDurable('/inner/api/v1/progress/grade', {
       card_id: cardId,
       grade,
       box: state.box,
@@ -76,6 +76,6 @@ export class ProgressRepository implements IProgressRepository {
 
   async pushAttendance(dayKey: string): Promise<void> {
     // 하루 1회만 유효하므로 날짜 키 자체가 자연스러운 멱등키가 된다.
-    await apiClient.postDurable('/api/progress/attendance', { day: dayKey }, `attendance:${dayKey}`);
+    await apiClient.postDurable('/inner/api/v1/progress/attendance', { day: dayKey }, `attendance:${dayKey}`);
   }
 }

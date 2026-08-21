@@ -140,7 +140,7 @@ export function collectConfigWarnings(): string[] {
     w.push(`API 주소가 http(s):// 로 시작하지 않습니다: "${apiBaseUrl}"`);
   }
   if (apiBaseUrl.endsWith('/')) {
-    w.push('API 주소 끝에 "/" 가 있으면 경로가 "//api/..." 로 중복됩니다. 끝 슬래시를 제거하세요.');
+    w.push('API 주소 끝에 "/" 가 있으면 경로가 "//inner/api/v1/..." 로 중복됩니다. 끝 슬래시를 제거하세요.');
   }
   if (env.apiTimeoutMs < 3_000) {
     w.push(`요청 타임아웃(${env.apiTimeoutMs}ms)이 너무 짧습니다(권장 ≥ 3000ms).`);

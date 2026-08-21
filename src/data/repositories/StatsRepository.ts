@@ -6,7 +6,7 @@ import { apiClient } from '../network/ApiClient';
 
 export class StatsRepository implements IStatsRepository {
   async getStudyStats(): Promise<StudyStats> {
-    const dto = await apiClient.get<StatsDTO>('/api/stats');
+    const dto = await apiClient.get<StatsDTO>('/inner/api/v1/stats');
     return StatsMapper.toDomain(dto);
   }
 }
