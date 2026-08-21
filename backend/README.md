@@ -61,7 +61,7 @@ make up                  # docker compose --profile prod up -d → Caddy→API�
 |------|--------|------|------|
 | 테스트로 올려보기 | `memory` | `make up-test` | DB 0대·무설정. 재시작 시 리셋(데모에 이상적) |
 | 본격 운영(API 전용) | `postgres` | `make up` | Postgres 볼륨 영속 + Caddy 자동 HTTPS |
-| 올인원(웹앱+API) | `postgres` | `make up-web` | 위 + Caddy 가 `dist`(Expo 웹) 정적 제공 + `/api` 프록시 |
+| 올인원(웹앱+API) | `postgres` | `make up-web` | 위 + Caddy 가 `dist`(Expo 웹) 정적 제공 + API 프록시 |
 
 > **Ubuntu KVM/VM 한 대에 올리는 실전 절차**(VM 생성·네트워크·부팅 자동기동 포함)는
 > **[`DEPLOY-KVM.md`](./DEPLOY-KVM.md)** 참고. 올인원 배포에 필요한 웹 빌드 방법도 거기 있다.
@@ -96,6 +96,50 @@ EXISTS`) — 신규 배포에 충분하다. 컬럼 변경/데이터 이관이 �
 ## API
 
 모두 `application/json`. 헬스체크 외에는 `Authorization: Bearer <access>` 필요.
+
+### 경로 접두사 — 게이트웨이는 `/inner/api/v1`, 서버 안은 `/api`
+
+사내 게이트웨이의 로케이션 블록이 `/api` 에서 **`/inner/api/v1`** 로 바뀌었다.
+바깥에서 부르는 경로는 아래 표의 `/api/...` 를 `/inner/api/v1/...` 로 읽으면 된다
+(예: `POST https://<도메인>/inner/api/v1/auth/login`).
+
+서버는 라우트를 **한 벌만**(`/api/...`) 들고, 들어오는 요청의 접두사만 문 앞에서
+벗긴다(`middleware.APIPrefix`). 라우트를 두 벌 등록하면 속도 제한 카운터·멱등 키·
+지표가 경로별로 갈라져, 같은 사람이 로그인 시도를 두 배로 할 수 있게 된다.
+
+| 부르는 쪽 | 경로 | 비고 |
+|---|---|---|
+| 앱·웹(게이트웨이 경유) | `/inner/api/v1/...` | 현재 로케이션 블록 |
+| 이미 배포된 앱·운영 스크립트·관리 콘솔 | `/api/...` | 서버 내부 표준 경로라 그대로 동작 |
+| 로드밸런서·Docker healthcheck | `/health` | 게이트웨이를 거치지 않고 컨테이너에 직접 |
+
+**프런트는 코드를 고치지 않아도 된다.** 앱(`src/data/network`)과 관리 콘솔은 경로에
+`/api/...` 를 박아 두고 주소만 환경변수로 받는다. 빌드 시
+`EXPO_PUBLIC_API_BASE_URL=https://<도메인>/inner/api/v1` 을 주면 요청은
+`/inner/api/v1/api/cards` 가 되는데, 서버가 겹친 `/api` 한 겹을 접어 같은 핸들러로
+보낸다. 배포 환경변수만으로 새 게이트웨이 경로에 붙을 수 있다는 뜻이다.
+
+접두사는 `API_PREFIX` 환경변수로 바꾼다(기본 `/inner/api/v1`). 게이트웨이 규칙이
+또 바뀌면 재빌드 없이 이 값만 고치면 된다. `API_PREFIX=/api` 로 두면 접두사 변환이
+사실상 꺼진다.
+
+> **게이트웨이는 경로를 그대로 넘겨야 한다.** nginx 는 `proxy_pass` 끝에 `/` 를
+> 붙이면 접두사를 잘라 버린다 — 그러면 서버에 `/auth/login` 이 도착해 404 가 난다.
+>
+> ```nginx
+> location /inner/api/v1/ {
+>     proxy_pass http://127.0.0.1:8080;   # 끝에 / 를 붙이지 말 것
+>     proxy_http_version 1.1;
+>     proxy_set_header Host $host;
+>     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+>     proxy_buffering off;                # 관리 대시보드 SSE(/admin/stream)
+> }
+> ```
+>
+> 접두사를 잘라 보내는 게이트웨이(끝에 `/` 가 붙은 `proxy_pass`)라면 서버는 손댈 수
+> 없다 — 서버에 도착한 `/auth/login` 은 어느 서비스의 것이었는지 알 방법이 없다.
+> 굳이 잘라야 한다면 **내부 표준 경로로 갈아 끼워** 보낸다:
+> `proxy_pass http://127.0.0.1:8080/api/;` (이 경우 서버 설정은 바꿀 필요가 없다).
 
 | Method | Path | 설명 |
 |--------|------|------|
@@ -302,9 +346,11 @@ EXISTS`) — 신규 배포에 충분하다. 컬럼 변경/데이터 이관이 �
 ### 헬스체크 두 경로
 
 같은 응답을 `/health` 와 `/api/health` 두 곳에 낸다. 앞은 로드밸런서·Docker
-healthcheck 의 관례적 경로이고, 뒤는 **앱이 부르는 경로**다 — 앱은 API 주소 하나만
-알고 모든 요청에 `/api` 접두사를 붙이므로, 이 경로가 없으면 개발자 화면의 서버
-점검이 배포가 멀쩡해도 404 로 실패한다. `version` 은 `APP_VERSION` 환경변수로
+healthcheck 의 관례적 경로이고(게이트웨이를 거치지 않고 컨테이너에 직접 꽂힌다),
+뒤는 **앱이 부르는 경로**다 — 앱은 API 주소 하나만 알고 모든 요청에 접두사를
+붙이므로, 이 경로가 없으면 개발자 화면의 서버 점검이 배포가 멀쩡해도 404 로
+실패한다. 게이트웨이를 지나온 `/inner/api/v1/health` 도 접두사만 벗겨져 같은
+핸들러로 온다. `version` 은 `APP_VERSION` 환경변수로
 주입한다(미설정 시 `dev`) — "지금 붙은 서버가 어느 빌드인가"를 앱에서 확인할 수 있다.
 
 ### 계정 상태(A/I/D) 집행

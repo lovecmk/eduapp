@@ -3,6 +3,7 @@ package server
 
 import (
 	"log"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -68,6 +69,20 @@ func New(d Deps) *fiber.App {
 
 	app.Use(recover.New())
 	app.Use(logger.New())
+
+	// 게이트웨이 접두사 정규화 — 라우팅·지표·점검 모드보다 **앞**에 선다.
+	//
+	// 사내 게이트웨이의 로케이션 블록이 `/api` 에서 `/inner/api/v1` 로 바뀌었다.
+	// 서버는 여전히 `/api/...` 한 벌만 등록하고, 바깥에서 붙어 온 접두사만 여기서
+	// 벗긴다(자세한 이유는 middleware.APIPrefix 주석). 이 자리가 아니라 라우팅
+	// 뒤였다면 지표는 경로별로 두 벌이 되고, 점검 모드 예외 목록(`/api/auth/*` 등)은
+	// 새 접두사가 붙은 요청을 알아보지 못한다.
+	prefix := d.Cfg.APIPrefix
+	if strings.TrimSpace(prefix) == "" {
+		prefix = config.DefaultAPIPrefix
+	}
+	app.Use(middleware.APIPrefix(prefix))
+
 	app.Use(cors.New(cors.Config{
 		AllowOrigins: d.Cfg.CORSOrigins,
 		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
@@ -84,10 +99,12 @@ func New(d Deps) *fiber.App {
 	// 헬스체크(무인증) — 로드밸런서/이식 검증용.
 	//
 	// 두 경로에 같은 핸들러를 단다.
-	//  · `/health`      — 로드밸런서·Docker healthcheck 의 관례적 경로.
+	//  · `/health`      — 로드밸런서·Docker healthcheck 의 관례적 경로. 게이트웨이를
+	//    거치지 않고 컨테이너에 직접 꽂히므로 접두사가 붙지 않는다.
 	//  · `/api/health`  — 앱(ApiClient.health)이 부르는 경로. 앱은 API 주소 하나만 알고
-	//    모든 요청에 `/api` 접두사를 붙이므로, 이 경로가 없으면 개발자 화면의
-	//    서버 점검이 배포가 멀쩡해도 404 로 실패한다.
+	//    모든 요청에 접두사를 붙이므로, 이 경로가 없으면 개발자 화면의
+	//    서버 점검이 배포가 멀쩡해도 404 로 실패한다. 게이트웨이를 지나온
+	//    `/inner/api/v1/health` 도 위의 APIPrefix 미들웨어를 거쳐 여기로 온다.
 	started := time.Now()
 	health := func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{

@@ -8,6 +8,7 @@
 | 항목 | 규칙 |
 |---|---|
 | Base URL | `EXPO_PUBLIC_API_BASE_URL` (끝에 `/` 금지 — 경로가 `//api/...` 로 중복됨) |
+| 경로 접두사 | 게이트웨이 로케이션 블록은 **`/inner/api/v1`**. 아래 표기의 `/api/...` 는 서버 내부 표준 경로이며 **둘 다 같은 핸들러**로 간다(백엔드 `middleware.APIPrefix`) |
 | 요청 본문 | `application/json` |
 | 필드 표기 | **응답은 snake_case** (프론트 Mapper 가 camelCase 도메인 모델로 변환) |
 | 인증 | `Authorization: Bearer <access_token>` |

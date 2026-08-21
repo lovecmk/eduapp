@@ -10,7 +10,7 @@
 #   make secret        # JWT_SECRET 용 랜덤 키 생성
 #   make up-test       # 도커: 테스트 스택(무 DB) 기동
 #   make up            # 도커: 운영 스택(Postgres+API+Caddy) 백그라운드 기동
-#   make up-web        # 도커: 올인원(웹앱+API) — Caddy 가 dist 정적 제공 + /api 프록시
+#   make up-web        # 도커: 올인원(웹앱+API) — Caddy 가 dist 정적 제공 + API 프록시
 #   make down          # 도커: 스택 중지
 #   make logs          # 도커: 로그 팔로우
 #   make backup        # 운영 DB 백업(./backups)

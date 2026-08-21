@@ -17,7 +17,7 @@
 | 형태 | 명령 | Caddy | 언제 |
 |------|------|-------|------|
 | **API 전용** | `make up` | `Caddyfile`(→ api 프록시) | 앱 스토어/EAS 로 배포한 모바일 앱만 붙일 때 |
-| **올인원(웹+API)** | `make up-web` | `Caddyfile.web`(dist 정적 + `/api` 프록시) | 브라우저로도 접속(웹앱)까지 한 VM 에서 끝낼 때 |
+| **올인원(웹+API)** | `make up-web` | `Caddyfile.web`(dist 정적 + API 프록시) | 브라우저로도 접속(웹앱)까지 한 VM 에서 끝낼 때 |
 
 둘 다 Postgres(영속 볼륨) + API + Caddy(자동 HTTPS) 구성은 동일하다.
 
@@ -86,7 +86,14 @@ ACME_EMAIL=you@example.com         # 인증서 만료 알림(선택)
 JWT_SECRET=<make secret 로 생성>    # 아래 명령으로 랜덤 생성
 POSTGRES_PASSWORD=<강한 비밀번호>
 CORS_ORIGINS=https://eduapp.example.com   # 오리진 확정 후 좁힐 것
+API_PREFIX=/inner/api/v1                  # 게이트웨이 로케이션 블록과 같은 값(기본값도 이것)
 ```
+
+> `API_PREFIX` 는 앞단 게이트웨이가 붙여 보내는 경로 접두사다. 사내 게이트웨이의
+> 로케이션 블록이 `/api` → `/inner/api/v1` 로 바뀌면서 기본값도 바뀌었다.
+> 게이트웨이는 경로를 **그대로** 넘겨야 한다(nginx 는 `proxy_pass` 끝에 `/` 금지).
+> 구형 `/api/...` 로 부르는 이미 배포된 앱은 그대로 동작한다 — 자세한 내용은
+> `README.md` 의 "경로 접두사" 절.
 
 ```bash
 make secret   # JWT_SECRET 용 랜덤 키 출력 → .env 에 붙여넣기
@@ -114,7 +121,8 @@ EXPO_PUBLIC_USE_MOCK_DATA=false
 ## 4-B. 웹+API 올인원으로 올리기
 
 브라우저로도 접속하려면 **먼저 레포 루트에서 웹을 빌드**해 `dist/` 를 만든다.
-웹 빌드에는 API 주소가 정적으로 구워지므로, **같은 오리진**을 준다(Caddy 가 `/api/*` 를 백엔드로 넘긴다):
+웹 빌드에는 API 주소가 정적으로 구워지므로, **같은 오리진**을 준다
+(Caddy 가 `/inner/api/v1/*` 와 구형 `/api/*` 를 모두 백엔드로 넘긴다):
 
 ```bash
 cd /opt/eduapp
@@ -124,10 +132,11 @@ EXPO_PUBLIC_USE_MOCK_DATA=false \
   npx expo export --platform web        # → /opt/eduapp/dist 생성
 
 cd backend
-make up-web      # Caddy 가 dist 를 정적 제공 + /api,/health 는 API 로 프록시
+make up-web      # Caddy 가 dist 를 정적 제공 + /inner/api/v1,/api,/health 는 API 로 프록시
 ```
 
-이제 `https://eduapp.example.com` 은 웹앱, `https://eduapp.example.com/api/...` 는 백엔드다.
+이제 `https://eduapp.example.com` 은 웹앱,
+`https://eduapp.example.com/inner/api/v1/...`(및 구형 `/api/...`)는 백엔드다.
 웹을 새로 빌드하면(`expo export`) `dist` 가 갱신되고, Caddy 는 볼륨 마운트라 재빌드 없이 바로 반영된다.
 
 ---
