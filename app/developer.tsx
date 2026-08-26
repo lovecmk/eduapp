@@ -164,10 +164,17 @@ export default function DeveloperScreen() {
               {health && (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, flex: 1 }}>
                   <Ionicons name={health.ok ? 'checkmark-circle' : 'alert-circle'} size={15} color={health.ok ? c.success : c.warning} />
-                  <Text style={{ color: c.textSecondary, fontSize: 11.5 * fs, fontFamily: fontMono, flex: 1 }} numberOfLines={1}>
+                  {/* '닿지 못함'과 '닿았는데 아픔'은 전혀 다른 문제다. 뒤쪽은 서버가
+                      스스로 사유를 말해 주므로(예: degraded · configuration unavailable)
+                      그대로 보여준다 — 뭉뚱그려 '실패'라고 쓰면 서버가 이미 알려준
+                      답을 앱이 지우는 셈이고, 원인을 찾는 사람은 처음부터 다시 판다.
+                      두 줄까지 허용한다: 사유는 한 줄에 안 들어가는 경우가 많다. */}
+                  <Text style={{ color: c.textSecondary, fontSize: 11.5 * fs, fontFamily: fontMono, flex: 1 }} numberOfLines={2}>
                     {health.ok
                       ? `정상 · ${health.latencyMs}ms${health.version ? ` · v${health.version}` : ''}`
-                      : `실패 · ${health.error ?? '알 수 없음'}`}
+                      : health.status
+                        ? `응답함 · ${health.error}${health.version ? ` · v${health.version}` : ''}`
+                        : `닿지 못함 · ${health.error ?? '알 수 없음'}`}
                   </Text>
                 </View>
               )}

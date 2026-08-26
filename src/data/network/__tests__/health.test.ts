@@ -33,6 +33,41 @@ const resp = (status: number, body: unknown) => ({
 });
 
 describe('apiClient.health', () => {
+  it('degraded 응답의 사유를 버리지 않는다 — 서버가 알려준 답이다', async () => {
+    // 실제로 받은 응답 그대로. 200 이라 예외가 나지 않으므로, 여기서 사유를 옮겨
+    // 두지 않으면 개발자 화면에는 '실패 · 알 수 없음' 만 남는다.
+    global.fetch = jest.fn(async () =>
+      resp(200, {
+        status: 'degraded',
+        reason: 'configuration unavailable',
+        store: 'postgres',
+        version: 'dev',
+        uptime_seconds: 18493,
+      }),
+    ) as unknown as typeof fetch;
+
+    const r = await apiClient.health();
+    expect(r.ok).toBe(false);
+    expect(r.status).toBe('degraded');
+    expect(r.reason).toBe('configuration unavailable');
+    // 사람이 읽는 줄에도 둘 다 담긴다.
+    expect(r.error).toContain('degraded');
+    expect(r.error).toContain('configuration unavailable');
+    // 아파도 어느 빌드가 떠 있는지는 알아야 한다.
+    expect(r.version).toBe('dev');
+  });
+
+  it('닿지 못한 경우와 구분된다 — status 가 비어 있으면 응답 자체가 없던 것', async () => {
+    global.fetch = jest.fn(async () => {
+      throw new Error('network down');
+    }) as unknown as typeof fetch;
+
+    const r = await apiClient.health();
+    expect(r.ok).toBe(false);
+    expect(r.status).toBeUndefined();
+    expect(r.reason).toBeUndefined();
+  });
+
   it('status:ok 응답이면 ok=true 와 version 을 반환한다', async () => {
     global.fetch = jest.fn(async () => resp(200, { status: 'ok', version: '1.2.3' })) as unknown as typeof fetch;
     const r = await apiClient.health();

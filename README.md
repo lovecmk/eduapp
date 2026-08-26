@@ -49,9 +49,13 @@ npm run verify   # typecheck + jest
 
 | | 주소 | 누가 쓰나 |
 |---|---|---|
-| 운영 | `https://bridge.kfpa.or.kr` | 배포되는 APK·스토어 빌드 (DMZ1) |
-| 테스트 | `http://test.inplat.org:8090` | 사내망에서만 닿는다 |
+| 운영 | `https://bridge.kfpa.or.kr` | **기본값.** 로컬 개발·EAS 프로필 전부 (DMZ1) |
+| 테스트 | `http://test.inplat.org:8090` | 사내망에서만 닿는다. 어느 프로필도 기본으로 쓰지 않는다 |
 | 목업 | (빈 값) | 서버 없이 화면만 |
+
+테스트 주소는 사내망 밖에서 DNS 조차 풀리지 않아, 그대로 앱을 켜면 요청이 서버에
+닿지 못하고 화면에는 "네트워크에 연결할 수 없어요" 만 뜬다(서버는 멀쩡한데 원인을
+서버에서 찾게 되는 실패다). 사내망 안에서 확인할 때만 `.env` 를 손으로 바꿔 쓴다.
 
 `/api` 는 붙이지 않는다 — ApiClient 가 모든 요청에 알아서 붙인다.
 
@@ -74,7 +78,7 @@ cleartext / iOS ATS 예외를 붙인다(`plugins/withInsecureApiHost.js`). 운�
 
 ```bash
 eas build --profile production --platform android   # → https://bridge.kfpa.or.kr
-eas build --profile preview --platform android      # → http://test.inplat.org:8090 (사내 테스트 APK)
+eas build --profile preview --platform android      # → https://bridge.kfpa.or.kr (사내 배포용 APK)
 ```
 
 **GitHub Actions APK** — `Build Android APK (Local)` 를 수동 실행하면 드롭다운에서

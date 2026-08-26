@@ -275,11 +275,25 @@ class ApiClient {
   async health(): Promise<HealthResult> {
     const startedAt = Date.now();
     try {
-      const body = await this.request<{ status?: string; version?: string }>('/inner/api/v1/health', { method: 'GET' });
+      const body = await this.request<{ status?: string; version?: string; reason?: string }>(
+        '/inner/api/v1/health',
+        { method: 'GET' },
+      );
+      const status = body?.status;
       return {
-        ok: body?.status === 'ok',
+        ok: status === 'ok',
         latencyMs: Date.now() - startedAt,
         version: body?.version,
+        status,
+        reason: body?.reason,
+        // 200 인데 status 가 ok 가 아닌 경우 — 서버가 **닿기는 했고**, 스스로
+        // 어디가 아픈지도 말해 주고 있다. 그 말을 error 로도 옮겨 둔다.
+        // 옮기지 않으면 호출부는 예외가 없어 error 가 비어 있는 것을 보고
+        // '실패 · 알 수 없음' 이라고 표시한다 — 서버가 알려준 이유를 앱이 버리는 셈이다.
+        error:
+          status === 'ok'
+            ? undefined
+            : [status ?? '알 수 없는 상태', body?.reason].filter(Boolean).join(' · '),
       };
     } catch (e) {
       return {
@@ -293,9 +307,15 @@ class ApiClient {
 
 /** 헬스체크 결과 — 실패해도 예외 대신 ok:false 로 표현한다. */
 export interface HealthResult {
+  /** 서버가 `status: "ok"` 라고 답했는가. */
   ok: boolean;
   latencyMs: number;
   version?: string;
+  /** 서버가 스스로 말한 상태('ok' · 'degraded' …). 닿지 못했으면 없다. */
+  status?: string;
+  /** 정상이 아닐 때 서버가 밝힌 사유(예: 'configuration unavailable'). */
+  reason?: string;
+  /** 사람이 읽을 실패 설명 — 닿지 못한 경우와 아픈 경우를 모두 담는다. */
   error?: string;
 }
 
