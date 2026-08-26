@@ -8,6 +8,7 @@ import { useTipStore } from '../../store/tipStore';
 import { useAuthStore } from '../../store/authStore';
 import { timeAgoLabel } from '../../store/notificationStore';
 import { isMeaningful, textLength, INPUT_LIMITS } from '../../utils/sanitize';
+import { displayName } from '../../domain/models/User';
 
 /** 카드별 현장 팁(작은 커뮤니티) — 실무 노하우 공유 + 좋아요. */
 export function CardTips({ cardId }: { cardId: string }) {
@@ -17,7 +18,8 @@ export function CardTips({ cardId }: { cardId: string }) {
   const addTip = useTipStore((s) => s.addTip);
   const toggleLike = useTipStore((s) => s.toggleLike);
   const removeTip = useTipStore((s) => s.removeTip);
-  const userName = useAuthStore((s) => s.user?.name) ?? '나';
+  const me = useAuthStore((s) => s.user);
+  const userName = me ? displayName(me) : '나';
   const [draft, setDraft] = useState('');
   const [focused, setFocused] = useState(false);
 

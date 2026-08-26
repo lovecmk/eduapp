@@ -10,7 +10,7 @@ import { fontDisplay, fontBody, fontMono } from '../../theme/tokens';
 import { useAuthStore } from '../../store/authStore';
 import { useSettingsStore, type ThemeMode } from '../../store/settingsStore';
 import { useNotificationStore } from '../../store/notificationStore';
-import { MEMBERSHIP_META } from '../../domain/models/User';
+import { membershipMeta, displayName } from '../../domain/models/User';
 import { ROUTES } from '../../constants/routes';
 
 type IconName = keyof typeof Ionicons.glyphMap;
@@ -41,7 +41,7 @@ export function HeaderMenuSheet({ visible, onClose }: { visible: boolean; onClos
   const themeMode = useSettingsStore((s) => s.themeMode);
   const setThemeMode = useSettingsStore((s) => s.setThemeMode);
   const unread = useNotificationStore((s) => s.unreadCount());
-  const meta = user ? MEMBERSHIP_META[user.membership] : null;
+  const meta = user ? membershipMeta(user.membership) : null;
 
   // 시트가 닫히는 애니메이션(180ms)이 끝난 뒤 이동해야 화면이 겹쳐 보이지 않는다.
   // 다만 그 사이 사용자가 다른 항목을 또 누르면 두 화면이 연달아 쌓이므로 한 번만 받는다.
@@ -94,7 +94,7 @@ export function HeaderMenuSheet({ visible, onClose }: { visible: boolean; onClos
               <Avatar uri={profileImage} size={46} ring={2} ringColor={meta?.accent ?? c.primary} />
               <View style={{ flex: 1 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Text style={{ color: c.textPrimary, fontSize: 16, fontFamily: fontDisplay }} numberOfLines={1}>{user.name}</Text>
+                  <Text style={{ color: c.textPrimary, fontSize: 16, fontFamily: fontDisplay }} numberOfLines={1}>{displayName(user)}</Text>
                   <AchievementBadge size={15} />
                   {meta && (
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: meta.accent + '1A', borderRadius: 999, paddingHorizontal: 7, paddingVertical: 2 }}>

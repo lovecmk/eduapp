@@ -681,7 +681,10 @@ export default function CardsScreen() {
 
   // 오늘의 신규 상한을 다 채우고 복습 도래 카드도 없는 상태로 진입 — '오늘 학습 완료' 안내.
   // (복습이 남아 있으면 아래 세션에서 자동으로 이어 제시하므로 이 화면을 띄우지 않는다.)
-  if (!isCategoryMode && !isFocusMode && !isDueMode && !finished && quota.remaining === 0 && deck.length === 0) {
+  // '오늘 학습 완료' 는 오늘 몫을 실제로 채웠을 때만 할 수 있는 말이다. 서버에 카드가
+  // 한 장도 없으면 상한을 다 쓴 것처럼 보여도 완료가 아니라 '아직 없음'이다(아래 빈 상태).
+  const hasAnyContent = (allQuery.data?.length ?? 0) > 0;
+  if (!isCategoryMode && !isFocusMode && !isDueMode && !finished && hasAnyContent && quota.remaining === 0 && deck.length === 0) {
     return (
       <View style={{ flex: 1, backgroundColor: c.bg, alignItems: 'center', justifyContent: 'center', padding: 28 }}>
         <View style={{ width: 84, height: 84, borderRadius: 42, backgroundColor: c.success + '1A', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
@@ -710,21 +713,36 @@ export default function CardsScreen() {
   // (한 장도 넘기지 않았는데 아래의 '학습 완료!' 축하 화면이 뜨던 버그 방지:
   //  finished 는 카드를 한 장이라도 마쳐야 true 가 되므로, 그 전의 빈 덱은 '완료'가 아니다.)
   if (!card && !finished) {
+    /**
+     * 서버에 카드가 **한 장도** 없는가.
+     *
+     * 이걸 구분하지 않으면 첫 접속자에게 "새로 학습할 카드를 모두 마쳤어요" 라고
+     * 말하게 된다. 한 장도 푼 적 없는 사람이 그 문장을 보면 앱이 고장 났다고 읽는다.
+     * 실제로 그런 신고가 들어왔다 — 서버에 콘텐츠가 아직 올라가지 않은 상태였다.
+     *
+     * '오늘 배정이 비었다'와 '아예 없다'는 다른 상태다. 앞은 기다리면 되고,
+     * 뒤는 관리자가 카드를 등록해야 한다.
+     */
+    const noContentAtAll = !hasAnyContent;
     const emptyTitle = isFocusMode
       ? '카드를 찾을 수 없어요'
-      : isDueMode
-        ? '지금 복습할 카드가 없어요'
-        : isCategoryMode
-          ? '복습할 카드가 없어요'
-          : '지금 학습할 카드가 없어요';
+      : noContentAtAll
+        ? '아직 등록된 학습 카드가 없어요'
+        : isDueMode
+          ? '지금 복습할 카드가 없어요'
+          : isCategoryMode
+            ? '복습할 카드가 없어요'
+            : '지금 학습할 카드가 없어요';
     const emptyBody = isFocusMode
       ? '이 카드를 불러올 수 없어요. 이전 화면으로 돌아가 주세요.'
-      : isDueMode
-        ? // 복습이 비어 있는 것은 잘한 상태다 — 실패처럼 말하지 않는다.
-          '지금은 다시 볼 때가 된 카드가 없어요. 때가 되면 복습 탭에서 알려드릴게요.'
-        : isCategoryMode
-          ? '이 카테고리에는 아직 학습할 카드가 없어요.'
-          : '새로 학습할 카드를 모두 마쳤어요. 복습에서 배운 내용을 다져보세요.';
+      : noContentAtAll
+        ? '관리자가 학습 카드를 등록하면 여기에 오늘의 학습이 나타나요.'
+        : isDueMode
+          ? // 복습이 비어 있는 것은 잘한 상태다 — 실패처럼 말하지 않는다.
+            '지금은 다시 볼 때가 된 카드가 없어요. 때가 되면 복습 탭에서 알려드릴게요.'
+          : isCategoryMode
+            ? '이 카테고리에는 아직 학습할 카드가 없어요.'
+            : '새로 학습할 카드를 모두 마쳤어요. 복습에서 배운 내용을 다져보세요.';
     return (
       <View style={{ flex: 1, backgroundColor: c.bg, alignItems: 'center', justifyContent: 'center', padding: 28 }}>
         <View style={{ width: 84, height: 84, borderRadius: 42, backgroundColor: c.primary + '14', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
@@ -733,11 +751,14 @@ export default function CardsScreen() {
         <Text style={{ color: c.textPrimary, fontSize: 22 * fs, fontWeight: '800', fontFamily: fontCute }}>{emptyTitle}</Text>
         <Text style={{ color: c.textSecondary, marginTop: 8, textAlign: 'center', lineHeight: 21 * fs, fontFamily: fontCute }}>{emptyBody}</Text>
         <Pressable accessibilityRole="button"
-          onPress={() => endFlow(router, returnTo ?? (isFocusMode ? ROUTES.contents : ROUTES.review))}
+          // 카드가 아예 없으면 복습으로 보내 봐야 거기도 비어 있다 — 막다른 길이다.
+          onPress={() => endFlow(router, returnTo ?? (isFocusMode ? ROUTES.contents : noContentAtAll ? ROUTES.home : ROUTES.review))}
           style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.primary, borderRadius: 14, paddingVertical: 15, paddingHorizontal: 28, marginTop: 24, boxShadow: '0 6px 16px rgba(37,99,235,0.28)' }}
         >
-          <Ionicons name={isFocusMode ? 'arrow-back' : 'refresh'} size={18} color="#fff" />
-          <Text style={{ color: '#fff', fontSize: 15 * fs, fontWeight: '800', fontFamily: fontCute }}>{isFocusMode ? '돌아가기' : '복습하러 가기'}</Text>
+          <Ionicons name={isFocusMode ? 'arrow-back' : noContentAtAll ? 'home' : 'refresh'} size={18} color="#fff" />
+          <Text style={{ color: '#fff', fontSize: 15 * fs, fontWeight: '800', fontFamily: fontCute }}>
+            {isFocusMode ? '돌아가기' : noContentAtAll ? '홈으로' : '복습하러 가기'}
+          </Text>
         </Pressable>
       </View>
     );

@@ -17,6 +17,7 @@ import { BragFeedCard } from '../src/components/community/BragFeedCard';
 import { fontCute, fontBody, fontMono } from '../src/theme/tokens';
 import { ROUTES } from '../src/constants/routes';
 import { contentColumn, CONTENT_MAX_WIDTH } from '../src/theme/layout';
+import { displayName } from '../src/domain/models/User';
 
 const GAP = 12;
 
@@ -47,7 +48,8 @@ export default function TrophyRoomScreen() {
   const c = theme.colors;
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
-  const author = user?.name ?? '현장 작업자';
+  // 트로피 카드도 남에게 보이는 것이라 닉네임으로 나간다.
+  const author = displayName(user);
   const { width: screenW } = useWindowDimensions();
   const colW = useColumnWidth(screenW);
 

@@ -7,7 +7,7 @@ import { ScreenHeader } from '../src/components/ui/ScreenHeader';
 import { ErrorState } from '../src/components/ui/ErrorState';
 import { Avatar } from '../src/components/ui/Avatar';
 import { fontCute, fontBody, fontMono } from '../src/theme/tokens';
-import { MEMBERSHIP_META } from '../src/domain/models/User';
+import { membershipMeta } from '../src/domain/models/User';
 import type { PublicProfileSummary } from '../src/domain/models/PublicProfile';
 import { useUserSearch } from '../src/hooks/useUserDirectory';
 import { ROUTES } from '../src/constants/routes';
@@ -115,7 +115,7 @@ const UserRow = React.memo(function UserRow({
 }) {
   const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
-  const meta = MEMBERSHIP_META[user.membership];
+  const meta = membershipMeta(user.membership);
 
   return (
     <Pressable

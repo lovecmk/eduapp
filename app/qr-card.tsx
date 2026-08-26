@@ -22,7 +22,7 @@ import { Avatar } from '../src/components/ui/Avatar';
 import { useTheme } from '../src/theme/ThemeProvider';
 import { useAuthStore } from '../src/store/authStore';
 import { useSettingsStore } from '../src/store/settingsStore';
-import { displayName, MEMBERSHIP_META } from '../src/domain/models/User';
+import { displayName, membershipMeta } from '../src/domain/models/User';
 import { fontCute, fontMono, fontBody } from '../src/theme/tokens';
 import { useResponsive } from '../src/theme/responsive';
 
@@ -44,7 +44,7 @@ export default function QRCardScreen() {
   const link = useMemo(() => profileLink(user?.loginId, user?.nickname), [user]);
   // 화면 폭에 맞춰 QR 크기를 정하되(반응형), 태블릿에서 과대해지지 않게 상한.
   const qrSize = Math.min(width - 96, isSmall ? 190 : 240);
-  const meta = user ? MEMBERSHIP_META[user.membership] : null;
+  const meta = user ? membershipMeta(user.membership) : null;
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>

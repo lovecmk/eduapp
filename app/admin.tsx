@@ -11,7 +11,7 @@ import { useAuthoredCardsStore } from '../src/store/authoredCardsStore';
 import { mockUserDb } from '../src/data/auth/mockUserDb';
 import { PACK_RULES } from '../src/data/packRules';
 import { COLLECTIBLES } from '../src/data/collectibles';
-import { MEMBERSHIP_META, type User } from '../src/domain/models/User';
+import { membershipMeta, type User } from '../src/domain/models/User';
 import { ROUTES } from '../src/constants/routes';
 import { env } from '../src/data/network/env';
 
@@ -172,7 +172,7 @@ function UsersTab() {
   return (
     <Section title={`가입 사용자 ${users.length}명`}>
       {users.map((u) => {
-        const meta = MEMBERSHIP_META[u.membership];
+        const meta = membershipMeta(u.membership);
         return (
           <View key={u.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.border }}>
             <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: meta.accent + '22', alignItems: 'center', justifyContent: 'center' }}>

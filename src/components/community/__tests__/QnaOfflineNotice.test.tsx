@@ -14,7 +14,7 @@ import { ThemeProvider } from '../../../theme/ThemeProvider';
 import { withMockFallback, __resetDegradationsForTests } from '../../../data/repositories/_fallback';
 import { ApiError } from '../../../data/network/errors';
 
-const NOTICE = '아직 서버에 연결되지 않았어요';
+const NOTICE = '질문 & 답변은 준비 중이에요';
 
 const wrap = () =>
   render(
