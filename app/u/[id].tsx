@@ -6,7 +6,7 @@ import { useTheme } from '../../src/theme/ThemeProvider';
 import { ScreenHeader } from '../../src/components/ui/ScreenHeader';
 import { Avatar } from '../../src/components/ui/Avatar';
 import { fontCute, fontBody, fontMono, fontDisplay } from '../../src/theme/tokens';
-import { MEMBERSHIP_META } from '../../src/domain/models/User';
+import { membershipMeta } from '../../src/domain/models/User';
 import { usePublicProfile } from '../../src/hooks/useUserDirectory';
 import type { PublicProfile } from '../../src/domain/models/PublicProfile';
 
@@ -34,7 +34,7 @@ export default function PublicProfileScreen() {
 }
 
 function Body({ profile, c, fs }: { profile: PublicProfile; c: any; fs: number }) {
-  const meta = MEMBERSHIP_META[profile.membership];
+  const meta = membershipMeta(profile.membership);
   const v = profile.visibility;
   // 아무것도 공개하지 않은 경우를 위한 안내 여부.
   const nothingShared = !profile.progress && profile.streakDays == null && !profile.emblems && profile.collectionCount == null;

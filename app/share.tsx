@@ -18,6 +18,7 @@ import { ROUTES } from '../src/constants/routes';
 import { endFlow } from '../src/navigation/flow';
 import { contentColumn } from '../src/theme/layout';
 import { useSafeTimeout, useIsMounted } from '../src/hooks/useSafeTimeout';
+import { displayName } from '../src/domain/models/User';
 
 export default function ShareScreen() {
   const { theme, fontScale: fs } = useTheme();
@@ -34,7 +35,8 @@ export default function ShareScreen() {
   const uploadShareCard = useShareFeedStore((s) => s.uploadShareCard);
 
   const snapshot = useMemo(() => computeAchievement(allCards, stats), [allCards, stats]);
-  const author = user?.name ?? '현장 작업자';
+  // 커뮤니티에 나가는 이름은 닉네임이다 — 본명은 공유 카드에 실리면 안 된다.
+  const author = displayName(user);
   const rarity = getRarity(snapshot);
   const tilt = useTilt(true);
 

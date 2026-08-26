@@ -21,6 +21,7 @@ import { calcEmblems, getAcquiredEmblems } from '../../src/utils/emblems';
 import { useFactionStore } from '../../src/store/factionStore';
 import { computeMoment, heroPlayfulCheer, type Moment } from '../../src/utils/moments';
 import { ROUTES } from '../../src/constants/routes';
+import { displayName } from '../../src/domain/models/User';
 import { useAllCards } from '../../src/hooks/useCards';
 import { useStudyStats } from '../../src/hooks/useStats';
 import { useReview } from '../../src/hooks/useReview';
@@ -226,12 +227,12 @@ export default function HomeScreen() {
                   <Image source={{ uri: profileImage }} style={{ width: rs(48), height: rs(48), borderRadius: rs(24), borderWidth: 2, borderColor: 'rgba(255,255,255,0.9)' }} />
                 ) : (
                   <View style={{ width: rs(48), height: rs(48), borderRadius: rs(24), backgroundColor: 'rgba(255,255,255,0.22)', borderWidth: 2, borderColor: 'rgba(255,255,255,0.5)', alignItems: 'center', justifyContent: 'center' }}>
-                    <Text style={{ color: '#fff', fontSize: rs(20), fontFamily: fontDisplay }}>{user?.name?.charAt(0) ?? '현'}</Text>
+                    <Text style={{ color: '#fff', fontSize: rs(20), fontFamily: fontDisplay }}>{displayName(user).charAt(0)}</Text>
                   </View>
                 )}
                 <View style={{ flex: 1 }}>
                   <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: rs(12.5) * fs, fontFamily: fontBody }} numberOfLines={1}>오늘도 반가워요</Text>
-                  <Text style={{ color: '#fff', fontSize: rs(18) * fs, marginTop: 1, fontFamily: fontDisplay }} numberOfLines={1}>{user?.name ?? '점검자'} 님</Text>
+                  <Text style={{ color: '#fff', fontSize: rs(18) * fs, marginTop: 1, fontFamily: fontDisplay }} numberOfLines={1}>{displayName(user)} 님</Text>
                 </View>
               </View>
               <View style={{ marginTop: 14 }} accessible accessibilityLabel={greeting}>

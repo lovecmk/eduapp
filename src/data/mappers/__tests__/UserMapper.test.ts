@@ -1,5 +1,6 @@
 import { UserMapper } from '../UserMapper';
 import type { UserDTO } from '../../dto/UserDTO';
+import { membershipMeta } from '../../../domain/models/User';
 
 (globalThis as unknown as { __DEV__: boolean }).__DEV__ = false;
 
@@ -22,6 +23,21 @@ describe('UserMapper.toDomain', () => {
     expect(u.jobTitle).toBe('대리');
     expect(u.membership).toBe('premium');
     expect(u.isActive).toBe(true);
+  });
+
+  it('모르는 등급 코드는 basic 으로 내린다 — 화면이 죽지 않아야 한다', () => {
+    // 실제 사고: 서버가 아는 세 코드 밖의 값을 보내자 membership 이 undefined 가 되고
+    // MEMBERSHIP_META[undefined].accent 에서 MY 탭이 통째로 죽었다.
+    const u = UserMapper.toDomain({ ...base, membership_cd: 'FREE' });
+    expect(u.membership).toBe('basic');
+    expect(membershipMeta(u.membership).accent).toBeTruthy();
+  });
+
+  it('membershipMeta 는 어떤 값을 받아도 표시값을 돌려준다', () => {
+    // 기기에 이미 저장된 사용자는 예전 매퍼가 넣은 잘못된 값을 들고 있다 —
+    // 다시 로그인하기 전에도 화면이 살아 있어야 한다.
+    expect(membershipMeta(undefined).label).toBeTruthy();
+    expect(membershipMeta('vip').label).toBe('VIP');
   });
 
   it('membership_cd 누락 시 basic 으로 폴백', () => {

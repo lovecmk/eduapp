@@ -5,7 +5,7 @@ import type { User, MembershipTier } from '../../domain/models/User';
 import { parseDateOr } from './_date';
 import { logger } from '../../utils/logger';
 
-const MEMBERSHIP_MAP: Record<NonNullable<UserDTO['membership_cd']>, MembershipTier> = {
+const MEMBERSHIP_MAP: Record<string, MembershipTier> = {
   BASIC: 'basic',
   PREMIUM: 'premium',
   VIP: 'vip',
@@ -19,6 +19,13 @@ export class UserMapper {
     if (!['A', 'I', 'D'].includes(dto.status_cd)) {
       logger.warn('dto_unknown_code', { mapper: 'user', field: 'status_cd', value: dto.status_cd });
     }
+    if (dto.membership_cd && !MEMBERSHIP_MAP[dto.membership_cd]) {
+      logger.warn('dto_unknown_code', {
+        mapper: 'user',
+        field: 'membership_cd',
+        value: dto.membership_cd,
+      });
+    }
     return {
       id: String(dto.id),
       loginId: dto.login_id?.trim() || undefined,
@@ -28,7 +35,11 @@ export class UserMapper {
       email: dto.email_addr,
       org: dto.org_nm?.trim(),
       jobTitle: dto.job_title?.trim(),
-      membership: dto.membership_cd ? MEMBERSHIP_MAP[dto.membership_cd] : 'basic',
+      // 모르는 등급은 basic 으로 내린다. 예전에는 조회 결과를 그대로 넣어서,
+      // 서버가 아는 세 코드 밖의 값을 하나만 보내도 membership 이 undefined 가 되고
+      // MEMBERSHIP_META[undefined].accent 에서 MY 탭이 통째로 죽었다.
+      // (CardMapper 의 status_cd 는 처음부터 이렇게 하고 있었다.)
+      membership: MEMBERSHIP_MAP[dto.membership_cd ?? ''] ?? 'basic',
       // 서버가 role_cd 를 아직 안 주는 배포에서는 관리자가 아닌 것으로 본다
       // (모를 때는 권한이 없는 쪽으로 기우는 편이 안전하다).
       isAdmin: dto.role_cd === 'ADMIN',

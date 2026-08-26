@@ -30,11 +30,28 @@ export function displayName(user?: Pick<User, 'name' | 'nickname'> | null): stri
   return user.nickname?.trim() || user.name?.trim() || '현장 작업자';
 }
 
-export const MEMBERSHIP_META: Record<
-  MembershipTier,
-  { label: string; icon: string; accent: string }
-> = {
+export interface MembershipMeta {
+  label: string;
+  icon: string;
+  accent: string;
+}
+
+export const MEMBERSHIP_META: Record<MembershipTier, MembershipMeta> = {
   basic: { label: 'Basic', icon: 'person-outline', accent: '#8E95A2' },
   premium: { label: 'Premium', icon: 'star', accent: '#2563EB' },
   vip: { label: 'VIP', icon: 'diamond', accent: '#A855F7' },
 };
+
+/**
+ * 등급 표시값을 **반드시 돌려주는** 조회 — 화면은 이쪽만 쓴다.
+ *
+ * `MEMBERSHIP_META[tier]` 를 직접 읽으면 tier 가 아는 값이 아닐 때 undefined 가 나오고,
+ * 바로 뒤의 `.accent` 에서 화면 전체가 죽는다(MY 탭이 그렇게 죽었다). 매퍼에서 이미
+ * 걸러내지만 그것만으로는 부족하다 — 기기에 **이미 저장된** 사용자는 예전 매퍼가 넣은
+ * 잘못된 값을 그대로 들고 있어서, 고친 앱으로 올려도 다시 로그인하기 전까지 계속 죽는다.
+ *
+ * 등급은 배지 하나를 칠하는 값이다. 그것 때문에 화면이 사라지면 안 된다.
+ */
+export function membershipMeta(tier: MembershipTier | undefined | null): MembershipMeta {
+  return (tier && MEMBERSHIP_META[tier]) || MEMBERSHIP_META.basic;
+}

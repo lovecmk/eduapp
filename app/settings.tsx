@@ -37,6 +37,7 @@ import {
 } from '../src/data/notifications/NotificationService';
 import { APP_NAME } from '../src/constants/brand';
 import { contentColumn } from '../src/theme/layout';
+import { displayName } from '../src/domain/models/User';
 
 const THEME_OPTIONS: ThemeMode[] = ['light', 'dark', 'dim', 'system'];
 const THEME_LABELS = ['라이트', '다크', '딤', '시스템'];
@@ -223,7 +224,7 @@ function SettingsBody({ scrollRef }: { scrollRef: React.RefObject<ScrollView> })
             {user ? (
               <View style={{ marginTop: 16 }}>
                 <MembershipCard
-                  name={user.name}
+                  name={displayName(user)}
                   email={user.email}
                   org={user.org}
                   membership={user.membership}

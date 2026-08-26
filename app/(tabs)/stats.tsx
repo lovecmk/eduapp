@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../src/theme/ThemeProvider';
 import { useAuthStore } from '../../src/store/authStore';
 import { ROUTES } from '../../src/constants/routes';
+import { displayName } from '../../src/domain/models/User';
 import { Button } from '../../src/components/ui/Button';
 import { Card } from '../../src/components/ui/Card';
 import { ErrorState } from '../../src/components/ui/ErrorState';
@@ -261,14 +262,16 @@ export default function StatsScreen() {
   const emblemRankings = useMemo(() => {
     if (!selectedEmblem) return [];
     const mock = emblemRankingMock(selectedEmblem.category);
-    const hasMe = mock.some((r) => r.nickname === (user?.name ?? ''));
-    if (!hasMe && user?.name) {
-      mock.push({ rank: 6, nickname: user.name, score: Math.round(72 - Math.random() * 15), pct: selectedEmblem.topPct });
+    // 랭킹에 걸리는 이름은 남이 보는 이름이다 — 본명이 아니라 닉네임.
+    const me = user ? displayName(user) : '';
+    const hasMe = mock.some((r) => r.nickname === me);
+    if (!hasMe && me) {
+      mock.push({ rank: 6, nickname: me, score: Math.round(72 - Math.random() * 15), pct: selectedEmblem.topPct });
       mock.sort((a, b) => b.score - a.score);
       mock.forEach((r, i) => { r.rank = i + 1; });
     }
     return mock.slice(0, 5);
-  }, [selectedEmblem, user?.name]);
+  }, [selectedEmblem, user]);
 
   const progressPct = stats?.totalCards ? Math.round((stats.totalLearned / stats.totalCards) * 100) : 0;
 

@@ -3,7 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/ThemeProvider';
 import { radius, fontCute } from '../../theme/tokens';
-import { MEMBERSHIP_META, type MembershipTier } from '../../domain/models/User';
+import { membershipMeta, type MembershipTier } from '../../domain/models/User';
 import { Avatar } from '../ui/Avatar';
 
 /** 계정/멤버십 요약 카드 — 프로필 이미지, 이름, 소속, 등급 배지를 한 곳에 표시. */
@@ -22,7 +22,7 @@ export function MembershipCard({
 }) {
   const { theme, fontScale } = useTheme();
   const c = theme.colors;
-  const meta = MEMBERSHIP_META[membership];
+  const meta = membershipMeta(membership);
 
   return (
     <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.border }]}>

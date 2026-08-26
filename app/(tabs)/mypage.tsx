@@ -16,7 +16,7 @@ import { useCollectionStore, selectPacks } from '../../src/store/collectionStore
 import { useFactionStore } from '../../src/store/factionStore';
 import { getFaction } from '../../src/constants/factions';
 import { COLLECTIBLES } from '../../src/data/collectibles';
-import { MEMBERSHIP_META, displayName } from '../../src/domain/models/User';
+import { membershipMeta, displayName } from '../../src/domain/models/User';
 import { contentColumn } from '../../src/theme/layout';
 
 export default function MyPageScreen() {
@@ -51,7 +51,7 @@ export default function MyPageScreen() {
             <Text style={{ color: c.textPrimary, fontSize: 18 * fs, fontWeight: '800', fontFamily: fontCute }} numberOfLines={1}>{displayName(user)}</Text>
             <AchievementBadge size={17} />
             {user ? (() => {
-              const meta = MEMBERSHIP_META[user.membership];
+              const meta = membershipMeta(user.membership);
               return (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: meta.accent + '1A', borderColor: meta.accent + '55', borderWidth: 1, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 }}>
                   <Ionicons name={meta.icon as never} size={11} color={meta.accent} />

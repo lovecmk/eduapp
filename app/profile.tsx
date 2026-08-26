@@ -11,7 +11,7 @@ import { ScreenHeader } from '../src/components/ui/ScreenHeader';
 import { Avatar } from '../src/components/ui/Avatar';
 import { AchievementBadge } from '../src/components/ui/AchievementBadge';
 import { fontCute, fontMono, fontBody, fontDisplay } from '../src/theme/tokens';
-import { MEMBERSHIP_META, displayName } from '../src/domain/models/User';
+import { membershipMeta, displayName } from '../src/domain/models/User';
 import { RARITY_RANK, type RarityTier } from '../src/utils/rarity';
 import { COLLECTIBLE_BY_ID, JEWEL_META } from '../src/data/collectibles';
 import { useAllCards } from '../src/hooks/useCards';
@@ -99,7 +99,7 @@ export default function ProfileScreen() {
           ) : null}
 
           {user ? (() => {
-            const meta = MEMBERSHIP_META[user.membership];
+            const meta = membershipMeta(user.membership);
             return (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: meta.accent + '1A', borderColor: meta.accent + '55', borderWidth: 1, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, marginTop: 8 }}>
                 <Ionicons name={meta.icon as never} size={12} color={meta.accent} />
