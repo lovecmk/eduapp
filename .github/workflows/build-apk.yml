@@ -6,7 +6,7 @@
 #  3) `expo prebuild` 로 android/ 생성
 #  4) `gradlew assembleRelease` 로 APK 생성
 #     (Expo 템플릿은 release 를 debug 키로 서명하므로 그대로 설치 가능한 APK 가 나온다)
-#  5) APK 를 아티팩트로 업로드
+#  5) APK 를 아티팩트로 업로드(main 은 릴리스 자산으로 대체 → 용량 절약)
 #  6) main 일 때만: GitHub Release 발행(APK 첨부) + 완료 메일 발송
 #
 # EAS(클라우드) 빌드는 eas-build.yml 이 담당한다. 이 워크플로는 EXPO_TOKEN 이 필요 없다.
@@ -40,9 +40,10 @@ on:
           - test         # http://test.inplat.org:8090 (사내망 전용 · 평문)
           - mock         # 서버 없이 화면만 (목업)
 
-# 릴리스 생성 및 태그 푸시에 필요.
+# contents: 릴리스 생성 및 태그 푸시 / actions: 낡은 아티팩트 정리(용량 확보).
 permissions:
   contents: write
+  actions: write
 
 jobs:
   build-apk:
@@ -141,13 +142,48 @@ jobs:
           echo "- 파일: \`${APK_NAME}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- 크기: $(du -h "out/${APK_NAME}" | cut -f1)" >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Upload APK artifact
+      # 아티팩트 저장 용량은 계정 단위로 한도가 있고, 초과하면 업로드가
+      # 'Artifact storage quota has been hit' 로 실패한다. APK 하나가 수십 MB 라
+      # 쌓이면 금방 한도에 닿으므로, 올리기 전에 이 워크플로가 만든 낡은 APK
+      # 아티팩트를 지워 자리를 비운다(최신 1개만 남긴다).
+      # 주의: GitHub 의 사용량 집계는 6~12시간마다 갱신되므로, 지운 직후에도
+      # 한도 표시가 남아 있을 수 있다. 그래서 아래 업로드는 실패해도 잡을
+      # 죽이지 않는다(APK 는 릴리스 자산으로도 배포된다).
+      - name: Prune old APK artifacts
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api --paginate \
+            "repos/${GITHUB_REPOSITORY}/actions/artifacts?per_page=100" \
+            --jq '.artifacts[] | select(.expired == false) | select(.name | startswith("eduapp-android-apk")) | "\(.id) \(.created_at) \(.size_in_bytes)"' \
+            | sort -k2 -r | tail -n +2 > "$RUNNER_TEMP/stale.txt" || true
+          if [ ! -s "$RUNNER_TEMP/stale.txt" ]; then
+            echo "지울 낡은 아티팩트 없음"
+            exit 0
+          fi
+          FREED=0
+          while read -r ID CREATED SIZE; do
+            echo "삭제: artifact ${ID} (${CREATED}, $((SIZE / 1024 / 1024))MB)"
+            gh api -X DELETE "repos/${GITHUB_REPOSITORY}/actions/artifacts/${ID}" || true
+            FREED=$((FREED + SIZE))
+          done < "$RUNNER_TEMP/stale.txt"
+          echo "확보한 용량: $((FREED / 1024 / 1024))MB"
+
+      # main 은 아래에서 GitHub Release 에 같은 APK 를 첨부한다. 릴리스 자산은
+      # 아티팩트 쿼터를 쓰지 않으므로, main 에서는 아티팩트를 중복으로 올리지
+      # 않는다. (다른 브랜치/수동 실행에서는 릴리스가 없으므로 아티팩트가 유일한
+      # 산출물 → 그때만 업로드한다.)
+      - name: Upload APK artifact (non-main only)
+        if: github.ref != 'refs/heads/main'
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: eduapp-android-apk
           path: ${{ steps.collect.outputs.apk_path }}
           if-no-files-found: error
-          retention-days: 30
+          # 30일 → 5일. 보관 기간이 곧 점유 용량이다.
+          retention-days: 5
 
       # ---- 이하 main 브랜치에서만 실행 ----
 

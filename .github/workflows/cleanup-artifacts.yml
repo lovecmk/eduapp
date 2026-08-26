@@ -1,0 +1,62 @@
+# 아티팩트 용량 청소 — 수동 실행 또는 매주 자동.
+#
+# GitHub 의 아티팩트 저장 용량은 계정 단위 한도가 있고, 넘치면 어떤 워크플로도
+# 아티팩트를 올릴 수 없다("Artifact storage quota has been hit"). APK 는 하나에
+# 수십 MB 라 몇 번만 쌓여도 한도에 닿는다.
+#
+# 이 워크플로는 저장소의 아티팩트를 최신 것 몇 개만 남기고 지운다.
+# 지금 당장 한도를 풀어야 하면 Actions 탭에서 이 워크플로를 수동 실행하면 된다.
+# (사용량 집계는 6~12시간마다 갱신되므로, 지운 뒤 표시가 바로 줄지 않을 수 있다.)
+name: Cleanup artifacts
+
+on:
+  workflow_dispatch:
+    inputs:
+      keep:
+        description: '남겨 둘 최신 아티팩트 개수'
+        type: string
+        default: '1'
+  schedule:
+    # 매주 월요일 03:00 UTC (한국 시간 정오)
+    - cron: '0 3 * * 1'
+
+permissions:
+  actions: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete old artifacts
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          KEEP: ${{ inputs.keep || '1' }}
+        run: |
+          gh api --paginate \
+            "repos/${GITHUB_REPOSITORY}/actions/artifacts?per_page=100" \
+            --jq '.artifacts[] | select(.expired == false) | "\(.id) \(.created_at) \(.size_in_bytes) \(.name)"' \
+            | sort -k2 -r > all.txt
+
+          TOTAL=$(awk '{s += $3} END {print s + 0}' all.txt)
+          echo "현재 아티팩트 $(wc -l < all.txt)개 / $((TOTAL / 1024 / 1024))MB"
+
+          tail -n "+$((KEEP + 1))" all.txt > stale.txt
+          if [ ! -s stale.txt ]; then
+            echo "지울 것 없음 (최신 ${KEEP}개만 남기는 중)"
+            exit 0
+          fi
+
+          FREED=0
+          while read -r ID CREATED SIZE NAME; do
+            echo "삭제: ${NAME} (${CREATED}, $((SIZE / 1024 / 1024))MB)"
+            gh api -X DELETE "repos/${GITHUB_REPOSITORY}/actions/artifacts/${ID}" || true
+            FREED=$((FREED + SIZE))
+          done < stale.txt
+
+          {
+            echo "### 🧹 아티팩트 정리 완료"
+            echo ""
+            echo "- 삭제: $(wc -l < stale.txt)개"
+            echo "- 확보: $((FREED / 1024 / 1024))MB"
+            echo "- 남김: 최신 ${KEEP}개"
+          } >> "$GITHUB_STEP_SUMMARY"
