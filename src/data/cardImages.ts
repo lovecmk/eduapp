@@ -28,22 +28,33 @@ import { peekItem, StorageKeys } from './storage/secureStorage';
  * 웹(react-native-web)에서는 <img> 가 헤더를 실을 수 없어 이 경로가 401 로
  * 실패한다. 배포 대상은 안드로이드·iOS 라(eas.json) 실사용에는 영향이 없고,
  * 웹 미리보기에서는 QuestionImage 가 '불러올 수 없어요' 자리를 남긴다.
+ *
+ * ── 파일 이름에는 하이픈을 쓰지 않는다 ─────────────────────────────────────
+ * 키는 그대로 '1-1' 이지만 **파일은 `1_1.png` 이다.** 안드로이드 빌드는 번들
+ * 사진을 drawable 리소스로 옮기면서 이름에서 글자·숫자·밑줄이 **아닌 것을
+ * 지운다**(react-native/assets-registry — 자리를 밑줄로 바꾸는 것이 아니라
+ * 그냥 지운다). 그래서 `1-1.png` 과 `11.jpg` 가 둘 다 `assets_img_11` 이 되어
+ * "Duplicate resources" 로 APK 빌드가 통째로 깨졌다. 웹·개발 서버는 파일 경로를
+ * 그대로 쓰므로 아무 일도 없다 — 릴리스 빌드에서만 터지는 종류의 사고다.
+ *
+ * 밑줄은 살아남으므로 `1_1.png` 은 `assets_img_1_1` 로 남아 부딪히지 않는다.
+ * 사진을 새로 넣을 때도 하이픈 대신 밑줄을 쓴다(규칙은 테스트가 지킨다).
  */
 export const CARD_IMAGES: Record<string, ImageSourcePropType> = {
-  '1-1': require('../../assets/img/1-1.png'),
-  '1-2': require('../../assets/img/1-2.jpg'),
-  '2-1': require('../../assets/img/2-1.jpg'),
-  '2-2': require('../../assets/img/2-2.jpg'),
-  '3-1': require('../../assets/img/3-1.jpg'),
-  '3-2': require('../../assets/img/3-2.jpg'),
+  '1-1': require('../../assets/img/1_1.png'),
+  '1-2': require('../../assets/img/1_2.jpg'),
+  '2-1': require('../../assets/img/2_1.jpg'),
+  '2-2': require('../../assets/img/2_2.jpg'),
+  '3-1': require('../../assets/img/3_1.jpg'),
+  '3-2': require('../../assets/img/3_2.jpg'),
   '4': require('../../assets/img/4.jpg'),
-  '5-1': require('../../assets/img/5-1.jpg'),
-  '5-2': require('../../assets/img/5-2.jpg'),
-  '6-1': require('../../assets/img/6-1.jpg'),
-  '6-2': require('../../assets/img/6-2.jpg'),
+  '5-1': require('../../assets/img/5_1.jpg'),
+  '5-2': require('../../assets/img/5_2.jpg'),
+  '6-1': require('../../assets/img/6_1.jpg'),
+  '6-2': require('../../assets/img/6_2.jpg'),
   '7': require('../../assets/img/7.jpg'),
-  '8-1': require('../../assets/img/8-1.jpg'),
-  '8-2': require('../../assets/img/8-2.jpg'),
+  '8-1': require('../../assets/img/8_1.jpg'),
+  '8-2': require('../../assets/img/8_2.jpg'),
   '9': require('../../assets/img/9.jpg'),
   '10': require('../../assets/img/10.jpg'),
   '11': require('../../assets/img/11.jpg'),
