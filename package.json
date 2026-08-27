@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "jest",
     "test:watch": "jest --watch",
-    "verify": "npm run typecheck && npm test"
+    "verify": "npm run typecheck && npm test",
+    "export:cards": "node scripts/export-cards.mjs"
   },
   "dependencies": {
     "@expo/metro-runtime": "~4.0.1",
