@@ -26,19 +26,36 @@ async function guard<T>(op: () => Promise<T>, fallback: T, action: string, key: 
   }
 }
 
+/**
+ * 마지막으로 오간 값의 사본 — **동기로 읽어야 하는 자리** 하나를 위해 둔다.
+ *
+ * 이 저장소는 전부 비동기다(SecureStore 가 그렇다). 그런데 카드 사진 주소를
+ * 만드는 자리는 동기다 — 렌더 도중 `<Image source={{ uri, headers }}>` 를
+ * 만들어야 하고, 거기서 토큰을 기다릴 수가 없다. 기다리게 만들면 사진마다
+ * 로딩 한 박자가 더 생기고, 그 사이 첫 렌더는 토큰 없는 주소로 나가 401 을
+ * 받는다(그리고 immutable 로 캐시된다).
+ *
+ * 사본은 **이 저장소를 거친 값만** 담는다. 앱은 매 요청마다 액세스 토큰을
+ * 읽으므로(ApiClient) 사본은 늘 최신이고, 지우면 함께 지워진다. 값이 아직
+ * 없으면 null 이다 — 그때는 사진이 401 로 실패하고 화면에 '불러올 수 없어요'
+ * 자리가 남는다(빈 화면이 아니라).
+ */
+const mirror = new Map<string, string | null>();
+
+/** 사본에서 곧바로 읽는다 — 아직 한 번도 오가지 않은 키는 null. */
+export function peekItem(key: string): string | null {
+  return mirror.get(key) ?? null;
+}
+
 export const secureStorage = {
   async getItem(key: string): Promise<string | null> {
-    if (isWeb) {
-      try {
-        return globalThis.localStorage?.getItem(key) ?? null;
-      } catch {
-        return null;
-      }
-    }
-    return guard(() => SecureStore.getItemAsync(key), null, 'get', key);
+    const value = await readItem(key);
+    mirror.set(key, value);
+    return value;
   },
 
   async setItem(key: string, value: string): Promise<void> {
+    mirror.set(key, value);
     if (isWeb) {
       try {
         globalThis.localStorage?.setItem(key, value);
@@ -51,6 +68,7 @@ export const secureStorage = {
   },
 
   async removeItem(key: string): Promise<void> {
+    mirror.delete(key);
     if (isWeb) {
       try {
         globalThis.localStorage?.removeItem(key);
@@ -62,6 +80,18 @@ export const secureStorage = {
     await guard(() => SecureStore.deleteItemAsync(key), undefined, 'remove', key);
   },
 };
+
+/** 실제 저장소에서 읽는다(웹은 localStorage, 네이티브는 SecureStore). */
+async function readItem(key: string): Promise<string | null> {
+  if (isWeb) {
+    try {
+      return globalThis.localStorage?.getItem(key) ?? null;
+    } catch {
+      return null;
+    }
+  }
+  return guard(() => SecureStore.getItemAsync(key), null, 'get', key);
+}
 
 export const StorageKeys = {
   accessToken: 'accessToken',

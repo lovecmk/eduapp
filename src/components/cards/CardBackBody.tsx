@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/ThemeProvider';
 import { fontDisplay, fontBody, fontMono } from '../../theme/tokens';
 import { QuestionImage } from '../ui/QuestionImage';
-import { resolveCardImage } from '../../data/cardImages';
+import { resolveCardImage, hasCardImage } from '../../data/cardImages';
 import type { LearningCard } from '../../domain/models/LearningCard';
 
 /** 프로세스 체인 문자열을 단계로 분리("→" 또는 원문자 기준). */
@@ -29,8 +29,8 @@ export function CardBackBody({ card }: { card: LearningCard }) {
   return (
     <View style={{ gap: 12 }}>
       {/* 뒷면 미디어(해설 도해/사진) */}
-      {resolveCardImage(card.answerImageUrl) && (
-        <QuestionImage source={resolveCardImage(card.answerImageUrl)} height={170} />
+      {hasCardImage(card.answerImageUrl) && (
+        <QuestionImage source={resolveCardImage(card.answerImageUrl)} height={170} alt={`${card.title} 해설 사진`} />
       )}
 
       {/* 원리(먼저 근거를 제시하고) */}

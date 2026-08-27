@@ -29,7 +29,7 @@ import { useReview } from '../../src/hooks/useReview';
 import { useDailyQuota, recordNewLearned } from '../../src/hooks/useDailyQuota';
 import { useDailyAssignment } from '../../src/hooks/useDailyAssignment';
 import type { LearningCard } from '../../src/domain/models/LearningCard';
-import { resolveCardImage } from '../../src/data/cardImages';
+import { resolveCardImage, hasCardImage } from '../../src/data/cardImages';
 import { useBookmarkStore } from '../../src/store/bookmarkStore';
 import { useLikeStore } from '../../src/store/likeStore';
 import { useReportStore } from '../../src/store/reportStore';
@@ -122,19 +122,40 @@ export default function CardsScreen() {
    */
   const quizScrollRef = useRef<ScrollView>(null);
   /**
-   * 뒷면 해설을 손가락으로 끌고 있는 중인가.
+   * 뒷면 해설을 방금 스크롤했는가.
    *
-   * 카드 면 전체가 '탭하면 뒤집기' 판이라, 해설을 조금 끌었다 뗀 동작이 탭으로
-   * 읽히면 읽던 해설이 사라지고 앞면으로 돌아가 버린다. 스크롤이 시작되면 표시해
-   * 두었다가, 손을 뗀 직후 짧은 동안의 탭 한 번을 삼킨다.
+   * 카드 면 전체가 '탭하면 뒤집기' 판이라, 해설을 읽으려고 움직인 직후의 탭이
+   * 뒤집기로 읽히면 읽던 글이 사라지고 앞면으로 돌아가 버린다.
+   *
+   * 예전에는 이것을 **끌기(drag)** 로만 판단했다(onScrollBeginDrag/EndDrag).
+   * 그런데 스크롤이 손가락 끌기로만 일어나지 않는다 — 휠, 스크롤 막대 끌기,
+   * 키보드, 스크린 리더의 이동은 그 두 신호를 **한 번도 쏘지 않는다.** 그래서
+   * 웹에서 휠로 해설을 내린 뒤 아무 데나 누르면 카드가 그대로 뒤집혔다(재현됨).
+   *
+   * 지금은 **스크롤이 실제로 일어났는가**만 본다. 어떤 방식으로 움직였든
+   * onScroll 은 오므로, 신호 하나로 모든 경로가 덮인다.
    */
-  const draggingBackRef = useRef(false);
-  const backDragEndRef = useRef(0);
-  const markBackDragEnd = useCallback(() => {
-    draggingBackRef.current = false;
-    backDragEndRef.current = Date.now();
+  const backScrollRef = useRef<ScrollView>(null);
+  const backScrolledAtRef = useRef(0);
+  /**
+   * 우리가 스스로 올린 스크롤은 세지 않는다.
+   *
+   * 뒤집을 때 해설을 맨 위로 되돌리는데(아래 doFlip), 그 움직임도 onScroll 을
+   * 쏜다. 그것까지 '방금 스크롤함'으로 세면 뒷면을 열자마자 가드가 켜져서,
+   * 곧바로 앞면으로 되돌아가려는 탭 한 번이 통째로 삼켜진다.
+   */
+  const ignoreBackScrollUntilRef = useRef(0);
+  const markBackScroll = useCallback(() => {
+    if (Date.now() < ignoreBackScrollUntilRef.current) return;
+    backScrolledAtRef.current = Date.now();
   }, []);
-  const BACK_DRAG_TAP_GUARD_MS = 220;
+  /** 해설을 맨 위로 — 뒷면은 늘 첫 줄부터 읽혀야 한다. */
+  const resetBackScroll = useCallback(() => {
+    ignoreBackScrollUntilRef.current = Date.now() + 150;
+    backScrolledAtRef.current = 0;
+    backScrollRef.current?.scrollTo({ y: 0, animated: false });
+  }, []);
+  const BACK_SCROLL_TAP_GUARD_MS = 260;
 
   // 퀴즈 미풀이 상태에서 넘기려 할 때 잠깐 노출되는 안내.
   const [solveHint, setSolveHint] = useState(false);
@@ -331,6 +352,9 @@ export default function CardsScreen() {
   const doFlip = useCallback((next: boolean) => {
     haptic();
     setFlipped(next);
+    // 뒷면을 열 때는 늘 첫 줄부터. (앞면으로 갔다가 다시 와도 마찬가지다 —
+    // 돌아왔을 때 중간부터 보이면 어디를 읽던 중이었는지 되짚어야 한다.)
+    if (next) resetBackScroll();
     // 그림자는 **끄지 않는다.** 예전에는 도는 동안 통째로 지웠는데, 라이트 모드에서는
     // 카드도 배경도 흰색이라 그림자가 사라진 순간 카드가 배경에 녹아 없어져 보였다.
     // 지금은 그림자 판이 회전각에 맞춰 가로로 좁아졌다 넓어지므로(shadowScaleX),
@@ -346,7 +370,7 @@ export default function CardsScreen() {
       easing: Easing.inOut(Easing.ease),
       useNativeDriver: true,
     }).start();
-  }, [flipAnim]);
+  }, [flipAnim, resetBackScroll]);
 
   // 퀴즈(OX/객관식) 보기 선택 → 정답/오답 이펙트(햅틱)만 주고, 뒤집기는 하지 않는다.
   // 자동으로 넘어가면 정답을 곱씹을 새가 없어, 사용자가 카드를 직접 탭해 해설로 넘어가도록 둔다.
@@ -375,11 +399,13 @@ export default function CardsScreen() {
   // 바뀌어도 남으므로, 그냥 두면 새 문제가 중간부터 보인다.
   useEffect(() => {
     quizScrollRef.current?.scrollTo({ y: 0, animated: false });
-    // 카드가 바뀌면 '해설을 끌던 중' 표시도 함께 지운다 —
-    // 어떤 이유로든 남아 있으면 새 카드의 첫 탭이 통째로 삼켜진다.
-    draggingBackRef.current = false;
-    backDragEndRef.current = 0;
-  }, [card?.id]);
+    // 뒷면도 함께 맨 위로 되돌린다.
+    //
+    // 스크롤 위치는 카드가 바뀌어도 남는다. 그냥 두면 앞 카드에서 해설을 끝까지
+    // 내려 읽은 사람은 **다음 카드의 해설을 중간부터** 보게 된다 — 첫 문장이
+    // 대개 '무엇이 문제인가'라, 그 한 줄을 건너뛰면 카드가 통째로 읽히지 않는다.
+    resetBackScroll();
+  }, [card?.id, resetBackScroll]);
 
   // 화면 이탈/카드 전환 시 예약된 타이머 정리.
   useEffect(() => () => {
@@ -539,8 +565,8 @@ export default function CardsScreen() {
   // 카드 탭 — 앞면이면 뒤집고(퀴즈 미풀이면 막음), 뒷면이면 다시 앞으로.
   const onCardPress = useCallback(() => {
     if (exiting) return;
-    // 해설을 끌던 중이거나 방금 놓았다면, 이 탭은 스크롤의 꼬리다 — 뒤집지 않는다.
-    if (draggingBackRef.current || Date.now() - backDragEndRef.current < BACK_DRAG_TAP_GUARD_MS) return;
+    // 방금 해설을 움직였다면 이 탭은 스크롤의 꼬리다 — 뒤집지 않는다.
+    if (Date.now() - backScrolledAtRef.current < BACK_SCROLL_TAP_GUARD_MS) return;
     if (!flipped) {
       const isQuizCard = card && (card.type === 'ox' || card.type === 'choice');
       if (isQuizCard && !quizRevealed) { shakeMustSolve(); return; }
@@ -969,9 +995,12 @@ export default function CardsScreen() {
                   contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingVertical: 6 }}
                   {...quizBody.scrollProps}
                 >
-                  {resolveCardImage(card.imageUrl) && (
+                  {/* 사진 칸은 **카드가 사진을 가졌다고 말하면** 그린다. 푸는 데
+                      실패했더라도 자리는 남긴다 — 그림이 곧 문제인 카드에서
+                      칸까지 사라지면 학습자는 '사진 없는 문제'로 읽고 넘긴다. */}
+                  {hasCardImage(card.imageUrl) && (
                     <View style={{ width: '100%', marginBottom: 14 }}>
-                      <QuestionImage source={resolveCardImage(card.imageUrl)} height={172} />
+                      <QuestionImage source={resolveCardImage(card.imageUrl)} height={172} alt={card.title} />
                     </View>
                   )}
                   {!!card.situation && (
@@ -1005,9 +1034,9 @@ export default function CardsScreen() {
                   contentContainerStyle={{ flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 4 }}
                   {...frontBody.scrollProps}
                 >
-                  {resolveCardImage(card.imageUrl) ? (
+                  {hasCardImage(card.imageUrl) ? (
                     <View style={{ width: '100%', marginBottom: 18 }}>
-                      <QuestionImage source={resolveCardImage(card.imageUrl)} height={200} />
+                      <QuestionImage source={resolveCardImage(card.imageUrl)} height={200} alt={card.title} />
                     </View>
                   ) : (
                     <Ionicons name={getCategoryIcon(card.category)} size={40 * fs} color={c.primary} style={{ marginBottom: 12, opacity: 0.6 }} />
@@ -1056,6 +1085,7 @@ export default function CardsScreen() {
                    짧게 끈 드래그가 탭으로 읽히면 읽던 해설이 사라져 버린다(draggingBackRef). */}
             <View style={{ flex: 1 }}>
               <ScrollView
+                ref={backScrollRef}
                 style={{ flex: 1 }}
                 showsVerticalScrollIndicator
                 persistentScrollbar
@@ -1065,9 +1095,13 @@ export default function CardsScreen() {
                 // 마지막 줄이 카드 밑동에 딱 붙지 않도록 넉넉히 띄운다.
                 contentContainerStyle={{ paddingBottom: 20 }}
                 {...backBody.scrollProps}
-                onScrollBeginDrag={() => { draggingBackRef.current = true; }}
-                onScrollEndDrag={() => { markBackDragEnd(); }}
-                onMomentumScrollEnd={() => { markBackDragEnd(); }}
+                // 가림막 계산(backBody)과 탭 가드를 **같은 신호**로 처리한다.
+                // 끌기 신호(BeginDrag/EndDrag)는 휠·스크롤 막대에서 오지 않아
+                // 가드가 켜지지 않았다 — onScroll 은 어떤 방식이든 온다.
+                onScroll={(e) => {
+                  backBody.scrollProps.onScroll(e);
+                  markBackScroll();
+                }}
               >
                 <CardBackBody card={card} />
               </ScrollView>

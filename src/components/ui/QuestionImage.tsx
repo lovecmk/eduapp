@@ -37,7 +37,20 @@ export function QuestionImage({
   const [failed, setFailed] = useState(false);
   const [viewerOpen, setViewerOpen] = useState(false);
   const imgSource = source ?? (uri ? { uri } : undefined);
-  const canExpand = expandable && !failed && !!imgSource;
+  /**
+   * 그림이 없거나 못 불러온 상태.
+   *
+   * 예전에는 source 가 없으면 스피너가 **영원히** 돌았다(onLoadEnd 가 올 일이
+   * 없으니 loading 이 풀리지 않는다). 그래서 부르는 쪽마다 "풀리면 그릴 것"
+   * 이라는 조건을 달았고, 그 결과 사진을 못 푼 카드는 사진 칸이 통째로 사라져
+   * 학습자에게 '사진 없는 문제'로 보였다 — 문제가 "어떤 문제점이 있을까?" 인
+   * 카드에서는 그림이 곧 문제라서 풀 수가 없다.
+   *
+   * 이제 그림이 없으면 **자리를 남긴다.** 여기에 그림이 있어야 한다는 사실이
+   * 화면에 남아야, 학습자는 넘기지 않고 신고하거나 다시 불러올 수 있다.
+   */
+  const missing = !imgSource || failed;
+  const canExpand = expandable && !missing;
 
   return (
     <>
@@ -49,7 +62,7 @@ export function QuestionImage({
         onPress={(e) => { (e as unknown as { stopPropagation?: () => void })?.stopPropagation?.(); setViewerOpen(true); }}
         style={[styles.wrap, { height, backgroundColor: c.surfaceAlt, borderColor: c.border }]}
       >
-        {!failed && imgSource && (
+        {!missing && (
           <Image
             source={imgSource}
             // 문제의 일부다 — 이 그림을 못 보면 문제를 풀 수 없다.
@@ -62,16 +75,21 @@ export function QuestionImage({
           />
         )}
 
-        {loading && !failed && (
+        {loading && !missing && (
           <View style={styles.center}>
             <ActivityIndicator color={c.primary} />
           </View>
         )}
 
-        {failed && (
+        {missing && (
           <View style={styles.center}>
             <Ionicons name="image-outline" size={30} color={c.textSecondary} />
             <Text style={[styles.failText, { color: c.textSecondary }]}>이미지를 불러올 수 없어요</Text>
+            {!!alt && (
+              <Text style={[styles.failAlt, { color: c.textSecondary }]} numberOfLines={2}>
+                {alt}
+              </Text>
+            )}
           </View>
         )}
 
@@ -138,6 +156,8 @@ const styles = StyleSheet.create({
   wrap: { width: '100%', borderRadius: 14, borderWidth: 1, overflow: 'hidden' },
   center: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', gap: 6 },
   failText: { fontSize: 12, fontFamily: fontBody },
+  /** 그림 대신 남는 설명 — 그림이 문제의 일부일 때 최소한 무엇이 있어야 하는지는 알린다. */
+  failAlt: { fontSize: 11, fontFamily: fontBody, opacity: 0.8, paddingHorizontal: 16, textAlign: 'center' },
   badge: {
     position: 'absolute', top: 10, left: 10,
     flexDirection: 'row', alignItems: 'center', gap: 4,
