@@ -62,8 +62,12 @@ for (const c of cards) {
   const body = [];
   body.push(`situation: ${q(c.situation_txt)}`);
   body.push(`question: ${q(c.question_txt)}`);
-  if (c.image_url) body.push(`imageUrl: ${q(c.image_url)}`);
-  if (c.answer_image_url) body.push(`answerImageUrl: ${q(c.answer_image_url)}`);
+    if (c.image_url && c.image_url !== 'null' && c.image_url !== '') {
+    body.push(`imageUrl: ${q(c.image_url)}`);
+  }
+  if (c.answer_image_url && c.answer_image_url !== 'null' && c.answer_image_url !== '') {
+    body.push(`answerImageUrl: ${q(c.answer_image_url)}`);
+  }
   if (c.choices?.length) {
     body.push(`choices: ${JSON.stringify(c.choices)}`);
     if (c.answer_index !== null && c.answer_index !== undefined) body.push(`answerIndex: ${c.answer_index}`);
@@ -73,7 +77,10 @@ for (const c of cards) {
   if (c.fire_triangle_txt) body.push(`fireTriangle: ${q(c.fire_triangle_txt)}`);
   body.push(`conclusion: ${q(c.conclusion_txt)}`);
   if (c.source_txt) body.push(`source: ${q(c.source_txt)}`);
-  body.push(`hasImage: ${Boolean(c.image_url || c.answer_image_url)}`);
+  
+  const hasImageUrl = c.image_url && c.image_url !== 'null' && c.image_url !== '';
+  const hasAnswerImageUrl = c.answer_image_url && c.answer_image_url !== 'null' && c.answer_image_url !== '';
+  body.push(`hasImage: ${Boolean(hasImageUrl || hasAnswerImageUrl)}`);
 
   lines.push(`  { ${f.join(', ')},\n    ${body.join(',\n    ')} },`);
 }
