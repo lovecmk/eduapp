@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Ionicons } from '@expo/vector-icons';
+import { env } from '../data/network/env';
 
 // 모델은 domain 으로 옮겨 서버 저장소(INotificationRepository)와 공유한다.
 export type { NotificationType, AppNotification } from '../domain/models/Notification';
@@ -47,12 +48,27 @@ interface NotificationState {
   toggleMute: (type: NotificationType) => void;
   setMute: (type: NotificationType, muted: boolean) => void;
   refresh: () => void;
+  /**
+   * 서버가 보관한 알림으로 목록을 **교체한다.**
+   *
+   * 합치지 않고 갈아 끼우는 이유 — 알림은 서버가 만들고 서버가 읽음을 기록한다
+   * (관리 콘솔의 공지 발송이 유일한 생산자다). 로컬과 합치면 지운 알림이
+   * 되살아나고, 읽음 상태가 기기마다 갈린다.
+   */
+  applyServer: (items: AppNotification[]) => void;
 }
 
 export const useNotificationStore = create<NotificationState>()(
   persist(
     (set, get) => ({
-      items: seedNotifications(),
+      // 실서버 모드에서는 빈 목록으로 시작한다.
+      //
+      // 예전에는 여기에 시드 4건("연속 학습 5일 달성! 🔥", "하루3분ON 업데이트" …)이
+      // 늘 들어 있었다. 그 알림들은 아무 근거 없이 만들어진 문구였고, 사용자는
+      // 자기가 5일 연속 학습했다고 읽었다. 서버가 보낸 알림을 받아오는 경로
+      // (useNotificationSync)가 붙기 전까지 그 자리를 채우려던 것인데,
+      // 그 경로가 없는 동안 화면은 계속 지어낸 값을 보여 주고 있었다.
+      items: env.useMockData ? seedNotifications() : [],
       // 복습 주기(remind)·새 콘텐츠(new)는 기본적으로 보내지 않는다(사용자 설정에서도 노출 안 함).
       mutedTypes: { new: true, remind: true, achievement: false, system: false },
 
@@ -64,10 +80,12 @@ export const useNotificationStore = create<NotificationState>()(
       toggleMute: (type) => set((s) => ({ mutedTypes: { ...s.mutedTypes, [type]: !s.mutedTypes[type] } })),
       setMute: (type, muted) => set((s) => ({ mutedTypes: { ...s.mutedTypes, [type]: muted } })),
       refresh: () => set({ items: seedNotifications() }),
+      applyServer: (items) => set({ items }),
     }),
     {
       name: 'notifications',
-      version: 3,
+      // v4: 실서버 모드에서 시드 알림을 걷어낸다(위 items 주석 참고).
+      version: 4,
       storage: createJSONStorage(() => AsyncStorage),
       // 알림 항목은 목업이므로 사용자 선호(mutedTypes)만 영속화.
       partialize: (s) => ({ mutedTypes: s.mutedTypes }),

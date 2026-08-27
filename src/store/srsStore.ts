@@ -15,7 +15,24 @@ interface SrsState {
   /** 채점: 상태 갱신 + 오늘 히스토리 기록. 다음 상태의 box 를 반환. */
   grade: (cardId: string, grade: Grade) => number;
   getState: (cardId: string) => SrsCardState | undefined;
+  /**
+   * 서버 스냅샷을 로컬에 병합한다(기기 변경·재설치 후 복원).
+   *
+   * **덮어쓰지 않고 합친다.** 오프라인에서 방금 채점한 것이 서버에는 아직
+   * 없을 수 있는데, 서버 값으로 통째로 갈아 끼우면 그 채점이 사라진다.
+   * 카드별로는 **더 나중에 복습한 쪽**이 이긴다 — 같은 카드를 두 기기에서
+   * 풀었다면 마지막에 푼 것이 그 카드의 현재 상태다.
+   */
+  applyServer: (snapshot: { cards: Record<string, SrsCardState>; history: Record<string, string[]> }) => void;
   reset: () => void;
+}
+
+/** 두 SRS 상태 중 더 최근에 복습한 쪽. 시각이 같거나 없으면 reps 가 많은 쪽. */
+function newerSrs(a: SrsCardState, b: SrsCardState): SrsCardState {
+  const at = a.lastReviewedAt ?? 0;
+  const bt = b.lastReviewedAt ?? 0;
+  if (at !== bt) return at > bt ? a : b;
+  return a.reps >= b.reps ? a : b;
 }
 
 export const useSrsStore = create<SrsState>()(
@@ -50,6 +67,24 @@ export const useSrsStore = create<SrsState>()(
       },
 
       getState: (cardId) => get().cards[cardId],
+
+      applyServer: ({ cards, history }) => {
+        const localCards = get().cards;
+        const mergedCards: Record<string, SrsCardState> = { ...localCards };
+        for (const [id, remote] of Object.entries(cards)) {
+          const local = localCards[id];
+          mergedCards[id] = local ? newerSrs(local, remote) : remote;
+        }
+
+        // 이력은 '그날 무엇을 공부했나'라 합집합이 맞다 — 어느 기기에서 풀었든
+        // 그날 공부한 것은 사실이고, 한쪽을 버리면 달력에 구멍이 난다.
+        const mergedHistory: Record<string, string[]> = { ...get().history };
+        for (const [day, ids] of Object.entries(history)) {
+          mergedHistory[day] = Array.from(new Set([...(mergedHistory[day] ?? []), ...ids]));
+        }
+        set({ cards: mergedCards, history: mergedHistory });
+      },
+
       reset: () => set({ cards: {}, history: {}, seeded: false }),
     }),
     {

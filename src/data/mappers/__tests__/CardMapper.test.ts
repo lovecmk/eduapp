@@ -81,3 +81,50 @@ describe('CardMapper.toDomain', () => {
     expect(list.map((c) => c.id)).toEqual(['c1', 'c2']);
   });
 });
+
+/**
+ * 서버가 실제로 내보내는 분류 코드 여덟 개.
+ *
+ * BE `domain.CardCategories`(daily3min/domain/studio.go)와 같은 목록이다.
+ * 스튜디오에서 발행되는 문제는 이 코드를 달고 나오는데, 앱의 CATEGORY_MAP 에
+ * 없는 코드는 조용히 '전기 위험'으로 폴백한다 — 오류가 나지 않아서, 검수를
+ * 통과한 소방시설 문제 아홉 장이 전부 '전기 위험'으로 보이던 것을 아무도
+ * 알아채지 못했다. 이 시험이 그 자리를 지킨다.
+ */
+const SERVER_CATEGORY_CODES: Record<string, string> = {
+  ELEC: '전기 위험',
+  BATTERY: '전기 위험',
+  PROCESS: '공정 위험',
+  HAZMAT: '위험물',
+  FIELD: '현장 점검',
+  FIRE: '현장 점검',
+  EGRESS: '현장 점검',
+  SPREAD: '현장 점검',
+  ETC: '현장 점검',
+};
+
+describe('CardMapper 분류 코드 계약', () => {
+  it.each(Object.entries(SERVER_CATEGORY_CODES))(
+    '%s 를 %s 로 접는다',
+    (code, expected) => {
+      const card = CardMapper.toDomain({ ...base, category_cd: code });
+      expect(card.category).toBe(expected);
+    },
+  );
+
+  it('서버 코드는 하나도 빠짐없이 표에 있어야 한다 (누락은 조용한 폴백이 된다)', () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    for (const code of Object.keys(SERVER_CATEGORY_CODES)) {
+      CardMapper.toDomain({ ...base, category_cd: code });
+    }
+    // dto_unknown_code 경고가 한 번이라도 나면 표에 구멍이 있다는 뜻이다.
+    const unknown = warn.mock.calls.filter((c) => JSON.stringify(c).includes('dto_unknown_code'));
+    expect(unknown).toHaveLength(0);
+    warn.mockRestore();
+  });
+
+  it('정말 모르는 코드는 폴백하되 경고를 남긴다', () => {
+    const card = CardMapper.toDomain({ ...base, category_cd: 'NOPE' });
+    expect(card.category).toBe('전기 위험');
+  });
+});

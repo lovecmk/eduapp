@@ -29,6 +29,14 @@ interface AttendanceState {
   monthCount: (year: number, month: number) => number;
   /** 특정 날짜 키에 출석했는지 */
   hasStamp: (key: string) => boolean;
+  /**
+   * 서버가 보관한 출석 도장을 로컬에 합친다(기기 변경·재설치 후 복원).
+   *
+   * 합집합이다 — 출석은 '그날 왔다'는 사실이라 한쪽에만 있어도 참이고,
+   * 서버 값으로 덮어쓰면 오프라인에서 찍은 오늘 도장이 사라진다.
+   * 같은 날이 양쪽에 있으면 **먼저 찍은 시각**을 남긴다(그날의 첫 출석이 기록이다).
+   */
+  applyServer: (stamps: Record<string, number>) => void;
 }
 
 export const useAttendanceStore = create<AttendanceState>()(
@@ -44,6 +52,15 @@ export const useAttendanceStore = create<AttendanceState>()(
       },
 
       hasCheckedInToday: () => !!get().stamps[dateKey(new Date())],
+
+      applyServer: (remote) => {
+        const merged = { ...get().stamps };
+        for (const [day, at] of Object.entries(remote)) {
+          const local = merged[day];
+          merged[day] = local ? Math.min(local, at) : at;
+        }
+        set({ stamps: merged });
+      },
 
       totalDays: () => Object.keys(get().stamps).length,
 

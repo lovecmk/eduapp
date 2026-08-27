@@ -13,6 +13,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { ThemeProvider, useTheme } from '../src/theme/ThemeProvider';
 import { useCollectionSync } from '../src/hooks/useCollectionSync';
 import { useSettingsSync } from '../src/hooks/useSettingsSync';
+import { useProgressSync } from '../src/hooks/useProgressSync';
+import { useEngagementSync } from '../src/hooks/useEngagementSync';
+import { useReportSync } from '../src/hooks/useReportSync';
+import { useNotificationSync } from '../src/hooks/useNotificationSync';
 import { useAuthStore } from '../src/store/authStore';
 import { useSettingsStore } from '../src/store/settingsStore';
 import { syncPushTokenWithServer } from '../src/data/notifications/NotificationService';
@@ -96,6 +100,22 @@ function RootContent() {
   // 루트에 두는 이유는 도감과 같다 — 설정은 여러 화면(설정·프로필·마이페이지)에서
   // 바뀌고, 어디서 바꿨든 같은 계정이면 따라가야 한다.
   useSettingsSync();
+
+  // ── 사용자 데이터 동기화 ──────────────────────────────────────────────
+  //
+  // 아래 넷은 저장소도 서버 엔드포인트도 완성돼 있었는데 **부르는 코드가
+  // 없어서** 오랫동안 죽어 있었다. 그 결과가 운영 DB 에 그대로 남아 있었다 —
+  // 어떤 사용자가 이틀에 걸쳐 11장을 학습했는데 srs_state·learn_history·
+  // attendance·engagement·reports·notifications 가 전부 0행이었다.
+  //
+  // 루트에 두는 이유는 도감·설정과 같다. 채점은 학습 화면 여러 곳에서 일어나고
+  // 저장·신고는 카드 상세에서 일어난다. 화면마다 호출을 넣으면 언젠가 한 군데가
+  // 빠지고, 빠진 자리는 조용히 기록을 잃는다 — 이 기능들이 죽어 있던 것과
+  // 똑같은 방식으로. 스토어를 한 곳에서 구독하면 어느 경로로 바뀌든 잡힌다.
+  useProgressSync();
+  useEngagementSync();
+  useReportSync();
+  useNotificationSync();
 
   // 앱 전체 뒤로가기 안전망. 화면별 처리(학습 중 이탈 확인 등)가 우선하고,
   // 아무도 처리하지 않은 뒤로가기만 여기서 받아 앱이 갑자기 종료되는 것을 막는다.
