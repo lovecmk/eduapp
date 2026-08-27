@@ -122,19 +122,26 @@ export default function CardsScreen() {
    */
   const quizScrollRef = useRef<ScrollView>(null);
   /**
-   * 뒷면 해설을 손가락으로 끌고 있는 중인가.
+   * 카드 본문을 손가락으로 끌고 있는 중인가 — 스크롤과 '탭하여 뒤집기'의 구분.
    *
-   * 카드 면 전체가 '탭하면 뒤집기' 판이라, 해설을 조금 끌었다 뗀 동작이 탭으로
-   * 읽히면 읽던 해설이 사라지고 앞면으로 돌아가 버린다. 스크롤이 시작되면 표시해
-   * 두었다가, 손을 뗀 직후 짧은 동안의 탭 한 번을 삼킨다.
+   * 본문은 탭하면 뒤집히고 끌면 스크롤된다. 두 동작이 같은 손가락 하나에서
+   * 시작하므로, 조금 끌었다 뗀 동작이 탭으로 읽히면 읽던 글이 사라지고 카드가
+   * 돌아가 버린다. 스크롤이 시작되면 표시해 두었다가, 손을 뗀 직후 짧은 동안의
+   * 탭 한 번을 삼킨다. 앞면·퀴즈·뒷면 **모두** 같은 판정을 쓴다(예전에는 뒷면만
+   * 막아 두어, 앞면 문제를 끌어 내리면 그대로 뒤집혔다).
    */
-  const draggingBackRef = useRef(false);
-  const backDragEndRef = useRef(0);
-  const markBackDragEnd = useCallback(() => {
-    draggingBackRef.current = false;
-    backDragEndRef.current = Date.now();
-  }, []);
-  const BACK_DRAG_TAP_GUARD_MS = 220;
+  const draggingBodyRef = useRef(false);
+  const bodyDragEndRef = useRef(0);
+  const BODY_DRAG_TAP_GUARD_MS = 220;
+  /** 모든 본문 스크롤 영역에 함께 얹는 드래그 표시 — 스프레드해서 쓴다. */
+  const bodyScrollGuard = useMemo(
+    () => ({
+      onScrollBeginDrag: () => { draggingBodyRef.current = true; },
+      onScrollEndDrag: () => { draggingBodyRef.current = false; bodyDragEndRef.current = Date.now(); },
+      onMomentumScrollEnd: () => { draggingBodyRef.current = false; bodyDragEndRef.current = Date.now(); },
+    }),
+    [],
+  );
 
   // 퀴즈 미풀이 상태에서 넘기려 할 때 잠깐 노출되는 안내.
   const [solveHint, setSolveHint] = useState(false);
@@ -377,8 +384,8 @@ export default function CardsScreen() {
     quizScrollRef.current?.scrollTo({ y: 0, animated: false });
     // 카드가 바뀌면 '해설을 끌던 중' 표시도 함께 지운다 —
     // 어떤 이유로든 남아 있으면 새 카드의 첫 탭이 통째로 삼켜진다.
-    draggingBackRef.current = false;
-    backDragEndRef.current = 0;
+    draggingBodyRef.current = false;
+    bodyDragEndRef.current = 0;
   }, [card?.id]);
 
   // 화면 이탈/카드 전환 시 예약된 타이머 정리.
@@ -539,8 +546,8 @@ export default function CardsScreen() {
   // 카드 탭 — 앞면이면 뒤집고(퀴즈 미풀이면 막음), 뒷면이면 다시 앞으로.
   const onCardPress = useCallback(() => {
     if (exiting) return;
-    // 해설을 끌던 중이거나 방금 놓았다면, 이 탭은 스크롤의 꼬리다 — 뒤집지 않는다.
-    if (draggingBackRef.current || Date.now() - backDragEndRef.current < BACK_DRAG_TAP_GUARD_MS) return;
+    // 본문을 끌던 중이거나 방금 놓았다면, 이 탭은 스크롤의 꼬리다 — 뒤집지 않는다.
+    if (draggingBodyRef.current || Date.now() - bodyDragEndRef.current < BODY_DRAG_TAP_GUARD_MS) return;
     if (!flipped) {
       const isQuizCard = card && (card.type === 'ox' || card.type === 'choice');
       if (isQuizCard && !quizRevealed) { shakeMustSolve(); return; }
@@ -892,19 +899,18 @@ export default function CardsScreen() {
           {...(isSwipeTrack ? panResponder.panHandlers : {})}
           style={{ flex: 1, transform: [{ translateX }, { translateY: cardTranslateY }, { scale: cardScale }], opacity: cardCombinedOpacity }}
         >
-         {/* 카드 면 전체를 덮는 '탭하여 뒤집기' 판.
+         {/* 카드 면을 담는 상자.
 
-             역할(accessibilityRole)을 일부러 주지 않는다. 이 판 안에는 진짜 버튼들이
-             들어 있고(앞면: 보기 선택·이미지 확대 / 뒷면: 추천·저장·신고), 버튼 안에
-             버튼을 담으면 웹(react-native-web)에서는 <button> 안에 <button> 이 되어
-             유효하지 않은 DOM 이 된다. 더 나쁜 것은 스크린 리더다 — 안쪽 버튼들이
-             바깥 버튼의 이름에 통째로 묻혀, 카드 전체가 이름 하나짜리 덩어리로 읽힌다.
+             **'탭하여 뒤집기' 판을 여기(면 전체)에 두지 않는다.** 예전에는 이 자리가
+             통째로 Pressable 이었는데, 그러면 본문을 끌어 내리는 동작이 이 판의
+             누름으로 시작해 스크롤이 손가락을 넘겨받지 못하고, 손을 뗄 때는 제자리
+             탭으로 읽혀 카드가 그대로 뒤집혔다 — 읽으려던 해설이 사라지는 그 증상이다.
 
-             그래서 이 판은 '이름 붙은 조작 요소'가 아니라 손가락을 위한 지름길로만 둔다.
-             뒤집기라는 **행동 자체는** 이름을 가진 버튼이 따로 맡는다 — 클래식 트랙은
-             아래 '카드 뒤집기' 버튼이, 스와이프 트랙은 아래 안내 줄이 그 역할을 한다.
-             tabIndex={-1} 은 이름도 역할도 없는 자리에 키보드 초점이 멈추지 않게 한다. */}
-         <Pressable tabIndex={-1} onPress={onCardPress} disabled={exiting} style={{ flex: 1 }}>
+             대신 탭 판을 각 스크롤 영역 **안쪽**(내용을 감싸는 자리)으로 내렸다.
+             스크롤 영역이 바깥에 있으면 손가락이 움직이는 순간 스크롤이 제스처를
+             가져가면서 안쪽 누름을 취소해 준다 — 끌면 스크롤, 톡 치면 뒤집기가
+             프레임워크 규칙만으로 갈린다. 흘러나오는 탭은 위의 시간 판정이 삼킨다. */}
+         <View style={{ flex: 1 }}>
           {/* 그림자 판 — 카드와 같은 크기·모서리로 뒤에 깔린 채 **회전하지 않는다**.
 
               그림자를 카드 면에 직접 주면 rotateY 로 도는 동안 평면 그림자가 뒤에 남아
@@ -941,7 +947,8 @@ export default function CardsScreen() {
               opacity: frontOpacity,
             }}
           >
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+            {/* 머리말도 톡 치면 뒤집힌다 — 본문(스크롤 영역) 밖이라 탭 판을 따로 얹는다. */}
+            <Pressable tabIndex={-1} onPress={onCardPress} disabled={exiting} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
               <View style={{ flex: 1, paddingRight: 8 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <Badge label={card.category} />
@@ -957,7 +964,7 @@ export default function CardsScreen() {
                 </View>
               </View>
               <Text style={{ color: c.textSecondary, fontSize: 11, fontFamily: fontCute }}>{index + 1}/{deck.length}</Text>
-            </View>
+            </Pressable>
             {isQuiz ? (
               /* 퀴즈형: 상황·문제 + 앞면 정답 선택 UI.
                  답을 고르면 아래에 '정답/오답' 피드백이 새로 붙어 내용이 길어진다 —
@@ -965,10 +972,15 @@ export default function CardsScreen() {
               <View style={{ flex: 1 }}>
                 <ScrollView
                   ref={quizScrollRef}
-                  showsVerticalScrollIndicator
-                  contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingVertical: 6 }}
+                  // 넘칠 때만 스크롤로 다룬다 — 막대도, 손가락을 삼키는 것도 그때뿐이다.
+                  scrollEnabled={quizBody.overflowing}
+                  showsVerticalScrollIndicator={quizBody.overflowing}
+                  nestedScrollEnabled
+                  contentContainerStyle={{ flexGrow: 1 }}
                   {...quizBody.scrollProps}
+                  {...bodyScrollGuard}
                 >
+                 <Pressable tabIndex={-1} onPress={onCardPress} disabled={exiting} style={{ flexGrow: 1, justifyContent: 'center', paddingVertical: 6 }}>
                   {resolveCardImage(card.imageUrl) && (
                     <View style={{ width: '100%', marginBottom: 14 }}>
                       <QuestionImage source={resolveCardImage(card.imageUrl)} height={172} />
@@ -993,6 +1005,7 @@ export default function CardsScreen() {
                       <CardTimer seconds={card.studySeconds} resetKey={card.id} onExpire={haptic} />
                     </View>
                   )}
+                 </Pressable>
                 </ScrollView>
                 <ScrollFadeEdge color={frontTint} visible={quizBody.hasMore} />
               </View>
@@ -1001,10 +1014,14 @@ export default function CardsScreen() {
                  짧을 때는 flexGrow + center 로 지금처럼 가운데 정렬을 유지한다. */
               <View style={{ flex: 1 }}>
                 <ScrollView
-                  showsVerticalScrollIndicator
-                  contentContainerStyle={{ flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 4 }}
+                  scrollEnabled={frontBody.overflowing}
+                  showsVerticalScrollIndicator={frontBody.overflowing}
+                  nestedScrollEnabled
+                  contentContainerStyle={{ flexGrow: 1 }}
                   {...frontBody.scrollProps}
+                  {...bodyScrollGuard}
                 >
+                 <Pressable tabIndex={-1} onPress={onCardPress} disabled={exiting} style={{ flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 4 }}>
                   {resolveCardImage(card.imageUrl) ? (
                     <View style={{ width: '100%', marginBottom: 18 }}>
                       <QuestionImage source={resolveCardImage(card.imageUrl)} height={200} />
@@ -1026,6 +1043,7 @@ export default function CardsScreen() {
                   <View style={{ marginTop: 20 }}>
                     <CardTimer seconds={card.studySeconds} resetKey={card.id} onExpire={haptic} />
                   </View>
+                 </Pressable>
                 </ScrollView>
                 <ScrollFadeEdge color={frontTint} visible={frontBody.hasMore} />
               </View>
@@ -1043,33 +1061,35 @@ export default function CardsScreen() {
               opacity: backOpacity,
             }}
           >
-            <View style={{ marginBottom: 12 }}>
+            <Pressable tabIndex={-1} onPress={onCardPress} disabled={exiting} style={{ marginBottom: 12 }}>
               <CategoryTrail category={card.category} subCategory={card.subCategory} topic={card.topic} size="sm" />
-            </View>
+            </Pressable>
             {/* 해설은 카드 **안에서** 끝까지 끌어 내려 읽는다.
 
                 해설이 길면 카드 높이를 넘긴다. 카드를 늘릴 수는 없으니(화면이 정해져 있다)
                 이 영역이 손가락을 따라 스크롤된다. 두 가지를 함께 챙겨야 실제로 읽힌다.
-                 · nestedScrollEnabled / persistentScrollbar — 안드로이드에서 바깥 제스처에
-                   먹히지 않고, 스크롤 막대가 계속 보여 '더 있다'가 눈에 띈다.
-                 · 끌던 손을 뗄 때 카드가 뒤집히지 않아야 한다. 카드 면 전체가 탭 판이라,
-                   짧게 끈 드래그가 탭으로 읽히면 읽던 해설이 사라져 버린다(draggingBackRef). */}
+                 · 스크롤 막대(persistentScrollbar)는 **넘칠 때만** 보인다. 짧은 해설에도
+                   막대가 붙어 있으면 아래에 뭔가 더 있는 줄 알고 계속 밀어 보게 된다.
+                 · 끌던 손을 뗄 때 카드가 뒤집히지 않아야 한다 — 탭 판은 이 스크롤 영역
+                   안쪽에 있어 스크롤이 먼저 제스처를 가져가고(bodyScrollGuard 가 그
+                   꼬리를 삼킨다), 짧게 끈 드래그가 탭으로 새지 않는다. */}
             <View style={{ flex: 1 }}>
               <ScrollView
                 style={{ flex: 1 }}
-                showsVerticalScrollIndicator
-                persistentScrollbar
+                scrollEnabled={backBody.overflowing}
+                showsVerticalScrollIndicator={backBody.overflowing}
+                persistentScrollbar={backBody.overflowing}
                 nestedScrollEnabled
                 directionalLockEnabled
                 keyboardShouldPersistTaps="handled"
                 // 마지막 줄이 카드 밑동에 딱 붙지 않도록 넉넉히 띄운다.
                 contentContainerStyle={{ paddingBottom: 20 }}
                 {...backBody.scrollProps}
-                onScrollBeginDrag={() => { draggingBackRef.current = true; }}
-                onScrollEndDrag={() => { markBackDragEnd(); }}
-                onMomentumScrollEnd={() => { markBackDragEnd(); }}
+                {...bodyScrollGuard}
               >
-                <CardBackBody card={card} />
+                <Pressable tabIndex={-1} onPress={onCardPress} disabled={exiting}>
+                  <CardBackBody card={card} />
+                </Pressable>
               </ScrollView>
               <ScrollFadeEdge color={backTint} visible={backBody.hasMore} />
             </View>
@@ -1086,7 +1106,7 @@ export default function CardsScreen() {
               </Animated.View>
             </>
           )}
-         </Pressable>
+         </View>
         </Animated.View>
       </View>
 
