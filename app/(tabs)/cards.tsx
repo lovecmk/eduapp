@@ -16,6 +16,7 @@ import { CategoryTrail } from '../../src/components/ui/CategoryTrail';
 import { CardTimer } from '../../src/components/cards/CardTimer';
 import { CardBackBody } from '../../src/components/cards/CardBackBody';
 import { ScrollFadeEdge } from '../../src/components/ui/ScrollFadeEdge';
+import { CuteScrollRail, ScrollMoreHint, ScrollEndStamp } from '../../src/components/ui/CuteScrollRail';
 import { useScrollHasMore } from '../../src/hooks/useScrollHasMore';
 import { CardQuiz } from '../../src/components/cards/CardQuiz';
 import { CardReportModal } from '../../src/components/cards/CardReportModal';
@@ -1121,8 +1122,9 @@ export default function CardsScreen() {
                 ref={backScrollRef}
                 style={{ flex: 1 }}
                 scrollEnabled={backBody.overflowing}
-                showsVerticalScrollIndicator={backBody.overflowing}
-                persistentScrollbar={backBody.overflowing}
+                // OS 기본 막대는 끈다 — 직접 그리는 레일(CuteScrollRail)과 겹치면
+                // 둥근 카드 안에 회색 직선이 하나 더 생긴다.
+                showsVerticalScrollIndicator={false}
                 nestedScrollEnabled
                 directionalLockEnabled
                 keyboardShouldPersistTaps="handled"
@@ -1139,9 +1141,20 @@ export default function CardsScreen() {
               >
                 <Pressable tabIndex={-1} onPress={onCardPress} disabled={exiting}>
                   <CardBackBody card={card} />
+                  {/* 끝까지 내렸을 때만 뜬다 — 여기가 끝이라는 표시. */}
+                  <ScrollEndStamp visible={backBody.overflowing && !backBody.hasMore} color={c.primary} />
                 </Pressable>
               </ScrollView>
               <ScrollFadeEdge color={backTint} visible={backBody.hasMore} />
+              {/* 가림막 위에 얹는다 — 가림막이 '가려졌다'를, 이 둘이 '끌어 내리면
+                  된다'와 '지금 어디쯤인가'를 말해 준다. */}
+              <CuteScrollRail
+                visible={backBody.overflowing}
+                progress={backBody.progress}
+                ratio={backBody.ratio}
+                color={c.primary}
+              />
+              <ScrollMoreHint visible={backBody.hasMore} color={c.primary} />
             </View>
           </Animated.View>
 
