@@ -17,8 +17,10 @@ import { COLLECTIBLE_BY_ID, JEWEL_META } from '../src/data/collectibles';
 import { useAllCards } from '../src/hooks/useCards';
 import { ROUTES } from '../src/constants/routes';
 import { contentColumn } from '../src/theme/layout';
-
-const BIO_MAX = 60;
+// 상한은 서버(domain.BioMaxLen)·저장소 매퍼와 같은 값을 쓴다.
+// 예전에는 이 화면만 자체 상수 60 을 들고 있어서, 다른 기기에서 100자로 적어 둔
+// 소개를 열면 화면에는 다 보이는데 한 글자만 고쳐도 60자로 잘렸다(카운터도 거짓말).
+import { BIO_MAX } from '../src/domain/models/UserSettings';
 
 export default function ProfileScreen() {
   const { theme, fontScale: fs } = useTheme();
