@@ -30,6 +30,31 @@ export function displayName(user?: Pick<User, 'name' | 'nickname'> | null): stri
   return user.nickname?.trim() || user.name?.trim() || '현장 작업자';
 }
 
+/**
+ * 목록 한 줄에 그릴 작성자 이름을 정한다.
+ *
+ * ── 남의 글: 저장된 이름을 그대로 ──────────────────────────────────────────
+ * 남이 쓸 당시의 이름은 사실이고, 그 사람의 지금 이름을 우리가 알 방법도 없다.
+ *
+ * ── 내 글: 지금 내 이름으로 ────────────────────────────────────────────────
+ * 기기에 남는 글(현장 팁·자랑 피드)은 글을 쓰는 순간의 표시명을 **복사해서**
+ * 저장한다. 그래서 닉네임을 바꾸면 프로필·헤더·홈 인사말은 새 이름인데 내가
+ * 쓴 팁만 옛 이름으로 남고, 그 옆에는 '나' 배지가 붙어 있다. 같은 화면에서
+ * 같은 사람이 두 이름으로 보이는 상태다.
+ *
+ * 저장된 사본을 일괄 수정하는 방법도 있지만, 그러면 이름을 바꿀 때마다 사본을
+ * 들고 있는 스토어를 하나씩 찾아다녀야 하고 하나만 빠뜨려도 같은 증상이 남는다.
+ * 그릴 때 원본을 보게 하면 빠뜨릴 자리가 없다 — 원본은 언제나 authStore 하나다.
+ */
+export function authorLabel(
+  stored: string,
+  mine: boolean | undefined,
+  me?: Pick<User, 'name' | 'nickname'> | null,
+): string {
+  if (mine && me) return displayName(me);
+  return stored;
+}
+
 export interface MembershipMeta {
   label: string;
   icon: string;

@@ -12,37 +12,6 @@
 // (이 스크립트) → cards.seed.ts. 가운데를 거치는 이유는 분류 코드·형식 코드처럼
 // 서버가 정하는 것들이 이미 그 파일에서 확정되기 때문이다 — 엑셀에서 두 번
 // 해석하면 두 해석이 어긋날 자리가 생긴다.
-import { readFileSync, writeFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-const here = dirname(fileURLToPath(import.meta.url));
-const DEFAULT_SEED = resolve(
-  here,
-  '../../insu/0021_BRIDGE_CODE/kfpa/BE/daily3min/seed/cards_seed.json',
-);
-const OUT = resolve(here, '../src/data/cards.seed.ts');
-
-// 서버 분류 코드 → 앱 대분류.
-// src/data/mappers/CardMapper.ts 의 CATEGORY_MAP 과 **같은 값이어야 한다**
-// (그쪽이 실서버 응답을 접는 표이고, 이쪽은 목업을 접는 표다).
-const CATEGORY = {
-  ELEC: '전기 위험',
-  BATTERY: '전기 위험',
-  PROCESS: '공정 위험',
-  HAZMAT: '위험물',
-  FIELD: '현장 점검',
-  FIRE: '현장 점검',
-  EGRESS: '현장 점검',
-  SPREAD: '현장 점검',
-  ETC: '현장 점검',
-};
-const DIFFICULTY = { EASY: 'easy', MEDIUM: 'medium', HARD: 'hard' };
-const TYPE = { EXPLANATION: 'explanation', OX: 'ox', CHOICE: 'choice' };
-
-const src = process.argv[2] ? resolve(process.argv[2]) : DEFAULT_SEED;
-const cards = JSON.parse(readFileSync(src, 'utf8'));
-
 const q = (v) => JSON.stringify(v ?? '');
 const lines = [];
 const unknown = new Set();
@@ -62,7 +31,8 @@ for (const c of cards) {
   const body = [];
   body.push(`situation: ${q(c.situation_txt)}`);
   body.push(`question: ${q(c.question_txt)}`);
-    if (c.image_url && c.image_url !== 'null' && c.image_url !== '') {
+  
+  if (c.image_url && c.image_url !== 'null' && c.image_url !== '') {
     body.push(`imageUrl: ${q(c.image_url)}`);
   }
   if (c.answer_image_url && c.answer_image_url !== 'null' && c.answer_image_url !== '') {

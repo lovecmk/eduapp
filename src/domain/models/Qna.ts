@@ -75,12 +75,46 @@ export function minutesSince(createdAt: number, now = Date.now()): number {
   return Math.max(0, Math.floor((now - createdAt) / 60_000));
 }
 
-/** 질문 목록에서 파생 카운터를 다시 계산한다(목업·로컬 편집 후 사용). */
+/**
+ * 질문 목록에서 파생 카운터를 다시 계산한다.
+ *
+ * ⚠️ **답변 본문을 전부 들고 있는 질문에만** 쓸 것(로컬 스토어·상세 응답).
+ * 목록 응답의 질문은 `answers` 가 비어 있고 개수만 서버가 준 값으로 들어 있어서,
+ * 여기에 이 함수를 쓰면 카운터가 0(또는 방금 끼워 넣은 한 건)으로 덮인다.
+ * 서버 캐시를 손볼 때는 아래 `withAppendedAnswer` 를 쓴다.
+ */
 export function withDerivedCounts(q: Omit<Question, 'answerCount' | 'myAnswerCount' | 'solved'>): Question {
   return {
     ...q,
     answerCount: q.answers.length,
     myAnswerCount: q.answers.filter((a) => a.mine).length,
     solved: q.answers.some((a) => a.accepted),
+  };
+}
+
+/**
+ * 방금 등록한 답변 하나를 질문에 반영한다 — **개수는 다시 세지 않고 더한다.**
+ *
+ * 왜 다시 세면 안 되는가: 커뮤니티 목록의 질문은 `answers: []` 로 내려오고
+ * (본문을 싣지 않는다) 실제 개수는 서버가 `answer_cnt` 로 따로 준다. 그 질문에
+ * 답변 한 건을 붙이고 개수를 `answers.length` 로 다시 세면, 답변 12개짜리 질문이
+ * 목록에서 **'답변 1'** 로 바뀌고 '해결됨' 배지도 함께 사라진다. 화면이 서버보다
+ * 오래된 것이 아니라 **틀린 값**을 만들어 내는 것이라, 목록을 다시 받을 때까지
+ * 사라지지 않는다.
+ *
+ * 본문은 그것을 원래 들고 있던 질문(상세)에만 끼워 넣는다. 목록 쪽 질문은
+ * 개수만 올려 두고 본문은 그대로 비워 둔다 — 반쯤 채워진 목록은 "답변이 하나뿐"
+ * 이라는 또 다른 거짓말이 된다.
+ */
+export function withAppendedAnswer(q: Question, created: Answer): Question {
+  if (q.answers.some((a) => a.id === created.id)) return q; // 재전송·중복 응답
+  // 본문을 모두 들고 있는가 — 개수와 실제 배열 길이가 같을 때만 그렇다.
+  const hasAllBodies = q.answers.length === q.answerCount;
+  return {
+    ...q,
+    answers: hasAllBodies ? [...q.answers, created] : q.answers,
+    answerCount: q.answerCount + 1,
+    myAnswerCount: q.myAnswerCount + (created.mine ? 1 : 0),
+    solved: q.solved || created.accepted,
   };
 }

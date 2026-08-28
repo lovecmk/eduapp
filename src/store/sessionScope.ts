@@ -1,10 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { logger } from '../utils/logger';
 import { queryClient } from '../data/network/queryClient';
-import { resetLearningStores } from './resetAppData';
-import { resetQnaStore } from './qnaStore';
-import { useShareFeedStore } from './shareFeedStore';
-import { useTipStore } from './tipStore';
+import { resetUserScopedStores } from './resetAppData';
 
 /**
  * 로컬에 남는 데이터의 '주인'을 강제한다 — 공용 기기 대응의 잃어버린 반쪽.
@@ -71,12 +68,18 @@ let chain: Promise<unknown> = Promise.resolve();
 
 function purgeUserScopedData(): void {
   // 1) 메모리 — persist 스토어는 setState 시 디스크에 다시 써지므로 여기서 대부분 정리된다.
-  resetLearningStores();
-  // Q&A 는 비우는 게 아니라 시드로 되돌린다 — 빈 목록으로 두면 다음 사람에게는
-  // 커뮤니티가 '고장난 화면'으로 보인다(실서버가 붙으면 실제 질문이 그 자리를 채운다).
-  resetQnaStore();
-  useShareFeedStore.setState({ posts: [] });
-  useTipStore.setState({ tips: [] });
+  //
+  // 지울 목록을 여기서 손으로 나열하지 않는다. 예전에는 resetLearningStores() 를
+  // 부른 뒤 빠진 세 개(qna·share-feed·card-tips)를 이 자리에 덧붙여 두었는데,
+  // 그 덧붙임이 '전체 초기화'(설정 화면) 경로에는 없어서 같은 세 스토어가 그쪽에서는
+  // 메모리에 살아남았다. 같은 목록을 두 곳에서 관리하면 반드시 한쪽이 뒤처진다 —
+  // 목록은 resetAppData 한 곳에만 둔다.
+  //
+  // 기기 단위 기록(app-moments)은 여기서 건드리지 않는다. 사람이 바뀌어도 그 기기의
+  // 첫 실행 시각·누적 실행 횟수는 그대로다(USER_SCOPED_PERSIST_KEYS 주석과 같은 기준).
+  // 예전에는 이것까지 함께 비워, 지우지도 않을 디스크 값을 메모리에서만 0 으로 만들고
+  // 그 0 이 곧바로 디스크에 다시 써지고 있었다.
+  resetUserScopedStores();
   // 2) 서버 응답 캐시 — 프로필·통계·커뮤니티는 앞사람 응답이 그대로 들어 있다.
   queryClient.clear();
 }

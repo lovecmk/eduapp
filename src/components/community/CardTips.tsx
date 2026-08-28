@@ -8,7 +8,7 @@ import { useTipStore } from '../../store/tipStore';
 import { useAuthStore } from '../../store/authStore';
 import { timeAgoLabel } from '../../store/notificationStore';
 import { isMeaningful, textLength, INPUT_LIMITS } from '../../utils/sanitize';
-import { displayName } from '../../domain/models/User';
+import { displayName, authorLabel } from '../../domain/models/User';
 
 /** 카드별 현장 팁(작은 커뮤니티) — 실무 노하우 공유 + 좋아요. */
 export function CardTips({ cardId }: { cardId: string }) {
@@ -81,14 +81,18 @@ export function CardTips({ cardId }: { cardId: string }) {
         </View>
       ) : (
         <View style={{ marginTop: 6 }}>
-          {cardTips.map((tip, i) => (
+          {cardTips.map((tip, i) => {
+            // 내 팁의 이름은 저장된 사본이 아니라 지금 내 표시명으로 그린다 —
+            // 닉네임을 바꾸면 '나' 배지 옆에만 옛 이름이 남아 있었다(authorLabel 주석).
+            const shownAuthor = authorLabel(tip.author, tip.mine, me);
+            return (
             <Animated.View key={tip.id} entering={FadeInDown.delay(Math.min(i, 5) * 40).duration(280)} style={[styles.tip, { borderTopColor: c.border, borderTopWidth: i === 0 ? 0 : StyleSheet.hairlineWidth }]}>
               <View style={[styles.avatar, { backgroundColor: tip.color }]}>
-                <Text style={styles.avatarText}>{tip.author.charAt(0)}</Text>
+                <Text style={styles.avatarText}>{shownAuthor.charAt(0)}</Text>
               </View>
               <View style={{ flex: 1 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Text style={{ color: c.textPrimary, fontSize: 12.5, fontFamily: fontDisplay }}>{tip.author}</Text>
+                  <Text style={{ color: c.textPrimary, fontSize: 12.5, fontFamily: fontDisplay }}>{shownAuthor}</Text>
                   {tip.mine && <View style={{ backgroundColor: c.primary + '1A', borderRadius: 5, paddingHorizontal: 5, paddingVertical: 1 }}><Text style={{ color: c.primary, fontSize: 9.5, fontFamily: fontDisplay }}>나</Text></View>}
                   <Text style={{ color: c.textSecondary, fontSize: 10.5, fontFamily: fontMono }}>{timeAgoLabel(tip.minutesAgo)}</Text>
                 </View>
@@ -106,7 +110,8 @@ export function CardTips({ cardId }: { cardId: string }) {
                 )}
               </View>
             </Animated.View>
-          ))}
+            );
+          })}
         </View>
       )}
     </View>

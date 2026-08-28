@@ -15,7 +15,7 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
 }));
 
 const purgeMemory = jest.fn();
-jest.mock('../resetAppData', () => ({ resetLearningStores: () => purgeMemory() }));
+jest.mock('../resetAppData', () => ({ resetUserScopedStores: () => purgeMemory() }));
 
 const clearCache = jest.fn();
 jest.mock('../../data/network/queryClient', () => ({ queryClient: { clear: () => clearCache() } }));

@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { qnaRepository } from '../data/repositories';
 import type { Question, QuestionDraft } from '../domain/models/Qna';
-import { withDerivedCounts } from '../domain/models/Qna';
+import { withAppendedAnswer } from '../domain/models/Qna';
 import { sanitizeText, isMeaningful, INPUT_LIMITS } from '../utils/sanitize';
 import { logger } from '../utils/logger';
 
@@ -109,13 +109,14 @@ export function useAnswerQuestion(questionId: string) {
   return useMutation({
     mutationFn: (body: string) => qnaRepository.answer(questionId, body),
     onSuccess: (created) => {
-      patchQuestion(qc, questionId, (q) =>
-        // 이미 같은 답변이 들어와 있으면(재요청·중복 응답) 두 번 붙이지 않는다.
-        q.answers.some((a) => a.id === created.id)
-          ? q
-          : withDerivedCounts({ ...q, answers: [...q.answers, created] }),
-      );
+      // 개수는 '다시 세기'가 아니라 '더하기'다 — 목록 캐시의 질문은 답변 본문을
+      // 들고 있지 않아, 다시 세면 12개짜리 질문이 '답변 1'로 바뀐다
+      // (withAppendedAnswer 주석 참고).
+      patchQuestion(qc, questionId, (q) => withAppendedAnswer(q, created));
       void qc.invalidateQueries({ queryKey: QNA_KEYS.detail(questionId) });
+      // 목록도 서버 값으로 되맞춘다. 낙관적 갱신은 '내가 아는 만큼'이고,
+      // 그 사이 남이 단 답변까지 맞히지는 못한다.
+      void qc.invalidateQueries({ queryKey: QNA_KEYS.list });
     },
   });
 }

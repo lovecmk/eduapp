@@ -7,7 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../src/theme/ThemeProvider';
 import { useSettingsStore, type ThemeMode, type FontScale } from '../src/store/settingsStore';
 import { useAuthStore } from '../src/store/authStore';
-import { resetLearningStores } from '../src/store/resetAppData';
+import { resetAllLocalData } from '../src/store/resetAppData';
 import { clearSessionOwner } from '../src/store/sessionScope';
 import { SegmentedControl } from '../src/components/ui/SegmentedControl';
 import { Switch } from '../src/components/ui/Switch';
@@ -152,7 +152,9 @@ function SettingsBody({ scrollRef }: { scrollRef: React.RefObject<ScrollView> })
       resetAll();
       // 디스크(AsyncStorage)뿐 아니라 각 스토어의 '메모리' 상태까지 즉시 비워야
       // 앱을 다시 켜지 않아도 학습완료/출석/도감 등이 깨끗하게 초기화된다.
-      resetLearningStores();
+      // (Q&A·자랑 피드·현장 팁도 여기 포함된다 — 예전에는 이 셋만 빠져 있어서,
+      //  디스크는 지워졌는데 메모리에 남은 값이 다음 쓰기 때 그대로 되살아났다.)
+      resetAllLocalData();
       // AsyncStorage.clear() 는 주인 기록도 지웠다. 메모리에 남은 주인까지 맞춰 두지
       // 않으면 다음 로그인에서 '주인이 바뀌었다'고 오판해 한 번 더 지우게 된다.
       try { await clearSessionOwner(); } catch { /* 다음 로그인에서 정리된다 */ }

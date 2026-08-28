@@ -9,6 +9,8 @@ import { useShareFeedStore, REACTION_KINDS, REACTION_EMOJI } from '../../store/s
 import { WrappedShareCard } from '../share/WrappedShareCard';
 import { EmojiBurstButton } from '../ui/EmojiBurstButton';
 import { timeAgoLabel } from '../../store/notificationStore';
+import { useAuthStore } from '../../store/authStore';
+import { authorLabel } from '../../domain/models/User';
 
 const REACTION_TINT: Record<string, string> = { clap: '#F2B705', fire: '#FF6B35', up: '#2563EB' };
 
@@ -25,6 +27,9 @@ export function BragFeedCard() {
   const router = useRouter();
   const posts = useShareFeedStore((s) => s.posts);
   const react = useShareFeedStore((s) => s.react);
+  // 내 카드의 작성자 이름은 저장된 사본이 아니라 지금 내 표시명으로 그린다
+  // (닉네임을 바꾸면 '내 카드' 배지 옆에만 옛 이름이 남았다 — authorLabel 주석).
+  const me = useAuthStore((s) => s.user);
 
   return (
     <View style={{ backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: radius.card, padding: 16, marginBottom: 14 }}>
@@ -41,13 +46,15 @@ export function BragFeedCard() {
       </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: 8 }}>
-        {posts.map((p) => (
+        {posts.map((p) => {
+          const shownAuthor = authorLabel(p.author, p.mine, me);
+          return (
           <View key={p.id} style={{ width: MINI_W, marginRight: 12 }}>
             <View style={{ borderRadius: 16, overflow: 'hidden', boxShadow: `0 2px 8px ${c.border}` }}>
               {p.imageUri ? (
                 <Image source={{ uri: p.imageUri }} style={{ width: MINI_W, height: MINI_W / p.aspect, borderRadius: 16 }} resizeMode="cover" />
               ) : (
-                <WrappedShareCard snapshot={p.snapshot} author={p.author} width={MINI_W} />
+                <WrappedShareCard snapshot={p.snapshot} author={shownAuthor} width={MINI_W} />
               )}
               {p.mine && (
                 <View style={{ position: 'absolute', top: 8, left: 8, backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 }}>
@@ -58,9 +65,9 @@ export function BragFeedCard() {
 
             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 6 }}>
               <View style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: p.color, alignItems: 'center', justifyContent: 'center' }}>
-                <Text style={{ color: '#fff', fontSize: 9, fontFamily: fontDisplay }}>{p.author.charAt(0)}</Text>
+                <Text style={{ color: '#fff', fontSize: 9, fontFamily: fontDisplay }}>{shownAuthor.charAt(0)}</Text>
               </View>
-              <Text numberOfLines={1} style={{ color: c.textPrimary, fontSize: 11.5, fontFamily: fontDisplay, flex: 1 }}>{p.author}</Text>
+              <Text numberOfLines={1} style={{ color: c.textPrimary, fontSize: 11.5, fontFamily: fontDisplay, flex: 1 }}>{shownAuthor}</Text>
               <Text style={{ color: c.textSecondary, fontSize: 10, fontFamily: fontMono }}>{timeAgoLabel(p.minutesAgo)}</Text>
             </View>
 
@@ -78,7 +85,8 @@ export function BragFeedCard() {
               ))}
             </View>
           </View>
-        ))}
+          );
+        })}
       </ScrollView>
     </View>
   );
