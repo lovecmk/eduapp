@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { AppState, type AppStateStatus } from 'react-native';
 import { useNotificationStore } from '../store/notificationStore';
 import { useAuthStore } from '../store/authStore';
 import { notificationRepository } from '../data/repositories';
@@ -43,10 +44,27 @@ export function useNotificationSync(): void {
     };
 
     void pull();
-    const timer = setInterval(() => void pull(), POLL_MS);
+
+    // 앱을 내려놓은 동안에는 묻지 않는다.
+    //
+    // 이건 react-query 가 아니라 맨 setInterval 이라, 생명주기 다리
+    // (data/network/queryLifecycle)의 focusManager 가 멈춰 주지 못한다. 그대로
+    // 두면 주머니 속 앱이 1분마다 알림 목록을 받아 온다 — 현장에서 하루를 나야
+    // 하는 기기의 배터리와 데이터를 조용히 태우는 종류의 낭비다. 대신 다시
+    // 앞으로 나오는 순간 곧바로 한 번 확인한다(최대 1분을 기다리지 않는다).
+    const timer = setInterval(() => {
+      if (AppState.currentState === 'active') void pull();
+    }, POLL_MS);
+
+    const onAppState = (status: AppStateStatus) => {
+      if (status === 'active') void pull();
+    };
+    const appSub = AppState.addEventListener('change', onAppState);
+
     return () => {
       cancelled = true;
       clearInterval(timer);
+      appSub.remove();
     };
   }, [enabled, userId]);
 
