@@ -4,6 +4,7 @@ import {
   listDegradations,
   __resetDegradationsForTests,
   TRANSIENT_RETRY_MS,
+  NOT_DEPLOYED_RETRY_MS,
 } from '../_fallback';
 import { ApiError } from '../../network/errors';
 
@@ -62,20 +63,39 @@ describe('withMockFallback', () => {
   });
 });
 
-describe('withMockFallback — 일시적 단절과 영구 미배포의 구분', () => {
+describe('withMockFallback — 실패의 성격에 따라 다시 묻는 간격이 다르다', () => {
   afterEach(() => jest.useRealTimers());
 
-  it('404(라우트 없음)는 영구 래치 — 다시 실서버에 묻지 않는다', async () => {
+  /**
+   * 404 를 영구 래치로 두면, 접두사 하나가 어긋난 사고가 **화면이 멀쩡한 채로**
+   * 숨는다. 첫 요청이 404 로 돌아온 뒤로는 아무것도 묻지 않고 가짜 데이터를
+   * 계속 보여주고, 서버를 고쳐도 앱을 껐다 켜기 전까지는 돌아오지 않는다.
+   * 라우트가 전부 서버에 있는 지금은 404 야말로 다시 물어봐야 하는 신호다.
+   */
+  it('404(라우트 없음)도 창이 지나면 실서버를 다시 확인한다 — 영구 래치가 아니다', async () => {
     jest.useFakeTimers();
     let liveCalls = 0;
-    const live: Svc = { ping: async () => { liveCalls++; throw new ApiError(404, 'no route'); } };
+    const live: Svc = {
+      ping: async () => {
+        liveCalls++;
+        if (liveCalls === 1) throw new ApiError(404, 'no route');
+        return 'live';
+      },
+    };
     const mock: Svc = { ping: async () => 'mock' };
     const proxied = withMockFallback(live, mock, 'test');
 
-    await proxied.ping();
-    jest.advanceTimersByTime(TRANSIENT_RETRY_MS * 10);
-    await proxied.ping();
+    expect(await proxied.ping()).toBe('mock');
+
+    // 일시적 단절보다는 길게 참는다 — 정말 없는 경로를 1분마다 두드릴 이유는 없다.
+    jest.advanceTimersByTime(TRANSIENT_RETRY_MS + 1);
+    expect(await proxied.ping()).toBe('mock');
     expect(liveCalls).toBe(1);
+
+    // 배포로 열렸다 → 앱을 다시 켜지 않아도 스스로 실서버로 돌아온다.
+    jest.advanceTimersByTime(NOT_DEPLOYED_RETRY_MS + 1);
+    expect(await proxied.ping()).toBe('live');
+    expect(liveCalls).toBe(2);
   });
 
   it('연결 없음(status 0)은 재확인 창이 지나면 실서버를 다시 시도한다', async () => {

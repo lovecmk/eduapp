@@ -11,14 +11,12 @@
 import { ApiError } from '../network/errors';
 import { logger } from '../../utils/logger';
 
-// '엔드포인트가 아직 서버에 없거나 붙지 않았음'으로 볼 수 있는 상태 코드.
-//  · 404 Not Found        — 라우트가 아직 배포되지 않음(부분 배포의 전형).
+// '라우트가 없다'고 서버가 답한 상태 코드.
+//  · 404 Not Found        — 그 경로가 없다.
 //  · 501 Not Implemented  — 서버가 명시적으로 미구현이라고 답함.
-//  · 502/503/504          — 게이트웨이/서비스 미기동(뒤에 붙는 서비스가 아직 없음).
-// ⚠️ 위 목록에서 502/503/504 와 0 을 아래 TRANSIENT 로 분리했다 — 이유는 다음 블록 참고.
 const NOT_DEPLOYED_STATUS = new Set([404, 501]);
 
-// '지금 못 닿았다'는 **일시적** 신호 — 답이 몇 초 뒤에 달라질 수 있다.
+// '지금 못 닿았다'는 신호 — 답이 몇 초 뒤에 달라질 수 있다.
 //  · 0            — ApiClient 가 정규화한 연결 없음/타임아웃.
 //  · 502/503/504  — 게이트웨이 오류·서비스 재기동·과부하.
 const TRANSIENT_STATUS = new Set([0, 502, 503, 504]);
@@ -28,6 +26,27 @@ const TRANSIENT_STATUS = new Set([0, 502, 503, 504]);
  * (지하에서 잠깐 끊긴 것 때문에 지상으로 나온 뒤에도 계속 목업을 쓰면 안 된다.)
  */
 export const TRANSIENT_RETRY_MS = 60_000;
+
+/**
+ * 404/501 로 목업에 내려간 뒤 다시 확인하기까지의 시간.
+ *
+ * ── 왜 '영구 래치'를 걷어냈나 ──────────────────────────────────────────────
+ * 예전에는 404 를 받으면 그 기능을 **프로세스가 죽을 때까지** 목업에 가뒀다.
+ * 앱이 부르는 경로가 아직 서버에 없던 시절에는 맞는 판단이었다. 지금은 아니다 —
+ * 라우트는 전부 서버에 있고, 그러므로 404 는 '아직 안 만들었다'가 아니라
+ * **접두사 불일치·프록시 설정 실수·라우트 회귀**, 즉 진짜 사고의 신호다.
+ *
+ * 영구 래치는 그 사고를 가장 나쁜 방식으로 감춘다. 첫 요청 하나가 404 로
+ * 돌아오면 앱은 그 뒤로 아무것도 묻지 않고 가짜 데이터를 계속 보여주고,
+ * 서버가 고쳐져도 앱을 껐다 켜기 전까지는 영영 돌아오지 않는다. 화면이 멀쩡해
+ * 보이는 것이 이 사고의 가장 나쁜 점이다.
+ *
+ * 그래서 404 도 '다시 물어볼 실패'로 다룬다. 다만 일시적 단절보다는 길게 둔다 —
+ * 정말 없는 경로라면 1분마다 두드려도 답은 같고, 배포로 열리는 데는 그보다
+ * 오래 걸린다. 강등 장부에는 여전히 'not-deployed' 로 남아, 개발자 화면에서
+ * '못 닿음'과 구분된다(전자는 배포가 필요하고 후자는 기다리면 된다).
+ */
+export const NOT_DEPLOYED_RETRY_MS = 5 * 60_000;
 
 /** 어떤 기능이 왜 목업으로 돌고 있는가 — 개발자 화면이 읽는 실시간 장부. */
 export interface Degradation {
@@ -92,11 +111,17 @@ export function isEndpointUnavailable(e: unknown): boolean {
   );
 }
 
-/** 폴백 사유의 성격 — 다시 물어볼 가치가 있는 실패인지 가른다. */
-function classify(e: unknown): 'permanent' | 'transient' | null {
+/**
+ * 폴백 사유 — 목업으로 대체해도 되는 실패인지, 그렇다면 무엇 때문인지.
+ *
+ * 둘 다 '다시 물어본다'는 점은 같고 **기다리는 시간과 화면에 적히는 말**이
+ * 다르다. 사유를 지우지 않는 이유는 개발자 화면 때문이다 — 못 닿은 것은
+ * 기다리면 되고, 라우트가 없는 것은 누군가 배포를 해야 한다.
+ */
+function classify(e: unknown): 'not-deployed' | 'unreachable' | null {
   if (!(e instanceof ApiError)) return null;
-  if (NOT_DEPLOYED_STATUS.has(e.status)) return 'permanent';
-  if (TRANSIENT_STATUS.has(e.status)) return 'transient';
+  if (NOT_DEPLOYED_STATUS.has(e.status)) return 'not-deployed';
+  if (TRANSIENT_STATUS.has(e.status)) return 'unreachable';
   return null;
 }
 
@@ -104,21 +129,18 @@ function classify(e: unknown): 'permanent' | 'transient' | null {
  * 실서버 저장소(live)를 감싸, 엔드포인트가 아직 없을 때 조용히 목업(mock)으로 위임하는
  * 프록시를 만든다.
  *
- * **실패의 성격을 구분한다** — 예전에는 '연결 없음(status 0)'까지 미배포와 똑같이 취급해
- * 한 번 걸리면 프로세스가 죽을 때까지 목업에 갇혔다. 이 앱은 지하·철골 구조물에서 쓰여
- * 순간 단절이 일상이므로, 터널을 한 번 지나는 것만으로 날씨·하루쿼터·사용자 디렉터리가
- * 그날 내내 가짜 값을 보여주고(관리자가 상한을 바꿔도 반영되지 않고) 사용자는 그 사실을
- * 알 방법이 없었다. 지금은:
- *  · 404/501(라우트 없음) → 영구 래치. 다음 배포 전까지 다시 묻지 않는다.
- *  · 0/502/503/504(못 닿음) → `TRANSIENT_RETRY_MS` 동안만 목업, 이후 자동 재확인.
+ * **어떤 실패든 언젠가는 다시 물어본다.** 한 번 걸리면 프로세스가 죽을 때까지 목업에
+ * 갇히는 길은 없다. 이 앱은 지하·철골 구조물에서 쓰여 순간 단절이 일상이고, 서버 쪽
+ * 사고도 대개 고쳐진다. 돌아오지 못하는 폴백은 장애가 끝난 뒤에도 가짜 데이터를
+ * 보여주면서 사용자에게도 운영자에게도 그 사실을 숨긴다.
+ *  · 0/502/503/504(못 닿음)   → `TRANSIENT_RETRY_MS` 뒤 재확인.
+ *  · 404/501(라우트 없음)     → `NOT_DEPLOYED_RETRY_MS` 뒤 재확인(더 길게).
  *
  * live/mock 은 같은 인터페이스 T 를 구현하므로 메서드 시그니처가 정확히 일치한다.
  * 저장소 메서드는 모두 Promise 를 반환하므로 비동기 거부(rejection)만 가로채면 된다.
  */
 export function withMockFallback<T extends object>(live: T, mock: T, label: string): T {
-  /** 라우트가 없다고 서버가 답했다 — 다음 배포 전까지 바뀌지 않으므로 영구 래치. */
-  let notDeployed = false;
-  /** 일시적으로 못 닿았다 — 이 시각까지만 목업을 쓰고, 지나면 다시 실서버에 물어본다. */
+  /** 이 시각까지만 목업을 쓰고, 지나면 다시 실서버에 물어본다. */
   let mutedUntil = 0;
   let warned = false;
 
@@ -148,7 +170,7 @@ export function withMockFallback<T extends object>(live: T, mock: T, label: stri
       if (typeof value !== 'function') return value;
 
       return async (...args: unknown[]) => {
-        if (notDeployed || Date.now() < mutedUntil) return callMock(prop, args);
+        if (Date.now() < mutedUntil) return callMock(prop, args);
         try {
           const result = await (value as (...a: unknown[]) => unknown).apply(target, args);
           // 되살아났다 — 장부에서 지운다. 남겨 두면 화면이 이미 끝난 장애를 계속
@@ -162,17 +184,13 @@ export function withMockFallback<T extends object>(live: T, mock: T, label: stri
           }
           return result;
         } catch (e) {
-          const kind = classify(e);
-          if (!kind) throw e;
-          if (kind === 'permanent') {
-            notDeployed = true;
-            warnOnce('not-deployed');
-          } else {
-            // 잠깐 못 닿은 것뿐이다 — 매 호출 실패를 반복하지 않도록 잠시 목업으로
-            // 내려가되, 창이 지나면 스스로 실서버를 다시 확인한다.
-            mutedUntil = Date.now() + TRANSIENT_RETRY_MS;
-            warnOnce('unreachable');
-          }
+          const reason = classify(e);
+          if (!reason) throw e;
+          // 매 호출마다 실패를 되풀이하지 않도록 잠시 목업으로 내려가되,
+          // 창이 지나면 스스로 실서버를 다시 확인한다.
+          mutedUntil =
+            Date.now() + (reason === 'not-deployed' ? NOT_DEPLOYED_RETRY_MS : TRANSIENT_RETRY_MS);
+          warnOnce(reason);
           return callMock(prop, args);
         }
       };
