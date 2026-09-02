@@ -9,20 +9,38 @@ import {
   validatePasswordConfirm,
 } from '../auth';
 
+/**
+ * 아이디는 사내 이메일이다.
+ *
+ * 로그인 화면이 아이디의 예시로 `bridge@kfpa.or.kr` 을 보여 주는데 회원가입이
+ * 그 모양을 거부하면, 안내대로 입력한 사람이 가입에 실패한다 — 한 앱 안에서
+ * 두 화면이 서로 다른 말을 하던 자리다.
+ */
 describe('validateUsername', () => {
-  it.each(['abc', '홍길동', 'user_01', 'a1'])('유효한 아이디(%s)는 통과', (v) => {
-    expect(validateUsername(v)).toBeNull();
+  it.each(['bridge@kfpa.or.kr', 'hong.gildong@kfpa.or.kr', 'user_01@example.com'])(
+    '사내 이메일 형식(%s)은 통과',
+    (v) => {
+      expect(validateUsername(v)).toBeNull();
+    },
+  );
+  it('로그인 화면이 안내하는 예시가 실제로 통과한다', () => {
+    expect(validateUsername('bridge@kfpa.or.kr')).toBeNull();
   });
   it('빈 값은 필수 메시지', () => {
     expect(validateUsername('   ')).toBe(AUTH_MESSAGES.usernameRequired);
   });
-  it.each(['a', 'a'.repeat(21), 'bad space', 'bad!@#'])('형식 위반(%s)은 형식 메시지', (v) => {
-    expect(validateUsername(v)).toBe(AUTH_MESSAGES.usernameFormat);
+  it.each(['abc', '홍길동', 'user_01', 'a@b', 'bad space@x.com', 'a@@b.com'])(
+    '이메일이 아닌 값(%s)은 형식 메시지',
+    (v) => {
+      expect(validateUsername(v)).toBe(AUTH_MESSAGES.usernameFormat);
+    },
+  );
+  it('앞뒤 공백은 다듬어서 본다', () => {
+    expect(validateUsername('  bridge@kfpa.or.kr  ')).toBeNull();
   });
-  it('경계값: 2자 통과 / 20자 통과 / 21자 실패', () => {
-    expect(validateUsername('a'.repeat(AUTH_RULES.username.min))).toBeNull();
-    expect(validateUsername('a'.repeat(AUTH_RULES.username.max))).toBeNull();
-    expect(validateUsername('a'.repeat(AUTH_RULES.username.max + 1))).not.toBeNull();
+  it(`${AUTH_RULES.username.max}자를 넘으면 길이 메시지`, () => {
+    const long = `${'a'.repeat(AUTH_RULES.username.max)}@kfpa.or.kr`;
+    expect(validateUsername(long)).toBe(AUTH_MESSAGES.usernameTooLong);
   });
 });
 

@@ -9,7 +9,19 @@
 //    불일치 시 "프론트는 통과했는데 서버가 400" 같은 사용자 혼란이 발생한다.
 
 export const AUTH_RULES = {
-  username: { min: 2, max: 20, pattern: /^[a-zA-Z0-9가-힣_]{2,20}$/ },
+  /**
+   * 아이디 = **사내 이메일**.
+   *
+   * 로그인 화면은 아이디의 예시로 `bridge@kfpa.or.kr` 을 보여 주는데, 회원가입의
+   * 검증은 한글/영문/숫자만 받아 그 모양을 거부하고 있었다. 한 앱 안에서 한 화면은
+   * 이메일을 예시로 들고 다른 화면은 그것을 틀렸다고 말한 셈이라, 안내대로 입력한
+   * 사람이 가입에 실패했다.
+   *
+   * 도메인까지 여기서 못 박지는 않는다. 사내 도메인이 하나라는 보장이 없고, 틀리게
+   * 박아 두면 멀쩡한 직원이 가입 자체를 못 한다 — 클라이언트 검증은 UX 이고 어느
+   * 계정을 받을지는 서버가 정한다(이 파일 맨 위 주석의 신뢰 경계).
+   */
+  username: { max: 254, pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/ },
   nickname: { min: 2, max: 12, pattern: /^[a-zA-Z0-9가-힣_]{2,12}$/ },
   /** RFC 전체 문법 대신 실무용 최소 형식 검사 + 길이 상한(RFC 5321). */
   email: { max: 254, pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/ },
@@ -24,7 +36,8 @@ export const AUTH_RULES = {
 
 export const AUTH_MESSAGES = {
   usernameRequired: '아이디를 입력해주세요',
-  usernameFormat: `아이디는 ${AUTH_RULES.username.min}~${AUTH_RULES.username.max}자(한글/영문/숫자)로 입력하세요`,
+  usernameFormat: '아이디는 사내 이메일 형식으로 입력하세요 (예: bridge@kfpa.or.kr)',
+  usernameTooLong: `아이디는 ${AUTH_RULES.username.max}자 이하로 입력하세요`,
   nicknameRequired: '닉네임을 입력해주세요',
   nicknameFormat: `닉네임은 ${AUTH_RULES.nickname.min}~${AUTH_RULES.nickname.max}자(한글/영문/숫자)로 입력하세요`,
   emailFormat: '올바른 이메일 형식이 아닙니다',
@@ -43,6 +56,7 @@ export type ValidationResult = string | null;
 export function validateUsername(v: string): ValidationResult {
   const s = v.trim();
   if (!s) return AUTH_MESSAGES.usernameRequired;
+  if (s.length > AUTH_RULES.username.max) return AUTH_MESSAGES.usernameTooLong;
   return AUTH_RULES.username.pattern.test(s) ? null : AUTH_MESSAGES.usernameFormat;
 }
 

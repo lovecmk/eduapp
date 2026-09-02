@@ -161,8 +161,12 @@ export default function SignupScreen() {
             label="아이디"
             value={username}
             onChangeText={setUsername}
-            placeholder="로그인에 사용할 아이디"
+            /* 아이디는 사내 이메일이다 — 로그인 화면과 같은 예시를 보여 준다.
+               "로그인에 사용할 아이디"만 적어 두면 무엇을 넣어야 하는지 알 수 없어
+               사람마다 다른 모양을 넣고, 그중 대부분이 형식 오류로 되돌아온다. */
+            placeholder="bridge@kfpa.or.kr"
             autoCapitalize="none"
+            keyboardType="email-address"
             validate={validateUsername}
             checkTaken={(v) => authRepository.isUsernameTaken(v)}
             onStateChange={setUsernameState}
