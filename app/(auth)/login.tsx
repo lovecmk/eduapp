@@ -30,7 +30,7 @@ export default function LoginScreen() {
   const [formError, setFormError] = useState<string | null>(null);
   const [bioAvailable, setBioAvailable] = useState(false);
   const [rememberId, setRememberId] = useState(false);
-  const { login, socialLogin, adminLogin, loading, error: authError, clearError } = useAuthStore();
+  const { login, socialLogin, adminLogin, loading, error: authError, sessionEndedReason, clearError } = useAuthStore();
   const { run: runLater, cancelAll: cancelTapReset } = useSafeTimeout();
   // 로고 연속 두드리기 횟수 — 화면을 다시 그릴 이유가 없으므로 ref 로 센다.
   const logoTaps = useRef(0);
@@ -128,6 +128,28 @@ export default function LoginScreen() {
             <Text style={{ color: c.textPrimary, fontSize: 24 * fs, fontFamily: fontDisplay, marginTop: 18, letterSpacing: 1 }}>{APP_NAME}</Text>
             <Text style={{ color: c.textSecondary, fontSize: 13 * fs, marginTop: 6, fontFamily: fontBody }}>현장 안전학습, 매일 3분이면 충분합니다</Text>
           </View>
+
+          {/* 세션이 서버에 의해 끝난 경우의 안내(정지·만료).
+
+              비밀번호 칸 아래 도움말로 흘리지 않고 폼 위에 따로 세운다. 계정이
+              정지된 사람에게 필요한 것은 '다시 입력해 보라'가 아니라 **무슨 일이
+              일어났고 누구에게 물어야 하는가**다. 아무 설명 없이 로그인 화면으로
+              돌아오면 사용자는 같은 시도를 반복하다 앱을 지운다. */}
+          {!!sessionEndedReason && (
+            <View
+              accessibilityRole="alert"
+              style={{
+                flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 14,
+                backgroundColor: c.warning + '14', borderWidth: 1, borderColor: c.warning + '44',
+                borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10,
+              }}
+            >
+              <Ionicons name="alert-circle" size={16} color={c.warning} style={{ marginTop: 1 }} />
+              <Text style={{ flex: 1, color: c.textPrimary, fontSize: 12.5 * fs, lineHeight: 18, fontFamily: fontBody }}>
+                {sessionEndedReason}
+              </Text>
+            </View>
+          )}
 
           {/* 로그인 */}
           <TextField

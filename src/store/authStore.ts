@@ -6,6 +6,7 @@ import { authRepository } from '../data/repositories';
 import { ADMIN_DEMO_USER } from '../data/auth/adminDemoAccount';
 import { setQueueOwner } from '../data/network/offlineQueue';
 import { applySessionOwner } from './sessionScope';
+import { ApiError } from '../data/network/errors';
 
 interface AuthState {
   user: User | null;
@@ -13,6 +14,19 @@ interface AuthState {
   /** 앱 시작 시 토큰 기반 세션 복구가 끝났는지 */
   bootstrapped: boolean;
   error: string | null;
+  /**
+   * 서버가 이 세션을 **거절해서** 로그아웃된 경우의 사유.
+   *
+   * 계정이 정지되면 서버는 다음 요청부터 403 으로 막는다. 예전에는 restore() 의
+   * catch 가 그 오류를 통째로 삼켜, 사용자는 아무 설명 없이 로그인 화면으로
+   * 돌아왔다 — 정지된 사실도, 왜인지도 모른 채 다시 로그인만 시도하게 된다.
+   * 그건 오류를 숨긴 것이지 처리한 것이 아니다.
+   *
+   * 만료(401)와 정지(403)를 구분하지는 않는다. 사용자에게 필요한 것은 상태
+   * 코드가 아니라 '무엇을 해야 하는가'이고, 서버가 사유를 문장으로 주면 그
+   * 문장을 그대로 보여준다.
+   */
+  sessionEndedReason: string | null;
   login: (id: string, password: string) => Promise<boolean>;
   socialLogin: (name: string, email: string) => Promise<boolean>;
   /** 관리자 모드 진입 — 로그인 화면 로고 5번 두드리기 전용(아래 구현의 주석 참고). */
@@ -43,11 +57,26 @@ async function bindSession(user: User | null): Promise<void> {
   await applySessionOwner(user?.id ?? null);
 }
 
+/**
+ * 세션이 끝난 사유를 사용자에게 보일 한 문장으로 만든다.
+ *
+ * 서버가 사유를 적어 보내면(정지 사유 등) 그 문장이 가장 정확하므로 그대로 쓴다.
+ * 없을 때만 상태 코드에 맞는 기본 문장을 쓴다 — '오류가 발생했습니다'로 뭉개면
+ * 사용자는 자기 계정에 무슨 일이 일어났는지 영영 알 수 없다.
+ */
+function sessionEndedMessage(err: ApiError | null): string {
+  const fromServer = err?.message?.trim();
+  if (fromServer && !/^\d+$/.test(fromServer)) return fromServer;
+  if (err?.kind === 'forbidden') return '이용이 제한된 계정입니다. 관리자에게 문의해 주세요.';
+  return '로그인이 만료되었습니다. 다시 로그인해 주세요.';
+}
+
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   loading: false,
   bootstrapped: false,
   error: null,
+  sessionEndedReason: null,
 
   login: async (id, password) => {
     set({ loading: true, error: null });
@@ -117,10 +146,18 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       const user = await authRepository.restore();
       await bindSession(user);
-      set({ user, bootstrapped: true });
-    } catch {
+      set({ user, bootstrapped: true, sessionEndedReason: null });
+    } catch (e) {
       await bindSession(null);
-      set({ user: null, bootstrapped: true });
+      // 서버가 거절한 세션(만료·정지)만 사유를 남긴다. 지하에서 못 닿은 것까지
+      // 안내로 띄우면, 잠깐 끊긴 것이 계정 문제처럼 보인다.
+      const err = e instanceof ApiError ? e : null;
+      const rejected = err?.kind === 'unauthorized' || err?.kind === 'forbidden';
+      set({
+        user: null,
+        bootstrapped: true,
+        sessionEndedReason: rejected ? sessionEndedMessage(err) : null,
+      });
     }
   },
 
@@ -166,6 +203,6 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
   },
 
-  clearError: () => set({ error: null }),
+  clearError: () => set({ error: null, sessionEndedReason: null }),
   setName: (name) => set((s) => ({ user: s.user ? { ...s.user, name } : null })),
 }));
