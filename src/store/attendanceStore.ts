@@ -5,12 +5,18 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { dateKey } from '../utils/dateKey';
+import { isWorkday } from '../utils/workday';
+
+/** 오늘로부터 offset 일 전(음수면 과거)의 날짜. */
+function dateForOffset(offset: number): Date {
+  const d = new Date();
+  d.setDate(d.getDate() + offset);
+  return d;
+}
 
 /** 오늘로부터 offset 일 전(음수면 과거)의 날짜 키. */
 function keyForOffset(offset: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() + offset);
-  return dateKey(d);
+  return dateKey(dateForOffset(offset));
 }
 
 interface AttendanceState {
@@ -64,17 +70,40 @@ export const useAttendanceStore = create<AttendanceState>()(
 
       totalDays: () => Object.keys(get().stamps).length,
 
+      /**
+       * 오늘 기준 연속 출석 — **근무일로 센다.**
+       *
+       * 달력은 주말·공휴일에 띠를 이어 그린다(쉬는 날은 학습일로 세지 않으므로,
+       * 금요일에 하고 월요일에 이은 사람은 한 번도 거르지 않은 것이다). 그런데
+       * 이 숫자만 달력일로 세고 있어서, 같은 화면 안에서 **띠는 이어져 있는데
+       * 숫자는 매주 월요일마다 1 로 되돌아갔다.** 주 5일 근무자에게는 '3일 연속
+       * 출석'조차 주말을 낀 순간 끊기고, '한 달 개근'은 사실상 도달할 수 없는
+       * 조건이 된다 — 카드팩 규칙이 걸려 있는 값이라 더 그렇다.
+       *
+       * 쉬는 날은 **투명하게 넘어간다**(끊지도, 세지도 않는다). 그날 도장이
+       * 찍혀 있어도 근무일이 아니면 세지 않는다 — 달력이 그리는 띠와 같은 규칙이라
+       * 두 표시가 같은 말을 한다.
+       */
       currentStreak: () => {
         const { stamps } = get();
-        // 오늘 아직 안 찍었어도 어제까지 이어진 스트릭은 유지되도록 오늘/어제 중 시작점을 찾는다.
+        // 오늘부터 거슬러 올라가며 근무일만 모은다(연휴가 길어도 10년이면 충분하다).
+        const workdays: string[] = [];
+        for (let i = 0; i > -3650 && workdays.length < 400; i--) {
+          const d = dateForOffset(i);
+          if (isWorkday(d)) workdays.push(dateKey(d));
+        }
+        if (workdays.length === 0) return 0;
+
+        // 가장 최근 근무일에 아직 안 찍었어도, 그 전 근무일까지 이어진 것은 유지한다
+        // (오늘 아침에 아직 앱을 안 연 사람의 어제까지를 지워 버리지 않는다).
         let start = 0;
-        if (!stamps[keyForOffset(0)]) {
-          if (!stamps[keyForOffset(-1)]) return 0;
-          start = -1;
+        if (!stamps[workdays[0]]) {
+          if (!stamps[workdays[1]]) return 0;
+          start = 1;
         }
         let streak = 0;
-        for (let i = start; i > -3650; i--) {
-          if (stamps[keyForOffset(i)]) streak++;
+        for (let i = start; i < workdays.length; i++) {
+          if (stamps[workdays[i]]) streak++;
           else break;
         }
         return streak;

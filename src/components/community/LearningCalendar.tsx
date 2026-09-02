@@ -19,6 +19,7 @@ import { useAttendanceStore } from '../../store/attendanceStore';
 import { AttendanceStamp } from './AttendanceStamp';
 import { CheckInSuccess } from './CheckInSuccess';
 import type { LearningCard } from '../../domain/models/LearningCard';
+import { isHoliday, isWorkday } from '../../utils/workday';
 
 /** 날짜 동그라미의 지름 — 이어짐 띠의 높이·모서리도 여기서 따라간다. */
 const DAY_SIZE = 30;
@@ -45,18 +46,6 @@ function chunkWeeks(cells: (number | null)[]): (number | null)[][] {
   return weeks;
 }
 
-// 대한민국 공휴일 — 양력 고정일 + 2025·2026 음력/대체공휴일 근사(데모용).
-// 근무일(월~금 중 공휴일 제외)만 학습 '완료/일부완료'의 판정 대상이 된다.
-const SOLAR_HOLIDAYS = new Set(['1-1', '3-1', '5-5', '6-6', '8-15', '10-3', '10-9', '12-25']);
-const LUNAR_HOLIDAYS: Record<number, string[]> = {
-  2025: ['1-27', '1-28', '1-29', '1-30', '5-5', '10-6', '10-7', '10-8', '10-9'],
-  2026: ['2-16', '2-17', '2-18', '5-24', '5-25', '9-24', '9-25', '9-26'],
-};
-/** 해당 날짜가 공휴일인지. month0 은 0-based 월. */
-function isHoliday(year: number, month0: number, day: number): boolean {
-  const md = `${month0 + 1}-${day}`;
-  return SOLAR_HOLIDAYS.has(md) || (LUNAR_HOLIDAYS[year] ?? []).includes(md);
-}
 
 /**
  * 학습 히트맵 캘린더 — 날짜별 복습량을 강도로 시각화하고, 복습 예정일을 점으로 표시.
@@ -125,31 +114,14 @@ export function LearningCalendar() {
   };
 
   /** 근무일인가 — 주말·공휴일은 애초에 학습일로 세지 않는다. */
-  const isWorkdayDate = (date: Date): boolean => {
-    const dow = date.getDay();
-    if (dow === 0 || dow === 6) return false;
-    return !isHoliday(date.getFullYear(), date.getMonth(), date.getDate());
-  };
 
-  /**
-   * 그날이 '완료된 학습일'인가 — 이어진 학습을 하나의 띠로 그리기 위한 판정.
-   *
-   * 셀을 그릴 때 쓰는 규칙(근무일 + 최소 출제량)과 같은 규칙을 그대로 쓴다.
-   * 달의 범위를 벗어난 날(0일·32일 등)은 new Date 가 이웃 달로 넘겨 주므로,
-   * 월초·월말에서도 앞뒤 달과 자연스럽게 이어진다.
-   */
-  const isDoneDay = (day: number): boolean => {
-    const date = new Date(year, month, day);
-    if (!isWorkdayDate(date)) return false;
-    return (history[dateKey(date)]?.length ?? 0) >= DAILY_MIN_CARDS;
-  };
 
   /** 그 날에서 한 방향으로 걸어가 처음 만나는 **근무일**이 완료된 날인가. */
   const nearestWorkdayDone = (day: number, step: 1 | -1): boolean => {
     // 연휴가 길어야 열흘 남짓이다 — 그 안에서 근무일을 못 만나면 이어지지 않은 것으로 본다.
     for (let k = 1; k <= 10; k++) {
       const date = new Date(year, month, day + step * k);
-      if (isWorkdayDate(date)) return (history[dateKey(date)]?.length ?? 0) >= DAILY_MIN_CARDS;
+      if (isWorkday(date)) return (history[dateKey(date)]?.length ?? 0) >= DAILY_MIN_CARDS;
     }
     return false;
   };
@@ -165,7 +137,7 @@ export function LearningCalendar() {
    */
   const inStreak = (day: number): boolean => {
     const date = new Date(year, month, day);
-    if (isWorkdayDate(date)) return (history[dateKey(date)]?.length ?? 0) >= DAILY_MIN_CARDS;
+    if (isWorkday(date)) return (history[dateKey(date)]?.length ?? 0) >= DAILY_MIN_CARDS;
     return nearestWorkdayDone(day, -1) && nearestWorkdayDone(day, 1);
   };
 
