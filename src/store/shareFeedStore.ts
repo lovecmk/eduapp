@@ -109,7 +109,12 @@ export const useShareFeedStore = create<ShareFeedState>()(
       toggleLike: (id) =>
         set((s) => ({
           posts: s.posts.map((p) =>
-            p.id === id ? { ...p, likedByMe: !p.likedByMe, likes: p.likes + (p.likedByMe ? -1 : 1) } : p,
+            // 0 아래로 내려가지 않게 막는다 — 리액션(아래)은 이미 그렇게 하고 있는데
+            // 좋아요만 빠져 있어, 시드가 '내가 눌렀음'인 채 0 인 글을 취소하면
+            // 화면에 '-1' 이 그려진다.
+            p.id === id
+              ? { ...p, likedByMe: !p.likedByMe, likes: Math.max(0, p.likes + (p.likedByMe ? -1 : 1)) }
+              : p,
           ),
         })),
       react: (id, kind) =>
