@@ -109,22 +109,39 @@ export function ScrollMoreHint({ visible, color }: { visible: boolean; color: st
 }
 
 /**
- * 끝까지 읽었을 때 한 번 뜨는 도장 — "다 읽었어요 ✨".
+ * 끝까지 읽었을 때 뜨는 도장 — "다 읽었어요 ✨".
  *
  * 해설이 길면 다 읽고도 "이게 끝인가" 싶어 한 번 더 끌어 보게 된다. 끝이라는
  * 사실을 짧게 말해 주면 그 한 번이 사라지고, 다음 동작(뒤집기·채점)으로 넘어간다.
+ *
+ * ── 자리는 늘 차지한다 ─────────────────────────────────────────────────────
+ * 이 도장은 스크롤 **콘텐츠 안**에 산다. 안 보일 때 `return null` 로 사라지면
+ * 콘텐츠 높이가 20px 남짓 줄었다 늘었다 하는데, 그 높이는 '다 읽었는가'를
+ * 판단하는 바로 그 값이다. 고리가 닫힌다:
+ *
+ *   바닥 도달 → 도장 mount → 콘텐츠 +20px → 아직 더 있음 → 도장 unmount → …
+ *
+ * 콘텐츠가 줄어드는 순간 스크롤 오프셋이 클램프되어 화면이 위로 튀고, 다시
+ * 늘어나면 내려간다 — 해설이 위아래로 튀던 증상의 정체다.
+ *
+ * 그래서 **높이는 스크롤 상태와 무관하게 고정**하고 opacity 만 바꾼다. 자리는
+ * 늘 비어 있고(글 끝의 여백으로 읽힌다), 다 읽으면 그 자리에 글자가 떠오른다.
  */
 export function ScrollEndStamp({ visible, color }: { visible: boolean; color: string }) {
+  const shown = useSharedValue(0);
   const pop = useSharedValue(0.6);
   useEffect(() => {
+    shown.value = withTiming(visible ? 1 : 0, { duration: visible ? 240 : 140 });
     if (visible) pop.value = withSpring(1, { damping: 9, stiffness: 180 });
     else pop.value = 0.6;
   }, [visible]);
-  const style = useAnimatedStyle(() => ({ transform: [{ scale: pop.value }] }));
+  const style = useAnimatedStyle(() => ({
+    opacity: shown.value,
+    transform: [{ scale: pop.value }],
+  }));
 
-  if (!visible) return null;
   return (
-    <Animated.View entering={FadeIn.duration(240)} style={[styles.stampWrap, style]}>
+    <Animated.View pointerEvents="none" style={[styles.stampWrap, style]}>
       <Text style={[styles.stampText, { color }]}>다 읽었어요 ✨</Text>
     </Animated.View>
   );

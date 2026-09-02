@@ -1013,8 +1013,8 @@ export default function CardsScreen() {
               <View style={{ flex: 1 }}>
                 <ScrollView
                   ref={quizScrollRef}
-                  // 넘칠 때만 스크롤로 다룬다 — 막대도, 손가락을 삼키는 것도 그때뿐이다.
-                  scrollEnabled={quizBody.overflowing}
+                  // 스크롤은 늘 켜 둔다. overflowing 으로 껐다 켜면 경계에서
+                  // 진행 중이던 제스처가 끊긴다 — 막대만 넘칠 때 보이면 된다.
                   showsVerticalScrollIndicator={quizBody.overflowing}
                   nestedScrollEnabled
                   contentContainerStyle={{ flexGrow: 1 }}
@@ -1058,7 +1058,6 @@ export default function CardsScreen() {
                  짧을 때는 flexGrow + center 로 지금처럼 가운데 정렬을 유지한다. */
               <View style={{ flex: 1 }}>
                 <ScrollView
-                  scrollEnabled={frontBody.overflowing}
                   showsVerticalScrollIndicator={frontBody.overflowing}
                   nestedScrollEnabled
                   contentContainerStyle={{ flexGrow: 1 }}
@@ -1112,8 +1111,10 @@ export default function CardsScreen() {
 
                 해설이 길면 카드 높이를 넘긴다. 카드를 늘릴 수는 없으니(화면이 정해져 있다)
                 이 영역이 손가락을 따라 스크롤된다. 두 가지를 함께 챙겨야 실제로 읽힌다.
-                 · 스크롤 막대(persistentScrollbar)는 **넘칠 때만** 보인다. 짧은 해설에도
-                   막대가 붙어 있으면 아래에 뭔가 더 있는 줄 알고 계속 밀어 보게 된다.
+                 · 레일·안내·도장은 **넘칠 때만** 보인다. 짧은 해설에도 막대가 붙어
+                   있으면 아래에 뭔가 더 있는 줄 알고 계속 밀어 보게 된다. 다만
+                   scrollEnabled 은 건드리지 않는다 — 경계에서 스크롤이 순간 꺼지면
+                   끌던 손이 허공을 짚는다(useScrollHasMore 주석 참고).
                  · 끌던 손을 뗄 때 카드가 뒤집히지 않아야 한다 — 탭 판은 이 스크롤 영역
                    안쪽에 있어 스크롤이 먼저 제스처를 가져가고, 흘러나온 꼬리는
                    markBodyScroll 의 시간 판정이 삼킨다. */}
@@ -1121,7 +1122,6 @@ export default function CardsScreen() {
               <ScrollView
                 ref={backScrollRef}
                 style={{ flex: 1 }}
-                scrollEnabled={backBody.overflowing}
                 // OS 기본 막대는 끈다 — 직접 그리는 레일(CuteScrollRail)과 겹치면
                 // 둥근 카드 안에 회색 직선이 하나 더 생긴다.
                 showsVerticalScrollIndicator={false}
@@ -1141,7 +1141,9 @@ export default function CardsScreen() {
               >
                 <Pressable tabIndex={-1} onPress={onCardPress} disabled={exiting}>
                   <CardBackBody card={card} />
-                  {/* 끝까지 내렸을 때만 뜬다 — 여기가 끝이라는 표시. */}
+                  {/* 끝까지 내렸을 때 뜬다 — 여기가 끝이라는 표시.
+                      **자리는 늘 차지한다**(opacity 만 바뀐다). 넣었다 뺐다 하면
+                      콘텐츠 높이가 흔들려 스크롤이 위아래로 튄다. */}
                   <ScrollEndStamp visible={backBody.overflowing && !backBody.hasMore} color={c.primary} />
                 </Pressable>
               </ScrollView>

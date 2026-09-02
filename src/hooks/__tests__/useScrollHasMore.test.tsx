@@ -63,4 +63,51 @@ describe('useScrollHasMore', () => {
     expect(api.overflowing).toBe(false);
     expect(api.hasMore).toBe(false);
   });
+
+  /**
+   * 발진(oscillation) — 이 훅이 실제로 화면을 망가뜨린 방식.
+   *
+   * 카드 뒷면의 '다 읽었어요 ✨' 도장이 `!hasMore` 일 때만 렌더돼, 바닥에 닿는
+   * 순간 콘텐츠가 20px 늘었다 줄었다 했다. 콘텐츠가 줄면 스크롤 오프셋이
+   * 클램프되어 화면이 위로 튄다 — 해설이 위아래로 튀던 증상의 정체다.
+   *
+   * 도장 쪽은 자리를 늘 차지하도록 고쳤지만, 훅에도 히스테리시스를 둔다.
+   * 다음 사람이 같은 함정을 밟아도 발진까지는 가지 않게.
+   */
+  it('콘텐츠 높이가 ±20px 흔들려도 상태가 발진하지 않는다', () => {
+    // 바닥까지 내렸다 — 여기서 도장이 뜨면서 콘텐츠가 20px 늘어난다.
+    act(() => { api.scrollProps.onScroll(scrollEvent(500, 400, 900)); });
+    expect(api.hasMore).toBe(false);
+
+    const seen: boolean[] = [];
+    for (let i = 0; i < 8; i++) {
+      // 도장 mount → +20px, unmount → −20px 을 번갈아 흉내 낸다.
+      act(() => { api.scrollProps.onContentSizeChange(0, i % 2 === 0 ? 920 : 900); });
+      seen.push(api.hasMore);
+    }
+    // 한 번도 되돌아가지 않는다 — 되돌아가는 순간이 곧 튐이다.
+    expect(seen).toEqual(Array(8).fill(false));
+    expect(api.overflowing).toBe(true);
+  });
+
+  it('진짜로 더 남았을 때는 켜진다 — 히스테리시스가 눈멀지는 않았다', () => {
+    act(() => { api.scrollProps.onScroll(scrollEvent(500, 400, 900)); });
+    expect(api.hasMore).toBe(false);
+    // 20px 로는 안 켜지지만(위), 문턱을 넉넉히 넘으면 켜져야 한다.
+    act(() => { api.scrollProps.onContentSizeChange(0, 1100); });
+    expect(api.hasMore).toBe(true);
+  });
+
+  it('넘침 판정도 경계에서 떨리지 않는다', () => {
+    act(() => { api.scrollProps.onLayout(layout(400)); });
+    act(() => { api.scrollProps.onContentSizeChange(0, 900); });
+    expect(api.overflowing).toBe(true);
+
+    // 경계 근처를 오가는 값 — 한 번 켜졌으면 여기서 꺼지지 않는다.
+    act(() => { api.scrollProps.onContentSizeChange(0, 410); });
+    expect(api.overflowing).toBe(true);
+    // 영역 안으로 완전히 들어오면 그때는 꺼진다.
+    act(() => { api.scrollProps.onContentSizeChange(0, 401); });
+    expect(api.overflowing).toBe(false);
+  });
 });
