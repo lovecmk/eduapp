@@ -95,9 +95,21 @@ describe('buildPersona', () => {
     expect(persona.desc).toContain(CAT_A!);
   });
 
-  it('카드가 있는 분야가 하나뿐이면 차이가 0 이라 균형으로 본다', () => {
-    // 경계 확인 — sorted 의 처음과 끝이 같은 원소가 되는 경우에도 죽지 않아야 한다.
-    expect(() => buildPersona(categoryValues(deck(CAT_A!, 4, 2)))).not.toThrow();
+  /**
+   * 차이(spread)만 보면 **아무것도 안 한 사람이 가장 균형 잡힌 사람이 된다** —
+   * 네 분야가 모두 1% 면 차이도 1% 라 문턱을 통과한다. 칭호는 공유 카드로 남에게
+   * 보여 주는 것이라, 부풀린 이름은 그 카드 전체를 믿을 수 없게 만든다.
+   */
+  it('막 시작한 사람에게 균형이라는 칭호를 붙이지 않는다', () => {
+    // 네 분야 모두 100장 중 2장(2%) — 차이는 0 이지만 쌓인 것이 없다.
+    const cards = ALL_CATEGORIES.flatMap((cat) => deck(cat, 100, 2));
+    expect(buildPersona(categoryValues(cards)).title).toBe('새내기 점검가');
+  });
+
+  it('카드가 있는 분야가 하나뿐이면 균형이 아니라 그 분야 스페셜리스트다', () => {
+    // 점 하나에는 폭이 없다 — 차이가 0 인 것은 고르다는 뜻이 아니다.
+    const persona = buildPersona(categoryValues(deck(CAT_A!, 4, 2)));
+    expect(persona.title).toBe(`${CAT_A} 스페셜리스트`);
   });
 
   it('어떤 경우에도 이모지와 설명이 비어 있지 않다', () => {
