@@ -16,6 +16,7 @@ import { radius, fontDisplay, fontBody, fontMono } from '../../theme/tokens';
 import { useCommunity } from '../../hooks/useCommunity';
 import { Skeleton, SkeletonCircle } from '../ui/Skeleton';
 import type { LiveActivity } from '../../domain/models/Community';
+import { percent } from '../../utils/percent';
 
 /** 아바타 줄에 그리는 최대 인원 — 나머지는 '+N' 으로 접는다. */
 const MAX_AVATARS = 5;
@@ -107,9 +108,7 @@ export function LivePresenceCard() {
    * 거짓말이다. 목표가 없으면 진행바를 아예 그리지 않는다.
    */
   const hasGoal = data.dailyGoalMinutes > 0;
-  const goalPct = hasGoal
-    ? Math.min(100, Math.round((data.totalMinutesToday / data.dailyGoalMinutes) * 100))
-    : 0;
+  const goalPct = percent(data.totalMinutesToday, data.dailyGoalMinutes);
   const current = activities[tickerIdx % Math.max(activities.length, 1)];
 
   // 아바타에 그릴 사람과, 접혀서 안 보이는 인원.

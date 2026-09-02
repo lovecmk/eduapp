@@ -27,6 +27,10 @@ import { useCommunity } from '../../src/hooks/useCommunity';
 import { useFactionStore } from '../../src/store/factionStore';
 import { FACTIONS, getFaction, factionStandings, type FactionId } from '../../src/constants/factions';
 import { contentColumn } from '../../src/theme/layout';
+import { percent } from '../../src/utils/percent';
+
+/** 레벨 한 칸에 필요한 학습 장수 — 진행률 분모. */
+const LEVEL_STEP = 10;
 
 function StatTile({ icon, color, value, label }: { icon: keyof typeof Ionicons.glyphMap; color: string; value: string; label: string }) {
   const { theme, fontScale } = useTheme();
@@ -65,7 +69,9 @@ function InsightsCard({ insights: ins }: { insights: LearningInsights }) {
   const { theme, fontScale } = useTheme();
   const c = theme.colors;
   const fs = fontScale;
-  const levelPct = Math.min(100, Math.round(((10 - ins.nextLevelIn) / 10) * 100));
+  // 남은 장수를 뺄셈으로 만드는 값이라 서버가 다른 단위를 쓰면 음수가 된다 —
+  // percent 가 0~100 으로 막는다(예전에는 위만 막아 '-50%' 가 그대로 나갔다).
+  const levelPct = percent(LEVEL_STEP - ins.nextLevelIn, LEVEL_STEP);
   const chip = (icon: keyof typeof Ionicons.glyphMap, color: string, label: string, value: string) => (
     <View style={{ flex: 1, minWidth: '46%', backgroundColor: c.surfaceAlt, borderRadius: 12, padding: 11 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 5 }}>
@@ -216,6 +222,7 @@ function MyFactionCard() {
     </Pressable>
   );
 }
+
 
 export default function StatsScreen() {
   const { theme, fontScale } = useTheme();

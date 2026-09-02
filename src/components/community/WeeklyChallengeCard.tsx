@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/ThemeProvider';
 import { radius, fontDisplay, fontBody, fontMono } from '../../theme/tokens';
 import { useCommunity } from '../../hooks/useCommunity';
+import { percent } from '../../utils/percent';
 
 /** 이번 주 함께 참여하는 공동 챌린지 — "함께 쌓아가는" 참여형 학습. */
 export function WeeklyChallengeCard() {
@@ -12,7 +13,7 @@ export function WeeklyChallengeCard() {
   const { data } = useCommunity();
   if (!data) return null;
   const ch = data.challenge;
-  const pct = ch.goalCards > 0 ? Math.min(100, Math.round((ch.currentCards / ch.goalCards) * 100)) : 0;
+  const pct = percent(ch.currentCards, ch.goalCards);
 
   return (
     <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.border }]}>
