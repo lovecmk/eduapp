@@ -83,6 +83,34 @@ function optionalUrl(value: string | null | undefined): string | undefined {
   return blank(value) ? undefined : value!.trim();
 }
 
+/**
+ * 이 카드를 퀴즈로 낼 수 있는가 — 보기와 정답이 **둘 다** 성립할 때만이다.
+ *
+ * 학습 화면은 퀴즈 카드를 풀기 전에는 뒤집지도, 넘기지도 못하게 막는다
+ * (`onCardPress`·`trySwipe`). 그래서 보기가 비어 있는 퀴즈 카드가 한 장 섞이면
+ * 화면에는 고를 것이 하나도 없는데 넘어갈 수도 없다 — **그날 학습이 그 자리에서
+ * 멈춘다.** 나가는 것 말고는 길이 없고, 다음 날에도 같은 카드가 나온다.
+ *
+ * 정답 번호가 없을 때도 조용히 넘어가면 안 된다. 예전에는 `answerIndex ?? 0` 이라
+ * **①번을 정답으로 꾸며 냈다.** 제대로 고른 사람이 오답 처리되고, 그 결과가 그대로
+ * 복습 일정(SRS)에 반영된다. 화면 어디에도 이상하다는 표시는 없다.
+ *
+ * 둘 중 하나라도 어긋나면 설명형 카드로 낮춰 낸다. 내용은 그대로 읽히고, 채점만
+ * 하지 않는다 — 없는 정답으로 채점하는 것보다 정직하다. 콘텐츠가 깨졌다는 사실은
+ * 구조화 로그로 남겨 운영이 찾을 수 있게 한다.
+ */
+function quizIsAnswerable(dto: CardDTO): boolean {
+  const choices = dto.choices ?? [];
+  const answer = dto.answer_index;
+  return (
+    choices.length >= 2 &&
+    typeof answer === 'number' &&
+    Number.isInteger(answer) &&
+    answer >= 0 &&
+    answer < choices.length
+  );
+}
+
 export class CardMapper {
   static toDomain(dto: CardDTO): LearningCard {
     // 알 수 없는 코드는 폴백하되(화면은 계속 뜬다) 스키마 불일치를 구조화 로그로 남긴다.
@@ -92,6 +120,17 @@ export class CardMapper {
     if (!STATUS_MAP[dto.status_cd]) {
       logger.warn('dto_unknown_code', { mapper: 'card', field: 'status_cd', value: dto.status_cd });
     }
+    const declaredType = CARD_TYPE_MAP[dto.card_type_cd ?? 'EXPLANATION'] ?? 'explanation';
+    const answerable = declaredType === 'explanation' || quizIsAnswerable(dto);
+    if (!answerable) {
+      logger.warn('card_quiz_unanswerable', {
+        cardId: dto.id,
+        type: dto.card_type_cd,
+        choices: (dto.choices ?? []).length,
+        answerIndex: dto.answer_index,
+      });
+    }
+
     return {
       id: dto.id,
       category: CATEGORY_MAP[dto.category_cd] ?? '전기 위험',
@@ -110,9 +149,10 @@ export class CardMapper {
       conclusion: dto.conclusion_txt?.trim() ?? '',
       answerImageUrl: optionalUrl(dto.answer_image_url),
       source: dto.source_txt?.trim() || undefined,
-      type: CARD_TYPE_MAP[dto.card_type_cd ?? 'EXPLANATION'] ?? 'explanation',
-      choices: dto.choices,
-      answerIndex: dto.answer_index,
+      // 풀 수 없는 퀴즈는 설명형으로 낮춘다(위 quizIsAnswerable 주석 참고).
+      type: answerable ? declaredType : 'explanation',
+      choices: answerable ? dto.choices : undefined,
+      answerIndex: answerable ? dto.answer_index : undefined,
       // 문제 사진이든 해설 사진이든 하나라도 있으면 '사진 있는 카드'다
       // (시드 생성기가 세는 방식과 같다 — 두 곳이 갈리면 목록과 상세가 어긋난다).
       hasImage: !blank(dto.image_url) || !blank(dto.answer_image_url),

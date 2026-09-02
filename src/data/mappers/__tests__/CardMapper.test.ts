@@ -104,6 +104,44 @@ describe('CardMapper.toDomain', () => {
     expect(card.hasImage).toBe(false);
   });
 
+  /**
+   * 학습 화면은 퀴즈 카드를 풀기 전에는 뒤집지도 넘기지도 못하게 막는다.
+   * 그래서 보기가 비어 있는 퀴즈 카드가 한 장 섞이면 화면에는 고를 것이 하나도
+   * 없는데 넘어갈 수도 없다 — 그날 학습이 그 자리에서 멈춘다.
+   */
+  it('보기가 없는 퀴즈는 설명형으로 낮춘다 (학습이 멈추지 않도록)', () => {
+    const card = CardMapper.toDomain({ ...base, card_type_cd: 'CHOICE', choices: [], answer_index: 0 });
+    expect(card.type).toBe('explanation');
+    expect(card.choices).toBeUndefined();
+  });
+
+  /**
+   * 예전에는 `answerIndex ?? 0` 이라 정답 번호가 없으면 ①번을 정답으로 꾸며 냈다.
+   * 제대로 고른 사람이 오답 처리되고, 그 결과가 복습 일정(SRS)에 그대로 반영된다.
+   */
+  it('정답 번호가 없는 퀴즈는 채점하지 않는다 (①번을 정답으로 꾸며 내지 않는다)', () => {
+    const card = CardMapper.toDomain({ ...base, card_type_cd: 'OX', choices: ['O', 'X'] });
+    expect(card.type).toBe('explanation');
+    expect(card.answerIndex).toBeUndefined();
+  });
+
+  it('정답 번호가 보기 범위를 벗어나도 낮춘다', () => {
+    const card = CardMapper.toDomain({ ...base, card_type_cd: 'CHOICE', choices: ['가', '나'], answer_index: 5 });
+    expect(card.type).toBe('explanation');
+  });
+
+  it('보기와 정답이 온전하면 그대로 퀴즈로 낸다', () => {
+    const card = CardMapper.toDomain({ ...base, card_type_cd: 'CHOICE', choices: ['가', '나', '다'], answer_index: 2 });
+    expect(card.type).toBe('choice');
+    expect(card.choices).toEqual(['가', '나', '다']);
+    expect(card.answerIndex).toBe(2);
+  });
+
+  it('설명형 카드는 보기가 없어도 그대로 설명형이다', () => {
+    const card = CardMapper.toDomain({ ...base, card_type_cd: 'EXPLANATION' });
+    expect(card.type).toBe('explanation');
+  });
+
   it('toDomainList 는 전체를 매핑한다', () => {
     const list = CardMapper.toDomainList([base, { ...base, id: 'c2' }]);
     expect(list.map((c) => c.id)).toEqual(['c1', 'c2']);
