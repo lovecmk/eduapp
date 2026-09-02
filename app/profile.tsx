@@ -21,6 +21,7 @@ import { contentColumn } from '../src/theme/layout';
 // 예전에는 이 화면만 자체 상수 60 을 들고 있어서, 다른 기기에서 100자로 적어 둔
 // 소개를 열면 화면에는 다 보이는데 한 글자만 고쳐도 60자로 잘렸다(카운터도 거짓말).
 import { BIO_MAX } from '../src/domain/models/UserSettings';
+import { toast } from '../src/store/toastStore';
 
 export default function ProfileScreen() {
   const { theme, fontScale: fs } = useTheme();
@@ -56,7 +57,10 @@ export default function ProfileScreen() {
   }, [owned]);
 
   const pickImage = async () => {
-    if (Platform.OS === 'web') { Alert.alert('안내', '프로필 사진 변경은 앱에서 가능합니다'); return; }
+    // 웹에서는 토스트로 알린다 — react-native-web 의 Alert.alert 는 **빈 함수**라
+    // (dist/exports/Alert: `static alert() {}`) 아무것도 뜨지 않는다. 아바타를
+    // 눌러도 반응이 없으니 사용자는 버튼이 고장 났다고 읽고 계속 누른다.
+    if (Platform.OS === 'web') { toast('프로필 사진 변경은 앱에서 가능해요', 'info'); return; }
     // 갤러리 호출은 기기 상태에 따라 예외를 던진다(권한 창 취소, 사진 앱 없음 등).
     // 감싸지 않으면 아바타를 눌러도 아무 반응이 없어 고장난 것처럼 보인다.
     try {

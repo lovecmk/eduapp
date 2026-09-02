@@ -94,8 +94,13 @@ export async function applyUpdate(remote?: RemoteVersion): Promise<void> {
   }
 
   // 3) 캐시 버스팅 쿼리와 함께 하드 리로드 → 최신 index.html/번들 로드
-  const bust = remote?.buildNumber ?? Date.now();
+  //
+  // 이전 버스팅 값은 **덮어쓴다.** 그냥 이어 붙이면 업데이트를 받을 때마다
+  // 주소가 `?v=1&v=2&v=3…` 으로 길어진다(끝이 없다). 사용자가 그 주소를
+  // 북마크하거나 공유하면 그 쓰레기까지 함께 따라다닌다.
+  const bust = String(remote?.buildNumber ?? Date.now());
   const { location } = window;
-  const separator = location.search ? '&' : '?';
-  location.replace(`${location.pathname}${location.search}${separator}v=${bust}${location.hash}`);
+  const params = new URLSearchParams(location.search);
+  params.set('v', bust);
+  location.replace(`${location.pathname}?${params.toString()}${location.hash}`);
 }
