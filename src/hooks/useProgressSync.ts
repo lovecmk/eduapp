@@ -44,6 +44,12 @@ export function useProgressSync(): void {
   const enabled = !!userId;
 
   // 이미 보낸 채점을 다시 보내지 않기 위한 표식(카드 id → 마지막으로 보낸 복습 시각).
+  //
+  // ⚠️ 이 표식은 **사람마다 새로 시작해야 한다.** 특히 출석은 값이 날짜 문자열이라
+  // 사용자와 무관하다 — 현장 태블릿에서 A 가 오늘 출석한 뒤 B 가 로그인해 출석하면,
+  // 표식에 오늘 날짜가 이미 들어 있어 **B 의 출석이 서버로 한 번도 나가지 않는다.**
+  // 기기에는 도장이 찍혀 있으니 아무도 눈치채지 못하고, B 가 기기를 바꾸면 그날
+  // 출석은 없던 일이 된다. 그래서 아래 구독은 userId 로 다시 걸고 표식을 비운다.
   const sent = useRef<Map<string, number>>(new Map());
   const sentDays = useRef<Set<string>>(new Set());
 
@@ -78,6 +84,8 @@ export function useProgressSync(): void {
   // 2) 채점이 생기면 그 카드만 보낸다.
   useEffect(() => {
     if (!enabled) return;
+    // 앞사람의 '이미 보냄' 표식을 물려받지 않는다(위 주석 참고).
+    sent.current = new Map();
     let prevCards = useSrsStore.getState().cards;
 
     const unsub = useSrsStore.subscribe((state) => {
@@ -101,11 +109,12 @@ export function useProgressSync(): void {
     });
 
     return unsub;
-  }, [enabled]);
+  }, [enabled, userId]);
 
   // 3) 출석 도장이 찍히면 보낸다.
   useEffect(() => {
     if (!enabled) return;
+    sentDays.current = new Set();
     let prevStamps = useAttendanceStore.getState().stamps;
 
     const unsub = useAttendanceStore.subscribe((state) => {
@@ -123,5 +132,5 @@ export function useProgressSync(): void {
     });
 
     return unsub;
-  }, [enabled]);
+  }, [enabled, userId]);
 }

@@ -25,6 +25,13 @@ export function useNotificationSync(): void {
   const userId = useAuthStore((s) => s.user?.id ?? null);
   const enabled = !!userId;
 
+  /**
+   * 이미 서버에 보낸 '읽음' — 같은 알림을 두 번 보내지 않기 위한 표식.
+   *
+   * 사람이 바뀌면 비운다. 현장 태블릿은 여러 명이 돌려 쓰는데, 이 표식을 물려받으면
+   * 앞사람이 읽은 것과 id 가 겹치는 알림의 읽음이 뒷사람에게서는 서버로 나가지
+   * 않는다(아래 구독이 userId 로 다시 걸리는 이유).
+   */
   const readSent = useRef<Set<string>>(new Set());
 
   // 1) 목록 가져오기(진입 시 + 주기적으로).
@@ -71,6 +78,7 @@ export function useNotificationSync(): void {
   // 2) 읽음 되돌려주기.
   useEffect(() => {
     if (!enabled) return;
+    readSent.current = new Set();
     let prev = useNotificationStore.getState().items;
 
     const unsub = useNotificationStore.subscribe((s) => {
@@ -101,5 +109,5 @@ export function useNotificationSync(): void {
     });
 
     return unsub;
-  }, [enabled]);
+  }, [enabled, userId]);
 }
