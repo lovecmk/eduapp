@@ -59,7 +59,20 @@ function migrateLegacyPath(item: QueuedWrite): QueuedWrite {
 
 /** 큐 최대 길이 — 넘치면 가장 오래된 항목부터 버린다(무한 성장 방지). */
 export const MAX_QUEUE = 100;
-/** 이 횟수만큼 실패하면 포기한다(영구 실패 항목이 큐를 막지 않도록). */
+/**
+ * 이 횟수만큼 **서버에 닿고도** 실패하면 포기한다(영구 실패 항목이 큐를 막지 않도록).
+ *
+ * ── 연결이 없던 것은 시도로 세지 않는다 ──────────────────────────────────
+ * 예전에는 실패면 무조건 attempts 를 올렸다. 그런데 status 0(연결 없음)도 실패다.
+ * 큐는 앱이 앞으로 나올 때마다 흘려보내므로(useAppResume), **지하 현장에서 앱을
+ * 다섯 번 열기만 하면** 아직 한 번도 서버에 닿아 보지 못한 출석 도장이
+ * '너무 많이 실패했다'며 버려졌다. 유실을 막으려고 만든 큐가 유실의 원인이 되는
+ * 셈이고, 하필 이 앱이 가장 자주 놓이는 상황이 바로 그 상황이다.
+ *
+ * 그래서 세는 것은 '서버가 지금은 안 된다고 답한 횟수'뿐이다(5xx·429).
+ * 닿지 못한 항목은 연결이 돌아올 때까지 그대로 기다린다 — 영영 안 돌아와도
+ * MAX_QUEUE 상한에 밀려 결국 빠지므로 큐가 무한히 자라지는 않는다.
+ */
 export const MAX_ATTEMPTS = 5;
 
 let memory: QueuedWrite[] = [];
@@ -181,7 +194,8 @@ export async function flushQueue(): Promise<number> {
         sent += 1;
       } catch (e) {
         const err = toApiError(e);
-        item.attempts += 1;
+        // 서버에 닿지 못한 것은 이 항목의 잘못이 아니다 — 시도로 세지 않는다.
+        if (err.kind !== 'offline') item.attempts += 1;
         if (!err.retryable || item.attempts >= MAX_ATTEMPTS) {
           // 다시 보내도 소용없거나 너무 많이 실패했다 → 버리고 다음으로 넘어간다.
           removeById(item.id);

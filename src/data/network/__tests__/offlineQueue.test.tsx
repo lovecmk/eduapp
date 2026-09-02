@@ -89,11 +89,46 @@ describe('오프라인 쓰기 큐', () => {
     expect(await pendingCount()).toBe(0); // /bad 는 폐기
   });
 
-  it('일시적 실패가 반복되면 최대 시도 횟수에서 포기한다', async () => {
+  it('서버가 계속 거절하면(5xx) 최대 시도 횟수에서 포기한다', async () => {
     setQueueSender(async () => { throw new ApiError(503, ''); });
     await enqueue('POST', '/flaky', {});
     for (let i = 0; i < MAX_ATTEMPTS; i++) await flushQueue();
     expect(await pendingCount()).toBe(0); // 무한히 큐를 막지 않는다
+  });
+
+  /**
+   * 이 앱이 가장 자주 놓이는 상황에서 큐가 제 일을 하는지.
+   *
+   * 큐는 앱이 앞으로 나올 때마다 흘려보낸다(useAppResume). 연결 없음을 '시도'로
+   * 세면, 지하 현장에서 앱을 다섯 번 열기만 해도 **서버에 한 번도 닿아 보지 못한**
+   * 출석 도장이 '너무 많이 실패했다'며 버려진다. 유실을 막으려고 만든 큐가
+   * 유실의 원인이 되는 셈이다.
+   */
+  it('연결이 없는 동안에는 아무리 여러 번 흘려보내도 버리지 않는다', async () => {
+    setQueueSender(async () => { throw new ApiError(0, '연결 없음'); });
+    await enqueue('POST', '/inner/api/v1/progress/attendance', { day: '2026-7-25' });
+
+    for (let i = 0; i < MAX_ATTEMPTS * 3; i++) await flushQueue();
+    expect(await pendingCount()).toBe(1);
+
+    // 지상으로 나왔다 → 그동안 기다린 기록이 그대로 나간다.
+    const sent: string[] = [];
+    setQueueSender(async (q: QueuedWrite) => { sent.push(q.path); });
+    await flushQueue();
+    expect(sent).toEqual(['/inner/api/v1/progress/attendance']);
+    expect(await pendingCount()).toBe(0);
+  });
+
+  it('연결이 없다가 서버가 거절하기 시작하면 그때부터 시도를 센다', async () => {
+    await enqueue('POST', '/flaky', {});
+
+    setQueueSender(async () => { throw new ApiError(0, '연결 없음'); });
+    for (let i = 0; i < MAX_ATTEMPTS * 2; i++) await flushQueue();
+    expect(await pendingCount()).toBe(1);
+
+    setQueueSender(async () => { throw new ApiError(503, ''); });
+    for (let i = 0; i < MAX_ATTEMPTS; i++) await flushQueue();
+    expect(await pendingCount()).toBe(0);
   });
 
   it('멱등키를 지정하면 그대로 보존한다(서버 중복 반영 방지)', async () => {
