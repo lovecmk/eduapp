@@ -92,6 +92,18 @@ describe('CardMapper.toDomain', () => {
     expect(card.hasImage).toBe(false);
   });
 
+  it("선택 본문의 'null' 도 없는 것으로 본다 (해설에 \"null\" 이라 적힌 단계를 만들지 않는다)", () => {
+    const card = CardMapper.toDomain({
+      ...base,
+      process_txt: 'null',
+      fire_triangle_txt: 'null',
+      source_txt: '  ',
+    });
+    expect(card.process).toBeUndefined();
+    expect(card.fireTriangle).toBeUndefined();
+    expect(card.source).toBeUndefined();
+  });
+
   it('해설 사진만 있어도 사진 있는 카드로 센다', () => {
     const card = CardMapper.toDomain({ ...base, image_url: 'null', answer_image_url: '8-1' });
     expect(card.answerImageUrl).toBe('8-1');

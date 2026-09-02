@@ -25,6 +25,9 @@ export function CardBackBody({ card }: { card: LearningCard }) {
   const c = theme.colors;
   const fs = fontScale;
   const steps = card.process ? splitSteps(card.process) : [];
+  // 키워드는 React key 로 쓰인다 — 같은 값이 두 번 들어오면 key 가 겹쳐 경고가 뜨고
+  // 목록이 어긋난다. 원본(엑셀)에서 같은 태그를 두 번 적는 일은 드물지 않다.
+  const keywords = [...new Set(card.keywords)];
 
   return (
     <View style={{ gap: 12 }}>
@@ -40,13 +43,20 @@ export function CardBackBody({ card }: { card: LearningCard }) {
         </Text>
       )}
 
-      {/* 핵심 결론(그 다음 '따라서 ~' 결론으로 마무리) */}
-      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: c.warning + '12', borderRadius: 12, padding: 12 }}>
-        <Ionicons name="bulb" size={20} color={c.warning} style={{ marginTop: 1 }} />
-        <Text style={{ color: c.textPrimary, fontSize: 15.5 * fs, lineHeight: 24, fontFamily: fontDisplay, flex: 1 }}>
-          {card.conclusion}
-        </Text>
-      </View>
+      {/* 핵심 결론(그 다음 '따라서 ~' 결론으로 마무리)
+
+          결론이 비어 있으면 그리지 않는다. 다른 블록은 모두 `!!` 로 막고 있는데
+          여기만 무조건 그려서, 결론이 없는 카드에는 전구 아이콘만 든 **빈 노란
+          상자**가 남았다(매퍼가 없는 값을 ''로 채운다). 빈 상자는 내용이 없다는
+          뜻으로 읽히지 않고 화면이 깨진 것으로 읽힌다. */}
+      {!!card.conclusion && (
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: c.warning + '12', borderRadius: 12, padding: 12 }}>
+          <Ionicons name="bulb" size={20} color={c.warning} style={{ marginTop: 1 }} />
+          <Text style={{ color: c.textPrimary, fontSize: 15.5 * fs, lineHeight: 24, fontFamily: fontDisplay, flex: 1 }}>
+            {card.conclusion}
+          </Text>
+        </View>
+      )}
 
       {/* 진행 프로세스 */}
       {steps.length > 0 && (
@@ -77,9 +87,9 @@ export function CardBackBody({ card }: { card: LearningCard }) {
       )}
 
       {/* 키워드 */}
-      {card.keywords.length > 0 && (
+      {keywords.length > 0 && (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-          {card.keywords.map((k) => (
+          {keywords.map((k) => (
             <View key={k} style={{ backgroundColor: c.primary + '12', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 }}>
               <Text style={{ color: c.primary, fontSize: 11, fontFamily: fontBody }}>#{k}</Text>
             </View>

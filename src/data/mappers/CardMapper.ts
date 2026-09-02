@@ -78,8 +78,8 @@ function blank(value: string | null | undefined): boolean {
   return v === '' || v.toLowerCase() === 'null' || v.toLowerCase() === 'undefined';
 }
 
-/** 선택 항목 주소 — 없거나 'null' 이면 undefined. */
-function optionalUrl(value: string | null | undefined): string | undefined {
+/** 선택 항목 — 없거나 'null' 이면 undefined. 주소·본문 모두 같은 규칙을 쓴다. */
+function optional(value: string | null | undefined): string | undefined {
   return blank(value) ? undefined : value!.trim();
 }
 
@@ -142,13 +142,15 @@ export class CardMapper {
       studySeconds: dto.study_seconds ?? 40,
       situation: dto.situation_txt?.trim() ?? '',
       question: dto.question_txt?.trim() ?? '',
-      imageUrl: optionalUrl(dto.image_url),
+      imageUrl: optional(dto.image_url),
       principle: dto.principle_txt?.trim() ?? '',
-      process: dto.process_txt?.trim() || undefined,
-      fireTriangle: dto.fire_triangle_txt?.trim() || undefined,
+      // 선택 본문도 같은 규칙으로 읽는다 — 'null' 이 그대로 통과하면 해설에
+      // "null" 이라고 적힌 단계가 그려진다(사진에서 이미 겪은 것과 같은 원인).
+      process: optional(dto.process_txt),
+      fireTriangle: optional(dto.fire_triangle_txt),
       conclusion: dto.conclusion_txt?.trim() ?? '',
-      answerImageUrl: optionalUrl(dto.answer_image_url),
-      source: dto.source_txt?.trim() || undefined,
+      answerImageUrl: optional(dto.answer_image_url),
+      source: optional(dto.source_txt),
       // 풀 수 없는 퀴즈는 설명형으로 낮춘다(위 quizIsAnswerable 주석 참고).
       type: answerable ? declaredType : 'explanation',
       choices: answerable ? dto.choices : undefined,
