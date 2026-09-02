@@ -75,6 +75,31 @@ const consoleSink: LogSink = (r) => {
 
 let sink: LogSink = consoleSink;
 
+/**
+ * 최근 로그를 메모리에 조금 남긴다 — **진단 로그 내려받기가 읽을 것**.
+ *
+ * 예전에는 설정 → 시스템 로그가 지어낸 네 줄("세션 복구 성공", "동기화 완료",
+ * "success=100%")을 현재 시각과 함께 찍어 줬다. 그 기능을 누르는 순간은 대개
+ * 무언가 잘못됐을 때인데, 파일은 늘 "전부 정상"이라고 말한다. 그걸 받아 본
+ * 사람은 앱이 멀쩡하다고 결론 내리고 진짜 원인은 그대로 남는다 — 진단 도구가
+ * 거짓을 말하는 것은 진단 도구가 없는 것보다 나쁘다.
+ *
+ * 담기는 것은 이미 마스킹을 거친 기록이다(redact 이후). 상한을 두어 오래 켜 둔
+ * 앱이 메모리를 갉아먹지 않게 하고, 넘치면 오래된 것부터 버린다.
+ */
+const RECENT_LIMIT = 200;
+let recent: LogRecord[] = [];
+
+/** 최근 로그(오래된 것 → 최신). 내려받기·개발자 화면이 읽는다. */
+export function recentLogs(): LogRecord[] {
+  return [...recent];
+}
+
+/** 테스트·초기화용. */
+export function clearRecentLogs(): void {
+  recent = [];
+}
+
 /** 로그 목적지 교체(운영 수집기 연결용). */
 export function setLogSink(next: LogSink): void {
   sink = next;
@@ -88,7 +113,15 @@ export function resetLogSink(): void {
 function emit(level: LogLevel, event: string, fields: LogFields = {}): void {
   // debug 는 개발 중에만 — 운영 로그 소음을 줄인다.
   if (level === 'debug' && !__DEV__) return;
-  sink({ level, event, timestamp: new Date().toISOString(), fields: redact(fields) });
+  const record: LogRecord = {
+    level,
+    event,
+    timestamp: new Date().toISOString(),
+    fields: redact(fields),
+  };
+  recent.push(record);
+  if (recent.length > RECENT_LIMIT) recent = recent.slice(-RECENT_LIMIT);
+  sink(record);
 }
 
 export const logger = {
