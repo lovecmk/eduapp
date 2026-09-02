@@ -89,10 +89,22 @@ export const useSrsStore = create<SrsState>()(
     }),
     {
       name: 'srs-scheduler',
-      // v2: 예전 버전이 심어둔 '가짜 복습이력/스케줄'을 일괄 제거한다.
-      // (초기화하지 않은 기존 사용자에게도 주말 학습 오표기 등이 남지 않도록.)
       version: 2,
-      migrate: () => ({ cards: {}, history: {}, seeded: false }),
+      /**
+       * v2 로 올라오는 길에서만 지운다 — **버전이 바뀔 때마다가 아니다.**
+       *
+       * v2 의 목적은 예전 버전이 심어둔 '가짜 복습이력/스케줄'을 일괄 제거하는
+       * 것이었고(주말 학습 오표기 등), 그래서 무조건 빈 상태를 돌려주도록 적혀
+       * 있었다. 문제는 migrate 가 **어느 버전에서 올라오든** 불린다는 점이다.
+       * 다음 사람이 아무 이유로든 version 을 3 으로 올리는 순간, 이 한 줄이
+       * 모든 사용자의 학습 이력과 이어달리기를 조용히 지운다 — 몇 달치 기록이고,
+       * 지워졌다는 사실조차 화면에 뜨지 않는다.
+       *
+       * 그래서 지우는 조건을 원래 의도대로 좁힌다. v2 이상에서 올라오는 상태는
+       * 그대로 물려받는다.
+       */
+      migrate: (persisted, from) =>
+        (from < 2 ? { cards: {}, history: {}, seeded: false } : persisted) as SrsState,
       storage: createJSONStorage(() => AsyncStorage),
     },
   ),
