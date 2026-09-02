@@ -443,6 +443,13 @@ export default function CardsScreen() {
       if (card.status === 'new') recordNewLearned(1);
     }
     setDoneCount((n) => n + 1);
+    // 도감 적립도 여기서 한 장씩 한다 — **세션을 마쳐야 주면 안 된다.**
+    // 예전에는 완료 화면(finished)에서 doneCount 를 한꺼번에 넣었는데, 배정이
+    // 5장인 날 3장만 하고 화면을 떠난 사람은 한 장도 인정받지 못했다. 그런
+    // 사람이 도감에서 보는 문구는 "오늘 3장을 학습하면 열려요 (0/3)" 다 —
+    // 방금 세 장을 풀고 나온 사람에게 0/3 은 앱이 고장 난 것으로 읽힌다.
+    // 한 장을 마친 그 순간이 적립의 단위이자 시점이다.
+    useCollectionStore.getState().addStudyProgress(1);
     setFlipped(false);
     if (controlTimer.current) clearTimeout(controlTimer.current);
     setBackControls(false);
@@ -637,11 +644,8 @@ export default function CardsScreen() {
 
   useEffect(() => {
     if (!finished) return;
-    // 학습 세션을 마치면 안전 카드팩 적립 — 수집 재미 요소.
-    // **장수(doneCount)로 적립한다.** 세션 단위로 1씩 올리면 하루에 한 번
-    // 학습하는 보통 사용자는 '오늘 몇 장 학습' 조건(일일 무료팩)을 영원히
-    // 못 채운다 — 적립 단위와 조건 단위가 같아야 한다.
-    useCollectionStore.getState().addStudyProgress(doneCount);
+    // (도감 적립은 여기가 아니라 advance() 에서 한 장씩 한다 — 중간에 나간
+    //  사람의 학습도 인정되어야 하기 때문이다. 위 주석 참고.)
     // 단일 카드(focus) 학습만, 원래 보던 컨텐츠로 곧장 복귀(짧게).
     // 오늘의 학습·카테고리 복습은 자동으로 넘기지 않고 완료 화면에서 '대기'한다
     // (사용자가 직접 복습하러 가거나 홈으로 이동). 로딩바/이동 안내 문구도 두지 않는다.

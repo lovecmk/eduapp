@@ -62,6 +62,19 @@ describe('일일 무료팩', () => {
     expect(store().claimDaily()).toBe(true);
   });
 
+  /**
+   * 학습 화면은 카드를 한 장 마칠 때마다 addStudyProgress(1) 을 부른다.
+   *
+   * 예전에는 완료 화면(finished)에서 한꺼번에 넣었다. 그러면 배정이 5장인 날
+   * 3장만 하고 화면을 떠난 사람은 한 장도 인정받지 못하고, 도감에서는 방금
+   * 세 장을 푼 사람에게 "오늘 3장을 학습하면 열려요 (0/3)" 이 보인다.
+   */
+  it('세션을 끝까지 마치지 않아도, 한 장씩 쌓은 학습으로 열린다', () => {
+    for (let i = 0; i < DAILY_PACK_MIN_STUDY; i++) store().addStudyProgress(1);
+    expect(store().dailyStatus().studied).toBe(DAILY_PACK_MIN_STUDY);
+    expect(store().dailyStatus().canClaim).toBe(true);
+  });
+
   it('하루에 두 번은 못 받는다', () => {
     for (let i = 0; i < DAILY_PACK_MIN_STUDY; i++) store().addStudyProgress();
     expect(store().claimDaily()).toBe(true);
