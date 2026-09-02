@@ -74,3 +74,21 @@ it('접속자 수는 서버 값을 그대로 보여 준다', () => {
   show(snapshot({ onlineNow: 12, companions: [companion('u1', '진섭')] }));
   expect(screen.getByText('12')).toBeTruthy();
 });
+
+/**
+ * 공동 목표가 0 이면 진행바를 그리지 않는다.
+ *
+ * 매퍼는 서버가 daily_goal_minutes 를 빼먹으면 0 을 넣는다(`?? 0`). 그대로
+ * 나누면 0/0 = NaN 이라 `width: "NaN%"` 라는 스타일이 나가고, 분자가 조금이라도
+ * 있으면 Infinity → 100% 가 되어 **목표를 달성한 것처럼** 보인다. 목표가 없는
+ * 날에 '오늘 공동 목표 달성'은 거짓말이다.
+ */
+it('공동 목표가 없으면(0) 진행바도 "/ 0분"도 그리지 않는다', () => {
+  show(snapshot({ dailyGoalMinutes: 0, totalMinutesToday: 0 }));
+  expect(screen.queryByText(/\/ 0분/)).toBeNull();
+});
+
+it('공동 목표가 있으면 목표치를 함께 보여 준다', () => {
+  show(snapshot({ dailyGoalMinutes: 9000, totalMinutesToday: 4500 }));
+  expect(screen.getByText(/9,000분/)).toBeTruthy();
+});

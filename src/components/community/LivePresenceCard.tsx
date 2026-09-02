@@ -97,7 +97,19 @@ export function LivePresenceCard() {
   }
   if (!data) return null;
 
-  const goalPct = Math.min(100, Math.round((data.totalMinutesToday / data.dailyGoalMinutes) * 100));
+  /**
+   * 공동 목표 진행률 — **목표가 있을 때만** 뜻이 있다.
+   *
+   * 서버가 daily_goal_minutes 를 빼먹으면 매퍼가 0 을 넣는다(`?? 0`). 그대로
+   * 나누면 0/0 = NaN 이 되어 `width: "NaN%"` 라는 스타일이 나간다 — 웹에서는
+   * 무시돼 막대가 제멋대로 그려지고, 값이 조금이라도 있으면 Infinity 가 되어
+   * 목표를 100% 채운 것처럼 보인다. 둘 다 '오늘 공동 목표를 달성했다'는
+   * 거짓말이다. 목표가 없으면 진행바를 아예 그리지 않는다.
+   */
+  const hasGoal = data.dailyGoalMinutes > 0;
+  const goalPct = hasGoal
+    ? Math.min(100, Math.round((data.totalMinutesToday / data.dailyGoalMinutes) * 100))
+    : 0;
   const current = activities[tickerIdx % Math.max(activities.length, 1)];
 
   // 아바타에 그릴 사람과, 접혀서 안 보이는 인원.
@@ -133,7 +145,7 @@ export function LivePresenceCard() {
                 key={cmp.id}
                 style={[
                   styles.avatar,
-                  { backgroundColor: cmp.color, borderColor: c.surface, marginLeft: i === 0 ? 0 : -10, zIndex: 5 - i },
+                  { backgroundColor: cmp.color, borderColor: c.surface, marginLeft: i === 0 ? 0 : -10, zIndex: MAX_AVATARS - i },
                 ]}
               >
                 <Text style={styles.avatarText}>{cmp.name.charAt(0)}</Text>
@@ -189,12 +201,16 @@ export function LivePresenceCard() {
         </Text>
         <Text style={[styles.goalValue, { color: c.textPrimary }]} numberOfLines={1}>
           {data.totalMinutesToday.toLocaleString()}
-          <Text style={{ color: c.textSecondary, fontFamily: fontBody }}> / {data.dailyGoalMinutes.toLocaleString()}분</Text>
+          <Text style={{ color: c.textSecondary, fontFamily: fontBody }}>
+            {hasGoal ? ` / ${data.dailyGoalMinutes.toLocaleString()}분` : '분'}
+          </Text>
         </Text>
       </View>
-      <View style={[styles.track, { backgroundColor: c.surfaceAlt }]}>
-        <View style={[styles.fill, { width: `${goalPct}%`, backgroundColor: c.primary }]} />
-      </View>
+      {hasGoal && (
+        <View style={[styles.track, { backgroundColor: c.surfaceAlt }]}>
+          <View style={[styles.fill, { width: `${goalPct}%`, backgroundColor: c.primary }]} />
+        </View>
+      )}
 
     </View>
   );
