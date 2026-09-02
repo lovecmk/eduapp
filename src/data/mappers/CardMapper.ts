@@ -60,6 +60,29 @@ const CARD_TYPE_MAP: Record<string, 'explanation' | 'ox' | 'choice'> = {
   CHOICE: 'choice',
 };
 
+/**
+ * 값이 비어 있는가 — **문자열 'null' 도 비어 있는 것으로 본다.**
+ *
+ * 문제 원본(엑셀 → BE 생성기 → cards_seed.json → DB)은 값이 없는 선택 항목을
+ * 빈 칸이 아니라 **문자열 'null'** 로 흘려보낸다. 같은 함정을 시드 생성기
+ * (scripts/build-card-seed.mjs)가 이미 한 번 밟았고 거기서는 걸러 냈는데,
+ * 서버에서 그대로 내려오는 이 경로에는 그 방어가 없었다.
+ *
+ * 그대로 두면 사진이 없는 카드가 `imageUrl: 'null'` 을 갖는다. 그 값은
+ * hasCardImage 를 통과하므로 학습 화면에 사진 칸이 열리고, resolveCardImage 는
+ * 풀지 못하므로 그 칸에는 '불러올 수 없어요'가 뜬다 — 사진이 애초에 없는
+ * 카드마다 매번. 사용자는 앱이 사진을 잃어버렸다고 읽는다.
+ */
+function blank(value: string | null | undefined): boolean {
+  const v = value?.trim() ?? '';
+  return v === '' || v.toLowerCase() === 'null' || v.toLowerCase() === 'undefined';
+}
+
+/** 선택 항목 주소 — 없거나 'null' 이면 undefined. */
+function optionalUrl(value: string | null | undefined): string | undefined {
+  return blank(value) ? undefined : value!.trim();
+}
+
 export class CardMapper {
   static toDomain(dto: CardDTO): LearningCard {
     // 알 수 없는 코드는 폴백하되(화면은 계속 뜬다) 스키마 불일치를 구조화 로그로 남긴다.
@@ -80,17 +103,19 @@ export class CardMapper {
       studySeconds: dto.study_seconds ?? 40,
       situation: dto.situation_txt?.trim() ?? '',
       question: dto.question_txt?.trim() ?? '',
-      imageUrl: dto.image_url?.trim() || undefined,
+      imageUrl: optionalUrl(dto.image_url),
       principle: dto.principle_txt?.trim() ?? '',
       process: dto.process_txt?.trim() || undefined,
       fireTriangle: dto.fire_triangle_txt?.trim() || undefined,
       conclusion: dto.conclusion_txt?.trim() ?? '',
-      answerImageUrl: dto.answer_image_url?.trim() || undefined,
+      answerImageUrl: optionalUrl(dto.answer_image_url),
       source: dto.source_txt?.trim() || undefined,
       type: CARD_TYPE_MAP[dto.card_type_cd ?? 'EXPLANATION'] ?? 'explanation',
       choices: dto.choices,
       answerIndex: dto.answer_index,
-      hasImage: Boolean(dto.image_url?.trim()),
+      // 문제 사진이든 해설 사진이든 하나라도 있으면 '사진 있는 카드'다
+      // (시드 생성기가 세는 방식과 같다 — 두 곳이 갈리면 목록과 상세가 어긋난다).
+      hasImage: !blank(dto.image_url) || !blank(dto.answer_image_url),
       status: STATUS_MAP[dto.status_cd] ?? 'new',
       dueAt: parseDate(dto.due_at),
     };

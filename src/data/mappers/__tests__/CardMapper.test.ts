@@ -76,6 +76,34 @@ describe('CardMapper.toDomain', () => {
     expect(card.imageUrl).toBe('https://x/y.png');
   });
 
+  /**
+   * 문제 원본(엑셀 → BE 생성기 → cards_seed.json → DB)은 값이 없는 선택 항목을
+   * 빈 칸이 아니라 **문자열 'null'** 로 흘려보낸다. 시드 생성기는 이 함정을 이미
+   * 한 번 밟고 걸러 냈는데, 서버에서 그대로 내려오는 이 경로에는 방어가 없었다.
+   *
+   * 그대로 두면 사진이 없는 카드가 imageUrl='null' 을 갖는다 → 학습 화면에 사진
+   * 칸이 열리고 → 풀 수 없으니 '불러올 수 없어요'가 뜬다. 사진이 애초에 없는
+   * 카드마다 매번, 사용자는 앱이 사진을 잃어버렸다고 읽는다.
+   */
+  it("문자열 'null' 은 사진 없음으로 본다 (빈 사진 칸을 열지 않는다)", () => {
+    const card = CardMapper.toDomain({ ...base, image_url: 'null', answer_image_url: 'NULL' });
+    expect(card.imageUrl).toBeUndefined();
+    expect(card.answerImageUrl).toBeUndefined();
+    expect(card.hasImage).toBe(false);
+  });
+
+  it('해설 사진만 있어도 사진 있는 카드로 센다', () => {
+    const card = CardMapper.toDomain({ ...base, image_url: 'null', answer_image_url: '8-1' });
+    expect(card.answerImageUrl).toBe('8-1');
+    expect(card.hasImage).toBe(true);
+  });
+
+  it('공백만 있는 주소도 사진 없음이다', () => {
+    const card = CardMapper.toDomain({ ...base, image_url: '   ' });
+    expect(card.imageUrl).toBeUndefined();
+    expect(card.hasImage).toBe(false);
+  });
+
   it('toDomainList 는 전체를 매핑한다', () => {
     const list = CardMapper.toDomainList([base, { ...base, id: 'c2' }]);
     expect(list.map((c) => c.id)).toEqual(['c1', 'c2']);
