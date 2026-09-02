@@ -29,8 +29,14 @@ export const STALE_BACKGROUND_MS = 5 * 60_000; // 5분
 
 // react-query 의 invalidateQueries 는 키 '접두사'로 매칭한다.
 // ['cards'] 하나로 ['cards'], ['cards','today',...] 가 모두 포함된다.
-/** 날짜가 바뀌면 반드시 갱신해야 하는, '오늘'에 묶인 쿼리 키들. */
-const DAY_SCOPED_KEYS = [['cards'], ['stats']];
+/**
+ * 날짜가 바뀌면 반드시 갱신해야 하는, '오늘'에 묶인 쿼리 키들.
+ *
+ * 하루 상한·오늘의 편성도 여기 든다. 둘 다 키에 날짜를 달고 있어 화면이 다시
+ * 그려지면 저절로 갈리지만, 자정을 넘긴 뒤 **처음 앱을 다시 열었을 때** 어제
+ * 응답이 화면에 한 프레임이라도 남지 않도록 여기서도 함께 지운다.
+ */
+const DAY_SCOPED_KEYS = [['cards'], ['stats'], ['learning-quota'], ['daily-assignment']];
 
 /** 오래 비웠을 때만 갱신하면 되는, 실시간성 데이터. */
 const LIVE_KEYS = [['community-live'], ['stats']];

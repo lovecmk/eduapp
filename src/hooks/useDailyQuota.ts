@@ -27,12 +27,19 @@ export interface DailyQuota {
  * 일어나지 않았다.** 이 훅이 그 두 쪽을 잇는 유일한 지점이다.
  */
 export function useDailyQuota(): DailyQuota {
+  const today = dateKey(new Date());
   const dayKey = useDailyLearningStore((s) => s.dayKey);
   const count = useDailyLearningStore((s) => s.newLearnedToday);
-  const localUsed = dayKey === dateKey(new Date()) ? count : 0;
+  // 어제 세어 둔 값은 오늘의 사용량이 아니다.
+  const localUsed = dayKey === today ? count : 0;
 
   const { data } = useQuery({
-    queryKey: [DAILY_QUOTA_KEY],
+    // 날짜를 키에 넣는다 — 오늘의 학습(useDailyAssignment)과 같은 이유다.
+    // 이 앱은 하루 종일 켜 둔 채로 쓰이는데, 키가 날짜와 무관하면 자정을 넘겨도
+    // **어제의 사용량**이 캐시에 남는다. 어제 상한을 다 채운 사람은 새벽에
+    // "오늘 학습 완료"를 보고 학습 버튼이 닫힌 화면을 만난다 — 앱을 껐다 켜
+    // 포그라운드 복귀가 일어나기 전까지 스스로 풀리지 않는다.
+    queryKey: [DAILY_QUOTA_KEY, today],
     queryFn: () => learningQuotaRepository.getQuota(),
     // 상한은 초 단위로 다투는 값이 아니다. 다만 관리자가 바꾼 뒤 '오늘 안에'는
     // 닿아야 하므로, 화면을 다시 여는 정도의 주기로 확인한다.
