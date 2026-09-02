@@ -158,17 +158,34 @@ export async function getExpoPushToken(): Promise<string | null> {
 /**
  * 기기 푸시 토큰을 백엔드에 등록(업서트)한다.
  * 목업 모드·웹·API 주소 미설정 시에는 조용히 건너뛴다(no-op).
- * @returns 서버 등록 성공 여부
+ *
+ * ── 왜 오프라인 큐로 보내는가 ──────────────────────────────────────────────
+ * 예전에는 평범한 `post` 로 보내고 실패하면 "다음 진입 시 재시도된다"고 적어
+ * 두었다. 그런데 이 등록을 부르는 곳은 루트 레이아웃의 효과 하나뿐이고, 그
+ * 의존성은 `[bootstrapped, user, notificationsEnabled]` 다 — **연결이 돌아와도
+ * 다시 돌지 않는다.** 즉 지하에서 앱을 켠 사람은 그 세션 내내 푸시 대상에서
+ * 빠지고, 아무 화면에도 그 사실이 뜨지 않는다. 알림이 안 오는 이유를 사용자도
+ * 운영자도 알 방법이 없는 종류의 실패다.
+ *
+ * 오프라인 큐(`postDurable`)로 보내면 연결이 돌아오거나 앱이 다시 앞으로 나올 때
+ * (useAppResume 의 flushPendingWrites) 알아서 나간다. 멱등키가 토큰이라 같은
+ * 기기의 중복 등록은 서버에서 한 번으로 접힌다.
+ *
+ * @returns 서버에 등록됐거나 큐에 안전히 쌓였으면 true
  */
 export async function syncPushTokenWithServer(): Promise<boolean> {
   if (!isNative || env.useMockData || !env.apiBaseUrl) return false;
   const token = await getExpoPushToken();
   if (!token) return false;
   try {
-    await apiClient.post('/inner/api/v1/push/register', { token, platform: Platform.OS });
+    await apiClient.postDurable(
+      '/inner/api/v1/push/register',
+      { token, platform: Platform.OS },
+      `push:${token}`,
+    );
     return true;
   } catch {
-    // 미로그인/네트워크 오류 등은 조용히 무시 — 다음 진입 시 재시도된다.
+    // 미로그인(401) 등 큐로도 해결되지 않는 실패는 조용히 넘긴다.
     return false;
   }
 }
