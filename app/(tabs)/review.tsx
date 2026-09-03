@@ -37,11 +37,27 @@ export default function ReviewScreen() {
   const { data: allCards = [], isLoading, error, refetch } = useAllCards();
   // 목록 화면에서 아래로 당기는 것은 학습된 기대다. 없으면 '멈춘 화면'처럼 느껴진다.
   const { refreshing, onRefresh } = usePullToRefresh(refetch);
-  const savedCount = useBookmarkStore((s) => s.ids.length);
-  const likedCount = useLikeStore((s) => s.ids.length);
-  const reportedCount = useReportStore((s) => new Set(s.reports.map((r) => r.cardId)).size);
+  const savedIds = useBookmarkStore((s) => s.ids);
+  const likedIds = useLikeStore((s) => s.ids);
+  const reports = useReportStore((s) => s.reports);
   const history = useSrsStore((s) => s.history);
-  const todayCount = (history[dateKey(new Date())] ?? []).length;
+
+  /**
+   * 목록에 실제로 그려질 카드만 센다.
+   *
+   * 이 화면의 숫자와 그 숫자를 눌러 들어가는 목록(collection/[type])의 출처는 같지만,
+   * 목록은 id 를 카드로 바꾸면서 **찾지 못한 것을 걸러 낸다**(`.filter(Boolean)`).
+   * 여기서 id 개수를 그대로 세면, 관리자가 카드를 내린 뒤 그 카드를 저장해 둔
+   * 사람에게는 "저장 카드 5" 라고 적힌 자리를 눌러 4장짜리 목록이 열린다.
+   * 세는 쪽을 목록에 맞춘다 — 화면에 없는 것을 세지 않는다.
+   */
+  const cardIds = useMemo(() => new Set(allCards.map((x) => x.id)), [allCards]);
+  const countExisting = useCallback((ids: string[]) => ids.filter((id) => cardIds.has(id)).length, [cardIds]);
+
+  const savedCount = countExisting(savedIds);
+  const likedCount = countExisting(likedIds);
+  const reportedCount = countExisting([...new Set(reports.map((r) => r.cardId))]);
+  const todayCount = countExisting(history[dateKey(new Date())] ?? []);
 
   // 내가 "학습했던" 카테고리 = 새 카드가 아닌(학습/마스터) 카드가 하나라도 있는 카테고리.
   const studiedCategories = useMemo<CategoryStat[]>(() => {
