@@ -10,6 +10,8 @@ import {
   FACTIONS,
   getFaction,
   factionStandings,
+  monthToSeed,
+  toFactionId,
   type BuildingVariant,
   type FactionId,
 } from '../../constants/factions';
@@ -27,11 +29,6 @@ const MILESTONES: { floor: number; label: string; icon: keyof typeof Ionicons.gl
   { floor: 35, label: '명예의 전당 등재', icon: 'trophy' },
   { floor: 50, label: '오프라인 안전 캠페인 후원', icon: 'heart' },
 ];
-
-/** 'YYYY-MM' → 결정적 정수 시드(대항전 순위 흔들기용). */
-function monthToSeed(month: string): number {
-  return month.split('').reduce((a, ch) => a + ch.charCodeAt(0), 0);
-}
 
 /** 진영 상세의 작은 지표 타일(지은 층수·기여 문제·전체 비중). */
 function FactionStat({ color, value, label, c }: { color: string; value: string; label: string; c: Record<string, string> }) {
@@ -96,8 +93,12 @@ export function CommunityBuildCard() {
   const buildColor = myFaction?.color ?? c.primary;
   const buildVariant = myFaction?.building ?? 'tower';
 
-  // 진영 대항전 — 이번 달 커뮤니티 누적 문제를 세 진영으로 분배해 순위를 만든다.
-  const standings = factionStandings(current.problems, floorSize, monthToSeed(current.month));
+  // 진영 대항전 — 이번 달 커뮤니티 누적 문제를 세 진영으로 분배해 기여량을 만든다.
+  // **선두는 앱이 정하지 않는다**: 서버가 준 `current.winner` 가 정본이고, 여기서는
+  // 그 진영이 1위가 되도록 맞춘 뒤 순위·기여량만 화면에 쓴다. 서버가 아직 우승을
+  // 말하지 않은 달(빈 값)에는 선두를 단정하지 않고 '집계 중'으로 둔다.
+  const winnerId = toFactionId(current.winner);
+  const standings = factionStandings(current.problems, floorSize, monthToSeed(current.month), winnerId);
   // 진영 상세(탭하면 그 진영이 안전 빌딩을 얼마나 지었는지 펼쳐 본다).
   const contestTotal = standings.reduce((a, s) => a + s.problems, 0) || 1;
   const leadFloors = standings[0]?.floors ?? 0;
@@ -205,7 +206,9 @@ export function CommunityBuildCard() {
                     <Text style={{ color: c.textPrimary, fontSize: 12.5, fontFamily: fontDisplay, flex: 1 }}>
                       {f.emoji} {f.name} 진영의 안전 빌딩
                     </Text>
-                    <Text style={{ color: c.textSecondary, fontSize: 10.5, fontFamily: fontBody }}>{rank === 0 ? '🏆 선두' : `선두와 ${gap}층 차`}</Text>
+                    <Text style={{ color: c.textSecondary, fontSize: 10.5, fontFamily: fontBody }}>
+                      {!winnerId ? '집계 중' : rank === 0 ? '🏆 선두' : `선두와 ${gap}층 차`}
+                    </Text>
                   </View>
 
                   <View style={{ flexDirection: 'row', gap: 8, marginBottom: 10 }}>
@@ -272,7 +275,9 @@ export function CommunityBuildCard() {
               {history.map((h) => {
                 const pct = bestFloors > 0 ? Math.round((h.floors / bestFloors) * 100) : 0;
                 // 지난 달 기록은 그 달 '우승 진영' 색으로 표시(달마다 색이 다르다).
-                const wf = FACTIONS[h.winner as FactionId] ?? myFaction;
+                // 그 달 우승 진영은 서버가 정한다. 아직 집계되지 않은 달은
+                // 우승자를 지어내지 않고 내 진영 색(없으면 기본색)으로 그린다.
+                const wf = getFaction(toFactionId(h.winner)) ?? myFaction;
                 const barColor = wf?.color ?? buildColor;
                 return (
                   <View key={h.month} style={styles.histRow}>

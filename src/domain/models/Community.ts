@@ -43,7 +43,13 @@ export interface BuildingMonth {
   problems: number;
   /** 그 달에 올린 층수 */
   floors: number;
-  /** 그 달 진영 대항전에서 이긴 진영 id ('frost' | 'flame' | 'volt') */
+  /**
+   * 그 달 진영 대항전에서 이긴 진영 id ('frost' | 'flame' | 'volt').
+   *
+   * **서버가 정본이다** — 앱은 받아 쓰기만 하고 다시 판정하지 않는다.
+   * 빈 문자열이면 '아직 집계되지 않았다'는 뜻이고(구버전 서버·학습이 없는 달),
+   * 그때 화면은 우승자를 지어내지 않고 '집계 중'으로 그린다.
+   */
   winner: string;
 }
 

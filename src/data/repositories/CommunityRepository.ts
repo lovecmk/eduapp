@@ -9,6 +9,13 @@ interface ActivityDTO {
   category_cd?: string;
   seconds_ago: number;
 }
+interface BuildingMonthDTO {
+  month: string;
+  label: string;
+  problems: number;
+  floors: number;
+  winner?: string;
+}
 interface CommunityDTO {
   online_now: number;
   studied_today: number;
@@ -27,8 +34,9 @@ interface CommunityDTO {
   total_cards_all_time?: number;
   building?: {
     floor_size: number;
-    current: { month: string; label: string; problems: number; floors: number };
-    history: { month: string; label: string; problems: number; floors: number }[];
+    /** `winner` 는 서버가 정한 그 달 우승 진영('frost'|'flame'|'volt'). */
+    current: BuildingMonthDTO;
+    history: BuildingMonthDTO[];
   };
   leaderboard?: { rank: number; nickname: string; cards: number; color: string; is_me: boolean }[];
   my_rank?: number;
@@ -94,11 +102,15 @@ export class CommunityRepository implements ICommunityRepository {
 /** 서버 building 응답 매핑 — 아직 미구현이면 누적치로부터 이번 달만 근사 계산. */
 function mapBuilding(dto: CommunityDTO): CommunitySnapshot['building'] {
   const FLOOR = 20_000;
-  // 서버 응답에 winner 가 없을 수 있으니 기본값('frost')으로 보강한다.
-  const withWinner = (m: { month: string; label: string; problems: number; floors: number; winner?: string }) => ({
-    ...m,
-    winner: m.winner ?? 'frost',
-  });
+  /**
+   * 우승 진영이 비어 있으면 **비운 채로 둔다.**
+   *
+   * 전에는 없으면 'frost' 로 채웠는데, 그러면 아무도 이기지 않은 달에 프로스트가
+   * 이긴 것처럼 보인다 — 화면은 조용하고 값은 거짓이다(`_fallback.ts` 가 말하는
+   * "아무도 모르는 조용함은 사고다"와 같은 종류). 빈 값이면 화면이 '집계 중'
+   * 으로 그리고, 이번 달 선두도 단정하지 않는다.
+   */
+  const withWinner = (m: BuildingMonthDTO) => ({ ...m, winner: m.winner ?? '' });
   if (dto.building) {
     return {
       floorSize: dto.building.floor_size || FLOOR,
@@ -110,7 +122,7 @@ function mapBuilding(dto: CommunityDTO): CommunitySnapshot['building'] {
   const problems = Math.max(0, Math.round((dto.total_cards_all_time ?? 0) % (FLOOR * 40)));
   return {
     floorSize: FLOOR,
-    current: { month: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`, label: `${now.getMonth() + 1}월`, problems, floors: Math.floor(problems / FLOOR), winner: 'frost' },
+    current: { month: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`, label: `${now.getMonth() + 1}월`, problems, floors: Math.floor(problems / FLOOR), winner: '' },
     history: [],
   };
 }
