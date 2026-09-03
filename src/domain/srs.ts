@@ -3,6 +3,28 @@
 
 export type Grade = 'again' | 'hard' | 'good' | 'easy';
 
+/** 아는 등급 넷 — 정규화·검증의 정본 목록. */
+const GRADES: readonly Grade[] = ['again', 'hard', 'good', 'easy'];
+
+/**
+ * 바깥에서 들어온 등급 문자열을 `Grade` 로 정규화한다.
+ *
+ * 서버가 한동안 `last_grade` 를 **대문자로** 저장했다(`'GOOD'`). 타입은
+ * `Grade | null` 이라 컴파일러는 아무 말도 하지 않지만, `'GOOD' === 'good'`
+ * 은 거짓이므로 등급을 비교하는 코드가 전부 조용히 빗나간다. 게다가 그 값이
+ * 기기에 persist 되어 있어 서버를 고쳐도 저절로 사라지지 않는다.
+ * 서버는 또 모르는 등급을 **빈 문자열**로 저장하므로 `''` 도 들어올 수 있다.
+ *
+ * 그래서 아는 네 값만 소문자로 통과시키고 나머지는 `null` 로 접는다.
+ * 값이 서버에서 들어오는 지점(`srsStore.applyServer`)에서 한 번 태우면
+ * 디스크에 남은 대문자도 다음 동기화에서 정리된다.
+ */
+export function normalizeGrade(value: unknown): Grade | null {
+  if (typeof value !== 'string') return null;
+  const g = value.trim().toLowerCase() as Grade;
+  return GRADES.includes(g) ? g : null;
+}
+
 export interface SrsCardState {
   /** Leitner 박스 단계 (0=방금 배움 ~ 5=장기기억) */
   box: number;

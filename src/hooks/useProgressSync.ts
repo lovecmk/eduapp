@@ -4,7 +4,7 @@ import { useAttendanceStore } from '../store/attendanceStore';
 import { useAuthStore } from '../store/authStore';
 import { progressRepository } from '../data/repositories';
 import { logger } from '../utils/logger';
-import type { SrsCardState } from '../domain/srs';
+import { normalizeGrade, type SrsCardState } from '../domain/srs';
 
 /**
  * 학습 진행(SRS 일정·학습 이력·출석)을 서버와 맞춘다.
@@ -97,7 +97,10 @@ export function useProgressSync(): void {
         if (sent.current.get(cardId) === stamp) continue;
         sent.current.set(cardId, stamp);
         void progressRepository
-          .pushGrade(cardId, st.lastGrade ?? 'good', st)
+          // `??` 로는 부족하다 — 서버는 모르는 등급을 **빈 문자열**로 저장하므로
+          // `''` 가 들어올 수 있고, `'' ?? 'good'` 은 `''` 이라 빈 등급을 그대로
+          // 되돌려 보내게 된다. 아는 값만 통과시키고 아니면 'good' 으로 둔다.
+          .pushGrade(cardId, normalizeGrade(st.lastGrade) ?? 'good', st)
           .catch((e) => {
             // 다시 보낼 수 있도록 표식을 되돌린다 — 그러지 않으면 이 채점은
             // 앱을 다시 켜기 전까지 영영 올라가지 않는다.

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { initialState, schedule, MAX_BOX, type Grade, type SrsCardState } from '../domain/srs';
+import { initialState, normalizeGrade, schedule, MAX_BOX, type Grade, type SrsCardState } from '../domain/srs';
 import { dateKey } from '../utils/dateKey';
 
 interface SrsState {
@@ -28,6 +28,20 @@ interface SrsState {
 }
 
 /** 두 SRS 상태 중 더 최근에 복습한 쪽. 시각이 같거나 없으면 reps 가 많은 쪽. */
+/**
+ * 서버에서 온 카드 상태를 로컬 규격으로 맞춘다.
+ *
+ * `lastGrade` 만 손본다 — 서버가 한동안 대문자('GOOD')로 저장했고 모르는 등급은
+ * 빈 문자열로 저장했다. 그 값이 그대로 들어와 persist 되면 앱 안에서 `'good'`
+ * 과 비교하는 코드가 전부 조용히 빗나가고, 서버를 고쳐도 기기에 남는다.
+ * **일회성 마이그레이션을 따로 두지 않고 여기 한 곳에서 막는다** — 서버 값이
+ * 앱으로 들어오는 문이 여기뿐이라, 다음 동기화에서 디스크의 옛 값도 정리된다.
+ */
+function sanitizeRemote(remote: SrsCardState): SrsCardState {
+  const grade = normalizeGrade(remote.lastGrade);
+  return grade === remote.lastGrade ? remote : { ...remote, lastGrade: grade };
+}
+
 function newerSrs(a: SrsCardState, b: SrsCardState): SrsCardState {
   const at = a.lastReviewedAt ?? 0;
   const bt = b.lastReviewedAt ?? 0;
@@ -71,7 +85,8 @@ export const useSrsStore = create<SrsState>()(
       applyServer: ({ cards, history }) => {
         const localCards = get().cards;
         const mergedCards: Record<string, SrsCardState> = { ...localCards };
-        for (const [id, remote] of Object.entries(cards)) {
+        for (const [id, raw] of Object.entries(cards)) {
+          const remote = sanitizeRemote(raw);
           const local = localCards[id];
           mergedCards[id] = local ? newerSrs(local, remote) : remote;
         }
