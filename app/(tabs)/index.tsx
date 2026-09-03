@@ -41,6 +41,13 @@ const HERO_TAGLINE = HERO_TAGLINE_LINES.join(' ');
 
 // 앱 실행(런치)당 1회만 실행 기록/축하 계산이 일어나도록 하는 모듈 가드.
 // (홈 탭을 오갈 때 컴포넌트가 재마운트돼도 중복 카운트/중복 팝업을 막는다.)
+//
+// **사람이 바뀌면 다시 연다.** 현장 태블릿은 여러 명이 돌려 쓰는데, 모듈 전역은
+// 프로세스가 살아 있는 한 남는다. 그대로 두면 앞사람 때 한 번 닫힌 가드 때문에
+// 뒷사람은 그 실행 내내 팝업을 한 번도 보지 못하고(이어서 학습·축하), 축하 계산의
+// 기준값도 앞사람의 것을 쓰게 된다. sessionScope 가 저장소의 주인을 강제하는 것과
+// 같은 이유이고, 훅의 ref 를 userId 로 다시 거는 것(useProgressSync)과 같은 손질이다.
+let sessionOwnerId: string | null | undefined;
 let sessionBaseline: { firstOpenAt: string | null; totalOpens: number; lastOpenAt: string | null; celebrated: string[] } | null = null;
 let sessionMomentHandled = false;
 
@@ -126,6 +133,12 @@ export default function HomeScreen() {
 
   // 런치당 1회: 실행 기록 + 이전 상태 스냅샷 확보(축하 순간 계산 기준).
   useEffect(() => {
+    const uid = user?.id ?? null;
+    if (sessionOwnerId !== uid) {
+      sessionOwnerId = uid;
+      sessionBaseline = null;
+      sessionMomentHandled = false;
+    }
     if (!sessionBaseline) {
       const ms = useMomentStore.getState();
       sessionBaseline = {
@@ -136,7 +149,7 @@ export default function HomeScreen() {
       };
       ms.recordOpen();
     }
-  }, []);
+  }, [user?.id]);
 
   // 홈 첫 팝업 — '오늘(00:00~23:59) 학습 이력이 있을 때만' 이어서 학습할지 물어본다.
   // (학습을 시작하지 않은 날에는 아무 팝업도 띄우지 않는다. 축하 순간 팝업도 이때만 노출.)
@@ -148,10 +161,30 @@ export default function HomeScreen() {
     // 그 위에 학습 이어가기 팝업이 겹쳐 뜨면 안 된다.
     if (!factionHydrated || faction === null) return;
     sessionMomentHandled = true;
+
+    // 축하할 순간이 있으면 그것부터 — **오늘 학습 여부와는 다른 축의 사건이다.**
+    // (환영·기념일·오랜만의 복귀는 오늘 공부했는지와 무관하게 일어난다. 예전에는
+    //  computeMoment 를 부르는 곳이 아예 없어, 다 만들어 둔 이 팝업이 한 번도 뜨지
+    //  못했다 — 첫 실행 환영조차 보이지 않았다.)
+    // totalOpens 는 위에서 recordOpen 한 뒤의 값이라 스냅샷 + 1 이다.
+    const next = computeMoment({
+      totalLearned,
+      streakDays,
+      firstOpenAt: sessionBaseline.firstOpenAt,
+      totalOpens: sessionBaseline.totalOpens + 1,
+      lastOpenAt: sessionBaseline.lastOpenAt,
+      celebrated: sessionBaseline.celebrated,
+    });
+    if (next) {
+      setMoment(next);
+      return; // 두 팝업이 겹쳐 뜨지 않게 한다.
+    }
+
+    // 축하할 것이 없을 때만, 오늘 하던 학습을 이어갈지 물어본다.
     const learnedToday = (useSrsStore.getState().history[dateKey(new Date())] ?? []).length;
     if (learnedToday === 0) return; // 오늘 학습 이력이 없으면 팝업 없음.
     setResumeOpen(true);
-  }, [stats, factionHydrated, faction]);
+  }, [stats, factionHydrated, faction, totalLearned, streakDays]);
 
   const dismissMoment = useCallback(() => {
     if (moment) useMomentStore.getState().markCelebrated(moment.key);
