@@ -392,7 +392,7 @@ export default function HomeScreen() {
       {/* 오늘 학습 이력이 있을 때만 뜨는 '이어서 학습/홈에 머물기' 팝업 */}
       <CenterModal visible={resumeOpen} onClose={() => setResumeOpen(false)} title="오늘 학습을 이어갈까요?" icon="play-circle-outline">
         <View style={{ alignItems: 'center' }}>
-          <Text style={{ color: c.textSecondary, fontSize: 13.5 * fs, textAlign: 'center', lineHeight: 20, marginBottom: 20, fontFamily: fontBody }}>
+          <Text style={{ color: c.textSecondary, fontSize: 13.5 * fs, textAlign: 'center', lineHeight: 20 * fs, marginBottom: 20, fontFamily: fontBody }}>
             오늘 학습을 시작했어요.{'\n'}이어서 마저 학습할까요?
           </Text>
           <Pressable accessibilityRole="button"

@@ -52,7 +52,8 @@ export default function ContentsScreen() {
     return allCards.filter((x) =>
       x.question.toLowerCase().includes(q) || x.title.toLowerCase().includes(q) ||
       x.conclusion.toLowerCase().includes(q) || x.keywords.some((k) => k.toLowerCase().includes(q)) ||
-      x.topic.toLowerCase().includes(q) || x.subCategory.toLowerCase().includes(q) || x.category.includes(q));
+      x.topic.toLowerCase().includes(q) || x.subCategory.toLowerCase().includes(q) ||
+      x.category.toLowerCase().includes(q));
   }, [allCards, search]);
 
   const goCard = useCallback((id: string) => router.push(ROUTES.content(id) as never), [router]);
@@ -85,12 +86,15 @@ export default function ContentsScreen() {
     windowSize: 7,
     removeClippedSubviews: true,
     refreshControl: <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.primary} />,
-    contentContainerStyle: { paddingBottom: 40 },
+    // 본문 칼럼은 아래 과정 상세(ScrollView)와 같아야 한다. 목록에만 폭 제한이
+    // 없으면 넓은 화면(웹·태블릿)에서 목록은 화면 끝까지 늘어났다가, 과정을 열면
+    // 갑자기 560px 로 좁아진다 — 같은 화면 안에서 폭이 뛴다.
+    contentContainerStyle: { paddingBottom: 40, ...contentColumn },
   } as const;
 
   // 검색 입력은 목록 밖(상단 고정)에 두어, 모드가 바뀌어도 리마운트되지 않게 한다(포커스 유지).
   const searchBar = (
-    <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 4 }}>
+    <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 4, ...contentColumn }}>
       <SearchBar value={search} onChange={setSearch} placeholder="주제·질문 검색..." />
     </View>
   );
@@ -281,7 +285,7 @@ function ContentRow({ card, onPress }: { card: LearningCard; onPress: () => void
       )}
       <View style={{ flex: 1 }}>
         <CategoryTrail category={card.category} subCategory={card.subCategory} topic={card.topic} size="sm" />
-        <Text numberOfLines={2} style={{ color: c.textPrimary, fontSize: 13.5 * fs, lineHeight: 19, marginTop: 5, fontFamily: fontDisplay }}>{card.question}</Text>
+        <Text numberOfLines={2} style={{ color: c.textPrimary, fontSize: 13.5 * fs, lineHeight: 19 * fs, marginTop: 5, fontFamily: fontDisplay }}>{card.question}</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 7 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
             <Ionicons name={status.icon} size={12} color={status.color} />
