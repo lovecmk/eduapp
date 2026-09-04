@@ -201,7 +201,7 @@ export default function ReviewScreen() {
                   <View style={{ flex: 1 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
                       <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontFamily: fontDisplay }}>{s.category}</Text>
-                      <Text style={{ color: c.textSecondary, fontSize: 12, fontFamily: fontMono }}>학습 {s.studied} · 마스터 {s.mastered}</Text>
+                      <Text style={{ color: c.textSecondary, fontSize: 12 * fs, fontFamily: fontMono }}>학습 {s.studied} · 마스터 {s.mastered}</Text>
                     </View>
                     <View style={{ height: 6, backgroundColor: c.surfaceAlt, borderRadius: 3, overflow: 'hidden' }}>
                       <View style={{ width: `${pct}%`, height: '100%', backgroundColor: color, borderRadius: 3 }} />

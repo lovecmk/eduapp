@@ -1,16 +1,15 @@
 import React, { useState } from 'react';
 import { View, Text, Pressable, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { Button } from '../src/components/ui/Button';
 import { useTheme } from '../src/theme/ThemeProvider';
 import { useFactionStore } from '../src/store/factionStore';
 import { FACTION_LIST, type FactionId, type Faction } from '../src/constants/factions';
 import { fontBody, fontDisplay } from '../src/theme/tokens';
 import { hapticTap, hapticSuccess } from '../src/utils/haptics';
-import { ROUTES } from '../src/constants/routes';
+import { useGoBack } from '../src/hooks/useGoBack';
 
 // 진영 선택 카드 — 선택되면 진영 색으로 물들며 살짝 떠오른다.
 function FactionCard({
@@ -20,6 +19,7 @@ function FactionCard({
   surface,
   border,
   textSecondary,
+  fs,
 }: {
   faction: Faction;
   selected: boolean;
@@ -27,6 +27,8 @@ function FactionCard({
   surface: string;
   border: string;
   textSecondary: string;
+  /** 설정 → 글자 크기 배율. 이 화면도 앱의 다른 화면과 같은 배율을 따라야 한다. */
+  fs: number;
 }) {
   const scale = useSharedValue(1);
   const style = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
@@ -69,10 +71,10 @@ function FactionCard({
 
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Text style={{ color: faction.color, fontSize: 17, fontFamily: fontDisplay }}>{faction.name}</Text>
-            <Text style={{ color: textSecondary, fontSize: 12.5, fontFamily: fontBody }}>· {faction.emblem}</Text>
+            <Text style={{ color: faction.color, fontSize: 17 * fs, fontFamily: fontDisplay }}>{faction.name}</Text>
+            <Text style={{ color: textSecondary, fontSize: 12.5 * fs, fontFamily: fontBody }}>· {faction.emblem}</Text>
           </View>
-          <Text style={{ color: textSecondary, fontSize: 12.5, lineHeight: 18, marginTop: 4, fontFamily: fontBody }}>
+          <Text style={{ color: textSecondary, fontSize: 12.5 * fs, lineHeight: 18 * fs, marginTop: 4, fontFamily: fontBody }}>
             {faction.description}
           </Text>
         </View>
@@ -98,9 +100,9 @@ function FactionCard({
 }
 
 export default function FactionSelectScreen() {
-  const { theme } = useTheme();
+  const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
-  const router = useRouter();
+  const goBack = useGoBack();
   const chooseFaction = useFactionStore((s) => s.chooseFaction);
   const [picked, setPicked] = useState<FactionId | null>(null);
 
@@ -115,7 +117,11 @@ export default function FactionSelectScreen() {
     if (!picked) return;
     hapticSuccess();
     chooseFaction(picked);
-    router.replace(ROUTES.home);
+    // 이 화면은 홈이 push 로 연다(홈이 faction===null 을 보고 안내한다).
+    // 그 위에 replace 로 홈을 또 얹으면 스택에 홈이 두 번 쌓인다 — 뒤로가기가
+    // 같은 화면으로 되돌아가고, 홈 화면 인스턴스도 둘이 남는다.
+    // 열린 것을 닫고 원래 홈으로 돌아간다(딥링크로 곧장 들어왔으면 홈으로).
+    goBack();
   };
 
   return (
@@ -126,8 +132,8 @@ export default function FactionSelectScreen() {
       >
         <View style={{ alignItems: 'center', marginTop: 12, marginBottom: 20 }}>
           <Text style={{ fontSize: 34 }}>🏳️</Text>
-          <Text style={{ color: c.textPrimary, fontSize: 22, marginTop: 10, fontFamily: fontDisplay }}>진영을 선택하세요</Text>
-          <Text style={{ color: c.textSecondary, fontSize: 13, marginTop: 8, lineHeight: 20, textAlign: 'center', fontFamily: fontBody }}>
+          <Text style={{ color: c.textPrimary, fontSize: 22 * fs, marginTop: 10, fontFamily: fontDisplay }}>진영을 선택하세요</Text>
+          <Text style={{ color: c.textSecondary, fontSize: 13 * fs, marginTop: 8, lineHeight: 20 * fs, textAlign: 'center', fontFamily: fontBody }}>
             세 진영이 커뮤니티에서 '안전 빌딩'을 함께 짓고 대항해요.{'\n'}한 번 고른 진영으로 함께 층을 쌓아 올려요.
           </Text>
         </View>
@@ -141,6 +147,7 @@ export default function FactionSelectScreen() {
             surface={c.surface}
             border={c.border}
             textSecondary={c.textSecondary}
+            fs={fs}
           />
         ))}
 
@@ -158,7 +165,7 @@ export default function FactionSelectScreen() {
             }}
           >
             <Ionicons name={activeFaction.icon} size={18} color={activeFaction.color} />
-            <Text style={{ color: activeFaction.color, fontSize: 13, flex: 1, fontFamily: fontDisplay }}>
+            <Text style={{ color: activeFaction.color, fontSize: 13 * fs, flex: 1, fontFamily: fontDisplay }}>
               "{activeFaction.tagline}"
             </Text>
           </View>

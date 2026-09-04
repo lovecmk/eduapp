@@ -121,9 +121,9 @@ export default function ContentDetailScreen() {
             <Text style={{ color: c.primary, fontSize: 12, fontWeight: '700', fontFamily: fontCute }}>앞면 · 질문</Text>
           </View>
           {!!card.situation && (
-            <Text style={{ color: c.textPrimary, fontSize: 13.5 * fs, lineHeight: 21, fontFamily: fontBody, marginBottom: 10 }}>{card.situation}</Text>
+            <Text style={{ color: c.textPrimary, fontSize: 13.5 * fs, lineHeight: 21 * fs, fontFamily: fontBody, marginBottom: 10 }}>{card.situation}</Text>
           )}
-          <Text style={{ color: c.primary, fontSize: 17 * fs, fontWeight: '800', lineHeight: 25, fontFamily: fontCute }}>
+          <Text style={{ color: c.primary, fontSize: 17 * fs, fontWeight: '800', lineHeight: 25 * fs, fontFamily: fontCute }}>
             <Text style={{ fontWeight: '900' }}>Q. </Text>{card.question}
           </Text>
         </Animated.View>
