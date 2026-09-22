@@ -18,6 +18,8 @@ export type CardType = 'explanation' | 'ox' | 'choice';
  */
 export interface SeedCard {
   id: string;
+  /** 서버 정본 대분류 코드(RISK/MEASURE). 기존 앱 표시 분류와 별개다. */
+  groupCode?: string;
   /** 대분류 (예: 전기 위험) */
   category: CardCategory;
   /** 중분류 (예: 배선설비) */
@@ -26,8 +28,12 @@ export interface SeedCard {
   topic: string;
   /** 키워드 태그 */
   keywords: string[];
+  /** 업종 */
+  industry?: string;
   /** 카드명(제목) */
   title: string;
+  /** 공식 형식 이름(기초용어형/상황형/OX형) */
+  format?: string;
   difficulty: CardDifficulty;
   /** 카드별 권장 학습 시간(초) */
   studySeconds: number;
@@ -57,10 +63,16 @@ export interface SeedCard {
   fireTriangle?: string;
   /** 결론(한 줄 핵심) */
   conclusion: string;
+  /** 저장된 정답 원문. conclusion은 기존 화면용 파생 문장일 수 있다. */
+  answer?: string;
+  /** 위험개선 권고사항 */
+  improvement?: string;
   /** 뒷면 미디어(해설 도해/사진) URL — 뒷면_미디어 컬럼에 파일이 있으면 이미지 문제 */
   answerImageUrl?: string;
   /** 출처·관련근거 */
   source?: string;
+  /** 참고사항 */
+  note?: string;
   /** 이미지 포함 여부 */
   hasImage: boolean;
 }

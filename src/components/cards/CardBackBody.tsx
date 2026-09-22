@@ -17,7 +17,7 @@ function splitSteps(text: string): string[] {
 
 /**
  * 학습카드 뒷면(구조화 해설) 공통 렌더러.
- * 결론(핵심) → 원리 → 진행 프로세스 → 화재의 3요소 → 출처 순으로 표출.
+ * 결론(핵심) → 원리 → 진행 프로세스 → 화재의 3요소 → 개선 권고 → 관리 기록 순으로 표출.
  * 학습(cards)·복습(review)·상세(content)에서 동일한 형태로 재사용한다.
  */
 export function CardBackBody({ card }: { card: LearningCard }) {
@@ -86,6 +86,16 @@ export function CardBackBody({ card }: { card: LearningCard }) {
         </View>
       )}
 
+      {/* 위험개선 권고사항 — Windows 검수/문제 수정 화면의 뒷면5와 같은 값 */}
+      {!!card.improvement && (
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: c.success + '12', borderRadius: 12, padding: 12 }}>
+          <Ionicons name="shield-checkmark-outline" size={16} color={c.success} style={{ marginTop: 1 }} />
+          <Text style={{ color: c.textPrimary, fontSize: 12.5 * fs, lineHeight: 19, fontFamily: fontBody, flex: 1 }}>
+            {card.improvement}
+          </Text>
+        </View>
+      )}
+
       {/* 키워드 */}
       {keywords.length > 0 && (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
@@ -103,6 +113,15 @@ export function CardBackBody({ card }: { card: LearningCard }) {
           <Ionicons name="document-text-outline" size={12} color={c.textSecondary} style={{ marginTop: 2 }} />
           <Text style={{ color: c.textSecondary, fontSize: 11 * fs, lineHeight: 16, fontFamily: fontBody, flex: 1 }}>
             {card.source}
+          </Text>
+        </View>
+      )}
+
+      {!!card.note && (
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 6 }}>
+          <Ionicons name="information-circle-outline" size={13} color={c.textSecondary} style={{ marginTop: 2 }} />
+          <Text style={{ color: c.textSecondary, fontSize: 11 * fs, lineHeight: 16, fontFamily: fontBody, flex: 1 }}>
+            {card.note}
           </Text>
         </View>
       )}

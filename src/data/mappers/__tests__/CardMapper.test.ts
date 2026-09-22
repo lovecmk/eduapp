@@ -14,13 +14,29 @@ const base: CardDTO = {
 
 describe('CardMapper.toDomain', () => {
   it('snake_case DTO 를 camelCase 도메인으로 매핑하고 공백을 트림한다', () => {
-    const card = CardMapper.toDomain({ ...base, sub_category_nm: ' 배선설비 ', title_txt: ' 제목 ' });
+    const card = CardMapper.toDomain({
+      ...base,
+      group_cd: ' RISK ',
+      sub_category_nm: ' 배선설비 ',
+      industry_nm: ' 물류창고 ',
+      title_txt: ' 제목 ',
+      format_nm: ' 상황형 ',
+      answer_txt: ' 정답 ',
+      improvement_txt: ' 개선 권고 ',
+      note_txt: ' 참고 ',
+    });
     expect(card.id).toBe('c1');
     expect(card.category).toBe('전기 위험');
     expect(card.status).toBe('new');
     expect(card.question).toBe('분전반 앞 가연물 방치가 위험한 이유는?');
     expect(card.subCategory).toBe('배선설비');
     expect(card.title).toBe('제목');
+    expect(card.groupCode).toBe('RISK');
+    expect(card.industry).toBe('물류창고');
+    expect(card.format).toBe('상황형');
+    expect(card.answer).toBe('정답');
+    expect(card.improvement).toBe('개선 권고');
+    expect(card.note).toBe('참고');
   });
 
   it('code enum 을 매핑한다 (category/status/difficulty/type)', () => {

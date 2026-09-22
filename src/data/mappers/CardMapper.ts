@@ -133,11 +133,14 @@ export class CardMapper {
 
     return {
       id: dto.id,
+      groupCode: optional(dto.group_cd),
       category: CATEGORY_MAP[dto.category_cd] ?? '전기 위험',
       subCategory: dto.sub_category_nm?.trim() ?? '',
       topic: dto.topic_nm?.trim() ?? '',
       keywords: dto.keywords ?? [],
+      industry: optional(dto.industry_nm),
       title: dto.title_txt?.trim() ?? '',
+      format: optional(dto.format_nm),
       difficulty: DIFFICULTY_MAP[dto.difficulty_cd ?? 'MEDIUM'] ?? 'medium',
       studySeconds: dto.study_seconds ?? 40,
       situation: dto.situation_txt?.trim() ?? '',
@@ -149,8 +152,11 @@ export class CardMapper {
       process: optional(dto.process_txt),
       fireTriangle: optional(dto.fire_triangle_txt),
       conclusion: dto.conclusion_txt?.trim() ?? '',
+      answer: optional(dto.answer_txt),
+      improvement: optional(dto.improvement_txt),
       answerImageUrl: optional(dto.answer_image_url),
       source: optional(dto.source_txt),
+      note: optional(dto.note_txt),
       // 풀 수 없는 퀴즈는 설명형으로 낮춘다(위 quizIsAnswerable 주석 참고).
       type: answerable ? declaredType : 'explanation',
       choices: answerable ? dto.choices : undefined,
