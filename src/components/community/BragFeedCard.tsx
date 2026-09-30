@@ -5,8 +5,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/ThemeProvider';
 import { fontDisplay, fontMono, fontBody, radius } from '../../theme/tokens';
 import { ROUTES } from '../../constants/routes';
-import { useShareFeedStore, REACTION_KINDS, REACTION_EMOJI, postMinutesAgo } from '../../store/shareFeedStore';
-import { env } from '../../data/network/env';
+import { REACTION_KINDS, REACTION_EMOJI, postMinutesAgo } from '../../domain/models/Feed';
+import { useFeed, useFeedReaction } from '../../hooks/useFeed';
 import { WrappedShareCard } from '../share/WrappedShareCard';
 import { EmojiBurstButton } from '../ui/EmojiBurstButton';
 import { timeAgoLabel } from '../../store/notificationStore';
@@ -26,10 +26,10 @@ export function BragFeedCard() {
   const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
   const router = useRouter();
-  const posts = useShareFeedStore((s) => s.posts);
-  // 피드는 아직 서버에 없다 — 실서버 모드에서는 이 기기에서 올린 카드만 보인다. 그렇다고 말한다.
-  const localOnly = !env.useMockData;
-  const react = useShareFeedStore((s) => s.react);
+  // 서버(/feed)가 열리면 동료들의 카드가 자동으로 들어온다. 그 전(실서버 모드)에는
+  // 이 기기에서 올린 카드만 보이고, 그 사실을 화면에 적는다(localOnly).
+  const { posts, localOnly } = useFeed();
+  const react = useFeedReaction();
   // 내 카드의 작성자 이름은 저장된 사본이 아니라 지금 내 표시명으로 그린다
   // (닉네임을 바꾸면 '내 카드' 배지 옆에만 옛 이름이 남았다 — authorLabel 주석).
   const me = useAuthStore((s) => s.user);

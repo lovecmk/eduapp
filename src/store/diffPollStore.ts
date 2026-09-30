@@ -2,8 +2,9 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export type DiffVote = 'easy' | 'normal' | 'hard';
-export interface PollCounts { easy: number; normal: number; hard: number }
+import type { DiffVote, PollCounts } from '../domain/models/DifficultyPoll';
+
+export type { DiffVote, PollCounts } from '../domain/models/DifficultyPoll';
 
 interface DiffPollState {
   myVotes: Record<string, DiffVote>;
@@ -27,7 +28,10 @@ function hash(s: string): number {
   return Math.abs(h);
 }
 
-/** 카드별 커뮤니티 기준 투표 수(결정적). */
+/**
+ * 카드별 가상 투표 수(결정적) — **목업 모드 시연 전용.** 실서버 모드에서는 쓰지 않는다
+ * (MockDifficultyPollRepository 가 env.useMockData 일 때만 부른다).
+ */
 export function baseCounts(cardId: string): PollCounts {
   const h = hash(cardId);
   const total = 40 + (h % 120);

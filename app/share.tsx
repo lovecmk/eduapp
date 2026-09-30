@@ -12,7 +12,8 @@ import { useStudyStats } from '../src/hooks/useStats';
 import { computeAchievement } from '../src/utils/achievement';
 import { useTilt } from '../src/hooks/useTilt';
 import { getRarity } from '../src/utils/rarity';
-import { useShareFeedStore } from '../src/store/shareFeedStore';
+import { usePostToFeed } from '../src/hooks/useFeed';
+import { toast } from '../src/store/toastStore';
 import { fontCute, fontBody, fontMono } from '../src/theme/tokens';
 import { ROUTES } from '../src/constants/routes';
 import { endFlow } from '../src/navigation/flow';
@@ -32,7 +33,8 @@ export default function ShareScreen() {
 
   const { data: allCards = [] } = useAllCards();
   const { data: stats } = useStudyStats();
-  const uploadShareCard = useShareFeedStore((s) => s.uploadShareCard);
+  // 서버(/feed)가 열려 있으면 동료에게, 아니면 이 기기의 트로피룸에 남는다.
+  const postToFeed = usePostToFeed();
 
   const snapshot = useMemo(() => computeAchievement(allCards, stats), [allCards, stats]);
   // 커뮤니티에 나가는 이름은 닉네임이다 — 본명은 공유 카드에 실리면 안 된다.
@@ -58,12 +60,22 @@ export default function ShareScreen() {
         imageUri = null;
       }
     }
-    uploadShareCard({ author, color: '#2563EB', imageUri, aspect: SHARE_CARD_ASPECT, snapshot });
+    try {
+      await postToFeed.mutateAsync({ author, color: '#2563EB', imageUri, aspect: SHARE_CARD_ASPECT, snapshot });
+    } catch {
+      // 올리지 못했으면 완료라고 하지 않는다 — 다시 누를 수 있게 되돌린다.
+      if (!alive()) return;
+      setPhase('idle');
+      toast('카드를 올리지 못했어요. 잠시 후 다시 시도해 주세요.', 'warn');
+      return;
+    }
     // 캡처는 수백 ms 걸린다. 그 사이 사용자가 뒤로 갔다면 화면을 되돌리지 않는다.
     if (!alive()) return;
     setPhase('done');
-    // 자동 이동도 언마운트되면 취소된다(뒤로 간 사용자를 커뮤니티로 끌고 가지 않는다).
-    run(() => endFlow(router, ROUTES.community), 900);
+    // 피드('오늘의 플렉스')는 트로피룸에 있다 — 예전에는 커뮤니티로 보냈는데, 피드를
+    // 커뮤니티에서 옮긴 뒤로는 방금 올린 카드를 거기서 찾을 수 없었다.
+    // 자동 이동은 언마운트되면 취소된다(뒤로 간 사용자를 끌고 가지 않는다).
+    run(() => endFlow(router, ROUTES.trophy), 900);
   };
 
   return (

@@ -4,8 +4,8 @@ import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { useTheme } from '../../theme/ThemeProvider';
 import { fontDisplay, fontBody, fontMono } from '../../theme/tokens';
-import { useDiffPollStore, baseCounts, type DiffVote } from '../../store/diffPollStore';
-import { env } from '../../data/network/env';
+import type { DiffVote } from '../../domain/models/DifficultyPoll';
+import { useDifficultyPoll, useDifficultyVote } from '../../hooks/useDifficultyPoll';
 
 const OPTIONS: { key: DiffVote; label: string; icon: keyof typeof import('@expo/vector-icons').Ionicons.glyphMap; color: string }[] = [
   { key: 'easy', label: '쉬웠어요', icon: 'happy-outline', color: '#34C759' },
@@ -17,19 +17,15 @@ const OPTIONS: { key: DiffVote; label: string; icon: keyof typeof import('@expo/
 export function CardDifficultyPoll({ cardId }: { cardId: string }) {
   const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
-  const myVote = useDiffPollStore((s) => s.myVotes[cardId]);
-  const vote = useDiffPollStore((s) => s.vote);
-
   /**
-   * 다른 사람의 투표 분포 — **서버에 없는 값이다.** baseCounts 는 카드 id 를 해시해
-   * "N명 참여 · 쉬웠어요 34%" 를 만들어 내는 목업이다. 실서버 모드에서 그대로 보이면
-   * 지어낸 여론이 실제 다른 점검자의 응답으로 읽힌다. 목업 모드에서만 쓴다.
-   * (내 투표는 이 기기에 남는다 — 학습 화면의 난이도 질문(CardDifficultyAsk)과 같은 저장소.)
+   * 다른 사람의 분포는 **서버에서만** 온다(`/cards/:id/difficulty`). 서버가 열리기 전에는
+   * counts 가 null 이라 분포를 그리지 않는다 — 예전에는 카드 id 를 해시해 "137명 참여 ·
+   * 쉬웠어요 34%" 를 지어냈다(목업 모드 시연용 분포는 목업 저장소가 따로 만든다).
    */
-  const showCrowd = env.useMockData;
-  const base = showCrowd ? baseCounts(cardId) : { easy: 0, normal: 0, hard: 0 };
-  const counts = { ...base };
-  if (myVote) counts[myVote] += 1;
+  const { counts: crowd, mine: myVote } = useDifficultyPoll(cardId);
+  const vote = useDifficultyVote();
+  const showCrowd = crowd !== null;
+  const counts = crowd ?? { easy: 0, normal: 0, hard: 0 };
   const total = counts.easy + counts.normal + counts.hard;
   const pct = (n: number) => (total > 0 ? Math.round((n / total) * 100) : 0);
 

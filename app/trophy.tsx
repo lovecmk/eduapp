@@ -12,7 +12,7 @@ import { useStudyStats } from '../src/hooks/useStats';
 import { computeAchievement, type AchievementSnapshot } from '../src/utils/achievement';
 import { getRarity, RARITY_META, RARITY_RANK, type RarityTier } from '../src/utils/rarity';
 import { useTilt } from '../src/hooks/useTilt';
-import { useShareFeedStore } from '../src/store/shareFeedStore';
+import { useFeed } from '../src/hooks/useFeed';
 import { BragFeedCard } from '../src/components/community/BragFeedCard';
 import { fontCute, fontBody, fontMono } from '../src/theme/tokens';
 import { ROUTES } from '../src/constants/routes';
@@ -56,7 +56,8 @@ export default function TrophyRoomScreen() {
   const { data: allCards = [] } = useAllCards();
   const { data: stats } = useStudyStats();
   // 셀렉터는 안정적인 원본 배열만 반환하고(useSyncExternalStore 무한루프 방지), 필터는 useMemo 에서.
-  const posts = useShareFeedStore((s) => s.posts);
+  // 내가 올린 카드 — 피드(서버 또는 이 기기)의 내 글.
+  const { posts } = useFeed();
   const myPosts = useMemo(() => posts.filter((p) => p.mine), [posts]);
 
   const liveSnapshot = useMemo(() => computeAchievement(allCards, stats), [allCards, stats]);

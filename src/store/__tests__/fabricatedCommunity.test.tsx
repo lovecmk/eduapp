@@ -6,6 +6,10 @@
 
 jest.mock('../../data/network/env', () => ({ env: { useMockData: false, apiBaseUrl: 'https://api.test' } }));
 
+// 저장소 묶음을 먼저 불러 둔다 — 목업 저장소 파일부터 불러오면 authStore ↔ repositories 순환에서
+// 생성자가 아직 정의되지 않은 채로 index 가 평가된다(앱은 항상 index 쪽에서 들어온다).
+import '../../data/repositories';
+import { MockFeedRepository } from '../../data/repositories/FeedRepository.mock';
 import { useShareFeedStore, postMinutesAgo } from '../shareFeedStore';
 import { useTipStore, tipMinutesAgo } from '../tipStore';
 
@@ -40,11 +44,12 @@ describe('내가 올린 글·팁의 시각', () => {
     expect(postMinutesAgo({ minutesAgo: 35 })).toBe(35);
   });
 
-  it('새로 올린 글에는 올린 시각이 붙는다', () => {
-    useShareFeedStore.getState().uploadShareCard({
+  it('새로 올린 글에는 올린 시각이 붙는다', async () => {
+    const post = await new MockFeedRepository().post({
       author: '나', color: '#000', imageUri: null, aspect: 1,
       snapshot: {} as never,
     });
-    expect(typeof useShareFeedStore.getState().posts[0].createdAt).toBe('number');
+    expect(typeof post.createdAt).toBe('number');
+    expect(useShareFeedStore.getState().posts[0].id).toBe(post.id);
   });
 });

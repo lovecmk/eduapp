@@ -38,6 +38,7 @@ import { useReportStore } from '../../src/store/reportStore';
 import { useCollectionStore } from '../../src/store/collectionStore';
 import { useSrsStore } from '../../src/store/srsStore';
 import { useDiffPollStore, type DiffVote } from '../../src/store/diffPollStore';
+import { useDifficultyVote } from '../../src/hooks/useDifficultyPoll';
 import { predictLabel, initialState } from '../../src/domain/srs';
 import { safeInternalPath } from '../../src/utils/safeRoute';
 
@@ -176,11 +177,12 @@ export default function CardsScreen() {
    * "이 문제"가 무엇인지 헷갈리지 않는다. 답(또는 건너뛰기)을 받고 나서야
    * 미뤄 둔 넘김 동작을 실행한다.
    *
-   * 아직 프론트 전용이다 — 로컬에만 남기고 서버로 보내지 않는다.
+   * 답은 이 기기에 먼저 남고(다시 묻지 않게) 서버로는 뒤에서 보낸다(useDifficultyVote).
    */
   const [askVisible, setAskVisible] = useState(false);
   const pendingAdvanceRef = useRef<(() => void) | null>(null);
-  const voteDifficulty = useDiffPollStore((s) => s.vote);
+  // 기기에 먼저 남기고 서버(/cards/:id/difficulty)로는 뒤에서 보낸다 — 서버가 열리면 자동으로 모인다.
+  const vote = useDifficultyVote();
 
   // 카드 뒤집기(rotateY) + 넘김(translate/opacity) 애니메이션 값.
   const flipAnim = useRef(new Animated.Value(0)).current;
@@ -479,12 +481,12 @@ export default function CardsScreen() {
 
   /** 난이도를 고르거나 건너뛰면 — 미뤄 둔 넘김 동작을 그때 실행한다. */
   const resolveAsk = useCallback((choice: DiffVote | null) => {
-    if (choice && card) voteDifficulty(card.id, choice);
+    if (choice && card) vote(card.id, choice);
     setAskVisible(false);
     const run = pendingAdvanceRef.current;
     pendingAdvanceRef.current = null;
     run?.();
-  }, [card, voteDifficulty]);
+  }, [card, vote]);
 
   // 새 카드가 화면에 올라올 때 — 과한 바운스 없이 잔잔하게 떠오르며 등장한다(편안한 전환).
   useEffect(() => {
