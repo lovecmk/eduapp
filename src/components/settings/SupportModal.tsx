@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/ThemeProvider';
@@ -46,6 +46,14 @@ export function SupportModal({
   const [receipt, setReceipt] = useState('');
   const { run } = useSafeTimeout();
   const alive = useIsMounted();
+
+  // 창을 열 때 이메일이 비어 있으면 계정 이메일로 채운다. useState 의 초기값은 마운트
+  // 순간 한 번만 읽히는데, 설정 화면은 세션 복구가 끝나기 전에 마운트될 수 있어(웹 새로고침)
+  // 그때 비어 있던 값이 그대로 남았다.
+  useEffect(() => {
+    if (visible && !email && defaultEmail) setEmail(defaultEmail);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, defaultEmail]);
 
   const emailValid = EMAIL_RE.test(email.trim()) && email.trim().length <= INPUT_LIMITS.email;
   const messageValid = isMeaningful(message, 10);
