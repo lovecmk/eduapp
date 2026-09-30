@@ -9,8 +9,6 @@ import { useFactionStore } from '../../store/factionStore';
 import {
   FACTIONS,
   getFaction,
-  factionStandings,
-  monthToSeed,
   toFactionId,
   type BuildingVariant,
   type FactionId,
@@ -32,10 +30,11 @@ const MILESTONES: { floor: number; label: string; icon: keyof typeof Ionicons.gl
 
 /** 진영 상세의 작은 지표 타일(지은 층수·기여 문제·전체 비중). */
 function FactionStat({ color, value, label, c }: { color: string; value: string; label: string; c: Record<string, string> }) {
+  const { fontScale: fs } = useTheme();
   return (
     <View style={{ flex: 1, backgroundColor: c.bg, borderRadius: 10, paddingVertical: 8, alignItems: 'center' }}>
-      <Text numberOfLines={1} style={{ color, fontSize: 14, fontFamily: fontMono, fontWeight: '900' }}>{value}</Text>
-      <Text numberOfLines={1} style={{ color: c.textSecondary, fontSize: 10, fontFamily: fontBody, marginTop: 2 }}>{label}</Text>
+      <Text numberOfLines={1} style={{ color, fontSize: 14 * fs, fontFamily: fontMono, fontWeight: '900' }}>{value}</Text>
+      <Text numberOfLines={1} style={{ color: c.textSecondary, fontSize: 10 * fs, fontFamily: fontBody, marginTop: 2 }}>{label}</Text>
     </View>
   );
 }
@@ -71,7 +70,7 @@ function BuildingArt({ color, base, variant }: { color: string; base: string; va
 
 /** 함께 짓는 안전 빌딩 — 매월 초기화되며 커뮤니티 누적 학습이 빌딩을 층층이 올린다. */
 export function CommunityBuildCard() {
-  const { theme } = useTheme();
+  const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
   const router = useRouter();
   const { data } = useCommunity();
@@ -98,7 +97,8 @@ export function CommunityBuildCard() {
   // 그 진영이 1위가 되도록 맞춘 뒤 순위·기여량만 화면에 쓴다. 서버가 아직 우승을
   // 말하지 않은 달(빈 값)에는 선두를 단정하지 않고 '집계 중'으로 둔다.
   const winnerId = toFactionId(current.winner);
-  const standings = factionStandings(current.problems, floorSize, monthToSeed(current.month), winnerId);
+  // 진영별 기여는 **서버 집계만** 그린다. 없으면 대항전 자리에 '집계 준비 중'을 둔다.
+  const standings = current.factions ?? [];
   // 진영 상세(탭하면 그 진영이 안전 빌딩을 얼마나 지었는지 펼쳐 본다).
   const contestTotal = standings.reduce((a, s) => a + s.problems, 0) || 1;
   const leadFloors = standings[0]?.floors ?? 0;
@@ -117,12 +117,12 @@ export function CommunityBuildCard() {
     <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.border }]}>
       <View style={styles.header}>
         <Ionicons name="business" size={16} color={buildColor} />
-        <Text style={{ color: c.textPrimary, fontSize: 15, fontFamily: fontDisplay }}>함께 짓는 안전 빌딩</Text>
+        <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontFamily: fontDisplay }}>함께 짓는 안전 빌딩</Text>
         <View style={{ backgroundColor: buildColor + '18', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2, marginLeft: 4 }}>
-          <Text style={{ color: buildColor, fontSize: 10.5, fontFamily: fontDisplay }}>{current.label}</Text>
+          <Text style={{ color: buildColor, fontSize: 10.5 * fs, fontFamily: fontDisplay }}>{current.label}</Text>
         </View>
       </View>
-      <Text style={{ color: c.textSecondary, fontSize: 12, marginBottom: 14, fontFamily: fontBody }}>
+      <Text style={{ color: c.textSecondary, fontSize: 12 * fs, marginBottom: 14, fontFamily: fontBody }}>
         {myFaction
           ? `${myFaction.emoji} ${myFaction.name} 진영이 함께 올리는 층수 🏢`
           : '매달 새로 지어요 · 이번 달 점검자들이 함께 올린 층수 🏢'}
@@ -132,18 +132,18 @@ export function CommunityBuildCard() {
         <BuildingArt color={buildColor} base={c.border} variant={buildVariant} />
 
         <View style={{ flex: 1 }}>
-          <Text style={{ color: c.textPrimary, fontSize: 26, fontFamily: fontMono, fontWeight: '900' }}>
-            {floors}<Text style={{ fontSize: 15, color: c.textSecondary, fontFamily: fontBody }}>층 완성</Text>
+          <Text style={{ color: c.textPrimary, fontSize: 26 * fs, fontFamily: fontMono, fontWeight: '900' }}>
+            {floors}<Text style={{ fontSize: 15 * fs, color: c.textSecondary, fontFamily: fontBody }}>층 완성</Text>
           </Text>
-          <Text style={{ color: c.textSecondary, fontSize: 11.5, fontFamily: fontMono, marginTop: 2 }}>
+          <Text style={{ color: c.textSecondary, fontSize: 11.5 * fs, fontFamily: fontMono, marginTop: 2 }}>
             이번 달 {current.problems.toLocaleString()}문제
           </Text>
 
           {/* 다음 층 진행 */}
           <View style={{ marginTop: 10 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
-              <Text style={{ color: c.textSecondary, fontSize: 11, fontFamily: fontBody }}>{floors + 1}층까지</Text>
-              <Text style={{ color: buildColor, fontSize: 11, fontFamily: fontMono }}>{progress}%</Text>
+              <Text style={{ color: c.textSecondary, fontSize: 11 * fs, fontFamily: fontBody }}>{floors + 1}층까지</Text>
+              <Text style={{ color: buildColor, fontSize: 11 * fs, fontFamily: fontMono }}>{progress}%</Text>
             </View>
             <View style={{ height: 7, backgroundColor: c.surfaceAlt, borderRadius: 4, overflow: 'hidden' }}>
               <View style={{ width: `${progress}%`, height: '100%', backgroundColor: buildColor, borderRadius: 4 }} />
@@ -156,15 +156,20 @@ export function CommunityBuildCard() {
       <View style={[styles.versus, { borderTopColor: c.border }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 }}>
           <Ionicons name="flag" size={14} color={c.textSecondary} />
-          <Text style={{ color: c.textPrimary, fontSize: 13, fontFamily: fontDisplay, flex: 1 }}>진영 대항전 · 이번 달</Text>
+          <Text style={{ color: c.textPrimary, fontSize: 13 * fs, fontFamily: fontDisplay, flex: 1 }}>진영 대항전 · 이번 달</Text>
           {!myFaction && (
             <Pressable accessibilityRole="button" onPress={() => router.push(ROUTES.factionSelect as never)} hitSlop={6} style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-              <Text style={{ color: c.primary, fontSize: 11.5, fontFamily: fontDisplay }}>진영 선택</Text>
+              <Text style={{ color: c.primary, fontSize: 11.5 * fs, fontFamily: fontDisplay }}>진영 선택</Text>
               <Ionicons name="chevron-forward" size={13} color={c.primary} />
             </Pressable>
           )}
         </View>
 
+        {standings.length === 0 && (
+          <Text style={{ color: c.textSecondary, fontSize: 12 * fs, lineHeight: 18 * fs, fontFamily: fontBody }}>
+            진영별 기여 집계를 준비하고 있어요. 서버 집계가 열리면 여기서 세 진영의 층수를 비교할 수 있어요.
+          </Text>
+        )}
         {standings.map((s, rank) => {
           const f = FACTIONS[s.id];
           const isMine = s.id === factionId;
@@ -182,19 +187,19 @@ export function CommunityBuildCard() {
                 onPress={() => toggleFaction(s.id)}
                 style={[styles.vsRow, isMine && { backgroundColor: f.color + '12', borderRadius: 10 }]}
               >
-                <Text style={{ width: 16, color: c.textSecondary, fontSize: 12, fontFamily: fontMono, textAlign: 'center' }}>{rank + 1}</Text>
-                <Text style={{ fontSize: 15, width: 22, textAlign: 'center' }}>{f.emoji}</Text>
+                <Text style={{ minWidth: 16, color: c.textSecondary, fontSize: 12 * fs, fontFamily: fontMono, textAlign: 'center' }}>{rank + 1}</Text>
+                <Text style={{ fontSize: 15 * fs, minWidth: 22, textAlign: 'center' }}>{f.emoji}</Text>
                 {/* 고정폭 54px 은 '프로스트 (나)'(66px)를 담지 못해 이름이 잘렸다.
                     최소폭만 주고 남는 공간은 옆 진행바(flex:1)가 흡수하게 한다. */}
                 <View style={{ minWidth: 54 }}>
-                  <Text style={{ color: isMine ? f.color : c.textPrimary, fontSize: 12.5, fontFamily: fontDisplay }} numberOfLines={1}>
+                  <Text style={{ color: isMine ? f.color : c.textPrimary, fontSize: 12.5 * fs, fontFamily: fontDisplay }} numberOfLines={1}>
                     {f.name}{isMine ? ' (나)' : ''}
                   </Text>
                 </View>
                 <View style={{ flex: 1, height: 8, backgroundColor: c.surfaceAlt, borderRadius: 4, overflow: 'hidden', marginHorizontal: 8 }}>
                   <View style={{ width: `${pct}%`, height: '100%', backgroundColor: f.color, borderRadius: 4 }} />
                 </View>
-                <Text style={{ color: c.textPrimary, fontSize: 12.5, fontFamily: fontMono, fontWeight: '800', width: 34, textAlign: 'right' }}>{s.floors}층</Text>
+                <Text style={{ color: c.textPrimary, fontSize: 12.5 * fs, fontFamily: fontMono, fontWeight: '800', minWidth: 34, textAlign: 'right' }}>{s.floors}층</Text>
                 <Ionicons name={isOpen ? 'chevron-up' : 'chevron-down'} size={14} color={c.textSecondary} style={{ marginLeft: 4, width: 16 }} />
               </Pressable>
 
@@ -203,10 +208,10 @@ export function CommunityBuildCard() {
                 <View style={{ backgroundColor: c.surfaceAlt, borderRadius: 12, padding: 12, marginTop: 4, marginBottom: 4 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 }}>
                     <Ionicons name="business" size={14} color={f.color} />
-                    <Text style={{ color: c.textPrimary, fontSize: 12.5, fontFamily: fontDisplay, flex: 1 }}>
+                    <Text style={{ color: c.textPrimary, fontSize: 12.5 * fs, fontFamily: fontDisplay, flex: 1 }}>
                       {f.emoji} {f.name} 진영의 안전 빌딩
                     </Text>
-                    <Text style={{ color: c.textSecondary, fontSize: 10.5, fontFamily: fontBody }}>
+                    <Text style={{ color: c.textSecondary, fontSize: 10.5 * fs, fontFamily: fontBody }}>
                       {!winnerId ? '집계 중' : rank === 0 ? '🏆 선두' : `선두와 ${gap}층 차`}
                     </Text>
                   </View>
@@ -218,19 +223,19 @@ export function CommunityBuildCard() {
                   </View>
 
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <Text style={{ color: c.textSecondary, fontSize: 11, fontFamily: fontBody }}>{s.floors + 1}층까지</Text>
-                    <Text style={{ color: f.color, fontSize: 11, fontFamily: fontMono }}>{floorProgress}% · {within.toLocaleString()}/{floorSize.toLocaleString()}문제</Text>
+                    <Text style={{ color: c.textSecondary, fontSize: 11 * fs, fontFamily: fontBody }}>{s.floors + 1}층까지</Text>
+                    <Text style={{ color: f.color, fontSize: 11 * fs, fontFamily: fontMono }}>{floorProgress}% · {within.toLocaleString()}/{floorSize.toLocaleString()}문제</Text>
                   </View>
                   <View style={{ height: 7, backgroundColor: c.bg, borderRadius: 4, overflow: 'hidden' }}>
                     <View style={{ width: `${Math.max(3, floorProgress)}%`, height: '100%', backgroundColor: f.color, borderRadius: 4 }} />
                   </View>
 
                   {isMine ? (
-                    <Text style={{ color: f.color, fontSize: 11, fontFamily: fontBody, marginTop: 8 }}>
+                    <Text style={{ color: f.color, fontSize: 11 * fs, fontFamily: fontBody, marginTop: 8 }}>
                       {f.emoji} 내 진영이에요 · 학습 한 장이 곧 한 벽돌이 돼요
                     </Text>
                   ) : (
-                    <Text style={{ color: c.textSecondary, fontSize: 11, fontFamily: fontBody, marginTop: 8 }}>
+                    <Text style={{ color: c.textSecondary, fontSize: 11 * fs, fontFamily: fontBody, marginTop: 8 }}>
                       {f.tagline}
                     </Text>
                   )}
@@ -239,7 +244,7 @@ export function CommunityBuildCard() {
             </View>
           );
         })}
-        <Text style={{ color: c.textSecondary, fontSize: 10.5, fontFamily: fontBody, marginTop: 8, textAlign: 'center' }}>
+        <Text style={{ color: c.textSecondary, fontSize: 10.5 * fs, fontFamily: fontBody, marginTop: 8, textAlign: 'center' }}>
           진영을 눌러 안전 빌딩 기여를 확인해요 · 한 층 = {floorSize.toLocaleString()}문제
         </Text>
       </View>
@@ -251,10 +256,11 @@ export function CommunityBuildCard() {
             <Ionicons name={next.icon} size={16} color={c.warning} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={{ color: c.textSecondary, fontSize: 11, fontFamily: fontBody }}>다음 보상 · {next.floor}층</Text>
-            <Text style={{ color: c.textPrimary, fontSize: 13, fontFamily: fontDisplay }}>{next.label}</Text>
+            <Text style={{ color: c.textSecondary, fontSize: 11 * fs, fontFamily: fontBody }}>다음 보상 · {next.floor}층</Text>
+            <Text style={{ color: c.textPrimary, fontSize: 13 * fs, fontFamily: fontDisplay }}>{next.label}</Text>
           </View>
-          <Text style={{ color: c.warning, fontSize: 12, fontFamily: fontMono }}>-{next.floor - floors}층</Text>
+          {/* '-1층'은 음수로 읽혔다 — 남은 층수를 말로 적는다. */}
+          <Text style={{ color: c.warning, fontSize: 12 * fs, fontFamily: fontMono }}>{next.floor - floors}층 남음</Text>
         </View>
       )}
 
@@ -263,9 +269,9 @@ export function CommunityBuildCard() {
         <>
           <Pressable accessibilityRole="button" onPress={toggleHistory} style={[styles.historyToggle, { borderTopColor: c.border }]}>
             <Ionicons name="time-outline" size={15} color={c.textSecondary} />
-            <Text style={{ color: c.textSecondary, fontSize: 12.5, fontFamily: fontDisplay, flex: 1 }}>지난 달 기록</Text>
+            <Text style={{ color: c.textSecondary, fontSize: 12.5 * fs, fontFamily: fontDisplay, flex: 1 }}>지난 달 기록</Text>
             {bestFloors > 0 && (
-              <Text style={{ color: c.textSecondary, fontSize: 11, fontFamily: fontMono, marginRight: 4 }}>최고 {bestFloors}층</Text>
+              <Text style={{ color: c.textSecondary, fontSize: 11 * fs, fontFamily: fontMono, marginRight: 4 }}>최고 {bestFloors}층</Text>
             )}
             <Ionicons name={showHistory ? 'chevron-up' : 'chevron-down'} size={16} color={c.textSecondary} />
           </Pressable>
@@ -281,16 +287,16 @@ export function CommunityBuildCard() {
                 const barColor = wf?.color ?? buildColor;
                 return (
                   <View key={h.month} style={styles.histRow}>
-                    <Text style={{ width: 58, color: c.textSecondary, fontSize: 12, fontFamily: fontDisplay }}>{h.label}</Text>
-                    <Text style={{ width: 20, textAlign: 'center', fontSize: 13 }}>{wf?.emoji ?? '🏗️'}</Text>
+                    <Text style={{ minWidth: 58, color: c.textSecondary, fontSize: 12 * fs, fontFamily: fontDisplay }}>{h.label}</Text>
+                    <Text style={{ minWidth: 20, textAlign: 'center', fontSize: 13 * fs }}>{wf?.emoji ?? '🏗️'}</Text>
                     <View style={{ flex: 1, height: 8, backgroundColor: c.surfaceAlt, borderRadius: 4, overflow: 'hidden', marginRight: 10 }}>
                       <View style={{ width: `${Math.max(6, pct)}%`, height: '100%', backgroundColor: barColor + 'CC', borderRadius: 4 }} />
                     </View>
-                    <Text style={{ color: c.textPrimary, fontSize: 12.5, fontFamily: fontMono, fontWeight: '800' }}>{h.floors}층</Text>
+                    <Text style={{ color: c.textPrimary, fontSize: 12.5 * fs, fontFamily: fontMono, fontWeight: '800' }}>{h.floors}층</Text>
                   </View>
                 );
               })}
-              <Text style={{ color: c.textSecondary, fontSize: 10.5, fontFamily: fontBody, marginTop: 6, textAlign: 'center' }}>
+              <Text style={{ color: c.textSecondary, fontSize: 10.5 * fs, fontFamily: fontBody, marginTop: 6, textAlign: 'center' }}>
                 한 층 = {floorSize.toLocaleString()}문제 · 색은 그 달 우승 진영 · 매월 1일 0층부터 다시 시작해요
               </Text>
             </View>

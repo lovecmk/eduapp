@@ -35,7 +35,7 @@ const QNA_LIMIT = 5;
 const EMPTY_QUESTIONS: Question[] = [];
 
 export default function CommunityScreen() {
-  const { theme } = useTheme();
+  const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
   const router = useRouter();
   // 질문 목록은 저장소(실서버 또는 목업)에서 온다 — 화면은 어느 쪽인지 모른다.
@@ -101,11 +101,11 @@ export default function CommunityScreen() {
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8, marginBottom: 12 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <Ionicons name="chatbox-ellipses" size={18} color={c.primary} />
-            <Text style={{ color: c.textPrimary, fontSize: 16, fontFamily: fontDisplay }}>질문 & 답변</Text>
+            <Text style={{ color: c.textPrimary, fontSize: 16 * fs, fontFamily: fontDisplay }}>질문 & 답변</Text>
           </View>
           <Pressable accessibilityRole="button" onPress={() => setComposeOpen(true)} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.primary, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 }}>
             <Ionicons name="add" size={15} color="#fff" />
-            <Text style={{ color: '#fff', fontSize: 12.5, fontFamily: fontDisplay }}>질문하기</Text>
+            <Text style={{ color: '#fff', fontSize: 12.5 * fs, fontFamily: fontDisplay }}>질문하기</Text>
           </Pressable>
         </View>
 
@@ -123,7 +123,7 @@ export default function CommunityScreen() {
           // 말하고, 할 수 있는 일 하나를 가리킨다.
           <View style={{ alignItems: 'center', paddingVertical: 26, gap: 6 }}>
             <Ionicons name="chatbubbles-outline" size={26} color={c.textSecondary} />
-            <Text style={{ color: c.textSecondary, fontSize: 12.5, fontFamily: fontBody, textAlign: 'center' }}>
+            <Text style={{ color: c.textSecondary, fontSize: 12.5 * fs, fontFamily: fontBody, textAlign: 'center' }}>
               아직 올라온 질문이 없어요.{'\n'}현장에서 궁금했던 것을 첫 질문으로 올려보세요.
             </Text>
           </View>
@@ -150,7 +150,7 @@ export default function CommunityScreen() {
         {refreshing && (
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 18 }}>
             <ActivityIndicator size="small" color={c.primary} />
-            <Text style={{ color: c.textSecondary, fontSize: 12, fontFamily: fontBody }}>새로고침 중...</Text>
+            <Text style={{ color: c.textSecondary, fontSize: 12 * fs, fontFamily: fontBody }}>새로고침 중...</Text>
           </View>
         )}
       </ScrollView>
@@ -161,7 +161,7 @@ export default function CommunityScreen() {
 }
 
 function QuestionRow({ question: q, onPress }: { question: Question; onPress: () => void }) {
-  const { theme } = useTheme();
+  const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
   const accent = q.category ? getCategoryColor(q.category) ?? c.primary : c.primary;
   // 목록 응답에는 답변 본문이 없을 수 있으므로 개수·해결 여부는 카운터를 본다.
@@ -171,25 +171,25 @@ function QuestionRow({ question: q, onPress }: { question: Question; onPress: ()
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
         {q.category && (
           <View style={{ backgroundColor: accent + '1A', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 }}>
-            <Text style={{ color: accent, fontSize: 10.5, fontFamily: fontDisplay }}>{q.category}</Text>
+            <Text style={{ color: accent, fontSize: 10.5 * fs, fontFamily: fontDisplay }}>{q.category}</Text>
           </View>
         )}
         {solved && (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: c.success + '18', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }}>
             <Ionicons name="checkmark-circle" size={11} color={c.success} />
-            <Text style={{ color: c.success, fontSize: 10, fontFamily: fontDisplay }}>해결됨</Text>
+            <Text style={{ color: c.success, fontSize: 10 * fs, fontFamily: fontDisplay }}>해결됨</Text>
           </View>
         )}
       </View>
-      <Text numberOfLines={2} style={{ color: c.textPrimary, fontSize: 14.5, lineHeight: 20, fontFamily: fontDisplay }}>{q.title}</Text>
-      <Text numberOfLines={1} style={{ color: c.textSecondary, fontSize: 12.5, marginTop: 4, fontFamily: fontBody }}>{q.body}</Text>
+      <Text numberOfLines={2} style={{ color: c.textPrimary, fontSize: 14.5 * fs, lineHeight: 20 * fs, fontFamily: fontDisplay }}>{q.title}</Text>
+      <Text numberOfLines={1} style={{ color: c.textSecondary, fontSize: 12.5 * fs, marginTop: 4, fontFamily: fontBody }}>{q.body}</Text>
       <View style={styles.meta}>
         <View style={[styles.avatar, { backgroundColor: q.color }]}><Text style={styles.avatarText}>{q.author.charAt(0)}</Text></View>
-        <Text style={{ color: c.textSecondary, fontSize: 11, fontFamily: fontBody }}>{q.author}</Text>
-        <Text style={{ color: c.textSecondary, fontSize: 10.5, fontFamily: fontMono }}>· {timeAgoLabel(minutesSince(q.createdAt))}</Text>
+        <Text style={{ color: c.textSecondary, fontSize: 11 * fs, fontFamily: fontBody }}>{q.author}</Text>
+        <Text style={{ color: c.textSecondary, fontSize: 10.5 * fs, fontFamily: fontMono }}>· {timeAgoLabel(minutesSince(q.createdAt))}</Text>
         <View style={{ flex: 1 }} />
-        <View style={styles.stat}><Ionicons name="chatbubble-outline" size={13} color={q.answerCount ? c.primary : c.textSecondary} /><Text style={{ color: q.answerCount ? c.primary : c.textSecondary, fontSize: 11.5, fontFamily: fontMono }}>{q.answerCount}</Text></View>
-        <View style={styles.stat}><Ionicons name="heart-outline" size={13} color={c.textSecondary} /><Text style={{ color: c.textSecondary, fontSize: 11.5, fontFamily: fontMono }}>{q.likes}</Text></View>
+        <View style={styles.stat}><Ionicons name="chatbubble-outline" size={13} color={q.answerCount ? c.primary : c.textSecondary} /><Text style={{ color: q.answerCount ? c.primary : c.textSecondary, fontSize: 11.5 * fs, fontFamily: fontMono }}>{q.answerCount}</Text></View>
+        <View style={styles.stat}><Ionicons name="heart-outline" size={13} color={c.textSecondary} /><Text style={{ color: c.textSecondary, fontSize: 11.5 * fs, fontFamily: fontMono }}>{q.likes}</Text></View>
       </View>
     </Pressable>
   );

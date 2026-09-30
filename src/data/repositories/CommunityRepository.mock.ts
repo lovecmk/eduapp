@@ -1,3 +1,4 @@
+import { factionStandings, monthToSeed } from '../../constants/factions';
 import type { ICommunityRepository } from '../../domain/repositories/ICommunityRepository';
 import type { CommunitySnapshot, LiveActivity, SafetyBuilding, BuildingMonth } from '../../domain/models/Community';
 import { delay } from './_delay';
@@ -30,7 +31,9 @@ function buildMonth(d: Date, now: Date): BuildingMonth {
   const problems = Math.round(dailyBase * dayProgress + (seed % 9_000));
   // 그 달 우승 진영 — 시드로 결정(달마다 달라져 히스토리 색이 다양해진다).
   const winner = (['frost', 'flame', 'volt'] as const)[seed % 3];
-  return { month: key, label: monthLabel(d, now), problems, floors: Math.floor(problems / BUILDING_FLOOR_SIZE), winner };
+  // 진영별 분배 — **목업 시연 전용.** 실서버에서는 서버가 집계한 값만 쓴다(Community.factions).
+  const factions = factionStandings(problems, BUILDING_FLOOR_SIZE, monthToSeed(key), winner);
+  return { month: key, label: monthLabel(d, now), problems, floors: Math.floor(problems / BUILDING_FLOOR_SIZE), winner, factions };
 }
 
 /** 이번 달(진행 중) + 지난 6개월 히스토리. */

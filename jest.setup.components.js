@@ -36,3 +36,10 @@ jest.mock('expo-secure-store', () => ({
   setItemAsync: jest.fn(() => Promise.resolve()),
   deleteItemAsync: jest.fn(() => Promise.resolve()),
 }));
+
+// expo-keep-awake: 네이티브 모듈이 없는 테스트 환경에서는 켜고 끄는 호출만 받아 둔다.
+jest.mock('expo-keep-awake', () => ({
+  activateKeepAwakeAsync: jest.fn(() => Promise.resolve()),
+  deactivateKeepAwake: jest.fn(() => Promise.resolve()),
+  useKeepAwake: jest.fn(),
+}));

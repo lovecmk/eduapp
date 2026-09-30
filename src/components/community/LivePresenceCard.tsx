@@ -67,7 +67,7 @@ function CountUp({ value, style }: { value: number; style?: object }) {
 }
 
 export function LivePresenceCard() {
-  const { theme } = useTheme();
+  const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
   const { data, isLoading } = useCommunity();
   const [tickerIdx, setTickerIdx] = useState(0);
@@ -123,11 +123,11 @@ export function LivePresenceCard() {
       <View style={styles.header}>
         <View style={styles.headerLeft}>
           <GreenPulse />
-          <Text style={[styles.headerTitle, { color: c.textPrimary }]}>지금 함께 학습 중</Text>
+          <Text style={[styles.headerTitle, { color: c.textPrimary, fontSize: 15 * fs }]}>지금 함께 학습 중</Text>
         </View>
         <View style={styles.onlineWrap}>
-          <CountUp value={data.onlineNow} style={[styles.onlineNum, { color: c.primary }]} />
-          <Text style={[styles.onlineUnit, { color: c.textSecondary }]}>명</Text>
+          <CountUp value={data.onlineNow} style={[styles.onlineNum, { color: c.primary, fontSize: 20 * fs }]} />
+          <Text style={[styles.onlineUnit, { color: c.textSecondary, fontSize: 12 * fs }]}>명</Text>
         </View>
       </View>
 
@@ -157,7 +157,7 @@ export function LivePresenceCard() {
               </View>
             )}
           </View>
-          <Text style={[styles.companionNames, { color: c.textSecondary }]} numberOfLines={1}>
+          <Text style={[styles.companionNames, { color: c.textSecondary, fontSize: 11.5 * fs }]} numberOfLines={1}>
             {shown.map((cmp) => cmp.name).join(' · ')}
             {more > 0 ? ` 외 ${more}명` : ''}
           </Text>
@@ -165,7 +165,7 @@ export function LivePresenceCard() {
       ) : (
         <View style={[styles.soloRow, { backgroundColor: c.surfaceAlt }]}>
           <Text style={styles.soloEmoji}>🌱</Text>
-          <Text style={[styles.soloText, { color: c.textSecondary }]} numberOfLines={2}>
+          <Text style={[styles.soloText, { color: c.textSecondary, fontSize: 12 * fs }]} numberOfLines={2}>
             지금은 나 혼자예요. 먼저 시작해서 자리를 데워둘까요?
           </Text>
         </View>

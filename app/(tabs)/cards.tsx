@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { View, Text, Pressable, Animated, ScrollView, Dimensions, Platform, BackHandler, Modal, PanResponder, Easing } from 'react-native';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { hapticTap, hapticSuccess, hapticError } from '../../src/utils/haptics';
 import { useTheme } from '../../src/theme/ThemeProvider';
 import { useAuthStore } from '../../src/store/authStore';
@@ -37,6 +38,7 @@ import { useReportStore } from '../../src/store/reportStore';
 import { useCollectionStore } from '../../src/store/collectionStore';
 import { useSrsStore } from '../../src/store/srsStore';
 import { useDiffPollStore, type DiffVote } from '../../src/store/diffPollStore';
+import { useDifficultyVote } from '../../src/hooks/useDifficultyPoll';
 import { predictLabel, initialState } from '../../src/domain/srs';
 import { safeInternalPath } from '../../src/utils/safeRoute';
 
@@ -175,11 +177,12 @@ export default function CardsScreen() {
    * "이 문제"가 무엇인지 헷갈리지 않는다. 답(또는 건너뛰기)을 받고 나서야
    * 미뤄 둔 넘김 동작을 실행한다.
    *
-   * 아직 프론트 전용이다 — 로컬에만 남기고 서버로 보내지 않는다.
+   * 답은 이 기기에 먼저 남고(다시 묻지 않게) 서버로는 뒤에서 보낸다(useDifficultyVote).
    */
   const [askVisible, setAskVisible] = useState(false);
   const pendingAdvanceRef = useRef<(() => void) | null>(null);
-  const voteDifficulty = useDiffPollStore((s) => s.vote);
+  // 기기에 먼저 남기고 서버(/cards/:id/difficulty)로는 뒤에서 보낸다 — 서버가 열리면 자동으로 모인다.
+  const vote = useDifficultyVote();
 
   // 카드 뒤집기(rotateY) + 넘김(translate/opacity) 애니메이션 값.
   const flipAnim = useRef(new Animated.Value(0)).current;
@@ -322,7 +325,6 @@ export default function CardsScreen() {
   const hasReported = useReportStore((s) => (card ? s.reports.some((r) => r.cardId === card.id) : false));
 
   const keepScreenOn = useSettingsStore((s) => s.keepScreenOn);
-  // const flexPromptEnabled = useSettingsStore((s) => s.flexPromptEnabled); // 학습완료 플렉스 CTA 비활성화로 미사용
   const toggleKeepScreenOn = useSettingsStore((s) => s.toggleKeepScreenOn);
 
   /** 카드가 움직이기 시작하는 순간 — 그림자를 즉시 지운다(잔상 방지). */
@@ -479,12 +481,12 @@ export default function CardsScreen() {
 
   /** 난이도를 고르거나 건너뛰면 — 미뤄 둔 넘김 동작을 그때 실행한다. */
   const resolveAsk = useCallback((choice: DiffVote | null) => {
-    if (choice && card) voteDifficulty(card.id, choice);
+    if (choice && card) vote(card.id, choice);
     setAskVisible(false);
     const run = pendingAdvanceRef.current;
     pendingAdvanceRef.current = null;
     run?.();
-  }, [card, voteDifficulty]);
+  }, [card, vote]);
 
   // 새 카드가 화면에 올라올 때 — 과한 바운스 없이 잔잔하게 떠오르며 등장한다(편안한 전환).
   useEffect(() => {
@@ -677,6 +679,25 @@ export default function CardsScreen() {
   // 학습 세션이 진행 중일 때(카드가 남아있고 아직 완료 화면이 아닐 때) 하드웨어 뒤로가기를 가로채,
   // 곧바로 홈으로 튕겨 나가는 대신 "어디로 이동할지" 확인 모달을 띄운다.
   const sessionActive = !!card && !finished;
+
+  /**
+   * 설정 '화면 켜짐 유지' — 학습 중에만, 이 탭을 보고 있는 동안에만 화면을 켜 둔다.
+   *
+   * 예전에는 이 설정이 오른쪽 위 자물쇠 아이콘 하나만 띄우고 **화면은 그대로 꺼졌다**
+   * (keep-awake 를 부르는 곳이 없었다). 장갑을 끼고 해설을 읽다가 화면이 꺼지면
+   * 다시 켜서 잠금을 푸는 것부터 해야 한다 — 이 설정이 있는 이유가 정확히 그것이다.
+   *
+   * 탭은 떠나도 마운트된 채 남으므로 포커스에 묶는다. 묶지 않으면 홈으로 나간 뒤에도
+   * 화면이 계속 켜져 배터리를 태운다. 완료 화면에서도 푼다(더 읽을 것이 없다).
+   */
+  useFocusEffect(
+    useCallback(() => {
+      if (!keepScreenOn || !sessionActive) return;
+      const tag = 'cards-study';
+      activateKeepAwakeAsync(tag).catch(() => { /* 지원하지 않는 기기·웹 — 설정만 무력해질 뿐이다 */ });
+      return () => { deactivateKeepAwake(tag).catch(() => {}); };
+    }, [keepScreenOn, sessionActive]),
+  );
   useFocusEffect(
     useCallback(() => {
       if (Platform.OS !== 'android') return;
@@ -832,13 +853,16 @@ export default function CardsScreen() {
           </>
         ) : (
           <View style={{ width: '100%', gap: 10, marginTop: 4 }}>
-            {/* '복습하러 가기' — 방금 학습한 카드를 복습 > 모아보기 > 오늘 학습한 카드에서 바로 다시 본다. */}
+            {/* 오늘의 학습을 마쳤으면 '복습하러 가기' — 방금 학습한 카드를 복습 > 모아보기 >
+                오늘 학습한 카드에서 바로 다시 본다.
+                복습을 마쳤으면 같은 말이 어색하다("복습 완료!" 아래 "복습하러 가기").
+                그때는 다른 분야·남은 복습을 고를 수 있는 복습 목록으로 돌려보낸다. */}
             <Pressable accessibilityRole="button"
-              onPress={() => endFlow(router, ROUTES.collection('today'))}
+              onPress={() => endFlow(router, isCategoryMode || isDueMode ? ROUTES.review : ROUTES.collection('today'))}
               style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.primary, borderRadius: 14, paddingVertical: 15, paddingHorizontal: 28, boxShadow: '0 6px 16px rgba(37,99,235,0.28)' }}
             >
-              <Ionicons name="refresh" size={18} color="#fff" />
-              <Text style={{ color: '#fff', fontSize: 15 * fs, fontWeight: '800', fontFamily: fontCute }}>복습하러 가기</Text>
+              <Ionicons name={isCategoryMode || isDueMode ? 'list' : 'refresh'} size={18} color="#fff" />
+              <Text style={{ color: '#fff', fontSize: 15 * fs, fontWeight: '800', fontFamily: fontCute }}>{isCategoryMode || isDueMode ? '복습 목록으로' : '복습하러 가기'}</Text>
             </Pressable>
             <Pressable accessibilityRole="button"
               onPress={() => endFlow(router, ROUTES.home)}
@@ -904,9 +928,11 @@ export default function CardsScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
+      {/* 화면 켜짐 유지 중 표시 — 눌러서 바로 끌 수 있다. 자물쇠 모양은 '잠겨 있다'로
+          읽혀 뜻이 거꾸로 전해졌다. 켜 둔 화면을 뜻하는 해 모양을 쓴다. */}
       {keepScreenOn && (
-        <Pressable onPress={toggleKeepScreenOn} accessibilityRole="button" accessibilityLabel="화면 꺼짐 방지 해제" style={{ position: 'absolute', top: 10, right: 20, zIndex: 20, padding: 4 }}>
-          <Ionicons name="lock-closed" size={16} color={c.textSecondary} />
+        <Pressable onPress={toggleKeepScreenOn} accessibilityRole="button" accessibilityLabel="화면 켜짐 유지 끄기" hitSlop={8} style={{ position: 'absolute', top: 10, right: 20, zIndex: 20, padding: 4 }}>
+          <Ionicons name="sunny" size={16} color={c.textSecondary} />
         </Pressable>
       )}
 

@@ -34,6 +34,8 @@ interface QnaState {
   /** 공감 상태 설정 — 토글이 아니라 '원하는 상태'를 받는다(재전송 안전). */
   setQuestionLike: (questionId: string, liked: boolean) => void;
   setAnswerLike: (questionId: string, answerId: string, liked: boolean) => void;
+  /** 서버로 옮긴 로컬 질문을 지운다(data/sync/localBackfill). */
+  removeQuestion: (questionId: string) => void;
 }
 
 /**
@@ -100,6 +102,9 @@ export const useQnaStore = create<QnaState>()(
         set((s) => ({
           questions: s.questions.map((q) => (q.id === questionId ? applyLike(q, liked) : q)),
         })),
+
+      removeQuestion: (questionId) =>
+        set((s) => ({ questions: s.questions.filter((q) => q.id !== questionId) })),
 
       setAnswerLike: (questionId, answerId, liked) =>
         set((s) => ({

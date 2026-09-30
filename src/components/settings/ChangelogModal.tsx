@@ -13,7 +13,7 @@ import { env } from '../../data/network/env';
  * 항목을 누르면 해당 업데이트 상세(변경점 전체)로 들어간다.
  */
 export function ChangelogModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
-  const { theme } = useTheme();
+  const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
   const [selected, setSelected] = useState<ChangelogEntry | null>(null);
   // 현재 버전의 날짜는 실제 빌드 시각에서, 손으로 쓴 항목이 없는 배포는 자동 항목으로.
@@ -32,24 +32,24 @@ export function ChangelogModal({ visible, onClose }: { visible: boolean; onClose
         <View>
           <Pressable accessibilityRole="button" onPress={() => setSelected(null)} hitSlop={8} style={styles.backRow}>
             <Ionicons name="chevron-back" size={18} color={c.primary} />
-            <Text style={[styles.backText, { color: c.primary }]}>목록</Text>
+            <Text style={[styles.backText, { color: c.primary, fontSize: 14 * fs }]}>목록</Text>
           </Pressable>
 
           <View style={styles.detailHead}>
-            <Text style={[styles.version, { color: c.textPrimary }]}>v{selected.version}</Text>
+            <Text style={[styles.version, { color: c.textPrimary, fontSize: 15 * fs }]}>v{selected.version}</Text>
             {selected.version === env.build.version && (
               <View style={[styles.currentChip, { backgroundColor: c.primary + '1A' }]}>
                 <Text style={[styles.currentText, { color: c.primary }]}>현재 버전</Text>
               </View>
             )}
-            <Text style={[styles.date, { color: c.textSecondary }]}>{selected.date}</Text>
+            <Text style={[styles.date, { color: c.textSecondary, fontSize: 11 * fs }]}>{selected.date}</Text>
           </View>
 
           <View style={{ marginTop: 14, gap: 10 }}>
             {selected.highlights.map((h, i) => (
               <View key={i} style={styles.item}>
                 <Ionicons name="checkmark-circle" size={15} color={c.success} style={{ marginTop: 1 }} />
-                <Text style={[styles.itemText, { color: c.textSecondary }]}>{h}</Text>
+                <Text style={[styles.itemText, { color: c.textSecondary, fontSize: 13 * fs, lineHeight: 19 * fs }]}>{h}</Text>
               </View>
             ))}
           </View>
@@ -74,19 +74,19 @@ export function ChangelogModal({ visible, onClose }: { visible: boolean; onClose
               >
                 <View style={{ flex: 1 }}>
                   <View style={styles.rowTop}>
-                    <Text style={[styles.version, { color: c.textPrimary }]}>v{entry.version}</Text>
+                    <Text style={[styles.version, { color: c.textPrimary, fontSize: 15 * fs }]}>v{entry.version}</Text>
                     {isCurrent && (
                       <View style={[styles.currentChip, { backgroundColor: c.primary + '1A' }]}>
                         <Text style={[styles.currentText, { color: c.primary }]}>현재</Text>
                       </View>
                     )}
-                    <Text style={[styles.date, { color: c.textSecondary }]}>{entry.date}</Text>
+                    <Text style={[styles.date, { color: c.textSecondary, fontSize: 11 * fs }]}>{entry.date}</Text>
                   </View>
-                  <Text numberOfLines={1} style={[styles.summary, { color: c.textSecondary }]}>
+                  <Text numberOfLines={1} style={[styles.summary, { color: c.textSecondary, fontSize: 12.5 * fs, lineHeight: 18 * fs }]}>
                     {entry.highlights[0]}
                   </Text>
                   {entry.highlights.length > 1 && (
-                    <Text style={[styles.more, { color: c.primary }]}>+{entry.highlights.length - 1}건 더보기</Text>
+                    <Text style={[styles.more, { color: c.primary, fontSize: 11 * fs }]}>+{entry.highlights.length - 1}건 더보기</Text>
                   )}
                 </View>
                 <Ionicons name="chevron-forward" size={18} color={c.textSecondary} />

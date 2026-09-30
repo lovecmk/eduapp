@@ -41,12 +41,13 @@ export function resetUserScopedStores(): void {
   useFactionStore.getState().reset();
   useCollectionStore.getState().reset();
   useAuthoredCardsStore.getState().clear();
-  useNotificationStore.getState().clearAll();
+  // clearAll 이 아니라 reset — clearAll 은 '사용자가 지운 것'으로 기록을 남긴다.
+  useNotificationStore.getState().reset();
   useAttendanceStore.setState({ stamps: {} });
   useBookmarkStore.setState({ ids: [] });
   useLikeStore.setState({ ids: [] });
   useReportStore.setState({ reports: [] });
-  useDiffPollStore.setState({ myVotes: {} });
+  useDiffPollStore.setState({ myVotes: {}, sent: {} });
   useDailyLearningStore.setState({ dayKey: dateKey(new Date()), newLearnedToday: 0 });
   resetQnaStore();
   useShareFeedStore.setState({ posts: [] });

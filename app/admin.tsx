@@ -254,7 +254,6 @@ function FlagsTab() {
   return (
     <Section title="기능 플래그">
       <FlagRow label="카드 수집·카드팩" desc="컬렉션/카드팩 시스템 노출" value={s.collectionEnabled} onToggle={s.toggleCollectionEnabled} />
-      <FlagRow label="자랑(플렉스) 유도" desc="목표 달성 시 자랑 제안" value={s.flexPromptEnabled} onToggle={s.toggleFlexPrompt} />
       <FlagRow label="성취 뱃지" desc="닉네임 옆 뱃지 표출" value={s.showAchievementBadge} onToggle={s.toggleAchievementBadge} last />
     </Section>
   );

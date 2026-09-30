@@ -26,6 +26,10 @@ jest.mock('../../src/hooks/useCards', () => ({
   useMarkCard: () => ({ mutate: jest.fn(), mutateAsync: jest.fn(() => Promise.resolve()) }),
 }));
 jest.mock('../../src/hooks/useReview', () => ({ useReview: () => ({ dueCards: [] }) }));
+jest.mock('../../src/hooks/useDifficultyPoll', () => ({
+  useDifficultyVote: () => jest.fn(),
+  useDifficultyPoll: () => ({ counts: null, mine: null, loaded: true }),
+}));
 jest.mock('../../src/hooks/useDailyQuota', () => ({
   useDailyQuota: () => ({ limit: 3, used: 0, remaining: 3, canLearn: true }),
   recordNewLearned: jest.fn(),

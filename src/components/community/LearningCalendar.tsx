@@ -52,7 +52,7 @@ function chunkWeeks(cells: (number | null)[]): (number | null)[][] {
  * 날짜를 탭하면 그날 학습한 카드(이미지 포함)를 상세로 보여준다.
  */
 export function LearningCalendar() {
-  const { theme } = useTheme();
+  const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
@@ -154,7 +154,7 @@ export function LearningCalendar() {
       <View style={styles.header}>
         <Pressable onPress={prev} hitSlop={8} accessibilityRole="button" accessibilityLabel="이전 달" style={styles.arrow}><Ionicons name="chevron-back" size={20} color={c.primary} /></Pressable>
         <Pressable accessibilityRole="button" onPress={() => { setPickYear(year); setPickMonth(month); setPickerOpen(true); }}>
-          <Text style={{ color: c.textPrimary, fontSize: 16, fontFamily: fontDisplay }}>{year}년 {month + 1}월</Text>
+          <Text style={{ color: c.textPrimary, fontSize: 16 * fs, fontFamily: fontDisplay }}>{year}년 {month + 1}월</Text>
         </Pressable>
         <Pressable onPress={next} hitSlop={8} accessibilityRole="button" accessibilityLabel="다음 달" style={styles.arrow}><Ionicons name="chevron-forward" size={20} color={c.primary} /></Pressable>
       </View>
@@ -273,12 +273,12 @@ export function LearningCalendar() {
       {checkedToday ? (
         <CheckInSuccess animate={justStamped !== null} style={[styles.checkIn, { backgroundColor: c.success + '18' }]}>
           <Ionicons name="checkmark-circle" size={18} color={c.success} />
-          <Text style={{ color: c.success, fontSize: 14, fontFamily: fontCute, fontWeight: '800' }}>오늘 출석 완료!</Text>
+          <Text style={{ color: c.success, fontSize: 14 * fs, fontFamily: fontCute, fontWeight: '800' }}>오늘 출석 완료!</Text>
         </CheckInSuccess>
       ) : (
         <Pressable accessibilityRole="button" onPress={onCheckIn} style={[styles.checkIn, { backgroundColor: c.primary }]}>
           <Ionicons name="hand-left" size={17} color="#fff" />
-          <Text style={{ color: '#fff', fontSize: 14, fontFamily: fontCute, fontWeight: '800' }}>오늘 출석 도장 찍기</Text>
+          <Text style={{ color: '#fff', fontSize: 14 * fs, fontFamily: fontCute, fontWeight: '800' }}>오늘 출석 도장 찍기</Text>
         </Pressable>
       )}
 
@@ -294,14 +294,14 @@ export function LearningCalendar() {
           <Pressable accessibilityRole="button" accessibilityLabel="닫기" style={[StyleSheet.absoluteFill, styles.modalScrim]} onPress={() => setPickerOpen(false)} />
           <View pointerEvents="box-none" style={styles.modalOverlay}>
             <View style={[styles.modalCard, { backgroundColor: c.surface, borderColor: c.border }]}>
-              <Text style={{ color: c.textPrimary, fontSize: 16, marginBottom: 16, textAlign: 'center', fontFamily: fontDisplay }}>날짜 선택</Text>
+              <Text style={{ color: c.textPrimary, fontSize: 16 * fs, marginBottom: 16, textAlign: 'center', fontFamily: fontDisplay }}>날짜 선택</Text>
               <View style={{ flexDirection: 'row', gap: 12, marginBottom: 16 }}>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.pickLbl, { color: c.textSecondary }]}>년도</Text>
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
                     {Array.from({ length: 4 }, (_, i) => 2024 + i).map((y) => (
                       <Pressable accessibilityRole="button" key={y} onPress={() => setPickYear(y)} style={{ paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, backgroundColor: pickYear === y ? c.primary : c.surfaceAlt }}>
-                        <Text style={{ color: pickYear === y ? c.textOnPrimary : c.textPrimary, fontSize: 13, fontFamily: fontBody }}>{y}</Text>
+                        <Text style={{ color: pickYear === y ? c.textOnPrimary : c.textPrimary, fontSize: 13 * fs, fontFamily: fontBody }}>{y}</Text>
                       </Pressable>
                     ))}
                   </View>
@@ -311,7 +311,7 @@ export function LearningCalendar() {
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
                     {MONTHS.map((m, i) => (
                       <Pressable accessibilityRole="button" key={m} onPress={() => setPickMonth(i)} style={{ paddingVertical: 8, paddingHorizontal: 10, borderRadius: 8, backgroundColor: pickMonth === i ? c.primary : c.surfaceAlt }}>
-                        <Text style={{ color: pickMonth === i ? c.textOnPrimary : c.textPrimary, fontSize: 13, fontFamily: fontBody }}>{m}</Text>
+                        <Text style={{ color: pickMonth === i ? c.textOnPrimary : c.textPrimary, fontSize: 13 * fs, fontFamily: fontBody }}>{m}</Text>
                       </Pressable>
                     ))}
                   </View>
@@ -336,13 +336,13 @@ export function LearningCalendar() {
 }
 
 function SummaryPill({ icon, color, value, label }: { icon: keyof typeof Ionicons.glyphMap; color: string; value: string; label: string }) {
-  const { theme } = useTheme();
+  const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
   return (
     <View style={[styles.summaryPill, { backgroundColor: c.surfaceAlt }]}>
       <Ionicons name={icon} size={15} color={color} />
-      <Text style={{ color: c.textPrimary, fontSize: 14, fontFamily: fontMono, fontWeight: '800' }}>{value}</Text>
-      <Text style={{ color: c.textSecondary, fontSize: 10.5, fontFamily: fontBody }}>{label}</Text>
+      <Text style={{ color: c.textPrimary, fontSize: 14 * fs, fontFamily: fontMono, fontWeight: '800' }}>{value}</Text>
+      <Text style={{ color: c.textSecondary, fontSize: 10.5 * fs, fontFamily: fontBody }}>{label}</Text>
     </View>
   );
 }
@@ -350,7 +350,7 @@ function SummaryPill({ icon, color, value, label }: { icon: keyof typeof Ionicon
 function DayDetailSheet({
   visible, dateKey: key, reviewed, due, onClose,
 }: { visible: boolean; dateKey: string | null; reviewed: LearningCard[]; due: LearningCard[]; onClose: () => void }) {
-  const { theme } = useTheme();
+  const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
   const router = useRouter();
   const [ , mo, d] = (key ?? '0-0-0').split('-').map(Number);
@@ -366,7 +366,7 @@ function DayDetailSheet({
     <AnimatedSheet visible={visible} onClose={onClose}>
         <View style={{ paddingHorizontal: 20, paddingBottom: 14 }}>
           <View style={styles.sheetHeader}>
-            <Text style={{ color: c.textPrimary, fontSize: 17, fontFamily: fontDisplay }}>{title}</Text>
+            <Text style={{ color: c.textPrimary, fontSize: 17 * fs, fontFamily: fontDisplay }}>{title}</Text>
             <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel="닫기" style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: c.surfaceAlt, alignItems: 'center', justifyContent: 'center' }}>
               <Ionicons name="close" size={17} color={c.textSecondary} />
             </Pressable>
@@ -392,18 +392,18 @@ function DayDetailSheet({
 }
 
 function SectionTitle({ icon, color, text }: { icon: keyof typeof Ionicons.glyphMap; color: string; text: string }) {
-  const { theme } = useTheme();
+  const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 }}>
       <Ionicons name={icon} size={15} color={color} />
-      <Text style={{ color: c.textPrimary, fontSize: 13, fontFamily: fontDisplay }}>{text}</Text>
+      <Text style={{ color: c.textPrimary, fontSize: 13 * fs, fontFamily: fontDisplay }}>{text}</Text>
     </View>
   );
 }
 
 function CardRow({ card, onPress }: { card: LearningCard; onPress?: () => void }) {
-  const { theme } = useTheme();
+  const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
   const accent = getCategoryColor(card.category) ?? c.primary;
   return (
@@ -418,9 +418,9 @@ function CardRow({ card, onPress }: { card: LearningCard; onPress?: () => void }
       <View style={{ flex: 1 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 3 }}>
           <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: accent }} />
-          <Text style={{ color: c.textSecondary, fontSize: 11, fontFamily: fontBody }}>{card.category} · {card.subCategory}</Text>
+          <Text style={{ color: c.textSecondary, fontSize: 11 * fs, fontFamily: fontBody }}>{card.category} · {card.subCategory}</Text>
         </View>
-        <Text numberOfLines={2} style={{ color: c.textPrimary, fontSize: 13, lineHeight: 18, fontFamily: fontBody }}>{card.question}</Text>
+        <Text numberOfLines={2} style={{ color: c.textPrimary, fontSize: 13 * fs, lineHeight: 18 * fs, fontFamily: fontBody }}>{card.question}</Text>
       </View>
       {onPress && <Ionicons name="chevron-forward" size={15} color={c.textSecondary} />}
     </Pressable>

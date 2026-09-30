@@ -33,6 +33,16 @@ import { QnaRepository } from './QnaRepository';
 import { MockQnaRepository } from './QnaRepository.mock';
 import { SettingsRepository } from './SettingsRepository';
 import { MockSettingsRepository } from './SettingsRepository.mock';
+import { SupportRepository } from './SupportRepository';
+import { FeedRepository } from './FeedRepository';
+import { MockFeedRepository } from './FeedRepository.mock';
+import { TipRepository } from './TipRepository';
+import { MockTipRepository } from './TipRepository.mock';
+import { DifficultyPollRepository } from './DifficultyPollRepository';
+import { FactionRepository } from './FactionRepository';
+import { MockFactionRepository } from './FactionRepository.mock';
+import { MockDifficultyPollRepository } from './DifficultyPollRepository.mock';
+import { MockSupportRepository } from './SupportRepository.mock';
 
 import type { IAuthRepository } from '../../domain/repositories/IAuthRepository';
 import type { ICardRepository } from '../../domain/repositories/ICardRepository';
@@ -52,6 +62,11 @@ import type { IServiceConfigRepository } from '../../domain/repositories/IServic
 import type { IDailyAssignmentRepository } from '../../domain/repositories/IDailyAssignmentRepository';
 import type { IQnaRepository } from '../../domain/repositories/IQnaRepository';
 import type { ISettingsRepository } from '../../domain/repositories/ISettingsRepository';
+import type { ISupportRepository } from '../../domain/repositories/ISupportRepository';
+import type { IFeedRepository } from '../../domain/repositories/IFeedRepository';
+import type { ITipRepository } from '../../domain/repositories/ITipRepository';
+import type { IDifficultyPollRepository } from '../../domain/repositories/IDifficultyPollRepository';
+import type { IFactionRepository } from '../../domain/repositories/IFactionRepository';
 
 export const authRepository: IAuthRepository = env.useMockData
   ? new MockAuthRepository()
@@ -172,3 +187,54 @@ export const notificationRepository: INotificationRepository = env.useMockData
 export const collectionRepository: ICollectionRepository = env.useMockData
   ? new MockCollectionRepository()
   : new CollectionRepository();
+
+/**
+ * 고객센터 문의 — 폴백을 걸지 않는다. 라우트가 없을 때 목업으로 떨어지면 목업이
+ * "접수되었어요"라고 답해, 사라진 문의가 접수된 것처럼 보인다(고치기 전의 결함 그대로).
+ * 실패는 화면까지 올려 사유를 말하게 한다.
+ */
+export const supportRepository: ISupportRepository = env.useMockData
+  ? new MockSupportRepository()
+  : new SupportRepository();
+
+// ── 커뮤니티 참여 기능 — 서버 라우트가 열리면 앱 재배포 없이 자동으로 붙는다 ──────────
+//
+// 셋 다 Q&A 와 같은 방식이다. 라우트가 없으면(404/501) 이 기기 안(로컬 스토어)에서 돌고,
+// 5분마다 서버를 다시 확인한다(_fallback). 열리는 날 첫 요청부터 서버를 쓴다.
+// 기기 안에서 도는 동안에는 화면이 그 사실을 말한다(useDegraded('feed' | 'tips' | …)).
+// 로컬 폴백은 **지어낸 남의 데이터를 만들지 않는다**(시드는 목업 모드에서만).
+
+/** 자랑 피드('오늘의 플렉스') — `/inner/api/v1/feed`. */
+export const feedRepository: IFeedRepository = env.useMockData
+  ? new MockFeedRepository()
+  : withMockFallback(new FeedRepository(), new MockFeedRepository(), 'feed');
+
+/** 카드별 현장 팁 — `/inner/api/v1/cards/:id/tips`. */
+export const tipRepository: ITipRepository = env.useMockData
+  ? new MockTipRepository()
+  : withMockFallback(new TipRepository(), new MockTipRepository(), 'tips');
+
+/** 체감 난이도 투표 — `/inner/api/v1/cards/:id/difficulty`. */
+export const difficultyPollRepository: IDifficultyPollRepository = env.useMockData
+  ? new MockDifficultyPollRepository()
+  : withMockFallback(new DifficultyPollRepository(), new MockDifficultyPollRepository(), 'difficulty-poll');
+
+/** 내 진영 — `/inner/api/v1/me/faction`. 서버가 알아야 진영 대항전을 진영별로 집계한다. */
+export const factionRepository: IFactionRepository = env.useMockData
+  ? new MockFactionRepository()
+  : withMockFallback(new FactionRepository(), new MockFactionRepository(), 'faction');
+
+/**
+ * 폴백으로 **감싸지 않은** 실서버 저장소 — 서버가 없던 동안 기기에 쌓인 것을 옮기는 일
+ * (data/sync/localBackfill) 전용. 감싼 저장소를 쓰면 라우트가 없을 때 다시 로컬로 떨어져
+ * 같은 글이 두 벌이 된다. 목업 모드에서는 옮길 서버가 없으므로 null.
+ */
+export const liveCommunityRepositories = env.useMockData
+  ? null
+  : {
+      feed: new FeedRepository(),
+      tips: new TipRepository(),
+      poll: new DifficultyPollRepository(),
+      qna: new QnaRepository(),
+      notifications: notificationRepository,
+    };

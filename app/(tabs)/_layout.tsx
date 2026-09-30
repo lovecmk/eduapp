@@ -21,6 +21,7 @@ import { PressableScale } from '../../src/components/ui/PressableScale';
 import { Avatar } from '../../src/components/ui/Avatar';
 import { useNotificationStore } from '../../src/store/notificationStore';
 import { useSettingsStore } from '../../src/store/settingsStore';
+import { useAuthStore } from '../../src/store/authStore';
 import { fontDisplay, shadowHeaderBottom } from '../../src/theme/tokens';
 import { ROUTES } from '../../src/constants/routes';
 import { APP_NAME } from '../../src/constants/brand';
@@ -165,6 +166,11 @@ export default function TabsLayout() {
   const { theme } = useTheme();
   const c = theme.colors;
   const insets = useSafeAreaInsets();
+  // 세션이 없으면 탭을 그리지 않는다 — 루트의 인증 가드가 로그인으로 보낼 때까지 한 박자
+  // 동안이라도 탭이 마운트되면, 각 화면의 쿼리가 토큰 없이 서버로 나간다(웹에서 /cards 를
+  // 로그아웃 상태로 열면 오늘의 학습·설정 요청이 401 로 줄줄이 떨어지는 것이 보였다).
+  const signedOut = useAuthStore((s) => s.bootstrapped && !s.user);
+  if (signedOut) return <View style={{ flex: 1, backgroundColor: c.bg }} />;
   return (
     <View style={{ flex: 1, paddingTop: insets.top, backgroundColor: c.bg }}>
       {/* 전역 날씨/시간대 배경 — 학습카드(cards)를 제외한 모든 탭 뒤에 은은히 깔린다.

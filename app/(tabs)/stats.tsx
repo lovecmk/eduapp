@@ -1,36 +1,19 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { View, Text, ScrollView, FlatList, Pressable, RefreshControl } from 'react-native';
-import { useRouter } from 'expo-router';
+import { View, Text, ScrollView, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../src/theme/ThemeProvider';
-import { useAuthStore } from '../../src/store/authStore';
-import { ROUTES } from '../../src/constants/routes';
-import { displayName } from '../../src/domain/models/User';
-import { Button } from '../../src/components/ui/Button';
 import { Card } from '../../src/components/ui/Card';
 import { ErrorState } from '../../src/components/ui/ErrorState';
-import { BottomSheet } from '../../src/components/ui/BottomSheet';
-import { ReviewStatusCard } from '../../src/components/review/ReviewStatusCard';
-import { LearningPersonaCard } from '../../src/components/stats/LearningPersonaCard';
-import { LearningRhythmCard } from '../../src/components/stats/LearningRhythmCard';
 import { WeeklyChart } from '../../src/components/stats/WeeklyChart';
 import { StatsSkeleton } from '../../src/components/skeletons';
-import { useSettingsStore } from '../../src/store/settingsStore';
-import { fontMono, fontCute, fontDisplay, fontBody } from '../../src/theme/tokens';
+import { fontMono, fontCute, fontBody } from '../../src/theme/tokens';
 import { getCategoryIcon, getCategoryColor } from '../../src/constants/categories';
-import { calcEmblems, emblemRankingMock, EMBLEM_DEFS, type EmblemProgress } from '../../src/utils/emblems';
 import { useAllCards } from '../../src/hooks/useCards';
 import { useStudyStats } from '../../src/hooks/useStats';
-import type { LearningInsights } from '../../src/domain/models/StudyStats';
 import { useDailyQuota } from '../../src/hooks/useDailyQuota';
-import { useCommunity } from '../../src/hooks/useCommunity';
-import { useFactionStore } from '../../src/store/factionStore';
-import { FACTIONS, getFaction, factionStandings, type FactionId } from '../../src/constants/factions';
 import { contentColumn } from '../../src/theme/layout';
 import { percent } from '../../src/utils/percent';
-
-/** 레벨 한 칸에 필요한 학습 장수 — 진행률 분모. */
-const LEVEL_STEP = 10;
+import { calcEmblems, getEmblemIcon } from '../../src/utils/emblems';
 
 function StatTile({ icon, color, value, label }: { icon: keyof typeof Ionicons.glyphMap; color: string; value: string; label: string }) {
   const { theme, fontScale } = useTheme();
@@ -44,81 +27,13 @@ function StatTile({ icon, color, value, label }: { icon: keyof typeof Ionicons.g
   );
 }
 
-function RankingRow({ rank, nickname, score, isMe }: { rank: number; nickname: string; score: number; isMe?: boolean }) {
-  const { theme, fontScale } = useTheme();
-  const c = theme.colors;
-  const fs = fontScale;
-  const medals = ['🥇', '🥈', '🥉'];
-  const medalColors = ['#FFD700', '#C0C0C0', '#CD7F32'];
-  return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: isMe ? c.primary + '15' : 'transparent', borderRadius: 12, padding: 10, marginBottom: 4, borderWidth: 1, borderColor: isMe ? c.primary : 'transparent' }}>
-      <Text style={{ width: 24, fontSize: 14 * fs, fontWeight: '800', color: isMe ? c.primary : c.textSecondary, textAlign: 'center', fontFamily: fontCute }}>
-        {medals[rank - 1] || rank}
-      </Text>
-      <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: medalColors[rank - 1] || c.border, alignItems: 'center', justifyContent: 'center', marginHorizontal: 8 }}>
-        <Text style={{ fontSize: 11, fontWeight: '800', color: '#fff', fontFamily: fontCute }}>{nickname.charAt(0)}</Text>
-      </View>
-      <Text style={{ color: isMe ? c.primary : c.textPrimary, fontSize: 13 * fs, fontWeight: isMe ? '800' : '600', flex: 1, fontFamily: fontCute }}>{nickname}</Text>
-      <Text style={{ color: isMe ? c.primary : c.textSecondary, fontSize: 13 * fs, fontWeight: '800', fontFamily: fontMono }}>{score}점</Text>
-    </View>
-  );
-}
-
-/** 파생 학습 인사이트 카드 — 레벨/주간 활동/강·약 분야를 한눈에(통계 강화). */
-function InsightsCard({ insights: ins }: { insights: LearningInsights }) {
-  const { theme, fontScale } = useTheme();
-  const c = theme.colors;
-  const fs = fontScale;
-  // 남은 장수를 뺄셈으로 만드는 값이라 서버가 다른 단위를 쓰면 음수가 된다 —
-  // percent 가 0~100 으로 막는다(예전에는 위만 막아 '-50%' 가 그대로 나갔다).
-  const levelPct = percent(LEVEL_STEP - ins.nextLevelIn, LEVEL_STEP);
-  const chip = (icon: keyof typeof Ionicons.glyphMap, color: string, label: string, value: string) => (
-    <View style={{ flex: 1, minWidth: '46%', backgroundColor: c.surfaceAlt, borderRadius: 12, padding: 11 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 5 }}>
-        <Ionicons name={icon} size={13} color={color} />
-        <Text style={{ color: c.textSecondary, fontSize: 11, fontFamily: fontBody }}>{label}</Text>
-      </View>
-      <Text numberOfLines={1} style={{ color: c.textPrimary, fontSize: 13.5 * fs, fontWeight: '800', fontFamily: fontCute }}>{value}</Text>
-    </View>
-  );
-  return (
-    <Card style={{ marginBottom: 20 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 }}>
-        <Ionicons name="bulb" size={16} color={c.warning} />
-        <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontWeight: '700', fontFamily: fontCute }}>학습 인사이트</Text>
-      </View>
-
-      {/* 레벨 진행 */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <View style={{ backgroundColor: c.primary + '18', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3 }}>
-            <Text style={{ color: c.primary, fontSize: 12 * fs, fontWeight: '900', fontFamily: fontMono }}>Lv.{ins.level}</Text>
-          </View>
-          <Text style={{ color: c.textPrimary, fontSize: 13 * fs, fontWeight: '700', fontFamily: fontCute }}>{ins.levelTitle}</Text>
-        </View>
-        <Text style={{ color: c.textSecondary, fontSize: 11, fontFamily: fontMono }}>다음 레벨까지 {ins.nextLevelIn}장</Text>
-      </View>
-      <View style={{ height: 8, backgroundColor: c.surfaceAlt, borderRadius: 4, overflow: 'hidden', marginBottom: 14 }}>
-        <View style={{ width: `${levelPct}%`, height: '100%', backgroundColor: c.primary, borderRadius: 4 }} />
-      </View>
-
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-        {chip('calendar', c.primary, '주간 활동', `${ins.activeDays}일 · ${ins.weeklyTotal}장`)}
-        {chip('speedometer', c.success, '활동일 평균', `${ins.avgPerActiveDay}장/일`)}
-        {ins.topCategory ? chip('ribbon', getCategoryColor(ins.topCategory) ?? c.success, '강점 분야 · 정답률', `${ins.topCategory} ${Math.round(ins.topCategoryAccuracy)}%`) : null}
-        {ins.weakCategory ? chip('barbell', getCategoryColor(ins.weakCategory) ?? c.warning, '보강 필요 · 정답률', `${ins.weakCategory} ${Math.round(ins.weakCategoryAccuracy)}%`) : null}
-      </View>
-    </Card>
-  );
-}
-
 /** 오늘의 학습(하루 신규 5장 상한) — 변경된 학습 시스템을 통계에 반영. */
 function DailyLearningCard({ streakDays }: { streakDays: number }) {
   const { theme, fontScale } = useTheme();
   const c = theme.colors;
   const fs = fontScale;
   const quota = useDailyQuota();
-  const pct = quota.limit > 0 ? Math.round((quota.used / quota.limit) * 100) : 0;
+  const pct = percent(quota.used, quota.limit);
   const done = !quota.canLearn;
   const barColor = done ? c.success : c.primary;
   return (
@@ -148,93 +63,11 @@ function DailyLearningCard({ streakDays }: { streakDays: number }) {
   );
 }
 
-/** 내 진영 · 안전 빌딩 대항전 요약 — 진영을 눌러 커뮤니티의 상세 기여로 이동. */
-function MyFactionCard() {
-  const { theme, fontScale } = useTheme();
-  const c = theme.colors;
-  const fs = fontScale;
-  const router = useRouter();
-  const factionId = useFactionStore((s) => s.faction);
-  const myFaction = getFaction(factionId);
-  const { data: community } = useCommunity();
-
-  if (!myFaction) {
-    return (
-      <Pressable accessibilityRole="button" onPress={() => router.push(ROUTES.factionSelect as never)}
-        style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border, borderRadius: 16, padding: 16, marginBottom: 20 }}>
-        <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: c.primary + '18', alignItems: 'center', justifyContent: 'center' }}>
-          <Ionicons name="flag" size={20} color={c.primary} />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={{ color: c.textPrimary, fontSize: 14 * fs, fontWeight: '800', fontFamily: fontCute }}>진영을 선택해요</Text>
-          <Text style={{ color: c.textSecondary, fontSize: 12 * fs, fontFamily: fontBody, marginTop: 2 }}>진영에 들어가 함께 안전 빌딩을 올려요</Text>
-        </View>
-        <Ionicons name="chevron-forward" size={20} color={c.textSecondary} />
-      </Pressable>
-    );
-  }
-
-  // 이번 달 진영 대항전 순위에서 내 진영의 위치·기여를 계산.
-  let myFloors = 0, myProblems = 0, myRank = 0, totalFloors = 0;
-  if (community?.building) {
-    const { current, floorSize } = community.building;
-    const seed = current.month.split('').reduce((a, ch) => a + ch.charCodeAt(0), 0);
-    const standings = factionStandings(current.problems, floorSize, seed);
-    const idx = standings.findIndex((s) => s.id === factionId);
-    if (idx >= 0) { myFloors = standings[idx].floors; myProblems = standings[idx].problems; myRank = idx + 1; }
-    totalFloors = standings.reduce((a, s) => a + s.floors, 0);
-  }
-  const rankLabel = myRank === 1 ? '🏆 선두' : myRank > 0 ? `${myRank}위` : '집계 중';
-
-  return (
-    <Pressable accessibilityRole="button" onPress={() => router.push(ROUTES.community as never)}
-      style={{ backgroundColor: c.surface, borderWidth: 1, borderColor: myFaction.color + '55', borderRadius: 16, padding: 16, marginBottom: 20 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-        <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: myFaction.color + '1A', alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ fontSize: 20 }}>{myFaction.emoji}</Text>
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={{ color: c.textPrimary, fontSize: 14.5 * fs, fontWeight: '800', fontFamily: fontCute }}>{myFaction.name} · {myFaction.emblem}</Text>
-          <Text style={{ color: c.textSecondary, fontSize: 11.5 * fs, fontFamily: fontBody, marginTop: 1 }} numberOfLines={1}>{myFaction.tagline}</Text>
-        </View>
-        <View style={{ backgroundColor: myFaction.color + '18', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 }}>
-          <Text style={{ color: myFaction.color, fontSize: 12 * fs, fontWeight: '900', fontFamily: fontMono }}>{rankLabel}</Text>
-        </View>
-      </View>
-      <View style={{ flexDirection: 'row', gap: 8 }}>
-        <View style={{ flex: 1, backgroundColor: c.surfaceAlt, borderRadius: 12, paddingVertical: 10, alignItems: 'center' }}>
-          <Text style={{ color: myFaction.color, fontSize: 16 * fs, fontWeight: '900', fontFamily: fontMono }}>{myFloors}층</Text>
-          <Text style={{ color: c.textSecondary, fontSize: 10.5, fontFamily: fontBody, marginTop: 2 }}>우리 진영 층수</Text>
-        </View>
-        <View style={{ flex: 1, backgroundColor: c.surfaceAlt, borderRadius: 12, paddingVertical: 10, alignItems: 'center' }}>
-          <Text style={{ color: myFaction.color, fontSize: 16 * fs, fontWeight: '900', fontFamily: fontMono }}>{myProblems.toLocaleString()}</Text>
-          <Text style={{ color: c.textSecondary, fontSize: 10.5, fontFamily: fontBody, marginTop: 2 }}>기여 문제</Text>
-        </View>
-        <View style={{ flex: 1, backgroundColor: c.surfaceAlt, borderRadius: 12, paddingVertical: 10, alignItems: 'center' }}>
-          <Text style={{ color: myFaction.color, fontSize: 16 * fs, fontWeight: '900', fontFamily: fontMono }}>{totalFloors}층</Text>
-          <Text style={{ color: c.textSecondary, fontSize: 10.5, fontFamily: fontBody, marginTop: 2 }}>세 진영 합계</Text>
-        </View>
-      </View>
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, marginTop: 12 }}>
-        <Text style={{ color: myFaction.color, fontSize: 12 * fs, fontFamily: fontCute }}>안전 빌딩 대항전 자세히 보기</Text>
-        <Ionicons name="chevron-forward" size={14} color={myFaction.color} />
-      </View>
-    </Pressable>
-  );
-}
-
-
 export default function StatsScreen() {
   const { theme, fontScale } = useTheme();
   const c = theme.colors;
   const fs = fontScale;
-  const router = useRouter();
-  const user = useAuthStore((s) => s.user);
-  const interests = useSettingsStore((s) => s.interests);
-  const [sheetOpen, setSheetOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedEmblem, setSelectedEmblem] = useState<EmblemProgress | null>(null);
-  const [rankingModal, setRankingModal] = useState(false);
 
   const { data: stats, isLoading, error, refetch: refetchStats } = useStudyStats();
   const { data: allCards = [], isLoading: cardsLoading, error: cardsError, refetch: refetchAll } = useAllCards();
@@ -257,40 +90,20 @@ export default function StatsScreen() {
     return map;
   }, [allCards]);
 
+  // 분야별 엠블럼 — 카드가 없는 분야도 빈 칸으로 보인다(무엇을 채우면 되는지 알 수 있게).
   const emblems = useMemo(() => {
-    const cardMap = new Map<string, { total: number; mastered: number }>();
-    for (const [cat, stat] of categoryStats) {
-      cardMap.set(cat, { total: stat.total, mastered: stat.mastered });
-    }
-    EMBLEM_DEFS.forEach((d) => { if (!cardMap.has(d.category)) cardMap.set(d.category, { total: 0, mastered: 0 }); });
-    return calcEmblems(cardMap);
+    const map = new Map<string, { total: number; mastered: number }>();
+    for (const [cat, st] of categoryStats) map.set(cat, { total: st.total, mastered: st.mastered });
+    return calcEmblems(map);
   }, [categoryStats]);
 
-  const emblemRankings = useMemo(() => {
-    if (!selectedEmblem) return [];
-    const mock = emblemRankingMock(selectedEmblem.category);
-    // 랭킹에 걸리는 이름은 남이 보는 이름이다 — 본명이 아니라 닉네임.
-    const me = user ? displayName(user) : '';
-    const hasMe = mock.some((r) => r.nickname === me);
-    if (!hasMe && me) {
-      mock.push({ rank: 6, nickname: me, score: Math.round(72 - Math.random() * 15), pct: selectedEmblem.topPct });
-      mock.sort((a, b) => b.score - a.score);
-      mock.forEach((r, i) => { r.rank = i + 1; });
-    }
-    return mock.slice(0, 5);
-  }, [selectedEmblem, user]);
+  // 진도율 — 분모가 0 이거나 서버 합계가 어긋나도 0~100 을 벗어나지 않게(percent 주석 참고).
+  const progressPct = percent(stats?.totalLearned ?? 0, stats?.totalCards ?? 0);
 
-  const progressPct = stats?.totalCards ? Math.round((stats.totalLearned / stats.totalCards) * 100) : 0;
-
-  const RANKING_DATA = useMemo(() => Array.from({ length: 50 }, (_, i) => {
-    const nicknames = ['김안전', '박현장', '최예방', '이방호', '정점검', '한관리', '오대비', '강예방', '조점검', '신안전',
-      '백호수', '송진단', '류예지', '권대응', '황방재', '전예찰', '고훈련', '문점검', '양안전', '임관리',
-      '장예방', '서현장', '유관리', '홍안전', '구점검', '민예찰', '노방재', '진대응', '라훈련', '마안전',
-      '왕안전', '배현장', '허예방', '남방호', '탁점검', '봉관리', '제갈안전', '독고예방', '황보현장', '선우안전',
-      '강전문', '윤관리', '류안전', '조예방', '임현장', '한점검', '성관리', '차안전', '주방재', '진대비'];
-    const score = Math.round(98 - i * 2 + Math.random() * 3);
-    return { rank: i + 1, nickname: nicknames[i], score, isMe: i === 3 };
-  }), []);
+  // (예전 이 자리에는 화면에 그리지도 않는 '랭킹' 두 벌이 매 렌더 계산되고 있었다 —
+  //  Math.random() 으로 점수를 지어낸 가짜 50명과, 고정 이름표로 만든 엠블럼 순위.
+  //  서버에 순위 API 가 없는 동안 순위는 보여 줄 것이 없다. 지어낸 숫자를 남겨 두면
+  //  언젠가 누군가 다시 화면에 붙인다.)
 
   const loading = isLoading || cardsLoading;
   const queryError = error || cardsError;
@@ -324,31 +137,39 @@ export default function StatsScreen() {
         {/* 주간 학습량(개인 통계). */}
         <WeeklyChart weekly={stats?.weekly ?? []} />
 
-        {/* 성취 카드 만들기·학습 인사이트·학습 성향(수호대)·순위/엠블럼 등 '자랑·비교' 성격의
-            항목은 커뮤니티로 옮겨, 통계 화면은 학습자 개인의 단순 통계만 담는다. */}
+        {/* 순위·학습 성향처럼 남과 견주는 항목은 여기 두지 않는다 — 통계는 내 기록만 담는다.
 
+            분야별 진행에는 **엠블럼 등급**을 함께 건다. MY 의 '엠블럼' 행과 보상 안내
+            ("학습 통계에서 보기")가 이 화면을 가리키는데, 예전에는 여기 엠블럼이 하나도
+            없어 눌러 들어온 사람이 찾을 것이 없었다. 엠블럼은 분야별 마스터 비율의
+            등급이라(🥉30% · 🥈60% · 🥇90%) 이 막대와 같은 숫자를 다른 말로 한 것이다. */}
         <Card style={{ marginBottom: 20 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 }}>
-            <Ionicons name="trending-up" size={16} color={c.primary} />
-            <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontWeight: '700', fontFamily: fontCute }}>카테고리별 진행</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Ionicons name="ribbon-outline" size={16} color={c.primary} />
+              <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontWeight: '700', fontFamily: fontCute }}>분야별 진행 · 엠블럼</Text>
+            </View>
+            <Text style={{ color: c.textSecondary, fontSize: 10.5 * fs, fontFamily: fontMono }}>🥉30 · 🥈60 · 🥇90%</Text>
           </View>
-          {[...categoryStats.entries()].map(([cat, stat]) => {
-            const pct = stat.total > 0 ? Math.round((stat.mastered / stat.total) * 100) : 0;
-            return (
-              <View key={cat} style={{ marginBottom: 10 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Ionicons name={getCategoryIcon(cat)} size={14} color={getCategoryColor(cat) ?? c.textSecondary} />
-                    <Text style={{ color: c.textPrimary, fontSize: 12, fontWeight: '600', fontFamily: fontCute }}>{cat}</Text>
-                  </View>
-                  <Text style={{ color: c.textSecondary, fontSize: 11, fontFamily: fontMono }}>{pct}%</Text>
+          {emblems.map((em) => (
+            <View key={em.category} style={{ marginBottom: 10 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 }}>
+                  <Ionicons name={getCategoryIcon(em.category)} size={14} color={getCategoryColor(em.category) ?? c.textSecondary} />
+                  <Text style={{ color: c.textPrimary, fontSize: 12 * fs, fontWeight: '600', fontFamily: fontCute }}>{em.category}</Text>
+                  <Text style={{ fontSize: 12 * fs }} accessibilityLabel={em.level > 0 ? `${em.label} 엠블럼 ${em.level}단계` : `${em.label} 엠블럼 아직 없음`}>
+                    {getEmblemIcon(em.level)}
+                  </Text>
                 </View>
-                <View style={{ height: 6, backgroundColor: c.surfaceAlt, borderRadius: 3, overflow: 'hidden' }}>
-                  <View style={{ width: `${pct}%`, height: '100%', backgroundColor: getCategoryColor(cat) ?? c.primary, borderRadius: 3 }} />
-                </View>
+                <Text style={{ color: c.textSecondary, fontSize: 11 * fs, fontFamily: fontMono }}>
+                  {em.total > 0 ? `${em.mastered}/${em.total} · ${em.pct}%` : '카드 없음'}
+                </Text>
               </View>
-            );
-          })}
+              <View style={{ height: 6, backgroundColor: c.surfaceAlt, borderRadius: 3, overflow: 'hidden' }}>
+                <View style={{ width: `${em.pct}%`, height: '100%', backgroundColor: getCategoryColor(em.category) ?? c.primary, borderRadius: 3 }} />
+              </View>
+            </View>
+          ))}
         </Card>
 
         <Card style={{ marginBottom: 20 }}>

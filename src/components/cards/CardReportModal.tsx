@@ -17,7 +17,7 @@ type Phase = 'form' | 'sending' | 'done';
 
 /** 카드 내용 수정 요청(이의제기) 모달 — 사유 선택 + 간단한 설명. */
 export function CardReportModal({ visible, card, onClose }: { visible: boolean; card: LearningCard | null; onClose: () => void }) {
-  const { theme } = useTheme();
+  const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
   const submit = useReportStore((s) => s.submit);
   const [reason, setReason] = useState<ReportReason>('wrong_answer');
@@ -46,8 +46,8 @@ export function CardReportModal({ visible, card, onClose }: { visible: boolean; 
           <View style={{ width: 68, height: 68, borderRadius: 34, backgroundColor: c.success + '1A', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
             <Ionicons name="checkmark-circle" size={40} color={c.success} />
           </View>
-          <Text style={{ color: c.textPrimary, fontSize: 17, fontFamily: fontDisplay, marginBottom: 8 }}>요청이 접수되었어요</Text>
-          <Text style={{ color: c.textSecondary, fontSize: 13, textAlign: 'center', lineHeight: 20, fontFamily: fontBody }}>
+          <Text style={{ color: c.textPrimary, fontSize: 17 * fs, fontFamily: fontDisplay, marginBottom: 8 }}>요청이 접수되었어요</Text>
+          <Text style={{ color: c.textSecondary, fontSize: 13 * fs, textAlign: 'center', lineHeight: 20 * fs, fontFamily: fontBody }}>
             검토 후 콘텐츠에 반영할게요.{'\n'}더 나은 학습을 위해 감사합니다 🙏
           </Text>
           <Button label="확인" onPress={handleClose} style={{ width: '100%', marginTop: 20 }} />
@@ -56,8 +56,8 @@ export function CardReportModal({ visible, card, onClose }: { visible: boolean; 
         <>
           {card && (
             <View style={[styles.cardPreview, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
-              <Text style={{ color: c.textSecondary, fontSize: 11, marginBottom: 3, fontFamily: fontBody }}>{card.category} · {card.subCategory}</Text>
-              <Text numberOfLines={2} style={{ color: c.textPrimary, fontSize: 13, lineHeight: 18, fontFamily: fontDisplay }}>{card.question}</Text>
+              <Text style={{ color: c.textSecondary, fontSize: 11 * fs, marginBottom: 3, fontFamily: fontBody }}>{card.category} · {card.subCategory}</Text>
+              <Text numberOfLines={2} style={{ color: c.textPrimary, fontSize: 13 * fs, lineHeight: 18 * fs, fontFamily: fontDisplay }}>{card.question}</Text>
             </View>
           )}
 
@@ -68,7 +68,7 @@ export function CardReportModal({ visible, card, onClose }: { visible: boolean; 
               return (
                 <Pressable accessibilityRole="button" key={r} onPress={() => setReason(r)}
                   style={[styles.chip, { backgroundColor: active ? c.primary : c.surfaceAlt, borderColor: active ? c.primary : c.border }]}>
-                  <Text style={{ color: active ? c.textOnPrimary : c.textSecondary, fontSize: 12, fontFamily: fontDisplay }}>{REPORT_REASON_LABEL[r]}</Text>
+                  <Text style={{ color: active ? c.textOnPrimary : c.textSecondary, fontSize: 12 * fs, fontFamily: fontDisplay }}>{REPORT_REASON_LABEL[r]}</Text>
                 </Pressable>
               );
             })}

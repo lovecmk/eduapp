@@ -30,7 +30,7 @@ type Phase =
  *  · 그 외     → 아무것도 그리지 않는다(평소엔 조용해야 한다)
  */
 export function OfflineBanner() {
-  const { theme } = useTheme();
+  const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
   const [phase, setPhase] = useState<Phase>({ kind: 'online' });
   // 끊긴 적이 있어야 '복귀'를 판단할 수 있다(앱을 처음 켰을 땐 알릴 게 없다).
@@ -139,7 +139,7 @@ export function OfflineBanner() {
       <Ionicons name={look.icon} size={13} color="#fff" />
       <Text
         numberOfLines={1}
-        style={{ color: '#fff', fontSize: 12, fontFamily: phase.kind === 'offline' ? fontDisplay : fontBody, flexShrink: 1 }}
+        style={{ color: '#fff', fontSize: 12 * fs, fontFamily: phase.kind === 'offline' ? fontDisplay : fontBody, flexShrink: 1 }}
       >
         {message}
       </Text>

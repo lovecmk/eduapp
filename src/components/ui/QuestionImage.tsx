@@ -1,10 +1,48 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, Pressable, Modal, useWindowDimensions, type ImageSourcePropType } from 'react-native';
 import { Image } from 'expo-image';
+import NetInfo from '@react-native-community/netinfo';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../theme/ThemeProvider';
 import { fontBody, fontDisplay } from '../../theme/tokens';
+import { useSettingsStore } from '../../store/settingsStore';
+
+/**
+ * 지금 모바일 데이터(셀룰러)로 연결돼 있는가 — `enabled` 일 때만 NetInfo 를 구독한다.
+ *
+ * 데이터 절약을 켜지 않은 대부분의 사람에게는 구독 자체가 필요 없다.
+ * 판정하지 못하면(웹·미지원 기기) false — 사진을 막는 쪽으로 틀리면 문제를 못 푼다.
+ */
+function useCellular(enabled: boolean): boolean {
+  const [cellular, setCellular] = useState(false);
+  useEffect(() => {
+    if (!enabled) {
+      setCellular(false);
+      return;
+    }
+    try {
+      return NetInfo.addEventListener((s) => setCellular(s.type === 'cellular'));
+    } catch {
+      setCellular(false);
+      return undefined;
+    }
+  }, [enabled]);
+  return cellular;
+}
+
+/** 원격 주소에서 받아 와야 하는 그림인가(번들 사진은 이미 기기에 있다). */
+function isRemote(src: ImageSourcePropType | undefined): boolean {
+  return !!src && typeof src === 'object' && !Array.isArray(src) && typeof (src as { uri?: unknown }).uri === 'string';
+}
+
+/** 같은 그림인지 가르는 열쇠 — 번들 사진은 숫자, 원격 사진은 주소. */
+function sourceKeyOf(src: ImageSourcePropType | undefined): string {
+  if (src === undefined) return '';
+  if (typeof src === 'number') return `asset:${src}`;
+  if (isRemote(src)) return `uri:${(src as { uri: string }).uri}`;
+  return JSON.stringify(src);
+}
 
 /**
  * 이미지 문제용 이미지 뷰 — 로딩 중 스켈레톤, 실패 시 아이콘 폴백으로 깨진 이미지를 방지.
@@ -37,6 +75,36 @@ export function QuestionImage({
   const [failed, setFailed] = useState(false);
   const [viewerOpen, setViewerOpen] = useState(false);
   const imgSource = source ?? (uri ? { uri } : undefined);
+
+  /**
+   * 그림이 바뀌면 상태를 처음부터 다시 잡는다.
+   *
+   * 학습 화면은 카드를 넘겨도 이 컴포넌트를 **같은 자리에서 다시 쓴다**(key 가 없다).
+   * 그래서 한 장의 사진이 실패하면 `failed` 가 다음 카드로 그대로 넘어가, 그 뒤로 나오는
+   * 사진 문제는 **불러오려는 시도조차 없이** 전부 '불러올 수 없어요'가 됐다. 한 번의
+   * 네트워크 실수가 그날 세션의 모든 사진 문제를 풀 수 없게 만든 것이다.
+   * 렌더 중에 비교해 바로 되돌린다(effect 로 하면 한 프레임 동안 이전 상태가 보인다).
+   */
+  const sourceKey = sourceKeyOf(imgSource);
+  const [shownKey, setShownKey] = useState(sourceKey);
+  const [allowed, setAllowed] = useState(false);
+  if (shownKey !== sourceKey) {
+    setShownKey(sourceKey);
+    setLoading(true);
+    setFailed(false);
+    setAllowed(false);
+  }
+
+  /**
+   * 데이터 절약 — 설정에서 켜 두면 모바일 데이터에서는 원격 사진을 **눌러야** 받는다.
+   *
+   * 예전에는 설정에 '오프라인 · 데이터 절약(Wi-Fi 에서만 다운로드)' 스위치만 있고 그 값을
+   * 읽는 곳이 없었다. 앱이 받는 것 중 용량이 큰 것은 카드 사진뿐이라 여기서 지킨다.
+   * 그림이 문제의 일부일 수 있으므로 숨기지 않고, 한 번 눌러 받을 수 있게 자리를 남긴다.
+   */
+  const dataSaver = useSettingsStore((s) => s.offlineMode);
+  const cellular = useCellular(dataSaver && isRemote(imgSource));
+  const held = dataSaver && cellular && isRemote(imgSource) && !allowed;
   /**
    * 그림이 없거나 못 불러온 상태.
    *
@@ -50,19 +118,24 @@ export function QuestionImage({
    * 화면에 남아야, 학습자는 넘기지 않고 신고하거나 다시 불러올 수 있다.
    */
   const missing = !imgSource || failed;
-  const canExpand = expandable && !missing;
+  const canExpand = expandable && !missing && !held;
 
   return (
     <>
       <Pressable accessibilityRole="button"
-        disabled={!canExpand}
+        disabled={!canExpand && !held}
+        accessibilityLabel={held ? '사진 불러오기' : undefined}
         // 카드 앞면 전체가 '탭하여 뒤집기' Pressable 로 감싸져 있어, 웹에서는 클릭이
         // 부모로 전파되어 이미지 확대와 카드 뒤집기가 동시에 일어난다.
         // stopPropagation 으로 이미지 탭은 확대만 하도록 전파를 차단한다.
-        onPress={(e) => { (e as unknown as { stopPropagation?: () => void })?.stopPropagation?.(); setViewerOpen(true); }}
+        onPress={(e) => {
+          (e as unknown as { stopPropagation?: () => void })?.stopPropagation?.();
+          if (held) { setAllowed(true); return; }
+          setViewerOpen(true);
+        }}
         style={[styles.wrap, { height, backgroundColor: c.surfaceAlt, borderColor: c.border }]}
       >
-        {!missing && (
+        {!missing && !held && (
           <Image
             source={imgSource}
             // 문제의 일부다 — 이 그림을 못 보면 문제를 풀 수 없다.
@@ -75,7 +148,14 @@ export function QuestionImage({
           />
         )}
 
-        {loading && !missing && (
+        {held && (
+          <View style={styles.center}>
+            <Ionicons name="cellular-outline" size={26} color={c.textSecondary} />
+            <Text style={[styles.failText, { color: c.textSecondary }]}>데이터 절약 중이에요 · 탭하면 사진을 불러와요</Text>
+          </View>
+        )}
+
+        {loading && !missing && !held && (
           <View style={styles.center}>
             <ActivityIndicator color={c.primary} />
           </View>

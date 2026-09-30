@@ -74,8 +74,8 @@ eduapp/
 | 목업 데이터 콘솔 | app/admin.tsx | mockUserDb·packRules·collectibles | settings·authoredCards |
 | 닉네임·중복확인 | app/(auth)/signup, components/auth/AvailabilityField | AuthRepository.isUsernameTaken/isNicknameTaken, mockUserDb | authStore |
 | 내 정보 수정 | app/edit-profile.tsx | AuthRepository.updateProfile, mockUserDb.updateUser | authStore.updateProfile |
-| QR 명함 | app/qr-card.tsx | utils/qrcode(순수 TS 인코더)·components/ui/QRCode(svg) | authStore·settings |
-| 가챠 코드 교환 | app/redeem.tsx | data/gachaCodes | collectionStore.redeemCode/redeemedCodes |
+| ~~QR 명함~~ | (2026-09-30 제거 — 비활성 상태로 인코더 500여 줄만 남아 있었다) | — | — |
+| ~~가챠 코드 교환~~ | (2026-09-30 제거 — 코드 표가 번들에 노출) | — | collectionStore.redeemedCodes(서버 계약 호환용 필드만) |
 | 설정 전역 검색 | app/settings.tsx, components/settings/SettingsSearch·SettingsFocus | constants/settingsIndex(색인), utils/koreanSearch(초성)·settingsSearch(정렬) | settings.recentSettingIds |
 | 약관·법적 고지 | app/legal.tsx | constants/legal(약관·처리방침·접근권한·오픈소스) | settings.notifications.marketing |
 | 신고 처리 워크플로 | (콘솔) mybrdg Daily3Min/views/ReportsView | 서버: domain.ReportStatus·AdminService.ReviewReport | — |
@@ -283,6 +283,10 @@ react-query 클라이언트가 `data/network/queryClient.ts` 에 있는 이유�
 | ⛔️ 열지 않음 | `auth/email/request-code`·`verify-code` | 지금 배포에 메일 발송 경로가 없다 |
 | 🕓 미구현 | `weather/current` | 보조 기능 — `withMockFallback` 이 목업으로 떨어뜨린다 |
 | 🕓 미구현 | `users/search`·`users/:id/public` | 위와 같음(사용자 디렉터리) |
+| 🕓 미구현 | `qna/*` · `settings` · `feed/*` · `cards/:id/tips` · `cards/:id/difficulty` · `me/faction` | 앱 구현 완료 — 라우트가 없으면 기기 안에서 돌고, 생기면 자동 전환 + 기기 기록 백필(`data/sync/localBackfill`) |
+| 🕓 미구현 | `support/inquiries` · `notifications/dismiss` | 폴백 없음 — 문의는 '창구 미개설' 안내, 숨김은 404 무시 |
+
+> 서버 쪽 작업 목록·우선순위·계약은 **[docs/BACKEND_TODO.md](docs/BACKEND_TODO.md)** 한 곳에 있다.
 
 **⛔️ 세 가지는 '아직 안 만든 것'이 아니라 '이대로는 만들면 안 되는 것'이다.**
 목업의 계약을 그대로 서버로 옮기면 인증 우회가 된다. 그래서 실서버 저장소는 없는

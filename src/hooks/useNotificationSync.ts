@@ -21,6 +21,29 @@ import { logger } from '../utils/logger';
 /** 화면에 들어와 있는 동안 이 간격으로 다시 확인한다. */
 const POLL_MS = 60_000;
 
+/**
+ * 알림 목록을 한 번 받아 와 스토어에 반영한다 — 주기 동기화와 알림함의 '당겨서 새로고침'이
+ * 같은 길을 쓴다.
+ *
+ * 예전 알림함의 새로고침은 스토어의 refresh() 를 불렀는데, 그 함수는 서버에 묻지 않고
+ * **코드에 박힌 시드 4건**("연속 학습 5일 달성! 🔥" …)으로 목록을 덮었다. 실서버
+ * 모드에서도 그랬다 — 목록을 당겨 내리면 해 본 적 없는 성취가 새 알림으로 떴다.
+ *
+ * @returns 받아 왔으면 true. 못 받았으면 지금 목록을 그대로 두고 false.
+ */
+export async function pullNotifications(): Promise<boolean> {
+  try {
+    const items = await notificationRepository.list();
+    useNotificationStore.getState().applyServer(items);
+    return true;
+  } catch (e) {
+    // 못 가져와도 화면은 그대로 둔다 — 지금 보고 있는 목록을 지우면
+    // 연결이 끊긴 순간 알림함이 텅 빈 것처럼 보인다.
+    logger.warn('notification.list_failed', { reason: String(e) });
+    return false;
+  }
+}
+
 export function useNotificationSync(): void {
   const userId = useAuthStore((s) => s.user?.id ?? null);
   const enabled = !!userId;
@@ -40,14 +63,8 @@ export function useNotificationSync(): void {
     let cancelled = false;
 
     const pull = async () => {
-      try {
-        const items = await notificationRepository.list();
-        if (!cancelled) useNotificationStore.getState().applyServer(items);
-      } catch (e) {
-        // 못 가져와도 화면은 그대로 둔다 — 지금 보고 있는 목록을 지우면
-        // 연결이 끊긴 순간 알림함이 텅 빈 것처럼 보인다.
-        logger.warn('notification.list_failed', { reason: String(e) });
-      }
+      if (cancelled) return;
+      await pullNotifications();
     };
 
     void pull();
@@ -81,7 +98,19 @@ export function useNotificationSync(): void {
     readSent.current = new Set();
     let prev = useNotificationStore.getState().items;
 
+    let prevDismissed = useNotificationStore.getState().dismissedIds;
     const unsub = useNotificationStore.subscribe((s) => {
+      // 지운 알림 — 서버에도 알려 다른 기기에서도 사라지게 한다(라우트가 없으면 기기에서만).
+      if (s.dismissedIds !== prevDismissed) {
+        const had = new Set(prevDismissed);
+        const added = s.dismissedIds.filter((id) => !had.has(id));
+        prevDismissed = s.dismissedIds;
+        if (added.length > 0) {
+          void notificationRepository.dismiss(added).catch((e) => {
+            logger.warn('notification.dismiss_failed', { count: added.length, reason: String(e) });
+          });
+        }
+      }
       if (s.items === prev) return;
       const before = new Map(prev.map((n) => [n.id, n.read]));
 

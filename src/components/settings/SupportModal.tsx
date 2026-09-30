@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/ThemeProvider';
@@ -6,16 +6,26 @@ import { fontCute } from '../../theme/tokens';
 import { CenterModal } from '../ui/CenterModal';
 import { TextField } from '../ui/TextField';
 import { Button } from '../ui/Button';
-import { delay } from '../../data/repositories/_delay';
+import { supportRepository } from '../../data/repositories';
+import { toApiError } from '../../data/network/errors';
 import { isMeaningful, textLength, INPUT_LIMITS } from '../../utils/sanitize';
 import { useSafeTimeout, useIsMounted } from '../../hooks/useSafeTimeout';
 
-const CATEGORIES = ['학습 오류', '결제/멤버십', '계정 문제', '기능 제안', '기타'] as const;
+// 사내 학습 서비스라 결제가 없다 — '결제/멤버십'은 없는 것을 묻는 칸이었다.
+const CATEGORIES = ['학습 오류', '계정 문제', '멤버십 등급', '기능 제안', '기타'] as const;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 type Phase = 'form' | 'sending' | 'done';
 
-/** 고객센터 문의 폼 — 카테고리 선택 + 이메일/내용 검증 + 전송 시뮬레이션. */
+/**
+ * 보내지 못한 이유 — 사용자가 다음에 무엇을 해야 하는지로 나눈다.
+ *  · offline     : 기다렸다 다시 보내면 된다.
+ *  · unavailable : 서버에 문의 창구(라우트)가 아직 없다. 다시 보내도 소용없다.
+ *  · other       : 서버가 거절했다 — 서버의 문장을 그대로 보인다.
+ */
+type Failure = { kind: 'offline' | 'unavailable' | 'other'; message: string };
+
+/** 고객센터 문의 폼 — 카테고리 선택 + 이메일/내용 검증 + 서버 접수(supportRepository). */
 export function SupportModal({
   visible,
   onClose,
@@ -25,15 +35,25 @@ export function SupportModal({
   onClose: () => void;
   defaultEmail?: string;
 }) {
-  const { theme } = useTheme();
+  const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
   const [category, setCategory] = useState<(typeof CATEGORIES)[number]>('학습 오류');
   const [email, setEmail] = useState(defaultEmail ?? '');
   const [message, setMessage] = useState('');
   const [touched, setTouched] = useState(false);
   const [phase, setPhase] = useState<Phase>('form');
+  const [failure, setFailure] = useState<Failure | null>(null);
+  const [receipt, setReceipt] = useState('');
   const { run } = useSafeTimeout();
   const alive = useIsMounted();
+
+  // 창을 열 때 이메일이 비어 있으면 계정 이메일로 채운다. useState 의 초기값은 마운트
+  // 순간 한 번만 읽히는데, 설정 화면은 세션 복구가 끝나기 전에 마운트될 수 있어(웹 새로고침)
+  // 그때 비어 있던 값이 그대로 남았다.
+  useEffect(() => {
+    if (visible && !email && defaultEmail) setEmail(defaultEmail);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, defaultEmail]);
 
   const emailValid = EMAIL_RE.test(email.trim()) && email.trim().length <= INPUT_LIMITS.email;
   const messageValid = isMeaningful(message, 10);
@@ -45,6 +65,8 @@ export function SupportModal({
     setMessage('');
     setTouched(false);
     setPhase('form');
+    setFailure(null);
+    setReceipt('');
   };
 
   const handleClose = () => {
@@ -57,9 +79,28 @@ export function SupportModal({
     setTouched(true);
     if (!canSubmit) return;
     setPhase('sending');
-    await delay(900); // 실제 전송 지연 시뮬레이션
-    if (!alive()) return; // 전송 중 화면을 떠났다면 상태를 건드리지 않는다
-    setPhase('done');
+    setFailure(null);
+    try {
+      const res = await supportRepository.submit({ category, email: email.trim(), message });
+      if (!alive()) return; // 전송 중 화면을 떠났다면 상태를 건드리지 않는다
+      setReceipt(res.id);
+      setPhase('done');
+    } catch (e) {
+      if (!alive()) return;
+      const err = toApiError(e);
+      // 적은 내용은 지우지 않는다 — 다시 보내거나 다른 곳에 옮겨 적을 수 있어야 한다.
+      setPhase('form');
+      if (err.kind === 'offline') {
+        setFailure({ kind: 'offline', message: '연결이 없어 보내지 못했어요. 연결된 곳에서 다시 보내 주세요.' });
+      } else if (err.kind === 'notFound' || err.status === 501) {
+        setFailure({
+          kind: 'unavailable',
+          message: '앱에서 문의를 받는 창구가 아직 열리지 않았어요. 급한 문의는 소속 교육 담당 부서로 직접 연락해 주세요.',
+        });
+      } else {
+        setFailure({ kind: 'other', message: err.userMessage });
+      }
+    }
   };
 
   return (
@@ -70,9 +111,13 @@ export function SupportModal({
             <Ionicons name="checkmark-circle" size={44} color={c.success} />
           </View>
           <Text style={[styles.doneTitle, { color: c.textPrimary }]}>문의가 접수되었어요</Text>
+          {/* 답변 기한은 약속하지 않는다 — 앱이 정할 수 있는 값이 아니다. */}
           <Text style={[styles.doneDesc, { color: c.textSecondary }]}>
-            영업일 기준 24시간 이내에{'\n'}{email.trim()} 으로 답변드릴게요.
+            확인 후 {email.trim()} 으로{'\n'}답변드릴게요.
           </Text>
+          {receipt ? (
+            <Text style={[styles.doneDesc, { color: c.textSecondary, marginTop: 6 }]}>접수 번호 {receipt}</Text>
+          ) : null}
           <Button label="확인" onPress={handleClose} style={{ width: '100%', marginTop: 20 }} />
         </View>
       ) : (
@@ -93,7 +138,7 @@ export function SupportModal({
                     },
                   ]}
                 >
-                  <Text style={{ color: active ? c.textOnPrimary : c.textSecondary, fontSize: 12, fontWeight: '700', fontFamily: fontCute }}>
+                  <Text style={{ color: active ? c.textOnPrimary : c.textSecondary, fontSize: 12 * fs, fontWeight: '700', fontFamily: fontCute }}>
                     {cat}
                   </Text>
                 </Pressable>
@@ -132,8 +177,18 @@ export function SupportModal({
             }
           />
 
+          {failure && (
+            <View
+              accessibilityRole="alert"
+              style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-start', backgroundColor: c.warning + '14', borderColor: c.warning + '44', borderWidth: 1, borderRadius: 12, padding: 12, marginBottom: 12 }}
+            >
+              <Ionicons name={failure.kind === 'offline' ? 'cloud-offline-outline' : 'alert-circle-outline'} size={16} color={c.warning} style={{ marginTop: 1 }} />
+              <Text style={{ flex: 1, color: c.textPrimary, fontSize: 12.5 * fs, lineHeight: 18 * fs }}>{failure.message}</Text>
+            </View>
+          )}
+
           <Button
-            label={phase === 'sending' ? '' : '문의 보내기'}
+            label={phase === 'sending' ? '' : failure?.kind === 'offline' ? '다시 보내기' : '문의 보내기'}
             loading={phase === 'sending'}
             disabled={!canSubmit}
             onPress={submit}

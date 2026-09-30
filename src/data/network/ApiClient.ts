@@ -7,6 +7,7 @@ import { secureStorage, StorageKeys } from '../storage/secureStorage';
 import { ApiError, kindOf, toApiError } from './errors';
 import { logger } from '../../utils/logger';
 import { enqueue, flushQueue, setQueueSender, type QueuedWrite } from './offlineQueue';
+import { emitSessionExpired } from './sessionEvents';
 
 /** 읽기 요청 재시도 정책 — 일시적 실패(연결 없음·5xx·429)에 한해 지수 백오프로 다시 시도. */
 const GET_RETRIES = 2;
@@ -131,6 +132,11 @@ class ApiClient {
     if (afterRefresh && afterRefresh !== usedToken) return this.request<T>(path, init, true);
 
     await this.clearTokens();
+    // 토큰을 실어 보낸 요청이 거절됐을 때만 '세션이 끝났다'고 알린다.
+    // 토큰 없이 나간 요청(틀린 비밀번호로 로그인, 서버 토큰이 없는 로컬 관리자
+    // 세션)의 401 은 세션이 끝난 것이 아니다 — 그걸 알리면 로그인 화면에서
+    // 비밀번호를 한 번 틀렸을 뿐인데 '로그인이 만료되었습니다'가 뜬다.
+    if (usedToken) emitSessionExpired();
     throw new ApiError(401, '인증이 만료되었습니다');
   }
 

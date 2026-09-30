@@ -16,6 +16,8 @@ import {
 } from '../src/store/notificationStore';
 import { contentColumn } from '../src/theme/layout';
 import { useSafeTimeout, useIsMounted } from '../src/hooks/useSafeTimeout';
+import { pullNotifications } from '../src/hooks/useNotificationSync';
+import { toast } from '../src/store/toastStore';
 
 // 알림 종류별 연결 서비스 — 항목을 누르면 해당 화면으로 이동한다.
 const ROUTE_BY_TYPE: Record<NotificationType, string> = {
@@ -45,7 +47,6 @@ export default function NotificationsScreen() {
   const remove = useNotificationStore((s) => s.remove);
   const clearAll = useNotificationStore((s) => s.clearAll);
   const setMute = useNotificationStore((s) => s.setMute);
-  const refresh = useNotificationStore((s) => s.refresh);
 
   const [filter, setFilter] = useState<'all' | NotificationType>('all');
   const [refreshing, setRefreshing] = useState(false);
@@ -59,10 +60,10 @@ export default function NotificationsScreen() {
   const onRefresh = async () => {
     if (refreshing) return; // 연타로 새로고침이 겹치지 않게
     setRefreshing(true);
-    refresh();
-    await new Promise((r) => setTimeout(r, 600));
+    const ok = await pullNotifications();
     if (!alive()) return;
     setRefreshing(false);
+    if (!ok) toast('알림을 새로 받아 오지 못했어요. 연결을 확인해 주세요.', 'warn');
   };
 
   // 알림 항목 탭 — 읽음 처리 후 종류에 맞는 서비스 화면으로 이동한다.

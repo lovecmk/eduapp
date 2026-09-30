@@ -4,7 +4,8 @@ import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { useTheme } from '../../theme/ThemeProvider';
 import { fontDisplay, fontBody, fontMono } from '../../theme/tokens';
-import { useDiffPollStore, baseCounts, type DiffVote } from '../../store/diffPollStore';
+import type { DiffVote } from '../../domain/models/DifficultyPoll';
+import { useDifficultyPoll, useDifficultyVote } from '../../hooks/useDifficultyPoll';
 
 const OPTIONS: { key: DiffVote; label: string; icon: keyof typeof import('@expo/vector-icons').Ionicons.glyphMap; color: string }[] = [
   { key: 'easy', label: '쉬웠어요', icon: 'happy-outline', color: '#34C759' },
@@ -14,14 +15,17 @@ const OPTIONS: { key: DiffVote; label: string; icon: keyof typeof import('@expo/
 
 /** 체감 난이도 투표(사용자 참여) — 커뮤니티의 체감 난이도 분포를 함께 만든다. */
 export function CardDifficultyPoll({ cardId }: { cardId: string }) {
-  const { theme } = useTheme();
+  const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
-  const myVote = useDiffPollStore((s) => s.myVotes[cardId]);
-  const vote = useDiffPollStore((s) => s.vote);
-
-  const base = baseCounts(cardId);
-  const counts = { ...base };
-  if (myVote) counts[myVote] += 1;
+  /**
+   * 다른 사람의 분포는 **서버에서만** 온다(`/cards/:id/difficulty`). 서버가 열리기 전에는
+   * counts 가 null 이라 분포를 그리지 않는다 — 예전에는 카드 id 를 해시해 "137명 참여 ·
+   * 쉬웠어요 34%" 를 지어냈다(목업 모드 시연용 분포는 목업 저장소가 따로 만든다).
+   */
+  const { counts: crowd, mine: myVote } = useDifficultyPoll(cardId);
+  const vote = useDifficultyVote();
+  const showCrowd = crowd !== null;
+  const counts = crowd ?? { easy: 0, normal: 0, hard: 0 };
   const total = counts.easy + counts.normal + counts.hard;
   const pct = (n: number) => (total > 0 ? Math.round((n / total) * 100) : 0);
 
@@ -29,9 +33,9 @@ export function CardDifficultyPoll({ cardId }: { cardId: string }) {
     <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.border }]}>
       <View style={styles.header}>
         <Ionicons name="podium-outline" size={16} color={c.primary} />
-        <Text style={{ color: c.textPrimary, fontSize: 14, fontFamily: fontDisplay }}>체감 난이도</Text>
-        <Text style={{ color: c.textSecondary, fontSize: 11, marginLeft: 'auto', fontFamily: fontBody }}>
-          {myVote ? `${total.toLocaleString()}명 참여` : '이 문제, 얼마나 어려우셨나요?'}
+        <Text style={{ color: c.textPrimary, fontSize: 14 * fs, fontFamily: fontDisplay }}>체감 난이도</Text>
+        <Text style={{ color: c.textSecondary, fontSize: 11 * fs, marginLeft: 'auto', fontFamily: fontBody }}>
+          {myVote ? (showCrowd ? `${total.toLocaleString()}명 참여` : '내 선택을 기록했어요') : '이 문제, 얼마나 어려우셨나요?'}
         </Text>
       </View>
 
@@ -43,14 +47,19 @@ export function CardDifficultyPoll({ cardId }: { cardId: string }) {
             <Pressable accessibilityRole="button" key={o.key} onPress={() => vote(cardId, o.key)}
               style={[styles.opt, { backgroundColor: active ? o.color + '1A' : c.surfaceAlt, borderColor: active ? o.color : c.border }]}>
               <Ionicons name={o.icon} size={20} color={active ? o.color : c.textSecondary} />
-              <Text style={{ color: active ? o.color : c.textSecondary, fontSize: 11.5, fontFamily: fontDisplay, marginTop: 4 }}>{o.label}</Text>
+              <Text style={{ color: active ? o.color : c.textSecondary, fontSize: 11.5 * fs, fontFamily: fontDisplay, marginTop: 4 }}>{o.label}</Text>
             </Pressable>
           );
         })}
       </View>
 
-      {/* 결과 분포(투표 후 공개) */}
-      {myVote && (
+      {/* 결과 분포(투표 후 공개) — 모을 곳이 없는 동안은 안내만 */}
+      {myVote && !showCrowd && (
+        <Text style={{ color: c.textSecondary, fontSize: 11.5 * fs, lineHeight: 17 * fs, fontFamily: fontBody, marginTop: 12 }}>
+          다른 점검자들의 응답을 모아 보여주는 기능은 준비 중이에요.
+        </Text>
+      )}
+      {myVote && showCrowd && (
         <Animated.View entering={FadeIn.duration(300)} style={{ marginTop: 14, gap: 8 }}>
           {OPTIONS.map((o) => {
             const p = pct(counts[o.key]);
@@ -58,10 +67,10 @@ export function CardDifficultyPoll({ cardId }: { cardId: string }) {
             return (
               <View key={o.key} style={{ gap: 4 }}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                  <Text style={{ color: mine ? o.color : c.textSecondary, fontSize: 11.5, fontFamily: mine ? fontDisplay : fontBody }}>
+                  <Text style={{ color: mine ? o.color : c.textSecondary, fontSize: 11.5 * fs, fontFamily: mine ? fontDisplay : fontBody }}>
                     {o.label}{mine ? ' · 내 선택' : ''}
                   </Text>
-                  <Text style={{ color: c.textSecondary, fontSize: 11, fontFamily: fontMono }}>{p}%</Text>
+                  <Text style={{ color: c.textSecondary, fontSize: 11 * fs, fontFamily: fontMono }}>{p}%</Text>
                 </View>
                 <View style={{ height: 7, backgroundColor: c.surfaceAlt, borderRadius: 4, overflow: 'hidden' }}>
                   <View style={{ width: `${p}%`, height: '100%', backgroundColor: o.color, borderRadius: 4, opacity: mine ? 1 : 0.55 }} />

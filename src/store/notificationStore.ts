@@ -39,15 +39,25 @@ interface NotificationState {
   items: AppNotification[];
   /** 종류별 알림 끄기 상태 — 스마트 on/off. */
   mutedTypes: Record<NotificationType, boolean>;
+  /**
+   * 사용자가 지운 알림 id — 서버 목록을 받아도 다시 보이지 않게 한다.
+   *
+   * 서버 계약(docs/API_CONTRACT §6-4)에는 알림 삭제가 없다. 그래서 예전에는 '이 알림
+   * 삭제'·'전체 삭제'가 기기 목록에서만 지웠고, 1분 뒤 동기화(applyServer)가 서버
+   * 목록으로 갈아 끼우면서 **지운 알림이 전부 되살아났다.** 삭제는 이 사람의 선택이라
+   * 이 기기에 기억해 두고 받을 때마다 걸러 낸다(주인이 바뀌면 sessionScope 가 비운다).
+   */
+  dismissedIds: string[];
 
   unreadCount: () => number;
   markAllRead: () => void;
   markRead: (id: string) => void;
   remove: (id: string) => void;
   clearAll: () => void;
+  /** 사용자 전환·전체 초기화 — 목록과 지운 기록까지 처음 상태로. */
+  reset: () => void;
   toggleMute: (type: NotificationType) => void;
   setMute: (type: NotificationType, muted: boolean) => void;
-  refresh: () => void;
   /**
    * 서버가 보관한 알림으로 목록을 **교체한다.**
    *
@@ -56,6 +66,14 @@ interface NotificationState {
    * 되살아나고, 읽음 상태가 기기마다 갈린다.
    */
   applyServer: (items: AppNotification[]) => void;
+}
+
+/** 지운 알림 기록은 최근 것만 남긴다 — 서버가 오래된 알림을 계속 돌려줄 리 없고, 끝없이 쌓이면 안 된다. */
+const DISMISSED_LIMIT = 300;
+function rememberDismissed(prev: string[], ids: string[]): string[] {
+  if (ids.length === 0) return prev;
+  const merged = [...prev.filter((id) => !ids.includes(id)), ...ids];
+  return merged.slice(-DISMISSED_LIMIT);
 }
 
 export const useNotificationStore = create<NotificationState>()(
@@ -71,24 +89,41 @@ export const useNotificationStore = create<NotificationState>()(
       items: env.useMockData ? seedNotifications() : [],
       // 복습 주기(remind)·새 콘텐츠(new)는 기본적으로 보내지 않는다(사용자 설정에서도 노출 안 함).
       mutedTypes: { new: true, remind: true, achievement: false, system: false },
+      dismissedIds: [],
 
       unreadCount: () => get().items.filter((n) => !n.read && !get().mutedTypes[n.type]).length,
       markAllRead: () => set((s) => ({ items: s.items.map((n) => ({ ...n, read: true })) })),
       markRead: (id) => set((s) => ({ items: s.items.map((n) => (n.id === id ? { ...n, read: true } : n)) })),
-      remove: (id) => set((s) => ({ items: s.items.filter((n) => n.id !== id) })),
-      clearAll: () => set({ items: [] }),
+      remove: (id) =>
+        set((s) => ({
+          items: s.items.filter((n) => n.id !== id),
+          dismissedIds: rememberDismissed(s.dismissedIds, [id]),
+        })),
+      clearAll: () =>
+        set((s) => ({
+          items: [],
+          dismissedIds: rememberDismissed(s.dismissedIds, s.items.map((n) => n.id)),
+        })),
+      reset: () => set({ items: [], dismissedIds: [] }),
       toggleMute: (type) => set((s) => ({ mutedTypes: { ...s.mutedTypes, [type]: !s.mutedTypes[type] } })),
       setMute: (type, muted) => set((s) => ({ mutedTypes: { ...s.mutedTypes, [type]: muted } })),
-      refresh: () => set({ items: seedNotifications() }),
-      applyServer: (items) => set({ items }),
+      // 지운 알림은 받아도 다시 보이지 않는다(dismissedIds 주석 참고).
+      applyServer: (items) =>
+        set((s) => {
+          const gone = new Set(s.dismissedIds);
+          return { items: gone.size ? items.filter((n) => !gone.has(n.id)) : items };
+        }),
     }),
     {
       name: 'notifications',
       // v4: 실서버 모드에서 시드 알림을 걷어낸다(위 items 주석 참고).
+      // dismissedIds 는 필드 추가라 버전을 올리지 않는다 — 이 스토어에는 migrate 가 없어서
+      // 버전을 올리는 순간 저장된 값(알림 끄기 선택)이 통째로 버려진다. 없는 필드는
+      // persist 의 병합이 초기값([])으로 채운다.
       version: 4,
       storage: createJSONStorage(() => AsyncStorage),
-      // 알림 항목은 목업이므로 사용자 선호(mutedTypes)만 영속화.
-      partialize: (s) => ({ mutedTypes: s.mutedTypes }),
+      // 목록은 서버가 원천이라 남기지 않는다. 사용자의 선택(끄기·지우기)만 남긴다.
+      partialize: (s) => ({ mutedTypes: s.mutedTypes, dismissedIds: s.dismissedIds }),
     },
   ),
 );

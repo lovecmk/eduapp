@@ -20,6 +20,10 @@ export class MockNotificationRepository implements INotificationRepository {
     useNotificationStore.getState().markAllRead();
   }
 
+  async dismiss(_ids: string[]): Promise<void> {
+    // 지운 기록은 스토어(dismissedIds)가 이미 들고 있다.
+  }
+
   async registerPushToken(_token: string, _platform: string): Promise<void> {
     await delay(40); // 목업에서는 등록할 서버가 없다.
   }

@@ -16,6 +16,11 @@ import { useSettingsSync } from '../src/hooks/useSettingsSync';
 import { useProgressSync } from '../src/hooks/useProgressSync';
 import { useEngagementSync } from '../src/hooks/useEngagementSync';
 import { useReportSync } from '../src/hooks/useReportSync';
+import { useAuthGuard } from '../src/navigation/authGuard';
+import { useReminderSchedule } from '../src/hooks/useReminderSchedule';
+import { useFactionSync } from '../src/hooks/useFactionSync';
+import { useLocalBackfill } from '../src/hooks/useLocalBackfill';
+import { BiometricLockGate } from '../src/components/auth/BiometricLockGate';
 import { useNotificationSync } from '../src/hooks/useNotificationSync';
 import { useAuthStore } from '../src/store/authStore';
 import { useSettingsStore } from '../src/store/settingsStore';
@@ -116,11 +121,22 @@ function RootContent() {
   useEngagementSync();
   useReportSync();
   useNotificationSync();
+  // 내 진영 — 서버가 알아야 진영 대항전을 진영별로 집계한다(서버 미배포면 조용히 기기에만).
+  useFactionSync();
+  // 서버 라우트가 열리면, 그 전까지 이 기기에만 쌓인 글·팁·투표·질문을 옮긴다.
+  useLocalBackfill();
 
   // 앱 전체 뒤로가기 안전망. 화면별 처리(학습 중 이탈 확인 등)가 우선하고,
   // 아무도 처리하지 않은 뒤로가기만 여기서 받아 앱이 갑자기 종료되는 것을 막는다.
   // 루트에서 먼저 등록해야 화면별 핸들러가 나중에 등록되어 우선순위를 갖는다.
   useAppBackHandler();
+
+  // 세션 없이 보호된 화면에 남지 않게 한다 — 딥링크·웹 새로고침·쓰는 도중의
+  // 세션 만료 모두 여기서 로그인 화면으로 모인다(src/navigation/authGuard).
+  useAuthGuard();
+
+  // 기기의 학습 리마인더 예약을 지금 사람의 알림 설정에 맞춘다(동기화·로그아웃 포함).
+  useReminderSchedule();
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.bg }}>
@@ -148,9 +164,6 @@ function RootContent() {
         <Stack.Screen name="trophy" />
         <Stack.Screen name="profile" />
         <Stack.Screen name="edit-profile" />
-        {/* 내 QR 명함 — 우선 비활성화(제거). 라우트/코드는 주석으로 보존.
-        <Stack.Screen name="qr-card" options={{ animation: 'slide_from_bottom' }} /> */}
-        <Stack.Screen name="redeem" options={{ animation: 'slide_from_bottom' }} />
         <Stack.Screen name="collection-book" />
         <Stack.Screen name="pack-rules" />
         <Stack.Screen name="admin" />
@@ -171,6 +184,8 @@ function RootContent() {
       />
       {/* 점검 중이면 모든 화면(로그인 포함) 위를 덮는다 — 점검이라 로그인조차 못 하는
           사람에게도 "왜 안 되는지"는 닿아야 한다. 관리자는 통과한다. */}
+      {/* 생체인증 잠금 — 설정에서 켠 사람이 앱을 새로 열었을 때만 덮는다. */}
+      <BiometricLockGate />
       <MaintenanceGate />
     </View>
   );

@@ -1,8 +1,17 @@
 import React from 'react';
-import { render } from '@testing-library/react-native';
+import { render, act } from '@testing-library/react-native';
 import { AttendanceStamp } from '../AttendanceStamp';
 import { CheckInSuccess } from '../CheckInSuccess';
 import { Text } from 'react-native';
+
+// 도장·배너 애니메이션은 테스트가 끝난 뒤에도 프레임 타이머로 값을 흘려보낸다.
+// 실제 타이머로 두면 그 갱신이 act() 밖에서 일어나 매번 경고가 찍혔다(출력이 더러우면
+// 진짜 경고가 묻힌다). 가짜 타이머로 붙잡아 act 안에서 끝까지 돌린다.
+beforeEach(() => jest.useFakeTimers());
+afterEach(() => {
+  act(() => { jest.runOnlyPendingTimers(); });
+  jest.useRealTimers();
+});
 
 describe('AttendanceStamp', () => {
   it('정적(과거 출석)으로 렌더해도 크래시하지 않는다', () => {
