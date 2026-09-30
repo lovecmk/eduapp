@@ -5,6 +5,7 @@ import Animated, { FadeIn } from 'react-native-reanimated';
 import { useTheme } from '../../theme/ThemeProvider';
 import { fontDisplay, fontBody, fontMono } from '../../theme/tokens';
 import { useDiffPollStore, baseCounts, type DiffVote } from '../../store/diffPollStore';
+import { env } from '../../data/network/env';
 
 const OPTIONS: { key: DiffVote; label: string; icon: keyof typeof import('@expo/vector-icons').Ionicons.glyphMap; color: string }[] = [
   { key: 'easy', label: '쉬웠어요', icon: 'happy-outline', color: '#34C759' },
@@ -19,7 +20,14 @@ export function CardDifficultyPoll({ cardId }: { cardId: string }) {
   const myVote = useDiffPollStore((s) => s.myVotes[cardId]);
   const vote = useDiffPollStore((s) => s.vote);
 
-  const base = baseCounts(cardId);
+  /**
+   * 다른 사람의 투표 분포 — **서버에 없는 값이다.** baseCounts 는 카드 id 를 해시해
+   * "N명 참여 · 쉬웠어요 34%" 를 만들어 내는 목업이다. 실서버 모드에서 그대로 보이면
+   * 지어낸 여론이 실제 다른 점검자의 응답으로 읽힌다. 목업 모드에서만 쓴다.
+   * (내 투표는 이 기기에 남는다 — 학습 화면의 난이도 질문(CardDifficultyAsk)과 같은 저장소.)
+   */
+  const showCrowd = env.useMockData;
+  const base = showCrowd ? baseCounts(cardId) : { easy: 0, normal: 0, hard: 0 };
   const counts = { ...base };
   if (myVote) counts[myVote] += 1;
   const total = counts.easy + counts.normal + counts.hard;
@@ -31,7 +39,7 @@ export function CardDifficultyPoll({ cardId }: { cardId: string }) {
         <Ionicons name="podium-outline" size={16} color={c.primary} />
         <Text style={{ color: c.textPrimary, fontSize: 14 * fs, fontFamily: fontDisplay }}>체감 난이도</Text>
         <Text style={{ color: c.textSecondary, fontSize: 11 * fs, marginLeft: 'auto', fontFamily: fontBody }}>
-          {myVote ? `${total.toLocaleString()}명 참여` : '이 문제, 얼마나 어려우셨나요?'}
+          {myVote ? (showCrowd ? `${total.toLocaleString()}명 참여` : '내 선택을 기록했어요') : '이 문제, 얼마나 어려우셨나요?'}
         </Text>
       </View>
 
@@ -49,8 +57,13 @@ export function CardDifficultyPoll({ cardId }: { cardId: string }) {
         })}
       </View>
 
-      {/* 결과 분포(투표 후 공개) */}
-      {myVote && (
+      {/* 결과 분포(투표 후 공개) — 모을 곳이 없는 동안은 안내만 */}
+      {myVote && !showCrowd && (
+        <Text style={{ color: c.textSecondary, fontSize: 11.5 * fs, lineHeight: 17 * fs, fontFamily: fontBody, marginTop: 12 }}>
+          다른 점검자들의 응답을 모아 보여주는 기능은 준비 중이에요.
+        </Text>
+      )}
+      {myVote && showCrowd && (
         <Animated.View entering={FadeIn.duration(300)} style={{ marginTop: 14, gap: 8 }}>
           {OPTIONS.map((o) => {
             const p = pct(counts[o.key]);

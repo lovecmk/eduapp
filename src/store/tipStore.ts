@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { sanitizeText, isMeaningful, INPUT_LIMITS } from '../utils/sanitize';
+import { env } from '../data/network/env';
 
 export interface CardTip {
   id: string;
@@ -12,7 +13,14 @@ export interface CardTip {
   likes: number;
   likedByMe: boolean;
   mine?: boolean;
+  /** 시드 팁 전용 고정값. 내 팁은 createdAt 으로 센다(예전엔 0 으로 저장돼 영원히 '방금'이었다). */
   minutesAgo: number;
+  createdAt?: number;
+}
+
+/** 이 팁이 올라온 지 몇 분. */
+export function tipMinutesAgo(t: { minutesAgo: number; createdAt?: number }, now = Date.now()): number {
+  return typeof t.createdAt === 'number' ? Math.max(0, Math.floor((now - t.createdAt) / 60_000)) : t.minutesAgo;
 }
 
 const COLORS = ['#5C6BC0', '#26A69A', '#F2B705', '#E2574C', '#7E57C2', '#8D6E63'];
@@ -39,14 +47,16 @@ interface TipState {
 export const useTipStore = create<TipState>()(
   persist(
     (set, get) => ({
-      tips: seedTips(),
-      forCard: (cardId) => get().tips.filter((t) => t.cardId === cardId).sort((a, b) => b.likes - a.likes || a.minutesAgo - b.minutesAgo),
+      // 시드 팁(박설비·김점검 …)은 목업 모드에서만. 실서버 모드에서 보이면 지어낸 사람의
+      // 팁이 '다른 실무자의 노하우'로 읽힌다.
+      tips: env.useMockData ? seedTips() : [],
+      forCard: (cardId) => get().tips.filter((t) => t.cardId === cardId).sort((a, b) => b.likes - a.likes || tipMinutesAgo(a) - tipMinutesAgo(b)),
       addTip: (cardId, body, author) => {
         const clean = sanitizeText(body, { maxLength: INPUT_LIMITS.tip, allowNewlines: true });
         if (!isMeaningful(clean)) return; // 공백·특수문자만 있는 입력 차단
         set((s) => ({
           tips: [
-            { id: `mine-${Date.now()}`, cardId, author, color: '#2563EB', body: clean, likes: 0, likedByMe: false, mine: true, minutesAgo: 0 },
+            { id: `mine-${Date.now()}`, cardId, author, color: '#2563EB', body: clean, likes: 0, likedByMe: false, mine: true, minutesAgo: 0, createdAt: Date.now() },
             ...s.tips,
           ],
         }));

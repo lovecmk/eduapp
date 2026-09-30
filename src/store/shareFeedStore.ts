@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { AchievementSnapshot } from '../utils/achievement';
+import { env } from '../data/network/env';
 
 // 인앱 커뮤니티 '자랑 피드' — 완성된 성취 카드를 외부 SNS 대신 앱 내부에 올려
 // 유저끼리 서로를 증명·자랑한다. 클라이언트에서 카드를 이미지화(react-native-view-shot)해
@@ -29,8 +30,18 @@ export interface ShareCardPost {
   /** 내가 누른 리액션들 */
   myReactions: ReactionKind[];
   mine?: boolean;
-  /** 상대 시간(분) */
+  /** 상대 시간(분) — 시드 글 전용 고정값. 내가 올린 글은 createdAt 으로 계산한다. */
   minutesAgo: number;
+  /**
+   * 올린 시각(ms). 예전에는 내 글도 `minutesAgo: 0` 으로 저장해, 며칠이 지나도
+   * 피드에 **'방금'** 으로 떴다. 저장값이 시간이 흘러도 바뀌지 않기 때문이다.
+   */
+  createdAt?: number;
+}
+
+/** 이 글이 올라온 지 몇 분 — 올린 시각이 있으면 지금 기준으로 센다. */
+export function postMinutesAgo(p: { minutesAgo: number; createdAt?: number }, now = Date.now()): number {
+  return typeof p.createdAt === 'number' ? Math.max(0, Math.floor((now - p.createdAt) / 60_000)) : p.minutesAgo;
 }
 
 /** uploadShareCard 입력 — 서버 전환 시에도 이 형태(멀티파트 body)를 그대로 매핑하면 된다. */
@@ -95,12 +106,14 @@ interface ShareFeedState {
 export const useShareFeedStore = create<ShareFeedState>()(
   persist(
     (set) => ({
-      posts: seed(),
+      // 시드 글(김안전·박현장·최예방)은 목업 모드에서만 — 실서버 모드에서 보이면 지어낸
+      // 사람의 지어낸 성취가 '다른 점검자의 자랑'으로 읽힌다(알림 시드와 같은 결함).
+      posts: env.useMockData ? seed() : [],
       uploadShareCard: ({ author, color, imageUri, aspect, snapshot }) => {
         const id = `mybrag-${Date.now()}`;
         set((s) => ({
           posts: [
-            { id, author, color, imageUri, aspect, snapshot, likes: 0, likedByMe: false, reactions: { clap: 0, fire: 0, up: 0 }, myReactions: [], mine: true, minutesAgo: 0 },
+            { id, author, color, imageUri, aspect, snapshot, likes: 0, likedByMe: false, reactions: { clap: 0, fire: 0, up: 0 }, myReactions: [], mine: true, minutesAgo: 0, createdAt: Date.now() },
             ...s.posts,
           ],
         }));
@@ -132,17 +145,22 @@ export const useShareFeedStore = create<ShareFeedState>()(
     }),
     {
       name: 'share-feed',
-      version: 2,
+      version: 3,
       storage: createJSONStorage(() => AsyncStorage),
-      // v1 → v2: 리액션 필드가 없던 기존 저장본에 기본값을 채운다.
       migrate: (persisted: unknown, from: number) => {
         const state = persisted as { posts?: ShareCardPost[] } | undefined;
+        // v1 → v2: 리액션 필드가 없던 기존 저장본에 기본값을 채운다.
         if (state?.posts && from < 2) {
           state.posts = state.posts.map((p) => ({
             ...p,
             reactions: p.reactions ?? { clap: 0, fire: 0, up: 0 },
             myReactions: p.myReactions ?? [],
           }));
+        }
+        // v2 → v3: 실서버 모드 기기에 이미 저장돼 버린 시드 글을 걷어 낸다
+        // (전체 목록을 저장하던 탓에 한 번 들어간 시드가 계속 살아 있었다).
+        if (state?.posts && from < 3 && !env.useMockData) {
+          state.posts = state.posts.filter((p) => p.mine);
         }
         return state as ShareFeedState;
       },

@@ -4,7 +4,8 @@ import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTheme } from '../../theme/ThemeProvider';
 import { fontDisplay, fontBody, fontMono } from '../../theme/tokens';
-import { useTipStore } from '../../store/tipStore';
+import { useTipStore, tipMinutesAgo } from '../../store/tipStore';
+import { env } from '../../data/network/env';
 import { useAuthStore } from '../../store/authStore';
 import { timeAgoLabel } from '../../store/notificationStore';
 import { isMeaningful, textLength, INPUT_LIMITS } from '../../utils/sanitize';
@@ -23,7 +24,7 @@ export function CardTips({ cardId }: { cardId: string }) {
   const [draft, setDraft] = useState('');
   const [focused, setFocused] = useState(false);
 
-  const cardTips = tips.filter((t) => t.cardId === cardId).sort((a, b) => b.likes - a.likes || a.minutesAgo - b.minutesAgo);
+  const cardTips = tips.filter((t) => t.cardId === cardId).sort((a, b) => b.likes - a.likes || tipMinutesAgo(a) - tipMinutesAgo(b));
 
   const canSubmit = isMeaningful(draft);
   const len = textLength(draft);
@@ -45,7 +46,8 @@ export function CardTips({ cardId }: { cardId: string }) {
             <Text style={{ color: c.textSecondary, fontSize: 11 * fs, fontFamily: fontMono }}>{cardTips.length}</Text>
           </View>
         </View>
-        <Text style={{ color: c.textSecondary, fontSize: 11 * fs, fontFamily: fontBody }}>함께 나눈 실무 노하우</Text>
+        {/* 팁은 아직 서버에 없다 — 실서버 모드에서 '함께 나눈'이라고 하면 남도 본다고 믿는다. */}
+        <Text style={{ color: c.textSecondary, fontSize: 11 * fs, fontFamily: fontBody }}>{env.useMockData ? '함께 나눈 실무 노하우' : '이 기기에만 저장돼요'}</Text>
       </View>
 
       {/* 입력 */}
@@ -94,7 +96,7 @@ export function CardTips({ cardId }: { cardId: string }) {
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <Text style={{ color: c.textPrimary, fontSize: 12.5 * fs, fontFamily: fontDisplay }}>{shownAuthor}</Text>
                   {tip.mine && <View style={{ backgroundColor: c.primary + '1A', borderRadius: 5, paddingHorizontal: 5, paddingVertical: 1 }}><Text style={{ color: c.primary, fontSize: 9.5 * fs, fontFamily: fontDisplay }}>나</Text></View>}
-                  <Text style={{ color: c.textSecondary, fontSize: 10.5 * fs, fontFamily: fontMono }}>{timeAgoLabel(tip.minutesAgo)}</Text>
+                  <Text style={{ color: c.textSecondary, fontSize: 10.5 * fs, fontFamily: fontMono }}>{timeAgoLabel(tipMinutesAgo(tip))}</Text>
                 </View>
                 <ExpandableText text={tip.body} />
               </View>
