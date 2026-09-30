@@ -6,6 +6,7 @@ import { useTheme } from '../../theme/ThemeProvider';
 import { BottomSheet } from '../ui/BottomSheet';
 import { fontCute, fontBody, fontDisplay } from '../../theme/tokens';
 import { ROUTES } from '../../constants/routes';
+import { useSettingsStore } from '../../store/settingsStore';
 
 // ── 보상 3종 안내 ────────────────────────────────────────────────────────
 // 엠블럼 / 안전 카드 도감 / 트로피룸 은 초보자에게 헷갈리기 쉽다.
@@ -64,6 +65,8 @@ const ITEMS: GuideItem[] = [
 
 export function RewardsGuideSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const { theme, fontScale: fs } = useTheme();
+  // 카드 수집은 아직 베타(설정에서 켜야 보인다) — 꺼져 있으면 안내에서도 빼야 '없는 메뉴'를 가리키지 않는다.
+  const collectionEnabled = useSettingsStore((st) => st.collectionEnabled);
   const c = theme.colors;
   const router = useRouter();
 
@@ -81,7 +84,7 @@ export function RewardsGuideSheet({ visible, onClose }: { visible: boolean; onCl
         </Text>
       </View>
 
-      {ITEMS.map((it) => (
+      {ITEMS.filter((it) => collectionEnabled || it.kind !== 'collection').map((it) => (
         <View
           key={it.kind}
           style={{ flexDirection: 'row', gap: 12, backgroundColor: c.surfaceAlt, borderRadius: 16, padding: 14, marginTop: 12, borderWidth: 1, borderColor: c.border }}

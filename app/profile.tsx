@@ -31,6 +31,8 @@ export default function ProfileScreen() {
   const { profileImage, setProfileImage, bio, setBio } = useSettingsStore();
   const owned = useCollectionStore((s) => s.owned);
   const { data: allCards = [] } = useAllCards();
+  // 카드 수집은 베타 — 꺼져 있으면 '수집 카드' 칸이 없는 화면(도감)으로 데려간다.
+  const collectionEnabled = useSettingsStore((s) => s.collectionEnabled);
 
   const [draft, setDraft] = useState(bio);
   const [editing, setEditing] = useState(false);
@@ -115,7 +117,7 @@ export default function ProfileScreen() {
             );
           })() : null}
 
-          {topCard ? (
+          {topCard && collectionEnabled ? (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 10, backgroundColor: c.surfaceAlt, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 5, borderWidth: 1, borderColor: c.border }}>
               <Text style={{ fontSize: 13 }}>🏅</Text>
               <Text style={{ color: c.textSecondary, fontSize: 12, fontFamily: fontCute }}>
@@ -173,7 +175,7 @@ export default function ProfileScreen() {
         {/* 성취 요약 */}
         <View style={{ flexDirection: 'row', gap: 10, marginBottom: 14 }}>
           {[
-            { value: `${uniqueOwned}`, label: '수집 카드', route: ROUTES.collectionBook },
+            ...(collectionEnabled ? [{ value: `${uniqueOwned}`, label: '수집 카드', route: ROUTES.collectionBook }] : []),
             { value: `${masteredCount}`, label: '마스터', route: ROUTES.stats },
             { value: `${allCards.length}`, label: '전체 카드', route: ROUTES.stats },
           ].map((s) => (

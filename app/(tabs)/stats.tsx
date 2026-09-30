@@ -13,6 +13,7 @@ import { useStudyStats } from '../../src/hooks/useStats';
 import { useDailyQuota } from '../../src/hooks/useDailyQuota';
 import { contentColumn } from '../../src/theme/layout';
 import { percent } from '../../src/utils/percent';
+import { calcEmblems, getEmblemIcon } from '../../src/utils/emblems';
 
 function StatTile({ icon, color, value, label }: { icon: keyof typeof Ionicons.glyphMap; color: string; value: string; label: string }) {
   const { theme, fontScale } = useTheme();
@@ -89,6 +90,13 @@ export default function StatsScreen() {
     return map;
   }, [allCards]);
 
+  // 분야별 엠블럼 — 카드가 없는 분야도 빈 칸으로 보인다(무엇을 채우면 되는지 알 수 있게).
+  const emblems = useMemo(() => {
+    const map = new Map<string, { total: number; mastered: number }>();
+    for (const [cat, st] of categoryStats) map.set(cat, { total: st.total, mastered: st.mastered });
+    return calcEmblems(map);
+  }, [categoryStats]);
+
   // 진도율 — 분모가 0 이거나 서버 합계가 어긋나도 0~100 을 벗어나지 않게(percent 주석 참고).
   const progressPct = percent(stats?.totalLearned ?? 0, stats?.totalCards ?? 0);
 
@@ -129,31 +137,39 @@ export default function StatsScreen() {
         {/* 주간 학습량(개인 통계). */}
         <WeeklyChart weekly={stats?.weekly ?? []} />
 
-        {/* 성취 카드 만들기·학습 인사이트·학습 성향(수호대)·순위/엠블럼 등 '자랑·비교' 성격의
-            항목은 커뮤니티로 옮겨, 통계 화면은 학습자 개인의 단순 통계만 담는다. */}
+        {/* 순위·학습 성향처럼 남과 견주는 항목은 여기 두지 않는다 — 통계는 내 기록만 담는다.
 
+            분야별 진행에는 **엠블럼 등급**을 함께 건다. MY 의 '엠블럼' 행과 보상 안내
+            ("학습 통계에서 보기")가 이 화면을 가리키는데, 예전에는 여기 엠블럼이 하나도
+            없어 눌러 들어온 사람이 찾을 것이 없었다. 엠블럼은 분야별 마스터 비율의
+            등급이라(🥉30% · 🥈60% · 🥇90%) 이 막대와 같은 숫자를 다른 말로 한 것이다. */}
         <Card style={{ marginBottom: 20 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 }}>
-            <Ionicons name="trending-up" size={16} color={c.primary} />
-            <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontWeight: '700', fontFamily: fontCute }}>카테고리별 진행</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Ionicons name="ribbon-outline" size={16} color={c.primary} />
+              <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontWeight: '700', fontFamily: fontCute }}>분야별 진행 · 엠블럼</Text>
+            </View>
+            <Text style={{ color: c.textSecondary, fontSize: 10.5 * fs, fontFamily: fontMono }}>🥉30 · 🥈60 · 🥇90%</Text>
           </View>
-          {[...categoryStats.entries()].map(([cat, stat]) => {
-            const pct = percent(stat.mastered, stat.total);
-            return (
-              <View key={cat} style={{ marginBottom: 10 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Ionicons name={getCategoryIcon(cat)} size={14} color={getCategoryColor(cat) ?? c.textSecondary} />
-                    <Text style={{ color: c.textPrimary, fontSize: 12, fontWeight: '600', fontFamily: fontCute }}>{cat}</Text>
-                  </View>
-                  <Text style={{ color: c.textSecondary, fontSize: 11, fontFamily: fontMono }}>{pct}%</Text>
+          {emblems.map((em) => (
+            <View key={em.category} style={{ marginBottom: 10 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 }}>
+                  <Ionicons name={getCategoryIcon(em.category)} size={14} color={getCategoryColor(em.category) ?? c.textSecondary} />
+                  <Text style={{ color: c.textPrimary, fontSize: 12 * fs, fontWeight: '600', fontFamily: fontCute }}>{em.category}</Text>
+                  <Text style={{ fontSize: 12 * fs }} accessibilityLabel={em.level > 0 ? `${em.label} 엠블럼 ${em.level}단계` : `${em.label} 엠블럼 아직 없음`}>
+                    {getEmblemIcon(em.level)}
+                  </Text>
                 </View>
-                <View style={{ height: 6, backgroundColor: c.surfaceAlt, borderRadius: 3, overflow: 'hidden' }}>
-                  <View style={{ width: `${pct}%`, height: '100%', backgroundColor: getCategoryColor(cat) ?? c.primary, borderRadius: 3 }} />
-                </View>
+                <Text style={{ color: c.textSecondary, fontSize: 11 * fs, fontFamily: fontMono }}>
+                  {em.total > 0 ? `${em.mastered}/${em.total} · ${em.pct}%` : '카드 없음'}
+                </Text>
               </View>
-            );
-          })}
+              <View style={{ height: 6, backgroundColor: c.surfaceAlt, borderRadius: 3, overflow: 'hidden' }}>
+                <View style={{ width: `${em.pct}%`, height: '100%', backgroundColor: getCategoryColor(em.category) ?? c.primary, borderRadius: 3 }} />
+              </View>
+            </View>
+          ))}
         </Card>
 
         <Card style={{ marginBottom: 20 }}>

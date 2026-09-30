@@ -1,3 +1,5 @@
+import { percent } from './percent';
+
 export interface EmblemDef {
   category: string;
   emoji: string;
@@ -12,7 +14,6 @@ export interface EmblemProgress {
   total: number;
   pct: number;
   level: number;
-  topPct: number;
 }
 
 export const EMBLEM_DEFS: EmblemDef[] = [
@@ -28,18 +29,13 @@ const LEVEL_ICON = ['⬜', '🥉', '🥈', '🥇'];
 export function calcEmblems(
   cardMap: Map<string, { total: number; mastered: number }>,
 ): EmblemProgress[] {
-  const catIndex: Record<string, number> = { '전기 위험': 0, '공정 위험': 1, 위험물: 2, '현장 점검': 3 };
-
   return EMBLEM_DEFS.map((def) => {
     const stat = cardMap.get(def.category) ?? { total: 0, mastered: 0 };
-    const pct = stat.total > 0 ? Math.round((stat.mastered / stat.total) * 100) : 0;
+    const pct = percent(stat.mastered, stat.total);
     let level = 0;
     for (let i = LEVEL_THRESHOLDS.length - 1; i >= 0; i--) {
       if (pct >= LEVEL_THRESHOLDS[i]) { level = i; break; }
     }
-    const idx = catIndex[def.category] ?? 0;
-    const topPct = [8, 15, 22, 12][idx];
-
     return {
       category: def.category,
       emoji: def.emoji,
@@ -48,7 +44,6 @@ export function calcEmblems(
       total: stat.total,
       pct,
       level,
-      topPct,
     };
   });
 }
