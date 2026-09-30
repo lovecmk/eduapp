@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { View, Text, Pressable, Animated, ScrollView, Dimensions, Platform, BackHandler, Modal, PanResponder, Easing } from 'react-native';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { hapticTap, hapticSuccess, hapticError } from '../../src/utils/haptics';
 import { useTheme } from '../../src/theme/ThemeProvider';
 import { useAuthStore } from '../../src/store/authStore';
@@ -322,7 +323,6 @@ export default function CardsScreen() {
   const hasReported = useReportStore((s) => (card ? s.reports.some((r) => r.cardId === card.id) : false));
 
   const keepScreenOn = useSettingsStore((s) => s.keepScreenOn);
-  // const flexPromptEnabled = useSettingsStore((s) => s.flexPromptEnabled); // 학습완료 플렉스 CTA 비활성화로 미사용
   const toggleKeepScreenOn = useSettingsStore((s) => s.toggleKeepScreenOn);
 
   /** 카드가 움직이기 시작하는 순간 — 그림자를 즉시 지운다(잔상 방지). */
@@ -677,6 +677,25 @@ export default function CardsScreen() {
   // 학습 세션이 진행 중일 때(카드가 남아있고 아직 완료 화면이 아닐 때) 하드웨어 뒤로가기를 가로채,
   // 곧바로 홈으로 튕겨 나가는 대신 "어디로 이동할지" 확인 모달을 띄운다.
   const sessionActive = !!card && !finished;
+
+  /**
+   * 설정 '화면 켜짐 유지' — 학습 중에만, 이 탭을 보고 있는 동안에만 화면을 켜 둔다.
+   *
+   * 예전에는 이 설정이 오른쪽 위 자물쇠 아이콘 하나만 띄우고 **화면은 그대로 꺼졌다**
+   * (keep-awake 를 부르는 곳이 없었다). 장갑을 끼고 해설을 읽다가 화면이 꺼지면
+   * 다시 켜서 잠금을 푸는 것부터 해야 한다 — 이 설정이 있는 이유가 정확히 그것이다.
+   *
+   * 탭은 떠나도 마운트된 채 남으므로 포커스에 묶는다. 묶지 않으면 홈으로 나간 뒤에도
+   * 화면이 계속 켜져 배터리를 태운다. 완료 화면에서도 푼다(더 읽을 것이 없다).
+   */
+  useFocusEffect(
+    useCallback(() => {
+      if (!keepScreenOn || !sessionActive) return;
+      const tag = 'cards-study';
+      activateKeepAwakeAsync(tag).catch(() => { /* 지원하지 않는 기기·웹 — 설정만 무력해질 뿐이다 */ });
+      return () => { deactivateKeepAwake(tag).catch(() => {}); };
+    }, [keepScreenOn, sessionActive]),
+  );
   useFocusEffect(
     useCallback(() => {
       if (Platform.OS !== 'android') return;
@@ -904,9 +923,11 @@ export default function CardsScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
+      {/* 화면 켜짐 유지 중 표시 — 눌러서 바로 끌 수 있다. 자물쇠 모양은 '잠겨 있다'로
+          읽혀 뜻이 거꾸로 전해졌다. 켜 둔 화면을 뜻하는 해 모양을 쓴다. */}
       {keepScreenOn && (
-        <Pressable onPress={toggleKeepScreenOn} accessibilityRole="button" accessibilityLabel="화면 꺼짐 방지 해제" style={{ position: 'absolute', top: 10, right: 20, zIndex: 20, padding: 4 }}>
-          <Ionicons name="lock-closed" size={16} color={c.textSecondary} />
+        <Pressable onPress={toggleKeepScreenOn} accessibilityRole="button" accessibilityLabel="화면 켜짐 유지 끄기" hitSlop={8} style={{ position: 'absolute', top: 10, right: 20, zIndex: 20, padding: 4 }}>
+          <Ionicons name="sunny" size={16} color={c.textSecondary} />
         </Pressable>
       )}
 
