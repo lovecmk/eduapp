@@ -98,7 +98,19 @@ export function useNotificationSync(): void {
     readSent.current = new Set();
     let prev = useNotificationStore.getState().items;
 
+    let prevDismissed = useNotificationStore.getState().dismissedIds;
     const unsub = useNotificationStore.subscribe((s) => {
+      // 지운 알림 — 서버에도 알려 다른 기기에서도 사라지게 한다(라우트가 없으면 기기에서만).
+      if (s.dismissedIds !== prevDismissed) {
+        const had = new Set(prevDismissed);
+        const added = s.dismissedIds.filter((id) => !had.has(id));
+        prevDismissed = s.dismissedIds;
+        if (added.length > 0) {
+          void notificationRepository.dismiss(added).catch((e) => {
+            logger.warn('notification.dismiss_failed', { count: added.length, reason: String(e) });
+          });
+        }
+      }
       if (s.items === prev) return;
       const before = new Map(prev.map((n) => [n.id, n.read]));
 

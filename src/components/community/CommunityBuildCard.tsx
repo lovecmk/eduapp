@@ -9,8 +9,6 @@ import { useFactionStore } from '../../store/factionStore';
 import {
   FACTIONS,
   getFaction,
-  factionStandings,
-  monthToSeed,
   toFactionId,
   type BuildingVariant,
   type FactionId,
@@ -99,7 +97,8 @@ export function CommunityBuildCard() {
   // 그 진영이 1위가 되도록 맞춘 뒤 순위·기여량만 화면에 쓴다. 서버가 아직 우승을
   // 말하지 않은 달(빈 값)에는 선두를 단정하지 않고 '집계 중'으로 둔다.
   const winnerId = toFactionId(current.winner);
-  const standings = factionStandings(current.problems, floorSize, monthToSeed(current.month), winnerId);
+  // 진영별 기여는 **서버 집계만** 그린다. 없으면 대항전 자리에 '집계 준비 중'을 둔다.
+  const standings = current.factions ?? [];
   // 진영 상세(탭하면 그 진영이 안전 빌딩을 얼마나 지었는지 펼쳐 본다).
   const contestTotal = standings.reduce((a, s) => a + s.problems, 0) || 1;
   const leadFloors = standings[0]?.floors ?? 0;
@@ -166,6 +165,11 @@ export function CommunityBuildCard() {
           )}
         </View>
 
+        {standings.length === 0 && (
+          <Text style={{ color: c.textSecondary, fontSize: 12 * fs, lineHeight: 18 * fs, fontFamily: fontBody }}>
+            진영별 기여 집계를 준비하고 있어요. 서버 집계가 열리면 여기서 세 진영의 층수를 비교할 수 있어요.
+          </Text>
+        )}
         {standings.map((s, rank) => {
           const f = FACTIONS[s.id];
           const isMine = s.id === factionId;

@@ -111,6 +111,9 @@ export function monthToSeed(month: string): number {
 }
 
 /**
+ * 진영별 분배를 **만들어 낸다** — 목업 저장소(CommunityRepository.mock) 시연 전용.
+ * 화면은 이 함수를 부르지 않는다(서버 집계 `BuildingMonth.factions` 만 그린다).
+ *
  * @param winner 서버가 정한 그 달 우승 진영. 주면 1위가 반드시 이 진영이 된다
  *   (분배 결과가 다르게 나오면 1위 몫과 우승 진영의 몫을 맞바꾼다). 서버가
  *   값을 주지 않으면(구버전·집계 전) 넘기지 않는다 — 그때는 화면이 '선두'를

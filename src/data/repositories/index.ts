@@ -39,6 +39,8 @@ import { MockFeedRepository } from './FeedRepository.mock';
 import { TipRepository } from './TipRepository';
 import { MockTipRepository } from './TipRepository.mock';
 import { DifficultyPollRepository } from './DifficultyPollRepository';
+import { FactionRepository } from './FactionRepository';
+import { MockFactionRepository } from './FactionRepository.mock';
 import { MockDifficultyPollRepository } from './DifficultyPollRepository.mock';
 import { MockSupportRepository } from './SupportRepository.mock';
 
@@ -64,6 +66,7 @@ import type { ISupportRepository } from '../../domain/repositories/ISupportRepos
 import type { IFeedRepository } from '../../domain/repositories/IFeedRepository';
 import type { ITipRepository } from '../../domain/repositories/ITipRepository';
 import type { IDifficultyPollRepository } from '../../domain/repositories/IDifficultyPollRepository';
+import type { IFactionRepository } from '../../domain/repositories/IFactionRepository';
 
 export const authRepository: IAuthRepository = env.useMockData
   ? new MockAuthRepository()
@@ -215,3 +218,8 @@ export const tipRepository: ITipRepository = env.useMockData
 export const difficultyPollRepository: IDifficultyPollRepository = env.useMockData
   ? new MockDifficultyPollRepository()
   : withMockFallback(new DifficultyPollRepository(), new MockDifficultyPollRepository(), 'difficulty-poll');
+
+/** 내 진영 — `/inner/api/v1/me/faction`. 서버가 알아야 진영 대항전을 진영별로 집계한다. */
+export const factionRepository: IFactionRepository = env.useMockData
+  ? new MockFactionRepository()
+  : withMockFallback(new FactionRepository(), new MockFactionRepository(), 'faction');

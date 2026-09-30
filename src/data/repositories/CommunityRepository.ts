@@ -15,6 +15,23 @@ interface BuildingMonthDTO {
   problems: number;
   floors: number;
   winner?: string;
+  /** 진영별 그 달 기여 문제 수(docs/BACKEND_TODO §5). 없으면 앱은 대항전을 '집계 준비 중'으로. */
+  factions?: { faction_cd: string; problems: number }[];
+}
+
+const FACTION_IDS = ['frost', 'flame', 'volt'] as const;
+type FactionCode = (typeof FACTION_IDS)[number];
+
+function mapFactions(list: BuildingMonthDTO['factions'], floorSize: number) {
+  if (!Array.isArray(list) || list.length === 0) return undefined;
+  const rows = list
+    .filter((f): f is { faction_cd: FactionCode; problems: number } => (FACTION_IDS as readonly string[]).includes(f?.faction_cd))
+    .map((f) => {
+      const problems = Math.max(0, Math.trunc(f.problems ?? 0));
+      return { id: f.faction_cd, problems, floors: Math.floor(problems / Math.max(1, floorSize)) };
+    })
+    .sort((a, b) => b.floors - a.floors || b.problems - a.problems);
+  return rows.length > 0 ? rows : undefined;
 }
 interface CommunityDTO {
   online_now: number;
@@ -110,10 +127,14 @@ function mapBuilding(dto: CommunityDTO): CommunitySnapshot['building'] {
    * "아무도 모르는 조용함은 사고다"와 같은 종류). 빈 값이면 화면이 '집계 중'
    * 으로 그리고, 이번 달 선두도 단정하지 않는다.
    */
-  const withWinner = (m: BuildingMonthDTO) => ({ ...m, winner: m.winner ?? '' });
+  const floorSize = dto.building?.floor_size || FLOOR;
+  const withWinner = (m: BuildingMonthDTO) => {
+    const { factions, ...rest } = m;
+    return { ...rest, winner: m.winner ?? '', factions: mapFactions(factions, floorSize) };
+  };
   if (dto.building) {
     return {
-      floorSize: dto.building.floor_size || FLOOR,
+      floorSize,
       current: withWinner(dto.building.current),
       history: (dto.building.history ?? []).map(withWinner),
     };
