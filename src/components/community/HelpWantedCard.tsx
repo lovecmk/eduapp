@@ -40,7 +40,7 @@ export function HelpWantedCard({
   question: Question | null;
   onPress: (id: string) => void;
 }) {
-  const { theme } = useTheme();
+  const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
 
   if (!target) return null;
@@ -61,20 +61,20 @@ export function HelpWantedCard({
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
         <Ionicons name="hand-right" size={15} color={c.primary} />
-        <Text style={{ color: c.primary, fontSize: 12.5, fontFamily: fontDisplay }}>답변을 기다리고 있어요</Text>
+        <Text style={{ color: c.primary, fontSize: 12.5 * fs, fontFamily: fontDisplay }}>답변을 기다리고 있어요</Text>
         <View style={{ flex: 1 }} />
-        <Text style={{ color: c.textSecondary, fontSize: 11, fontFamily: fontBody }}>
+        <Text style={{ color: c.textSecondary, fontSize: 11 * fs, fontFamily: fontBody }}>
           {timeAgoLabel(minutesSince(target.createdAt))}
         </Text>
       </View>
 
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 5 }}>
         <View style={{ backgroundColor: accent + '1A', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 }}>
-          <Text style={{ color: accent, fontSize: 10.5, fontFamily: fontDisplay }}>{target.category}</Text>
+          <Text style={{ color: accent, fontSize: 10.5 * fs, fontFamily: fontDisplay }}>{target.category}</Text>
         </View>
       </View>
 
-      <Text numberOfLines={2} style={{ color: c.textPrimary, fontSize: 14.5, lineHeight: 20, fontFamily: fontDisplay }}>
+      <Text numberOfLines={2} style={{ color: c.textPrimary, fontSize: 14.5 * fs, lineHeight: 20 * fs, fontFamily: fontDisplay }}>
         {target.title}
       </Text>
 
@@ -91,7 +91,7 @@ export function HelpWantedCard({
         }}
       >
         <Ionicons name="chatbubble-ellipses" size={14} color={c.primary} />
-        <Text style={{ color: c.primary, fontSize: 13, fontFamily: fontCute }}>알고 있다면 답변해주세요</Text>
+        <Text style={{ color: c.primary, fontSize: 13 * fs, fontFamily: fontCute }}>알고 있다면 답변해주세요</Text>
       </View>
     </Pressable>
   );

@@ -13,7 +13,7 @@ import type { CardCategory } from '../../domain/models/LearningCard';
 
 /** 질문 작성 모달 — 제목 + 내용 + 분야 선택. */
 export function QuestionComposeModal({ visible, onClose, onCreated }: { visible: boolean; onClose: () => void; onCreated?: (id: string) => void }) {
-  const { theme } = useTheme();
+  const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
   const ask = useAskQuestion();
   const [title, setTitle] = useState('');
@@ -49,7 +49,7 @@ export function QuestionComposeModal({ visible, onClose, onCreated }: { visible:
           return (
             <Pressable accessibilityRole="button" key={cat} onPress={() => setCategory(active ? undefined : cat)}
               style={[styles.chip, { backgroundColor: active ? color + '1A' : c.surfaceAlt, borderColor: active ? color : c.border }]}>
-              <Text style={{ color: active ? color : c.textSecondary, fontSize: 12, fontFamily: fontDisplay }}>{cat}</Text>
+              <Text style={{ color: active ? color : c.textSecondary, fontSize: 12 * fs, fontFamily: fontDisplay }}>{cat}</Text>
             </Pressable>
           );
         })}
@@ -65,7 +65,7 @@ export function QuestionComposeModal({ visible, onClose, onCreated }: { visible:
         style={styles.textarea as never} helperText={`${textLength(body)}/${INPUT_LIMITS.supportMessage}`}
       />
       {error && (
-        <Text style={{ color: c.error, fontSize: 12.5, fontFamily: fontDisplay, marginBottom: 8 }}>{error}</Text>
+        <Text style={{ color: c.error, fontSize: 12.5 * fs, fontFamily: fontDisplay, marginBottom: 8 }}>{error}</Text>
       )}
       <Button
         label={ask.isPending ? '올리는 중...' : '질문 올리기'}

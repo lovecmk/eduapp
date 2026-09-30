@@ -32,7 +32,7 @@ const THEMES: { key: ThemeMode; label: string; icon: IconName }[] = [
 
 /** 헤더 메뉴 바텀시트 — 프로필 + 보조 바로가기 + 빠른 테마 전환. */
 export function HeaderMenuSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
-  const { theme } = useTheme();
+  const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
@@ -94,16 +94,16 @@ export function HeaderMenuSheet({ visible, onClose }: { visible: boolean; onClos
               <Avatar uri={profileImage} size={46} ring={2} ringColor={meta?.accent ?? c.primary} />
               <View style={{ flex: 1 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Text style={{ color: c.textPrimary, fontSize: 16, fontFamily: fontDisplay }} numberOfLines={1}>{displayName(user)}</Text>
+                  <Text style={{ color: c.textPrimary, fontSize: 16 * fs, fontFamily: fontDisplay }} numberOfLines={1}>{displayName(user)}</Text>
                   <AchievementBadge size={15} />
                   {meta && (
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: meta.accent + '1A', borderRadius: 999, paddingHorizontal: 7, paddingVertical: 2 }}>
                       <Ionicons name={meta.icon as IconName} size={10} color={meta.accent} />
-                      <Text style={{ color: meta.accent, fontSize: 10.5, fontFamily: fontDisplay }}>{meta.label}</Text>
+                      <Text style={{ color: meta.accent, fontSize: 10.5 * fs, fontFamily: fontDisplay }}>{meta.label}</Text>
                     </View>
                   )}
                 </View>
-                <Text style={{ color: c.textSecondary, fontSize: 12, marginTop: 2, fontFamily: fontBody }}>내 프로필 보기</Text>
+                <Text style={{ color: c.textSecondary, fontSize: 12 * fs, marginTop: 2, fontFamily: fontBody }}>내 프로필 보기</Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color={c.textSecondary} />
             </Pressable>
@@ -121,7 +121,7 @@ export function HeaderMenuSheet({ visible, onClose }: { visible: boolean; onClos
                     </View>
                   )}
                 </View>
-                <Text style={{ color: c.textPrimary, fontSize: 12.5, fontFamily: fontDisplay, marginTop: 8 }}>{s.label}</Text>
+                <Text style={{ color: c.textPrimary, fontSize: 12.5 * fs, fontFamily: fontDisplay, marginTop: 8 }}>{s.label}</Text>
               </Pressable>
             ))}
           </View>
@@ -135,7 +135,7 @@ export function HeaderMenuSheet({ visible, onClose }: { visible: boolean; onClos
                 <Pressable accessibilityRole="button" key={t.key} onPress={() => setThemeMode(t.key)}
                   style={[styles.themeChip, { backgroundColor: active ? c.primary : c.surface, borderColor: active ? c.primary : c.border }]}>
                   <Ionicons name={t.icon} size={14} color={active ? '#fff' : c.textSecondary} />
-                  <Text style={{ color: active ? '#fff' : c.textSecondary, fontSize: 11.5, fontFamily: fontDisplay }}>{t.label}</Text>
+                  <Text style={{ color: active ? '#fff' : c.textSecondary, fontSize: 11.5 * fs, fontFamily: fontDisplay }}>{t.label}</Text>
                 </Pressable>
               );
             })}
@@ -148,7 +148,7 @@ export function HeaderMenuSheet({ visible, onClose }: { visible: boolean; onClos
               style={[styles.logout, { backgroundColor: c.surface, borderColor: c.error + '55' }]}
             >
               <Ionicons name="log-out-outline" size={18} color={c.error} />
-              <Text style={{ color: c.error, fontSize: 14, fontFamily: fontDisplay }}>로그아웃</Text>
+              <Text style={{ color: c.error, fontSize: 14 * fs, fontFamily: fontDisplay }}>로그아웃</Text>
             </Pressable>
           )}
         </View>

@@ -31,7 +31,7 @@ import { useAuthStore } from '../../store/authStore';
  * 사용자가 아무것도 하지 않아도 화면이 열린다.
  */
 export function MaintenanceGate() {
-  const { theme } = useTheme();
+  const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
   const { config, refetch, isFetching } = useServiceConfig();
   const isAdmin = useAuthStore((s) => s.user?.isAdmin ?? false);
@@ -76,7 +76,7 @@ export function MaintenanceGate() {
         <Text
           style={{
             color: c.textPrimary,
-            fontSize: 19,
+            fontSize: 19 * fs,
             fontFamily: fontDisplay,
             marginBottom: 10,
             textAlign: 'center',
@@ -88,8 +88,8 @@ export function MaintenanceGate() {
         <Text
           style={{
             color: c.textSecondary,
-            fontSize: 14,
-            lineHeight: 22,
+            fontSize: 14 * fs,
+            lineHeight: 22 * fs,
             fontFamily: fontBody,
             textAlign: 'center',
             marginBottom: 28,
@@ -108,7 +108,7 @@ export function MaintenanceGate() {
 
         {config.serverVersion !== '' && (
           <Text
-            style={{ color: c.textSecondary, fontSize: 11, fontFamily: fontMono, marginTop: 18 }}
+            style={{ color: c.textSecondary, fontSize: 11 * fs, fontFamily: fontMono, marginTop: 18 }}
           >
             server {config.serverVersion}
           </Text>

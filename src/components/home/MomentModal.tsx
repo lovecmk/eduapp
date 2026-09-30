@@ -28,7 +28,7 @@ export function MomentModal({
   onClose: () => void;
   onAction?: () => void;
 }) {
-  const { theme } = useTheme();
+  const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
   const { rs } = useResponsive();
 
@@ -74,8 +74,8 @@ export function MomentModal({
             <Animated.Text style={[{ fontSize: rs(52) }, emojiStyle]}>{moment.emoji}</Animated.Text>
           </View>
 
-          <Text style={[styles.title, { color: c.textPrimary, fontSize: rs(19) }]}>{moment.title}</Text>
-          <Text style={[styles.message, { color: c.textSecondary, fontSize: rs(13.5) }]}>{moment.message}</Text>
+          <Text style={[styles.title, { color: c.textPrimary, fontSize: rs(19) * fs }]}>{moment.title}</Text>
+          <Text style={[styles.message, { color: c.textSecondary, fontSize: rs(13.5) * fs, lineHeight: 21 * fs }]}>{moment.message}</Text>
 
           <View style={{ width: '100%', gap: 8, marginTop: 4 }}>
             {onAction && (
@@ -84,11 +84,11 @@ export function MomentModal({
                 style={[styles.primaryBtn, { backgroundColor: accent }]}
                 accessibilityRole="button"
               >
-                <Text style={[styles.primaryLabel, { fontSize: rs(14.5) }]}>지금 학습하러 가기</Text>
+                <Text style={[styles.primaryLabel, { fontSize: rs(14.5) * fs }]}>지금 학습하러 가기</Text>
               </Pressable>
             )}
             <Pressable onPress={onClose} style={styles.ghostBtn} accessibilityRole="button">
-              <Text style={[styles.ghostLabel, { color: c.textSecondary, fontSize: rs(13.5) }]}>
+              <Text style={[styles.ghostLabel, { color: c.textSecondary, fontSize: rs(13.5) * fs }]}>
                 {onAction ? '나중에 할게요' : '고마워요!'}
               </Text>
             </Pressable>

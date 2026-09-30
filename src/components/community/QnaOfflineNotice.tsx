@@ -23,7 +23,7 @@ import { useDegraded } from '../../hooks/useDegraded';
  * (강등 장부를 구독한다 — useDegraded).
  */
 export function QnaOfflineNotice() {
-  const { theme } = useTheme();
+  const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
   // 판단 기준은 강등 장부 하나다. 목업 전용 빌드(주소 없음)는 애초에 실서버를 부르지
   // 않아 장부에도 오르지 않지만, 그 빌드는 '서버 없이 화면만' 보려고 만드는 개발용이라
@@ -49,10 +49,10 @@ export function QnaOfflineNotice() {
     >
       <Ionicons name="construct-outline" size={15} color={c.textSecondary} style={{ marginTop: 1 }} />
       <View style={{ flex: 1 }}>
-        <Text style={{ color: c.textPrimary, fontSize: 12.5, fontFamily: fontDisplay }}>
+        <Text style={{ color: c.textPrimary, fontSize: 12.5 * fs, fontFamily: fontDisplay }}>
           질문 & 답변은 준비 중이에요
         </Text>
-        <Text style={{ color: c.textSecondary, fontSize: 11.5, lineHeight: 16, marginTop: 2, fontFamily: fontBody }}>
+        <Text style={{ color: c.textSecondary, fontSize: 11.5 * fs, lineHeight: 16 * fs, marginTop: 2, fontFamily: fontBody }}>
           아직 열리지 않은 기능이라, 올린 질문과 답변은 이 기기에만 저장되고 다른 사람에게는 보이지 않아요.
         </Text>
       </View>

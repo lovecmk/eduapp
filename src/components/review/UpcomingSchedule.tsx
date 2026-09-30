@@ -8,7 +8,7 @@ const DOW = ['일', '월', '화', '수', '목', '금', '토'];
 
 /** 향후 7일 복습 예정 부하를 막대로 보여주는 미니 스케줄. */
 export function UpcomingSchedule({ days }: { days: UpcomingDay[] }) {
-  const { theme } = useTheme();
+  const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
   const max = Math.max(1, ...days.map((d) => d.count));
 

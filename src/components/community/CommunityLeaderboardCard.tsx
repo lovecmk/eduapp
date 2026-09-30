@@ -12,7 +12,7 @@ const MEDALS = ['🥇', '🥈', '🥉'];
  * 서버(GET /inner/api/v1/community/live)의 leaderboard/my_rank 를 그대로 소비한다.
  */
 export function CommunityLeaderboardCard() {
-  const { theme } = useTheme();
+  const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
   const { data } = useCommunity();
   const board = data?.leaderboard ?? [];
@@ -25,12 +25,12 @@ export function CommunityLeaderboardCard() {
       <View style={styles.header}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
           <Ionicons name="podium" size={16} color={c.primary} />
-          <Text style={{ color: c.textPrimary, fontSize: 14.5, fontFamily: fontDisplay }}>이번 주 기여 랭킹</Text>
+          <Text style={{ color: c.textPrimary, fontSize: 14.5 * fs, fontFamily: fontDisplay }}>이번 주 기여 랭킹</Text>
         </View>
         {myRank > 0 && (
           <View style={[styles.badge, { backgroundColor: c.primary + '18' }]}>
             <Ionicons name="person" size={11} color={c.primary} />
-            <Text style={{ color: c.primary, fontSize: 11, fontFamily: fontDisplay }}>내 순위 {myRank}위</Text>
+            <Text style={{ color: c.primary, fontSize: 11 * fs, fontFamily: fontDisplay }}>내 순위 {myRank}위</Text>
           </View>
         )}
       </View>
@@ -48,27 +48,27 @@ export function CommunityLeaderboardCard() {
                 { backgroundColor: r.isMe ? c.primary + '14' : 'transparent', borderColor: r.isMe ? c.primary : 'transparent' },
               ]}
             >
-              <Text style={{ width: 22, textAlign: 'center', fontSize: 13, fontFamily: fontCute, color: r.isMe ? c.primary : c.textSecondary }}>
+              <Text style={{ width: 22, textAlign: 'center', fontSize: 13 * fs, fontFamily: fontCute, color: r.isMe ? c.primary : c.textSecondary }}>
                 {MEDALS[r.rank - 1] || r.rank}
               </Text>
               <View style={[styles.avatar, { backgroundColor: r.color }]}>
                 <Text style={styles.avatarTxt}>{r.name.charAt(0)}</Text>
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ color: r.isMe ? c.primary : c.textPrimary, fontSize: 12.5, fontFamily: fontCute, fontWeight: r.isMe ? '800' : '600' }}>
+                <Text style={{ color: r.isMe ? c.primary : c.textPrimary, fontSize: 12.5 * fs, fontFamily: fontCute, fontWeight: r.isMe ? '800' : '600' }}>
                   {r.name}{r.isMe ? ' (나)' : ''}
                 </Text>
                 <View style={{ height: 5, backgroundColor: c.surfaceAlt, borderRadius: 3, overflow: 'hidden', marginTop: 4 }}>
                   <View style={{ width: `${pct}%`, height: '100%', backgroundColor: r.isMe ? c.primary : r.color, borderRadius: 3 }} />
                 </View>
               </View>
-              <Text style={{ color: r.isMe ? c.primary : c.textSecondary, fontSize: 12, fontFamily: fontMono, fontWeight: '800' }}>{r.cards}장</Text>
+              <Text style={{ color: r.isMe ? c.primary : c.textSecondary, fontSize: 12 * fs, fontFamily: fontMono, fontWeight: '800' }}>{r.cards}장</Text>
             </View>
           );
         })}
       </View>
 
-      <Text style={{ color: c.textSecondary, fontSize: 11, textAlign: 'center', marginTop: 10, fontFamily: fontBody }}>
+      <Text style={{ color: c.textSecondary, fontSize: 11 * fs, textAlign: 'center', marginTop: 10, fontFamily: fontBody }}>
         매주 월요일 0시에 초기화돼요 · 함께 학습하고 순위를 올려보세요
       </Text>
     </View>

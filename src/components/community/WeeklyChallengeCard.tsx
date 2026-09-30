@@ -8,7 +8,7 @@ import { percent } from '../../utils/percent';
 
 /** 이번 주 함께 참여하는 공동 챌린지 — "함께 쌓아가는" 참여형 학습. */
 export function WeeklyChallengeCard() {
-  const { theme } = useTheme();
+  const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
   const { data } = useCommunity();
   if (!data) return null;
@@ -20,22 +20,22 @@ export function WeeklyChallengeCard() {
       <View style={styles.header}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
           <Ionicons name="trophy" size={16} color={c.warning} />
-          <Text style={{ color: c.textPrimary, fontSize: 14.5, fontFamily: fontDisplay }} numberOfLines={1}>{ch.title}</Text>
+          <Text style={{ color: c.textPrimary, fontSize: 14.5 * fs, fontFamily: fontDisplay }} numberOfLines={1}>{ch.title}</Text>
         </View>
         <View style={[styles.days, { backgroundColor: c.warning + '18' }]}>
           <Ionicons name="time" size={11} color={c.warning} />
-          <Text style={{ color: c.warning, fontSize: 11, fontFamily: fontDisplay }}>{ch.endsInDays}일 남음</Text>
+          <Text style={{ color: c.warning, fontSize: 11 * fs, fontFamily: fontDisplay }}>{ch.endsInDays}일 남음</Text>
         </View>
       </View>
 
       {/* 공동 진행 */}
       <View style={{ marginTop: 14 }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 6 }}>
-          <Text style={{ color: c.textPrimary, fontSize: 20, fontFamily: fontMono, fontWeight: '900' }}>
+          <Text style={{ color: c.textPrimary, fontSize: 20 * fs, fontFamily: fontMono, fontWeight: '900' }}>
             {ch.currentCards.toLocaleString()}
-            <Text style={{ color: c.textSecondary, fontSize: 13, fontFamily: fontBody }}> / {ch.goalCards.toLocaleString()}문제</Text>
+            <Text style={{ color: c.textSecondary, fontSize: 13 * fs, fontFamily: fontBody }}> / {ch.goalCards.toLocaleString()}문제</Text>
           </Text>
-          <Text style={{ color: c.warning, fontSize: 14, fontFamily: fontDisplay }}>{pct}%</Text>
+          <Text style={{ color: c.warning, fontSize: 14 * fs, fontFamily: fontDisplay }}>{pct}%</Text>
         </View>
         <View style={{ height: 10, backgroundColor: c.surfaceAlt, borderRadius: 5, overflow: 'hidden' }}>
           <View style={{ width: `${pct}%`, height: '100%', backgroundColor: c.warning, borderRadius: 5 }} />
@@ -46,13 +46,13 @@ export function WeeklyChallengeCard() {
       <View style={[styles.footer, { borderTopColor: c.border }]}>
         <View style={styles.stat}>
           <Ionicons name="hand-right" size={13} color={c.primary} />
-          <Text style={{ color: c.textSecondary, fontSize: 12, fontFamily: fontBody }}>
+          <Text style={{ color: c.textSecondary, fontSize: 12 * fs, fontFamily: fontBody }}>
             내 기여 <Text style={{ color: c.primary, fontFamily: fontDisplay }}>{ch.myContribution}문제</Text>
           </Text>
         </View>
         <View style={styles.stat}>
           <Ionicons name="people" size={13} color={c.textSecondary} />
-          <Text style={{ color: c.textSecondary, fontSize: 12, fontFamily: fontBody }}>{ch.participants.toLocaleString()}명 참여</Text>
+          <Text style={{ color: c.textSecondary, fontSize: 12 * fs, fontFamily: fontBody }}>{ch.participants.toLocaleString()}명 참여</Text>
         </View>
       </View>
     </View>

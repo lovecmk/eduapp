@@ -13,7 +13,7 @@ import type { Question } from '../../domain/models/Qna';
  * **한 줄 텍스트**로만 두고 기여가 없으면 아예 보여주지 않는다.
  */
 export function MyContributionLine({ questions }: { questions: Question[] }) {
-  const { theme } = useTheme();
+  const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
 
   const stat = useMemo(() => {
@@ -50,7 +50,7 @@ export function MyContributionLine({ questions }: { questions: Question[] }) {
       }}
     >
       <Ionicons name="sparkles" size={14} color={c.success} />
-      <Text style={{ color: c.textSecondary, fontSize: 12.5, fontFamily: fontBody, flex: 1 }} numberOfLines={1}>
+      <Text style={{ color: c.textSecondary, fontSize: 12.5 * fs, fontFamily: fontBody, flex: 1 }} numberOfLines={1}>
         <Text style={{ color: c.success, fontFamily: fontDisplay }}>나의 기여 </Text>
         {parts.join(' · ')}
       </Text>

@@ -25,7 +25,7 @@ export function SupportModal({
   onClose: () => void;
   defaultEmail?: string;
 }) {
-  const { theme } = useTheme();
+  const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
   const [category, setCategory] = useState<(typeof CATEGORIES)[number]>('학습 오류');
   const [email, setEmail] = useState(defaultEmail ?? '');
@@ -93,7 +93,7 @@ export function SupportModal({
                     },
                   ]}
                 >
-                  <Text style={{ color: active ? c.textOnPrimary : c.textSecondary, fontSize: 12, fontWeight: '700', fontFamily: fontCute }}>
+                  <Text style={{ color: active ? c.textOnPrimary : c.textSecondary, fontSize: 12 * fs, fontWeight: '700', fontFamily: fontCute }}>
                     {cat}
                   </Text>
                 </Pressable>

@@ -14,7 +14,7 @@ const OPTIONS: { key: DiffVote; label: string; icon: keyof typeof import('@expo/
 
 /** 체감 난이도 투표(사용자 참여) — 커뮤니티의 체감 난이도 분포를 함께 만든다. */
 export function CardDifficultyPoll({ cardId }: { cardId: string }) {
-  const { theme } = useTheme();
+  const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
   const myVote = useDiffPollStore((s) => s.myVotes[cardId]);
   const vote = useDiffPollStore((s) => s.vote);
@@ -29,8 +29,8 @@ export function CardDifficultyPoll({ cardId }: { cardId: string }) {
     <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.border }]}>
       <View style={styles.header}>
         <Ionicons name="podium-outline" size={16} color={c.primary} />
-        <Text style={{ color: c.textPrimary, fontSize: 14, fontFamily: fontDisplay }}>체감 난이도</Text>
-        <Text style={{ color: c.textSecondary, fontSize: 11, marginLeft: 'auto', fontFamily: fontBody }}>
+        <Text style={{ color: c.textPrimary, fontSize: 14 * fs, fontFamily: fontDisplay }}>체감 난이도</Text>
+        <Text style={{ color: c.textSecondary, fontSize: 11 * fs, marginLeft: 'auto', fontFamily: fontBody }}>
           {myVote ? `${total.toLocaleString()}명 참여` : '이 문제, 얼마나 어려우셨나요?'}
         </Text>
       </View>
@@ -43,7 +43,7 @@ export function CardDifficultyPoll({ cardId }: { cardId: string }) {
             <Pressable accessibilityRole="button" key={o.key} onPress={() => vote(cardId, o.key)}
               style={[styles.opt, { backgroundColor: active ? o.color + '1A' : c.surfaceAlt, borderColor: active ? o.color : c.border }]}>
               <Ionicons name={o.icon} size={20} color={active ? o.color : c.textSecondary} />
-              <Text style={{ color: active ? o.color : c.textSecondary, fontSize: 11.5, fontFamily: fontDisplay, marginTop: 4 }}>{o.label}</Text>
+              <Text style={{ color: active ? o.color : c.textSecondary, fontSize: 11.5 * fs, fontFamily: fontDisplay, marginTop: 4 }}>{o.label}</Text>
             </Pressable>
           );
         })}
@@ -58,10 +58,10 @@ export function CardDifficultyPoll({ cardId }: { cardId: string }) {
             return (
               <View key={o.key} style={{ gap: 4 }}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                  <Text style={{ color: mine ? o.color : c.textSecondary, fontSize: 11.5, fontFamily: mine ? fontDisplay : fontBody }}>
+                  <Text style={{ color: mine ? o.color : c.textSecondary, fontSize: 11.5 * fs, fontFamily: mine ? fontDisplay : fontBody }}>
                     {o.label}{mine ? ' · 내 선택' : ''}
                   </Text>
-                  <Text style={{ color: c.textSecondary, fontSize: 11, fontFamily: fontMono }}>{p}%</Text>
+                  <Text style={{ color: c.textSecondary, fontSize: 11 * fs, fontFamily: fontMono }}>{p}%</Text>
                 </View>
                 <View style={{ height: 7, backgroundColor: c.surfaceAlt, borderRadius: 4, overflow: 'hidden' }}>
                   <View style={{ width: `${p}%`, height: '100%', backgroundColor: o.color, borderRadius: 4, opacity: mine ? 1 : 0.55 }} />

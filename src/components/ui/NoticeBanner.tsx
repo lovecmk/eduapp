@@ -28,7 +28,7 @@ import type { NoticeLevel } from '../../domain/models/ServiceConfig';
  * 그래서 점검 분기를 남겨 둔다 — 관리자에게는 이 배너가 유일한 표시다.
  */
 export function NoticeBanner() {
-  const { theme } = useTheme();
+  const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
   const { config } = useServiceConfig();
   const [dismissed, setDismissed] = useState<string | null>(null);
@@ -70,8 +70,8 @@ export function NoticeBanner() {
         numberOfLines={2}
         style={{
           color: '#fff',
-          fontSize: 12,
-          lineHeight: 17,
+          fontSize: 12 * fs,
+          lineHeight: 17 * fs,
           fontFamily: maintenance ? fontDisplay : fontBody,
           flexShrink: 1,
         }}

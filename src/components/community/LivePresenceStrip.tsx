@@ -23,7 +23,7 @@ function actionText(a: LiveActivity): string {
 
 /** 홈 상단의 얇은 라이브 스트립 — 서비스가 살아있는 느낌을 준다. 탭하면 커뮤니티로. */
 export function LivePresenceStrip() {
-  const { theme } = useTheme();
+  const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
   const router = useRouter();
   const { data } = useCommunity();
@@ -53,11 +53,11 @@ export function LivePresenceStrip() {
         <Animated.View style={[styles.ring, { backgroundColor: '#34C759' }, ring]} />
         <View style={[styles.dot, { backgroundColor: '#34C759' }]} />
       </View>
-      <Text style={{ color: c.textPrimary, fontSize: 12.5, fontFamily: fontDisplay }}>{data.onlineNow}명 학습 중</Text>
+      <Text style={{ color: c.textPrimary, fontSize: 12.5 * fs, fontFamily: fontDisplay }}>{data.onlineNow}명 학습 중</Text>
       <View style={{ width: 3, height: 3, borderRadius: 2, backgroundColor: c.border }} />
       <View style={{ flex: 1, overflow: 'hidden' }}>
         {cur && (
-          <Animated.Text key={cur.id} entering={FadeIn.duration(400)} exiting={FadeOut.duration(200)} numberOfLines={1} style={{ color: c.textSecondary, fontSize: 12, fontFamily: fontBody }}>
+          <Animated.Text key={cur.id} entering={FadeIn.duration(400)} exiting={FadeOut.duration(200)} numberOfLines={1} style={{ color: c.textSecondary, fontSize: 12 * fs, fontFamily: fontBody }}>
             <Text style={{ color: c.textPrimary, fontFamily: fontDisplay }}>{cur.name}</Text>님이 {actionText(cur)}
           </Animated.Text>
         )}
