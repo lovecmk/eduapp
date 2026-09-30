@@ -164,6 +164,10 @@
 `type_cd: "ACHIEVEMENT"` 로 `notifications` 에 넣고, 푸시 토큰이 있으면 푸시도 보낸다
 (`push/register` 는 이미 동작한다). 같은 달성은 한 번만.
 
+알림함의 '성취 알림 끄기 / 공지 알림 끄기'는 지금 **이 기기 화면에서만** 숨긴다
+(`notificationStore.mutedTypes`). 푸시까지 막으려면 이 선택을 계정 설정에 실어 서버가
+보내기 전에 걸러야 한다 — 서버 푸시를 켜는 시점에 계정 설정 계약(§13)에 `muted_types` 를 더하자.
+
 ## 9. 사용자 검색 · 공개 프로필 — P3
 
 ```jsonc
