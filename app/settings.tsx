@@ -31,7 +31,6 @@ import { hapticSelection } from '../src/utils/haptics';
 import type { SettingsEntry } from '../src/constants/settingsIndex';
 import {
   requestNotificationPermission,
-  scheduleDailyReminder,
   cancelAllReminders,
   syncPushTokenWithServer,
 } from '../src/data/notifications/NotificationService';
@@ -115,12 +114,11 @@ function SettingsBody({ scrollRef }: { scrollRef: React.RefObject<ScrollView> })
   // OS 알림 API 는 기기·권한 상태에 따라 예외를 던진다(웹, 권한 거부, 시뮬레이터 등).
   // 예전엔 이걸 감싸지 않아서, 실패하면 모달이 닫히지 않거나 스위치가 그대로 남아
   // "눌렀는데 아무 일도 안 일어난다"로 보였다. 예약은 실패해도 설정 자체는 저장한다.
-  const saveTime = async () => {
+  // 기기 예약은 여기서 걸지 않는다 — 값만 바꾸면 루트의 useReminderSchedule 이 맞춘다.
+  // (다른 기기에서 바꾼 값·로그아웃도 같은 길로 반영되게 한 곳에 모았다.)
+  const saveTime = () => {
     const t = `${String(editH).padStart(2, '0')}:${String(editM).padStart(2, '0')}`;
     updateNotificationSetting('dailyReminderTime', t);
-    if (notifications.enabled) {
-      try { await scheduleDailyReminder(t); } catch { /* 예약 실패는 설정 저장을 막지 않는다 */ }
-    }
     setTimePickerOpen(false);
   };
 
@@ -128,13 +126,15 @@ function SettingsBody({ scrollRef }: { scrollRef: React.RefObject<ScrollView> })
     if (enabled) {
       let granted = false;
       try { granted = await requestNotificationPermission(); } catch { granted = false; }
-      if (!granted && Platform.OS !== 'web') return;
-      try { await scheduleDailyReminder(notifications.dailyReminderTime); } catch { /* 위와 동일 */ }
+      if (!granted && Platform.OS !== 'web') {
+        // 거절당하면 스위치는 그대로 꺼져 있다. 이유를 말하지 않으면 '눌러도 안 켜진다'로 읽힌다.
+        toast('알림 권한이 꺼져 있어요. 기기 설정에서 알림을 허용해 주세요.', 'warn', 3200);
+        return;
+      }
       // 실서버 사용 시 원격 푸시 토큰도 함께 등록(서버·텔레그램 알림 수신용).
       void syncPushTokenWithServer();
-    } else {
-      try { await cancelAllReminders(); } catch { /* 이미 없는 예약이면 무시 */ }
     }
+    // 예약·해제는 루트의 useReminderSchedule 이 이 값을 보고 한다.
     updateNotificationSetting('enabled', enabled);
   };
 

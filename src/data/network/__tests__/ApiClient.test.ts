@@ -19,6 +19,7 @@ jest.mock('../../storage/secureStorage', () => {
 });
 
 import { apiClient } from '../ApiClient';
+import { onSessionExpired } from '../sessionEvents';
 import { ApiError } from '../errors';
 import { secureStorage, StorageKeys } from '../../storage/secureStorage';
 import { setLogSink, resetLogSink } from '../../../utils/logger';
@@ -252,7 +253,6 @@ describe('본문 읽기 중단', () => {
 // 쓰는 도중 세션이 끊긴 사람은 로그인된 화면에서 오류만 받았다.
 describe('세션 만료 신호(sessionEvents)', () => {
   it('토큰을 실어 보낸 요청이 refresh 까지 실패하면 만료를 알린다', async () => {
-    const { onSessionExpired } = await import('../sessionEvents');
     const heard = jest.fn();
     const off = onSessionExpired(heard);
     await seedTokens('old', 'r-dead');
@@ -264,7 +264,6 @@ describe('세션 만료 신호(sessionEvents)', () => {
   });
 
   it('토큰 없이 나간 요청의 401(틀린 비밀번호 등)은 세션 만료가 아니다', async () => {
-    const { onSessionExpired } = await import('../sessionEvents');
     const heard = jest.fn();
     const off = onSessionExpired(heard);
     global.fetch = jest.fn(async () => resp(401, { message: '아이디 또는 비밀번호가 올바르지 않습니다' })) as unknown as typeof fetch;

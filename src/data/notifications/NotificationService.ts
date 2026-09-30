@@ -64,25 +64,20 @@ export async function requestNotificationPermission(): Promise<boolean> {
   return status === 'granted';
 }
 
-// 3시간마다 돌아가며 보낼 실제 사용자용 학습 리마인더 문구(테스트용이지만 실사용 가치가 있는 내용).
-const STUDY_REMINDERS: { title: string; body: string }[] = [
-  { title: '지금 복습하기 딱 좋은 시간이에요 ⏰', body: '망각곡선 기준 복습 시점이 도래한 카드가 있어요. 3분이면 충분해요.' },
-  { title: '오늘의 안전 학습, 아직이라면 지금! 👷', body: '신규 3장 + 복습으로 하루 3분. 짧게라도 쌓으면 습관이 됩니다.' },
-  { title: '취약 주제를 다시 볼 시간이에요 🔁', body: '자주 틀린 카드는 3학습일 뒤 다시 배치돼요. 잠깐 복습하고 넘어가요.' },
-  { title: '현장 위험, 아는 만큼 안전합니다 🦺', body: '전기·공정·위험물 카드 한 장이 오늘의 사고를 막을 수 있어요.' },
-];
-
 /**
- * 학습 리마인더 스케줄 — 알림 On 시 호출.
- * ① 매일 지정 시각 리마인더 + ② 3시간마다 반복 리마인더(문구 순환)를 함께 등록한다.
+ * 학습 리마인더 — 매일 지정 시각 한 번.
+ *
+ * 예전에는 여기서 **3시간마다 반복되는 알림**도 함께 걸었다(테스트용으로 넣었던 것이
+ * 그대로 남아 있었다). 반복 간격 알림은 시각을 가리지 않아 새벽 3시에도 울리고,
+ * 그날 학습을 마친 사람에게도 계속 온다. 설정 화면은 "매일 이 시각에 알려드려요",
+ * "꼭 필요한 알림만 보내요"라고 약속하는데 기기는 하루 8번 울렸다. 약속한 대로 한 번만 건다.
  */
 export async function scheduleDailyReminder(time: string): Promise<void> {
   if (!isNative) return; // 웹은 로컬 반복 스케줄 미지원 — no-op
   await ensureAndroidChannel();
-  await Notifications.cancelAllScheduledNotificationsAsync(); // 중복 스케줄 방지
+  await Notifications.cancelAllScheduledNotificationsAsync(); // 중복 스케줄 방지(구버전의 3시간 반복도 여기서 걷힌다)
   const [hour, minute] = time.split(':').map(Number);
 
-  // ① 매일 지정 시각 리마인더
   await Notifications.scheduleNotificationAsync({
     content: {
       title: '오늘의 학습 카드가 도착했어요',
@@ -97,24 +92,27 @@ export async function scheduleDailyReminder(time: string): Promise<void> {
       ...(Platform.OS === 'android' ? { channelId: CHANNEL_ID } : {}),
     },
   });
+}
 
-  // ② 3시간마다 반복 리마인더 — 문구는 등록 시점 기준으로 순환 선택.
-  const idx = Math.floor(Date.now() / (3 * 3600_000)) % STUDY_REMINDERS.length;
-  const pick = STUDY_REMINDERS[idx];
-  await Notifications.scheduleNotificationAsync({
-    content: {
-      title: pick.title,
-      body: pick.body,
-      sound: 'default',
-      ...(Platform.OS === 'android' ? { channelId: CHANNEL_ID, vibrationPattern: VIBRATION_PATTERN } : {}),
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-      seconds: 3 * 60 * 60, // 3시간
-      repeats: true,
-      ...(Platform.OS === 'android' ? { channelId: CHANNEL_ID } : {}),
-    },
-  });
+/**
+ * 기기의 예약 알림을 지금 설정에 맞춘다 — 권한을 **묻지 않는다.**
+ *
+ * 예약은 설정 화면에서 스위치·시각을 바꿀 때만 걸렸다. 그래서 설정이 다른 길로 바뀌면
+ * 기기 예약이 따라가지 않았다.
+ *  · 다른 기기에서 시각을 바꾸면 계정 설정은 동기화되는데(useSettingsSync) 이 기기는 옛 시각에 울렸다.
+ *  · 새 기기·재설치에서는 스위치가 '켜짐'으로 보여도 예약이 하나도 없었다.
+ *  · 공용 태블릿에서 로그아웃해도 앞사람의 리마인더가 남아 뒷사람에게 울렸다.
+ * `time` 이 null 이면 모두 걷는다. 권한이 없으면 걸지 않는다(물어보는 일은 설정 화면이 한다).
+ */
+export async function reconcileDailyReminder(time: string | null): Promise<void> {
+  if (!isNative) return;
+  if (time === null) {
+    await Notifications.cancelAllScheduledNotificationsAsync();
+    return;
+  }
+  const { status } = await Notifications.getPermissionsAsync();
+  if (status !== 'granted') return;
+  await scheduleDailyReminder(time);
 }
 
 export async function cancelAllReminders(): Promise<void> {

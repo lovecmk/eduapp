@@ -41,7 +41,8 @@ export function resetUserScopedStores(): void {
   useFactionStore.getState().reset();
   useCollectionStore.getState().reset();
   useAuthoredCardsStore.getState().clear();
-  useNotificationStore.getState().clearAll();
+  // clearAll 이 아니라 reset — clearAll 은 '사용자가 지운 것'으로 기록을 남긴다.
+  useNotificationStore.getState().reset();
   useAttendanceStore.setState({ stamps: {} });
   useBookmarkStore.setState({ ids: [] });
   useLikeStore.setState({ ids: [] });

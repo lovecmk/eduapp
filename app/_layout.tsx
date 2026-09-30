@@ -17,6 +17,7 @@ import { useProgressSync } from '../src/hooks/useProgressSync';
 import { useEngagementSync } from '../src/hooks/useEngagementSync';
 import { useReportSync } from '../src/hooks/useReportSync';
 import { useAuthGuard } from '../src/navigation/authGuard';
+import { useReminderSchedule } from '../src/hooks/useReminderSchedule';
 import { BiometricLockGate } from '../src/components/auth/BiometricLockGate';
 import { useNotificationSync } from '../src/hooks/useNotificationSync';
 import { useAuthStore } from '../src/store/authStore';
@@ -127,6 +128,9 @@ function RootContent() {
   // 세션 없이 보호된 화면에 남지 않게 한다 — 딥링크·웹 새로고침·쓰는 도중의
   // 세션 만료 모두 여기서 로그인 화면으로 모인다(src/navigation/authGuard).
   useAuthGuard();
+
+  // 기기의 학습 리마인더 예약을 지금 사람의 알림 설정에 맞춘다(동기화·로그아웃 포함).
+  useReminderSchedule();
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.colors.bg }}>
