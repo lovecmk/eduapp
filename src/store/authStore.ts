@@ -7,6 +7,7 @@ import { ADMIN_DEMO_USER } from '../data/auth/adminDemoAccount';
 import { setQueueOwner } from '../data/network/offlineQueue';
 import { applySessionOwner } from './sessionScope';
 import { ApiError } from '../data/network/errors';
+import { onSessionExpired } from '../data/network/sessionEvents';
 
 interface AuthState {
   user: User | null;
@@ -27,6 +28,16 @@ interface AuthState {
    * 문장을 그대로 보여준다.
    */
   sessionEndedReason: string | null;
+  /**
+   * 이 세션이 **저장된 토큰으로 되살아났는가** — 생체인증 잠금의 대상.
+   *
+   * 방금 비밀번호로 들어온 사람에게 곧바로 지문을 또 묻는 것은 절차가 아니라
+   * 소음이다. 잠금이 지키려는 것은 '주머니에서 꺼낸 폰을 남이 여는 순간'이므로,
+   * 앱을 새로 켜서 세션이 복구된 경우에만 true 가 된다(BiometricLockGate).
+   */
+  needsUnlock: boolean;
+  /** 생체인증을 통과했다 — 이 실행 동안은 다시 묻지 않는다. */
+  unlock: () => void;
   login: (id: string, password: string) => Promise<boolean>;
   socialLogin: (name: string, email: string) => Promise<boolean>;
   /** 관리자 모드 진입 — 로그인 화면 로고 5번 두드리기 전용(아래 구현의 주석 참고). */
@@ -71,19 +82,25 @@ function sessionEndedMessage(err: ApiError | null): string {
   return '로그인이 만료되었습니다. 다시 로그인해 주세요.';
 }
 
+/** logout() 이 진행 중인가 — 그 사이에 오는 '세션 만료' 신호는 무시한다. */
+let endingSession = false;
+
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   loading: false,
   bootstrapped: false,
   error: null,
   sessionEndedReason: null,
+  needsUnlock: false,
+
+  unlock: () => set({ needsUnlock: false }),
 
   login: async (id, password) => {
     set({ loading: true, error: null });
     try {
       const session = await authRepository.login(id, password);
       await bindSession(session.user);
-      set({ user: session.user, loading: false });
+      set({ user: session.user, loading: false, needsUnlock: false });
       return true;
     } catch (e) {
       set({ error: e instanceof Error ? e.message : '로그인에 실패했습니다', loading: false });
@@ -96,7 +113,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       const session = await authRepository.socialLogin(name, email);
       await bindSession(session.user);
-      set({ user: session.user, loading: false });
+      set({ user: session.user, loading: false, needsUnlock: false });
       return true;
     } catch (e) {
       set({ error: e instanceof Error ? e.message : '간편 로그인에 실패했습니다', loading: false });
@@ -126,7 +143,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         user = { ...ADMIN_DEMO_USER };
       }
       await bindSession(user);
-      set({ user, loading: false });
+      set({ user, loading: false, needsUnlock: false });
       return true;
     } catch (e) {
       set({ error: e instanceof Error ? e.message : '관리자 모드 진입에 실패했습니다', loading: false });
@@ -135,18 +152,24 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   logout: async () => {
-    // 주인을 먼저 떼어 낸다. 로그아웃 도중 큐가 흐르더라도 남은 쓰기가
-    // 곧 로그인할 다음 사람 앞으로 나가지 않게 하기 위해서다.
-    await bindSession(null);
-    await authRepository.logout();
-    set({ user: null });
+    // 스스로 나가는 중이다 — 로그아웃 요청 자체가 401 을 받아도 그건 '만료'가 아니다.
+    endingSession = true;
+    try {
+      // 주인을 먼저 떼어 낸다. 로그아웃 도중 큐가 흐르더라도 남은 쓰기가
+      // 곧 로그인할 다음 사람 앞으로 나가지 않게 하기 위해서다.
+      await bindSession(null);
+      await authRepository.logout();
+    } finally {
+      endingSession = false;
+      set({ user: null, needsUnlock: false });
+    }
   },
 
   restore: async () => {
     try {
       const user = await authRepository.restore();
       await bindSession(user);
-      set({ user, bootstrapped: true, sessionEndedReason: null });
+      set({ user, bootstrapped: true, sessionEndedReason: null, needsUnlock: !!user });
     } catch (e) {
       await bindSession(null);
       // 서버가 거절한 세션(만료·정지)만 사유를 남긴다. 지하에서 못 닿은 것까지
@@ -156,6 +179,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       set({
         user: null,
         bootstrapped: true,
+        needsUnlock: false,
         sessionEndedReason: rejected ? sessionEndedMessage(err) : null,
       });
     }
@@ -166,7 +190,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       const session = await authRepository.register(input);
       await bindSession(session.user);
-      set({ user: session.user, loading: false });
+      set({ user: session.user, loading: false, needsUnlock: false });
       return true;
     } catch (e) {
       set({ error: e instanceof Error ? e.message : '회원가입에 실패했습니다', loading: false });
@@ -206,3 +230,23 @@ export const useAuthStore = create<AuthState>((set) => ({
   clearError: () => set({ error: null, sessionEndedReason: null }),
   setName: (name) => set((s) => ({ user: s.user ? { ...s.user, name } : null })),
 }));
+
+/**
+ * 앱을 쓰는 도중 서버가 세션을 끊었을 때(refresh 까지 실패) — 로그인 화면으로 돌려보낸다.
+ *
+ * 예전에는 ApiClient 가 토큰만 지우고 화면의 로그인 상태는 남겨 두어, 사용자는
+ * 로그인된 화면에서 누르는 것마다 오류만 받았다. 여기서 세션을 닫고 사유를 남기면
+ * 루트의 인증 가드(useAuthGuard)가 로그인 화면으로 보내고, 그 화면 위에 사유가 뜬다.
+ * 로컬 데이터는 지우지 않는다 — 같은 사람이 다시 들어오는 경우가 대부분이다(sessionScope).
+ */
+onSessionExpired(() => {
+  if (endingSession) return;
+  if (!useAuthStore.getState().user) return;
+  void bindSession(null).finally(() => {
+    useAuthStore.setState({
+      user: null,
+      needsUnlock: false,
+      sessionEndedReason: sessionEndedMessage(null),
+    });
+  });
+});

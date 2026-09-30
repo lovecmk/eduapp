@@ -97,7 +97,7 @@ export const SETTINGS_INDEX: SettingsEntry[] = [
     breadcrumb: [S, '계정', '프로필 공개 범위'], keywords: ['컬렉션', '도감', '수집', '공개'],
   },
   {
-    id: 'biometric', label: '생체인증 로그인', description: 'Face ID · 지문으로 빠른 로그인',
+    id: 'biometric', label: '생체인증 잠금', description: '앱을 열 때 Face ID · 지문으로 확인',
     icon: 'finger-print-outline', group: 'account', route: '/settings',
     breadcrumb: [S, '계정'], keywords: ['지문', '페이스아이디', 'faceid', '생체', '보안', '잠금'],
   },
@@ -114,12 +114,12 @@ export const SETTINGS_INDEX: SettingsEntry[] = [
     breadcrumb: [S, '학습'], keywords: ['관심사', '분야', '설비', '시설', '추천'],
   },
   {
-    id: 'shuffle', label: '카드 순서 섞기', description: '학습할 때 카드를 무작위 순서로',
+    id: 'shuffle', label: '카드 순서 섞기', description: '분야별 복습을 무작위 순서로',
     icon: 'shuffle-outline', group: 'learning', route: '/settings',
     breadcrumb: [S, '학습'], keywords: ['셔플', '랜덤', '무작위', '순서', 'shuffle'],
   },
   {
-    id: 'weak-spots', label: '약점 우선 복습', description: '자주 잊는 카드를 먼저 보여줘요',
+    id: 'weak-spots', label: '약점 우선 복습', description: '분야별 복습에서 자주 잊는 카드부터',
     icon: 'barbell-outline', group: 'learning', route: '/settings',
     breadcrumb: [S, '학습'], keywords: ['복습', '약점', '취약', '우선', '오답'],
   },
@@ -134,9 +134,9 @@ export const SETTINGS_INDEX: SettingsEntry[] = [
     breadcrumb: [S, '학습'], keywords: ['진동', '햅틱', '피드백', 'haptic', '떨림'],
   },
   {
-    id: 'offline', label: '오프라인 · 데이터 절약', description: 'Wi-Fi에서만 콘텐츠 다운로드',
+    id: 'offline', label: '데이터 절약', description: '모바일 데이터에서는 사진을 눌러야 불러와요',
     icon: 'cloud-offline-outline', group: 'learning', route: '/settings',
-    breadcrumb: [S, '학습'], keywords: ['오프라인', '데이터', '절약', '와이파이', 'wifi', '다운로드'],
+    breadcrumb: [S, '학습'], keywords: ['오프라인', '데이터', '절약', '와이파이', 'wifi', '다운로드', '사진', '셀룰러'],
   },
 
   // ── 알림 ─────────────────────────────────────────────────────────────
@@ -184,11 +184,6 @@ export const SETTINGS_INDEX: SettingsEntry[] = [
   },
 
   // ── 커뮤니티 · 수집 ──────────────────────────────────────────────────
-  {
-    id: 'flex-prompt', label: '자랑(플렉스) 유도', description: '목표 달성 시 성취 카드 자랑 제안',
-    icon: 'sparkles-outline', group: 'community', route: '/settings',
-    breadcrumb: [S, '커뮤니티 · 수집'], keywords: ['자랑', '플렉스', '공유', 'flex'],
-  },
   {
     id: 'achievement-badge', label: '성취 뱃지 표시', description: '닉네임 옆 최고 등급 뱃지 노출',
     icon: 'shield-checkmark-outline', group: 'community', route: '/settings',

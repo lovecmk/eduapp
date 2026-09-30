@@ -10,7 +10,6 @@ import { SocialButtonRow } from '../../src/components/ui/SocialButton';
 import { AppLogo } from '../../src/components/ui/AppLogo';
 import { useTheme } from '../../src/theme/ThemeProvider';
 import { fontDisplay, fontBody } from '../../src/theme/tokens';
-import { isBiometricAvailable, tryBiometricLogin } from '../../src/data/auth/BiometricAuth';
 import { useAuthStore } from '../../src/store/authStore';
 import { ROUTES } from '../../src/constants/routes';
 import { APP_NAME } from '../../src/constants/brand';
@@ -28,14 +27,12 @@ export default function LoginScreen() {
   const [id, setId] = useState('');
   const [pw, setPw] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
-  const [bioAvailable, setBioAvailable] = useState(false);
   const [rememberId, setRememberId] = useState(false);
   const { login, socialLogin, adminLogin, loading, error: authError, sessionEndedReason, clearError } = useAuthStore();
   const { run: runLater, cancelAll: cancelTapReset } = useSafeTimeout();
   // 로고 연속 두드리기 횟수 — 화면을 다시 그릴 이유가 없으므로 ref 로 센다.
   const logoTaps = useRef(0);
 
-  useEffect(() => { isBiometricAvailable().then(setBioAvailable); }, []);
   // 저장해 둔 아이디가 있으면 자동으로 채우고 '아이디 저장'을 켜둔다.
   useEffect(() => {
     AsyncStorage.getItem(SAVED_ID_KEY).then((saved) => {
@@ -97,11 +94,6 @@ export default function LoginScreen() {
     if (!ok) return;
     toast(`관리자 모드 · ${ADMIN_DEMO_USER.name}님으로 로그인했어요`, 'success');
     router.replace(ROUTES.home);
-  };
-
-  const onBiometric = async () => {
-    const ok = await tryBiometricLogin();
-    if (ok) router.replace(ROUTES.home);
   };
 
   return (
@@ -217,11 +209,10 @@ export default function LoginScreen() {
             </Text>
           )}
 
-          {bioAvailable && (
-            <View style={{ marginTop: 16 }}>
-              <Button label="생체인증으로 로그인" variant="outline" onPress={onBiometric} />
-            </View>
-          )}
+          {/* '생체인증으로 로그인' 버튼은 여기 없다. 그 버튼은 지문이 맞으면 **세션 없이**
+              홈으로 보냈다 — 로그인하지 않은 채 로그인한 사람의 화면이 열렸다.
+              생체인증은 이제 저장된 세션을 여는 잠금으로만 쓴다(설정 → 생체인증 잠금,
+              components/auth/BiometricLockGate). 세션이 없으면 열 것도 없다. */}
 
           {/* 간편 로그인 — 데모(목업)에서만 보인다.
               실서버에는 이 인증 경로가 없다. 이름·이메일만으로 세션을 내주는

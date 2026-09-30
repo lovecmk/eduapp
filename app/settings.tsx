@@ -38,6 +38,8 @@ import {
 import { APP_NAME } from '../src/constants/brand';
 import { contentColumn } from '../src/theme/layout';
 import { displayName } from '../src/domain/models/User';
+import { isBiometricAvailable, authenticateWithBiometrics } from '../src/data/auth/BiometricAuth';
+import { toast } from '../src/store/toastStore';
 
 const THEME_OPTIONS: ThemeMode[] = ['light', 'dark', 'dim', 'system'];
 const THEME_LABELS = ['라이트', '다크', '딤', '시스템'];
@@ -85,11 +87,11 @@ function SettingsBody({ scrollRef }: { scrollRef: React.RefObject<ScrollView> })
   const {
     themeMode, fontScale: fontScaleSetting, highContrast,
     notifications, biometricLoginEnabled, shuffleCards, keepScreenOn, offlineMode,
-    prioritizeWeakSpots, dontKnowHaptic, flexPromptEnabled, showAchievementBadge, collectionEnabled,
+    prioritizeWeakSpots, dontKnowHaptic, showAchievementBadge, collectionEnabled,
     setThemeMode, setFontScale, toggleHighContrast,
     updateNotificationSetting, setBiometricLogin,
     toggleShuffleCards, toggleKeepScreenOn, toggleOfflineMode, togglePrioritizeWeakSpots,
-    toggleDontKnowHaptic, toggleFlexPrompt, toggleAchievementBadge, toggleCollectionEnabled, resetAll,
+    toggleDontKnowHaptic, toggleAchievementBadge, toggleCollectionEnabled, resetAll,
     ambientTheme, setAmbientTheme, pushRecentSetting,
   } = useSettingsStore();
 
@@ -134,6 +136,23 @@ function SettingsBody({ scrollRef }: { scrollRef: React.RefObject<ScrollView> })
       try { await cancelAllReminders(); } catch { /* 이미 없는 예약이면 무시 */ }
     }
     updateNotificationSetting('enabled', enabled);
+  };
+
+  /**
+   * 생체인증 잠금 켜기/끄기.
+   *
+   * 켤 때는 **지금 한 번 확인한다.** 지문이 등록되지 않은 기기에서 켜 두면 다음 실행에
+   * 잠금 화면만 뜨고 열 방법이 없다. 확인을 통과해야 켜지고, 이 실행은 이미 연 것으로 친다.
+   */
+  const onToggleBiometric = async (enabled: boolean) => {
+    if (!enabled) { setBiometricLogin(false); return; }
+    if (!(await isBiometricAvailable())) {
+      toast('이 기기에서는 생체인증을 쓸 수 없어요. 기기 설정에서 지문·얼굴을 먼저 등록해 주세요.', 'warn', 3200);
+      return;
+    }
+    if (!(await authenticateWithBiometrics('생체인증 잠금 켜기'))) return;
+    setBiometricLogin(true);
+    useAuthStore.getState().unlock();
   };
 
   const doReset = async () => {
@@ -261,9 +280,9 @@ function SettingsBody({ scrollRef }: { scrollRef: React.RefObject<ScrollView> })
               <SettingsItem
                 anchorId="biometric"
                 icon="finger-print-outline"
-                label="생체인증 로그인"
-                description="Face ID · 지문으로 빠른 로그인"
-                right={<Switch label="생체인증 로그인" value={biometricLoginEnabled} onValueChange={setBiometricLogin} />}
+                label="생체인증 잠금"
+                description="앱을 열 때 Face ID · 지문으로 확인해요"
+                right={<Switch label="생체인증 잠금" value={biometricLoginEnabled} onValueChange={(v) => { void onToggleBiometric(v); }} />}
               />
               <SettingsItem
                 anchorId="logout"
@@ -277,7 +296,7 @@ function SettingsBody({ scrollRef }: { scrollRef: React.RefObject<ScrollView> })
             {/* ── 학습 ─────────────────────────────────────────────── */}
             <SettingsGroup title="학습">
               {/* 목표 학습량(신규 3장 · 복습 포함 최대 7장)은 고정 정책이라 조절 UI를 두지 않는다. */}
-              <SettingsBlock anchorId="interests" label="관심 분야" hint="통계 · 추천에 반영돼요">
+              <SettingsBlock anchorId="interests" label="관심 분야" hint="통계의 '나의 학습 성향' 추천에 반영돼요">
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                   {INTEREST_FIELDS.map((field) => {
                     const active = interests.includes(field);
@@ -302,14 +321,14 @@ function SettingsBody({ scrollRef }: { scrollRef: React.RefObject<ScrollView> })
                 anchorId="shuffle"
                 icon="shuffle-outline"
                 label="카드 순서 섞기"
-                description="학습할 때 무작위 순서로"
+                description="분야별 복습을 무작위 순서로"
                 right={<Switch label="카드 순서 섞기" value={shuffleCards} onValueChange={toggleShuffleCards} />}
               />
               <SettingsItem
                 anchorId="weak-spots"
                 icon="barbell-outline"
                 label="약점 우선 복습"
-                description="자주 잊는 카드를 먼저 보여줘요"
+                description="분야별 복습에서 자주 잊는 카드부터"
                 right={<Switch label="약점 우선 복습" value={prioritizeWeakSpots} onValueChange={togglePrioritizeWeakSpots} />}
               />
               <SettingsItem
@@ -329,9 +348,9 @@ function SettingsBody({ scrollRef }: { scrollRef: React.RefObject<ScrollView> })
               <SettingsItem
                 anchorId="offline"
                 icon="cloud-offline-outline"
-                label="오프라인 · 데이터 절약"
-                description="Wi-Fi에서만 콘텐츠 다운로드"
-                right={<Switch label="오프라인 · 데이터 절약" value={offlineMode} onValueChange={toggleOfflineMode} />}
+                label="데이터 절약"
+                description="모바일 데이터에서는 사진을 눌러야 불러와요"
+                right={<Switch label="데이터 절약" value={offlineMode} onValueChange={toggleOfflineMode} />}
               />
             </SettingsGroup>
 
@@ -410,13 +429,10 @@ function SettingsBody({ scrollRef }: { scrollRef: React.RefObject<ScrollView> })
 
             {/* ── 커뮤니티 · 수집 ──────────────────────────────────── */}
             <SettingsGroup title="커뮤니티 · 수집">
-              <SettingsItem
-                anchorId="flex-prompt"
-                icon="sparkles-outline"
-                label="자랑(플렉스) 유도"
-                description="목표 달성 시 성취 카드 자랑을 제안"
-                right={<Switch label="자랑(플렉스) 유도" value={flexPromptEnabled} onValueChange={toggleFlexPrompt} />}
-              />
+              {/* '자랑(플렉스) 유도' 스위치는 여기 없다. 그 스위치가 켜고 끄던 학습 완료
+                  화면의 자랑 CTA 가 제품 결정으로 꺼져 있어(cards.tsx), 스위치를 눌러도
+                  아무 일도 일어나지 않았다. CTA 가 돌아오는 날 함께 되살린다
+                  (값 자체는 계정 설정으로 계속 동기화된다 — UserSettings). */}
               <SettingsItem
                 anchorId="achievement-badge"
                 icon="shield-checkmark-outline"
