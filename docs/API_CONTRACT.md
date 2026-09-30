@@ -394,6 +394,28 @@ Idempotency-Key: attendance:2026-7-25
 { "token": "ExponentPushToken[...]", "platform": "ios" }
 ```
 - 목록이 배열이 아니면 클라이언트는 빈 목록으로 처리한다(화면은 깨지지 않음).
+- **알림 삭제 API 는 없다.** 앱의 '이 알림 삭제'·'전체 삭제'는 지운 id 를 기기에 기억해 두고
+  목록을 받을 때 걸러 낸다(`notificationStore.dismissedIds`). 기기를 바꾸면 다시 보인다 —
+  기기 간에 맞추려면 `DELETE /inner/api/v1/notifications/:id`(또는 숨김 플래그)가 필요하다.
+
+### 6-5. 고객센터 문의 `/inner/api/v1/support/inquiries` ⚠️ 서버 미구현
+
+앱의 [설정 › 지원 › 고객센터 문의]는 이 경로로 보낸다. 법적 고지가 이 창을 **1차 문의
+창구**로 안내하므로(`constants/legal.ts` LEGAL_META.contactChannel) 서버에 반드시 있어야 한다.
+
+```jsonc
+// POST /inner/api/v1/support/inquiries   (인증 필요)
+{ "category": "학습 오류",          // 학습 오류 | 계정 문제 | 멤버십 등급 | 기능 제안 | 기타
+  "email": "won@kfpa.or.kr",        // 답변받을 주소(사용자가 고칠 수 있다)
+  "message": "…",                   // 10~1000자, 클라이언트에서 정제
+  "app_version": "1.13.47", "build_number": 95, "platform": "android" }
+// → 201 { "id": "Q-20260930-0042" }  // 접수 번호 — 앱이 완료 화면에 그대로 보인다
+```
+- 앱은 **2xx 를 받았을 때만** "접수되었어요"라고 말한다. 예전에는 전송 없이 0.9초 뒤
+  접수 완료를 띄웠다 — 문의가 전부 사라지고 있었다.
+- 라우트가 없으면(404/501) 앱은 "창구가 아직 열리지 않았어요"라고 안내하고 적은 내용을 지우지 않는다.
+- 오프라인 큐에 태우지 않는다(보냈다는 확인을 사람이 기다리는 행위라서). 연결이 없으면 다시 보내게 한다.
+- 운영 콘솔에서 목록·답변 상태를 볼 수 있어야 한다(신고 처리 워크플로와 같은 자리가 자연스럽다).
 
 ---
 
@@ -546,6 +568,7 @@ data: {"uptime_seconds":420,"total_requests":35,"error_rate":0,"active_users":2,
 | GET | `/inner/api/v1/notifications` | 알림 배열 |
 | POST | `/inner/api/v1/notifications/read-all` | 전체 읽음 |
 | POST | `/inner/api/v1/notifications/:id/read` | 하나 읽음 |
+| POST | `/inner/api/v1/support/inquiries` | 고객센터 문의 접수 (201, **서버 미구현** — §6-5) |
 
 ### 멱등성 — 이제 서버가 실제로 지킨다
 

@@ -33,6 +33,8 @@ import { QnaRepository } from './QnaRepository';
 import { MockQnaRepository } from './QnaRepository.mock';
 import { SettingsRepository } from './SettingsRepository';
 import { MockSettingsRepository } from './SettingsRepository.mock';
+import { SupportRepository } from './SupportRepository';
+import { MockSupportRepository } from './SupportRepository.mock';
 
 import type { IAuthRepository } from '../../domain/repositories/IAuthRepository';
 import type { ICardRepository } from '../../domain/repositories/ICardRepository';
@@ -52,6 +54,7 @@ import type { IServiceConfigRepository } from '../../domain/repositories/IServic
 import type { IDailyAssignmentRepository } from '../../domain/repositories/IDailyAssignmentRepository';
 import type { IQnaRepository } from '../../domain/repositories/IQnaRepository';
 import type { ISettingsRepository } from '../../domain/repositories/ISettingsRepository';
+import type { ISupportRepository } from '../../domain/repositories/ISupportRepository';
 
 export const authRepository: IAuthRepository = env.useMockData
   ? new MockAuthRepository()
@@ -172,3 +175,12 @@ export const notificationRepository: INotificationRepository = env.useMockData
 export const collectionRepository: ICollectionRepository = env.useMockData
   ? new MockCollectionRepository()
   : new CollectionRepository();
+
+/**
+ * 고객센터 문의 — 폴백을 걸지 않는다. 라우트가 없을 때 목업으로 떨어지면 목업이
+ * "접수되었어요"라고 답해, 사라진 문의가 접수된 것처럼 보인다(고치기 전의 결함 그대로).
+ * 실패는 화면까지 올려 사유를 말하게 한다.
+ */
+export const supportRepository: ISupportRepository = env.useMockData
+  ? new MockSupportRepository()
+  : new SupportRepository();
