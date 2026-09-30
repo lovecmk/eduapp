@@ -223,3 +223,18 @@ export const difficultyPollRepository: IDifficultyPollRepository = env.useMockDa
 export const factionRepository: IFactionRepository = env.useMockData
   ? new MockFactionRepository()
   : withMockFallback(new FactionRepository(), new MockFactionRepository(), 'faction');
+
+/**
+ * 폴백으로 **감싸지 않은** 실서버 저장소 — 서버가 없던 동안 기기에 쌓인 것을 옮기는 일
+ * (data/sync/localBackfill) 전용. 감싼 저장소를 쓰면 라우트가 없을 때 다시 로컬로 떨어져
+ * 같은 글이 두 벌이 된다. 목업 모드에서는 옮길 서버가 없으므로 null.
+ */
+export const liveCommunityRepositories = env.useMockData
+  ? null
+  : {
+      feed: new FeedRepository(),
+      tips: new TipRepository(),
+      poll: new DifficultyPollRepository(),
+      qna: new QnaRepository(),
+      notifications: notificationRepository,
+    };

@@ -4,6 +4,8 @@ import { difficultyPollRepository } from '../data/repositories';
 import type { DiffVote, PollSummary } from '../domain/models/DifficultyPoll';
 import { useDiffPollStore } from '../store/diffPollStore';
 import { logger } from '../utils/logger';
+import { isDegraded } from '../data/repositories/_fallback';
+import { env } from '../data/network/env';
 
 export const pollKey = (cardId: string) => ['difficulty-poll', cardId] as const;
 
@@ -36,7 +38,11 @@ export function useDifficultyVote() {
       counts[choice] += 1;
       return { counts, mine: choice };
     });
-    difficultyPollRepository.vote(cardId, choice).catch((e) => {
+    difficultyPollRepository.vote(cardId, choice).then(() => {
+      // 서버가 받았으면 장부에 적는다. 기기 안으로 떨어졌으면(서버 미배포) 적지 않는다 —
+      // 그 표는 서버가 열리면 localBackfill 이 올린다.
+      if (!env.useMockData && !isDegraded('difficulty-poll')) useDiffPollStore.getState().markSent(cardId, choice);
+    }).catch((e) => {
       logger.warn('difficulty_poll.vote_failed', { reason: String(e) });
     });
   }, [qc]);

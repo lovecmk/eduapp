@@ -47,7 +47,7 @@ export function resetUserScopedStores(): void {
   useBookmarkStore.setState({ ids: [] });
   useLikeStore.setState({ ids: [] });
   useReportStore.setState({ reports: [] });
-  useDiffPollStore.setState({ myVotes: {} });
+  useDiffPollStore.setState({ myVotes: {}, sent: {} });
   useDailyLearningStore.setState({ dayKey: dateKey(new Date()), newLearnedToday: 0 });
   resetQnaStore();
   useShareFeedStore.setState({ posts: [] });

@@ -19,6 +19,7 @@ import { useReportSync } from '../src/hooks/useReportSync';
 import { useAuthGuard } from '../src/navigation/authGuard';
 import { useReminderSchedule } from '../src/hooks/useReminderSchedule';
 import { useFactionSync } from '../src/hooks/useFactionSync';
+import { useLocalBackfill } from '../src/hooks/useLocalBackfill';
 import { BiometricLockGate } from '../src/components/auth/BiometricLockGate';
 import { useNotificationSync } from '../src/hooks/useNotificationSync';
 import { useAuthStore } from '../src/store/authStore';
@@ -122,6 +123,8 @@ function RootContent() {
   useNotificationSync();
   // 내 진영 — 서버가 알아야 진영 대항전을 진영별로 집계한다(서버 미배포면 조용히 기기에만).
   useFactionSync();
+  // 서버 라우트가 열리면, 그 전까지 이 기기에만 쌓인 글·팁·투표·질문을 옮긴다.
+  useLocalBackfill();
 
   // 앱 전체 뒤로가기 안전망. 화면별 처리(학습 중 이탈 확인 등)가 우선하고,
   // 아무도 처리하지 않은 뒤로가기만 여기서 받아 앱이 갑자기 종료되는 것을 막는다.

@@ -8,7 +8,13 @@ export type { DiffVote, PollCounts } from '../domain/models/DifficultyPoll';
 
 interface DiffPollState {
   myVotes: Record<string, DiffVote>;
+  /**
+   * 서버가 받은 표 — 서버가 없던 동안 기기에만 남은 표를 나중에 올리기 위한 장부
+   * (data/sync/localBackfill). myVotes 와 다르면 아직 안 올라간 것이다.
+   */
+  sent: Record<string, DiffVote>;
   vote: (cardId: string, choice: DiffVote) => void;
+  markSent: (cardId: string, choice: DiffVote) => void;
 }
 
 /** 카드별 체감 난이도 투표 — 내 투표만 영속화(커뮤니티 기준치는 결정적으로 생성). */
@@ -16,7 +22,9 @@ export const useDiffPollStore = create<DiffPollState>()(
   persist(
     (set) => ({
       myVotes: {},
+      sent: {},
       vote: (cardId, choice) => set((s) => ({ myVotes: { ...s.myVotes, [cardId]: choice } })),
+      markSent: (cardId, choice) => set((s) => ({ sent: { ...s.sent, [cardId]: choice } })),
     }),
     { name: 'diff-poll', version: 1, storage: createJSONStorage(() => AsyncStorage) },
   ),

@@ -59,6 +59,8 @@ interface ShareFeedState {
   add: (post: ShareCardPost) => void;
   /** 리액션 상태 설정(토글 아님 — 재전송돼도 같은 결과). */
   setReaction: (id: string, kind: ReactionKind, on: boolean) => void;
+  /** 서버로 옮긴 로컬 글을 지운다(data/sync/localBackfill). */
+  remove: (id: string) => void;
 }
 
 export const useShareFeedStore = create<ShareFeedState>()(
@@ -68,6 +70,7 @@ export const useShareFeedStore = create<ShareFeedState>()(
       // 사람의 지어낸 성취가 '다른 점검자의 자랑'으로 읽힌다(알림 시드와 같은 결함).
       posts: env.useMockData ? seed() : [],
       add: (post) => set((s) => ({ posts: [post, ...s.posts.filter((p) => p.id !== post.id)] })),
+      remove: (id) => set((s) => ({ posts: s.posts.filter((p) => p.id !== id) })),
       setReaction: (id, kind, on) =>
         set((s) => ({ posts: s.posts.map((p) => (p.id === id ? withReaction(p, kind, on) : p)) })),
     }),
