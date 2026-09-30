@@ -109,7 +109,7 @@ export const SETTINGS_INDEX: SettingsEntry[] = [
 
   // ── 학습 ─────────────────────────────────────────────────────────────
   {
-    id: 'interests', label: '관심 분야', description: '통계 · 추천에 반영',
+    id: 'interests', label: '관심 분야', description: '관심 있는 설비 · 시설',
     icon: 'pricetags-outline', group: 'learning', route: '/settings',
     breadcrumb: [S, '학습'], keywords: ['관심사', '분야', '설비', '시설', '추천'],
   },

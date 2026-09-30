@@ -15,13 +15,6 @@ export interface EmblemProgress {
   topPct: number;
 }
 
-export interface EmblemRankEntry {
-  rank: number;
-  nickname: string;
-  score: number;
-  pct: number;
-}
-
 export const EMBLEM_DEFS: EmblemDef[] = [
   { category: '전기 위험', emoji: '⚡', label: '전기 안전' },
   { category: '공정 위험', emoji: '🎨', label: '공정 안전' },
@@ -31,8 +24,6 @@ export const EMBLEM_DEFS: EmblemDef[] = [
 
 const LEVEL_THRESHOLDS = [0, 30, 60, 90];
 const LEVEL_ICON = ['⬜', '🥉', '🥈', '🥇'];
-
-const NAME_POOL = ['김안전', '박현장', '최예방', '이방호', '정점검', '한관리', '오대비', '강예방', '조점검', '신안전'];
 
 export function calcEmblems(
   cardMap: Map<string, { total: number; mastered: number }>,
@@ -68,19 +59,4 @@ export function getEmblemIcon(level: number): string {
 
 export function getAcquiredEmblems(emblems: EmblemProgress[]): EmblemProgress[] {
   return emblems.filter((e) => e.level > 0);
-}
-
-export function emblemRankingMock(category: string): EmblemRankEntry[] {
-  const idx = EMBLEM_DEFS.findIndex((d) => d.category === category);
-  const seeded = [...NAME_POOL].sort((a, b) => {
-    const ha = (idx + a.charCodeAt(0)) % 13;
-    const hb = (idx + b.charCodeAt(0)) % 13;
-    return hb - ha;
-  });
-  return seeded.slice(0, 5).map((nickname, i) => ({
-    rank: i + 1,
-    nickname,
-    score: Math.round(94 - i * 9),
-    pct: Math.round(88 - i * 13),
-  }));
 }
