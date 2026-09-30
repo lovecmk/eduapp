@@ -30,6 +30,10 @@ const REPOSITORY_LABELS: Record<string, string> = {
   'user-directory': '사용자 검색',
   qna: '질문 & 답변',
   settings: '계정 설정',
+  feed: '자랑 피드(트로피룸)',
+  tips: '현장 팁',
+  'difficulty-poll': '체감 난이도 투표',
+  faction: '내 진영',
 };
 
 const DEGRADE_REASON: Record<Degradation['reason'], string> = {

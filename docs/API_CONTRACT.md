@@ -1,5 +1,8 @@
 # 백엔드 API 계약서 (Frontend ↔ Backend Contract)
 
+> **서버가 아직 만들지 않은 경로와 우선순위는 [BACKEND_TODO.md](./BACKEND_TODO.md)에 모았다.**
+> 거기 있는 경로는 앱 구현이 끝나 있고, 배포하면 앱 재배포 없이 붙는다.
+
 이 앱(Expo/React Native)이 **실서버 모드**(`EXPO_PUBLIC_USE_MOCK_DATA=false`)에서
 호출하는 엔드포인트 전체 명세다. 백엔드는 이 문서대로 구현하면 프론트 수정 없이 붙는다.
 
@@ -569,6 +572,11 @@ data: {"uptime_seconds":420,"total_requests":35,"error_rate":0,"active_users":2,
 | POST | `/inner/api/v1/notifications/read-all` | 전체 읽음 |
 | POST | `/inner/api/v1/notifications/:id/read` | 하나 읽음 |
 | POST | `/inner/api/v1/support/inquiries` | 고객센터 문의 접수 (201, **서버 미구현** — §6-5) |
+| POST | `/inner/api/v1/notifications/dismiss` | 알림 숨김 `{ids}` (**서버 미구현** — BACKEND_TODO §8) |
+| GET·POST | `/inner/api/v1/me/faction` | 내 진영 (**서버 미구현** — BACKEND_TODO §3) |
+| GET·POST | `/inner/api/v1/feed` · `POST /feed/:id/reactions` | 자랑 피드 (**서버 미구현** — BACKEND_TODO §5) |
+| GET·POST | `/inner/api/v1/cards/:id/tips` · `POST /tips/:id/like` · `DELETE /tips/:id` | 현장 팁 (**서버 미구현** — BACKEND_TODO §6) |
+| GET·POST | `/inner/api/v1/cards/:id/difficulty` | 체감 난이도 (**서버 미구현** — BACKEND_TODO §7) |
 
 ### 멱등성 — 이제 서버가 실제로 지킨다
 
