@@ -169,13 +169,10 @@ export default function MyPageScreen() {
             계정·프라이버시·지원은 설정으로 일원화하고 여기서 뺐다. */}
       <SectionLabel>내 활동</SectionLabel>
       <MyRow icon="search-outline" title="닉네임으로 친구 찾기" desc="닉네임을 검색해 다른 점검자의 진행도를 확인해요" onPress={() => router.push(ROUTES.userSearch as never)} />
-      {collectionEnabled && (
-        <MyRow icon="ticket-outline" title="이벤트 · 쿠폰" desc="이벤트 쿠폰으로 카드팩 받기" onPress={() => router.push('/redeem' as never)} />
-      )}
+      {/* '이벤트 · 쿠폰'은 걷어 냈다 — 쿠폰 코드 표가 앱 번들에 그대로 들어 있고 화면이
+          목록까지 보여 줘, 누구나 팩을 받는 이벤트였다. 서버 검증 없이는 두지 않는다. */}
       {/* 배경 테마는 '설정 > 화면'에 인라인 선택기로 있다(테마·글자 크기와 같은 성격).
           여기와 설정 두 곳에 두면 어디서 바꿔야 할지 매번 헷갈리므로 한 곳으로 모았다. */}
-      {/* 내 QR 명함 — 우선 비활성화(제거). 코드는 주석으로 보존.
-      <MyRow icon="qr-code-outline" title="내 QR 명함" desc="QR로 내 프로필을 빠르게 공유" onPress={() => router.push('/qr-card' as never)} /> */}
 
       {/* 계정·알림·화면·지원은 전부 설정 한 곳에서 관리한다. */}
       <MyRow icon="settings-outline" title="설정" desc="계정 · 알림 · 화면 · 문의" onPress={() => router.push(ROUTES.settings)} />

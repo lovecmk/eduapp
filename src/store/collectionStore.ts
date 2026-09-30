@@ -2,7 +2,6 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLLECTIBLE_BY_ID } from '../data/collectibles';
-import { findGachaCode, normalizeGachaCode } from '../data/gachaCodes';
 import { evaluateRule, PACK_RULE_BY_ID, type PackRuleContext } from '../data/packRules';
 import {
   openPack as drawPack,
@@ -21,14 +20,6 @@ import {
 } from '../domain/models/Collection';
 
 export type { DrawResult } from '../domain/packDraw';
-
-export interface RedeemResult {
-  ok: boolean;
-  /** 지급된 카드팩 수(성공 시) */
-  packs: number;
-  /** 사용자 안내 문구 */
-  message: string;
-}
 
 /** 팩 개봉 결과 — 뽑은 카드와 이번에 얻은 조각. */
 export interface OpenResult {
@@ -83,8 +74,6 @@ interface CollectionState extends CollectionSnapshot {
   addStudyProgress: (cards?: number) => void;
   /** 팩 즉시 지급(디버그/보상). */
   grantPack: (n?: number) => void;
-  /** 가챠 코드를 교환해 카드팩을 지급. */
-  redeemCode: (input: string) => RedeemResult;
   /** 팩 1개를 열어 카드를 뽑는다. 팩이 없으면 null. */
   openPack: () => OpenResult | null;
   /** 조각으로 특정 카드를 교환. 성공하면 true. */
@@ -164,22 +153,6 @@ export const useCollectionStore = create<CollectionState>()(
         }),
 
       grantPack: (n = 1) => set((s) => ({ packsEarned: s.packsEarned + n })),
-
-      redeemCode: (input) => {
-        const found = findGachaCode(input);
-        if (!found) {
-          return { ok: false, packs: 0, message: '유효하지 않은 코드예요. 다시 확인해주세요.' };
-        }
-        const norm = normalizeGachaCode(input);
-        if (get().redeemedCodes.includes(norm)) {
-          return { ok: false, packs: 0, message: '이미 사용한 코드예요.' };
-        }
-        set((s) => ({
-          packsEarned: s.packsEarned + found.packs,
-          redeemedCodes: [...s.redeemedCodes, norm],
-        }));
-        return { ok: true, packs: found.packs, message: found.label };
-      },
 
       claimRule: (ruleId, ctx) => {
         const rule = PACK_RULE_BY_ID[ruleId];

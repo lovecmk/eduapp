@@ -28,6 +28,11 @@ export interface CollectionSnapshot {
   /** 획득 규칙 id → 수령 횟수 */
   claimedRules: Record<string, number>;
   /** 이미 쓴 가챠 코드 */
+  /**
+   * 예전 이벤트 쿠폰 교환 기록. 쿠폰 기능은 걷어 냈지만(코드 표가 앱 번들에 들어 있어
+   * 누구나 꺼내 쓸 수 있었다) 서버 계약(`redeemed_codes`, 합집합)과 이미 교환한 사람의
+   * 기록을 지키려고 필드는 그대로 주고받는다. 새로 쌓이지는 않는다.
+   */
   redeemedCodes: string[];
   /** 마지막으로 일일 무료팩을 받은 날(YYYY-MM-DD) */
   lastDailyPack: string;

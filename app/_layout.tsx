@@ -158,9 +158,6 @@ function RootContent() {
         <Stack.Screen name="trophy" />
         <Stack.Screen name="profile" />
         <Stack.Screen name="edit-profile" />
-        {/* 내 QR 명함 — 우선 비활성화(제거). 라우트/코드는 주석으로 보존.
-        <Stack.Screen name="qr-card" options={{ animation: 'slide_from_bottom' }} /> */}
-        <Stack.Screen name="redeem" options={{ animation: 'slide_from_bottom' }} />
         <Stack.Screen name="collection-book" />
         <Stack.Screen name="pack-rules" />
         <Stack.Screen name="admin" />

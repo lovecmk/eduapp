@@ -74,8 +74,8 @@ eduapp/
 | 목업 데이터 콘솔 | app/admin.tsx | mockUserDb·packRules·collectibles | settings·authoredCards |
 | 닉네임·중복확인 | app/(auth)/signup, components/auth/AvailabilityField | AuthRepository.isUsernameTaken/isNicknameTaken, mockUserDb | authStore |
 | 내 정보 수정 | app/edit-profile.tsx | AuthRepository.updateProfile, mockUserDb.updateUser | authStore.updateProfile |
-| QR 명함 | app/qr-card.tsx | utils/qrcode(순수 TS 인코더)·components/ui/QRCode(svg) | authStore·settings |
-| 가챠 코드 교환 | app/redeem.tsx | data/gachaCodes | collectionStore.redeemCode/redeemedCodes |
+| ~~QR 명함~~ | (2026-09-30 제거 — 비활성 상태로 인코더 500여 줄만 남아 있었다) | — | — |
+| ~~가챠 코드 교환~~ | (2026-09-30 제거 — 코드 표가 번들에 노출) | — | collectionStore.redeemedCodes(서버 계약 호환용 필드만) |
 | 설정 전역 검색 | app/settings.tsx, components/settings/SettingsSearch·SettingsFocus | constants/settingsIndex(색인), utils/koreanSearch(초성)·settingsSearch(정렬) | settings.recentSettingIds |
 | 약관·법적 고지 | app/legal.tsx | constants/legal(약관·처리방침·접근권한·오픈소스) | settings.notifications.marketing |
 | 신고 처리 워크플로 | (콘솔) mybrdg Daily3Min/views/ReportsView | 서버: domain.ReportStatus·AdminService.ReviewReport | — |
