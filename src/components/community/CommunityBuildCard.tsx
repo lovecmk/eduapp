@@ -259,7 +259,8 @@ export function CommunityBuildCard() {
             <Text style={{ color: c.textSecondary, fontSize: 11 * fs, fontFamily: fontBody }}>다음 보상 · {next.floor}층</Text>
             <Text style={{ color: c.textPrimary, fontSize: 13 * fs, fontFamily: fontDisplay }}>{next.label}</Text>
           </View>
-          <Text style={{ color: c.warning, fontSize: 12 * fs, fontFamily: fontMono }}>-{next.floor - floors}층</Text>
+          {/* '-1층'은 음수로 읽혔다 — 남은 층수를 말로 적는다. */}
+          <Text style={{ color: c.warning, fontSize: 12 * fs, fontFamily: fontMono }}>{next.floor - floors}층 남음</Text>
         </View>
       )}
 
