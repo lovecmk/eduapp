@@ -851,13 +851,16 @@ export default function CardsScreen() {
           </>
         ) : (
           <View style={{ width: '100%', gap: 10, marginTop: 4 }}>
-            {/* '복습하러 가기' — 방금 학습한 카드를 복습 > 모아보기 > 오늘 학습한 카드에서 바로 다시 본다. */}
+            {/* 오늘의 학습을 마쳤으면 '복습하러 가기' — 방금 학습한 카드를 복습 > 모아보기 >
+                오늘 학습한 카드에서 바로 다시 본다.
+                복습을 마쳤으면 같은 말이 어색하다("복습 완료!" 아래 "복습하러 가기").
+                그때는 다른 분야·남은 복습을 고를 수 있는 복습 목록으로 돌려보낸다. */}
             <Pressable accessibilityRole="button"
-              onPress={() => endFlow(router, ROUTES.collection('today'))}
+              onPress={() => endFlow(router, isCategoryMode || isDueMode ? ROUTES.review : ROUTES.collection('today'))}
               style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.primary, borderRadius: 14, paddingVertical: 15, paddingHorizontal: 28, boxShadow: '0 6px 16px rgba(37,99,235,0.28)' }}
             >
-              <Ionicons name="refresh" size={18} color="#fff" />
-              <Text style={{ color: '#fff', fontSize: 15 * fs, fontWeight: '800', fontFamily: fontCute }}>복습하러 가기</Text>
+              <Ionicons name={isCategoryMode || isDueMode ? 'list' : 'refresh'} size={18} color="#fff" />
+              <Text style={{ color: '#fff', fontSize: 15 * fs, fontWeight: '800', fontFamily: fontCute }}>{isCategoryMode || isDueMode ? '복습 목록으로' : '복습하러 가기'}</Text>
             </Pressable>
             <Pressable accessibilityRole="button"
               onPress={() => endFlow(router, ROUTES.home)}

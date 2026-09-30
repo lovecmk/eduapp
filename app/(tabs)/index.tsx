@@ -56,11 +56,12 @@ function StatPill({ value, label, icon }: { value: string; label: string; icon?:
   const { rs } = useResponsive();
   const c = theme.colors;
   return (
-    <Pressable style={{ flex: 1, backgroundColor: c.surfaceAlt, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 8, alignItems: 'center' }}>
+    // 누를 것이 없는 수치 칸이다 — Pressable 로 두면 눌림 피드백만 있고 아무 일도 일어나지 않는다.
+    <View style={{ flex: 1, backgroundColor: c.surfaceAlt, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 8, alignItems: 'center' }}>
       {icon && <Ionicons name={icon} size={rs(14)} color={c.warning} style={{ marginBottom: 2 }} />}
       <Text numberOfLines={1} style={{ color: c.primary, fontSize: rs(20) * fontScale, fontWeight: '900', fontFamily: fontMono }}>{value}</Text>
       <Text numberOfLines={1} style={{ color: c.textSecondary, fontSize: rs(11) * fontScale, marginTop: 3, fontFamily: fontBody }}>{label}</Text>
-    </Pressable>
+    </View>
   );
 }
 
@@ -80,7 +81,9 @@ export default function HomeScreen() {
   const { dueTodayCount } = useReview();
   const quota = useDailyQuota();
   // 오늘 배정된 문제 — 장수는 그날 난이도가 정한다(쉬우면 5, 어려우면 3).
-  const { assignment, refetch: refetchToday } = useDailyAssignment();
+  const { assignment, refetch: refetchToday, isSuccess: assignmentLoaded, isError: assignmentFailed } = useDailyAssignment();
+  // 오늘 배정 중 아직 안 푼 문제 수 — '이어서 학습' 팝업과 CTA 가 같은 수를 본다.
+  const pendingToday = assignment.cards.filter((x) => !x.done).length;
 
   const masteredCount = useMemo(() => allCards.filter((x) => x.status === 'mastered').length, [allCards]);
   // 실제로 지금 배울 수 있는 '신규' 카드 수 — 하루 상한과 별개로 풀이 비었는지 확인용.
@@ -160,6 +163,9 @@ export default function HomeScreen() {
     // '이어서 학습' 팝업을 띄우지 않는다. 진영 선택은 가입/최초 진입 흐름이라
     // 그 위에 학습 이어가기 팝업이 겹쳐 뜨면 안 된다.
     if (!factionHydrated || faction === null) return;
+    // 오늘 배정을 받기 전에는 '이어서 할 것이 남았는가'를 모른다 — 받을 때까지 기다린다.
+    // (못 받았으면 기다리지 않는다. 그때는 오늘 학습 기록만으로 판단한다.)
+    if (!assignmentLoaded && !assignmentFailed) return;
     sessionMomentHandled = true;
 
     // 축하할 순간이 있으면 그것부터 — **오늘 학습 여부와는 다른 축의 사건이다.**
@@ -183,8 +189,11 @@ export default function HomeScreen() {
     // 축하할 것이 없을 때만, 오늘 하던 학습을 이어갈지 물어본다.
     const learnedToday = (useSrsStore.getState().history[dateKey(new Date())] ?? []).length;
     if (learnedToday === 0) return; // 오늘 학습 이력이 없으면 팝업 없음.
+    // 오늘 몫을 다 푼 사람에게 "이어서 마저 학습할까요?"는 틀린 질문이다 — 눌러도
+    // 학습 화면은 '오늘 학습 완료'만 보여 준다. 남은 문제가 있을 때만 묻는다.
+    if (assignmentLoaded && pendingToday === 0) return;
     setResumeOpen(true);
-  }, [stats, factionHydrated, faction, totalLearned, streakDays]);
+  }, [stats, factionHydrated, faction, totalLearned, streakDays, assignmentLoaded, assignmentFailed, pendingToday]);
 
   const dismissMoment = useCallback(() => {
     if (moment) useMomentStore.getState().markCelebrated(moment.key);
@@ -335,6 +344,7 @@ export default function HomeScreen() {
             // 실제로 화면에 뜨는 덱과 어긋나 "신규 3 · 복습 2" 라고 안내하고
             // 두 장만 나오는 일이 있었다. 세는 대상과 보여 주는 대상은 같아야 한다.
             const pending = assignment.cards.filter((x) => !x.done);
+            // (pendingToday 와 같은 목록을 센다)
             const newToStudy = pending.filter((x) => x.kind === 'new').length;
             const reviewToStudy = pending.filter((x) => x.kind === 'review').length;
             const sessionCount = pending.length;
