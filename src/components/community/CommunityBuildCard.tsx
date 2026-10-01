@@ -14,19 +14,14 @@ import {
   type FactionId,
 } from '../../constants/factions';
 import { ROUTES } from '../../constants/routes';
+import { useCollectionStore } from '../../store/collectionStore';
+import { useSettingsStore } from '../../store/settingsStore';
+import { openedCrateCount } from '../../domain/buildingCrates';
+import { RooftopCrates } from './RooftopCrates';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
-
-// 층수 마일스톤 보상 — 함께 쌓은 학습이 콘텐츠/혜택으로 전환.
-const MILESTONES: { floor: number; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { floor: 5, label: '신규 카드팩 공개', icon: 'albums' },
-  { floor: 10, label: '한정 "빌더" 뱃지', icon: 'ribbon' },
-  { floor: 20, label: '심화 문제 해금', icon: 'flame' },
-  { floor: 35, label: '명예의 전당 등재', icon: 'trophy' },
-  { floor: 50, label: '오프라인 안전 캠페인 후원', icon: 'heart' },
-];
 
 /** 진영 상세의 작은 지표 타일(지은 층수·기여 문제·전체 비중). */
 function FactionStat({ color, value, label, c }: { color: string; value: string; label: string; c: Record<string, string> }) {
@@ -76,6 +71,8 @@ export function CommunityBuildCard() {
   const { data } = useCommunity();
   const factionId = useFactionStore((s) => s.faction);
   const myFaction = getFaction(factionId);
+  const claimed = useCollectionStore((s) => s.claimedRules);
+  const collectionEnabled = useSettingsStore((s) => s.collectionEnabled);
   const [showHistory, setShowHistory] = useState(false);
   // 탭해서 펼친 진영(안전 빌딩 기여 상세를 보여준다).
   const [openFaction, setOpenFaction] = useState<FactionId | null>(null);
@@ -85,7 +82,6 @@ export function CommunityBuildCard() {
   const floors = current.floors;
   const within = current.problems % floorSize;
   const progress = Math.round((within / floorSize) * 100);
-  const next = MILESTONES.find((m) => m.floor > floors);
   const bestFloors = Math.max(floors, ...history.map((h) => h.floors), 0);
 
   // 진영 색·형태 — 진영을 골랐으면 그 색/실루엣으로, 아니면 기본 테마색·탑 형태로.
@@ -249,20 +245,8 @@ export function CommunityBuildCard() {
         </Text>
       </View>
 
-      {/* 다음 보상 */}
-      {next && (
-        <View style={[styles.reward, { backgroundColor: c.warning + '12', borderColor: c.warning + '33' }]}>
-          <View style={[styles.rewardIcon, { backgroundColor: c.warning + '22' }]}>
-            <Ionicons name={next.icon} size={16} color={c.warning} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={{ color: c.textSecondary, fontSize: 11 * fs, fontFamily: fontBody }}>다음 보상 · {next.floor}층</Text>
-            <Text style={{ color: c.textPrimary, fontSize: 13 * fs, fontFamily: fontDisplay }}>{next.label}</Text>
-          </View>
-          {/* '-1층'은 음수로 읽혔다 — 남은 층수를 말로 적는다. */}
-          <Text style={{ color: c.warning, fontSize: 12 * fs, fontFamily: fontMono }}>{next.floor - floors}층 남음</Text>
-        </View>
-      )}
+      {/* 옥상 보물상자 — 층수 보상(domain/buildingCrates) */}
+      <RooftopCrates month={current.month} floors={floors} accent={buildColor} />
 
       {/* 지난 기록(히스토리) */}
       {history.length > 0 && (
@@ -293,11 +277,19 @@ export function CommunityBuildCard() {
                       <View style={{ width: `${Math.max(6, pct)}%`, height: '100%', backgroundColor: barColor + 'CC', borderRadius: 4 }} />
                     </View>
                     <Text style={{ color: c.textPrimary, fontSize: 12.5 * fs, fontFamily: fontMono, fontWeight: '800' }}>{h.floors}층</Text>
+                    {collectionEnabled && (
+                      <Text
+                        accessibilityLabel={`그 달에 연 상자 ${openedCrateCount(h.month, claimed)}개`}
+                        style={{ minWidth: 34, textAlign: 'right', color: c.textSecondary, fontSize: 11 * fs, fontFamily: fontMono }}
+                      >
+                        📦{openedCrateCount(h.month, claimed)}
+                      </Text>
+                    )}
                   </View>
                 );
               })}
               <Text style={{ color: c.textSecondary, fontSize: 10.5 * fs, fontFamily: fontBody, marginTop: 6, textAlign: 'center' }}>
-                한 층 = {floorSize.toLocaleString()}문제 · 색은 그 달 우승 진영 · 매월 1일 0층부터 다시 시작해요
+                한 층 = {floorSize.toLocaleString()}문제 · 색은 그 달 우승 진영{collectionEnabled ? ' · 📦 그 달에 연 상자' : ''} · 매월 1일 0층부터 다시 시작해요
               </Text>
             </View>
           )}
@@ -312,8 +304,6 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
   versus: { borderTopWidth: 1, marginTop: 14, paddingTop: 12 },
   vsRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 5, paddingHorizontal: 4 },
-  reward: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 14, borderWidth: 1, padding: 10, marginTop: 14 },
-  rewardIcon: { width: 32, height: 32, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   historyToggle: { flexDirection: 'row', alignItems: 'center', gap: 6, borderTopWidth: 1, marginTop: 14, paddingTop: 12 },
   histRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 5 },
 });

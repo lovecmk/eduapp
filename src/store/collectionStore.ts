@@ -18,6 +18,8 @@ import {
   shardBalance,
   type CollectionSnapshot,
 } from '../domain/models/Collection';
+import { CRATE_BY_FLOOR, crateKey, evaluateCrate, monthBricks, monthKey, rollCrate } from '../domain/buildingCrates';
+import { useSrsStore } from './srsStore';
 
 export type { DrawResult } from '../domain/packDraw';
 
@@ -56,6 +58,13 @@ interface CollectionState extends CollectionSnapshot {
   todayStudy: number;
   /** todayStudy 가 가리키는 날짜 */
   todayStudyDay: string | null;
+  /**
+   * 이번 달에 올린 벽돌(학습한 카드) 수 — 옥상 보물상자 조건. monthStudyKey 달의 값이다.
+   * todayStudy 처럼 기기 로컬 값이라 동기화하지 않는다(새 기기에서는 그 달 0부터 센다).
+   */
+  monthStudy: number;
+  /** monthStudy 가 가리키는 달('YYYY-MM') */
+  monthStudyKey: string | null;
   /** 최근 새로 획득해 아직 확인 안 한 카드들(도감 NEW 뱃지) — 화면 상태라 로컬. */
   newIds: string[];
   /** 마지막으로 서버와 맞춘 시각(ISO). 한 번도 못 맞췄으면 null. */
@@ -72,6 +81,18 @@ interface CollectionState extends CollectionSnapshot {
   claimRule: (ruleId: string, ctx: PackRuleContext) => number;
   /** 학습한 카드 수를 적립한다 — STUDY_PER_PACK 장마다 팩 1개. */
   addStudyProgress: (cards?: number) => void;
+  /** 그 달('YYYY-MM')에 올린 내 벽돌 수(buildingCrates.monthBricks). */
+  bricksFor: (month: string) => number;
+  /**
+   * 옥상 보물상자를 연다 — **스토어가 직접 재평가해서** 지급한다.
+   * floors 는 서버가 준 이번 달 층수다. 조건이 안 되거나 이미 열었으면 null.
+   */
+  openBuildingCrate: (
+    month: string,
+    floor: number,
+    floors: number,
+    rng?: () => number,
+  ) => { packs: number; shards: number } | null;
   /** 팩 즉시 지급(디버그/보상). */
   grantPack: (n?: number) => void;
   /** 팩 1개를 열어 카드를 뽑는다. 팩이 없으면 null. */
@@ -108,6 +129,8 @@ const EMPTY = {
   packsEarned: INITIAL_PACKS,
   todayStudy: 0,
   todayStudyDay: null as string | null,
+  monthStudy: 0,
+  monthStudyKey: null as string | null,
   newIds: [] as string[],
   lastSyncedAt: null as string | null,
 };
@@ -139,6 +162,7 @@ export const useCollectionStore = create<CollectionState>()(
           const n = Math.max(0, Math.floor(cards));
           if (n === 0) return {};
           const today = todayKey();
+          const month = monthKey();
           const studyTotal = s.studyTotal + n;
           // 적립은 누적 학습량에서 계산한다 — 별도 진행 카운터를 두면
           // 서버와 맞출 때 두 값이 어긋난다.
@@ -148,9 +172,37 @@ export const useCollectionStore = create<CollectionState>()(
             studyTotal,
             todayStudy: (s.todayStudyDay === today ? s.todayStudy : 0) + n,
             todayStudyDay: today,
+            monthStudy: (s.monthStudyKey === month ? s.monthStudy : 0) + n,
+            monthStudyKey: month,
             packsEarned: s.packsEarned + (earnedAfter - earnedBefore),
           };
         }),
+
+      bricksFor: (month) => monthBricks(month, get(), useSrsStore.getState().cards),
+
+      openBuildingCrate: (month, floor, floors, rng) => {
+        const crate = CRATE_BY_FLOOR[floor];
+        // 모르는 층은 지급하지 않는다(화면이 임의의 층을 보내도 무해하게).
+        if (!crate) return null;
+        // 지난 달 상자는 열 수 없다 — 달이 바뀌면 사라진다.
+        if (month !== monthKey()) return null;
+        const s = get();
+        const status = evaluateCrate(crate, {
+          month,
+          floors,
+          myBricks: s.bricksFor(month),
+          claimed: s.claimedRules,
+        });
+        if (status.state !== 'ready') return null;
+        const got = rollCrate(crate, rng);
+        const key = crateKey(month, floor);
+        set((cur) => ({
+          packsEarned: cur.packsEarned + got.packs,
+          shardsEarned: cur.shardsEarned + got.shards,
+          claimedRules: { ...cur.claimedRules, [key]: 1 },
+        }));
+        return got;
+      },
 
       grantPack: (n = 1) => set((s) => ({ packsEarned: s.packsEarned + n })),
 
