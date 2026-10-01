@@ -103,6 +103,9 @@ jobs:
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          # 기본값의 폐기된 'tools' 패키지는 SDK 저장소에서 찾을 수 없다.
+          packages: platform-tools
 
       # RN 0.76.9(SDK 52) 이 요구하는 정확한 패키지 버전으로 고정.
       - name: Install Android SDK packages
