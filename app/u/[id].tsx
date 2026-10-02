@@ -9,19 +9,21 @@ import { fontCute, fontBody, fontMono, fontDisplay } from '../../src/theme/token
 import { membershipMeta } from '../../src/domain/models/User';
 import { usePublicProfile } from '../../src/hooks/useUserDirectory';
 import type { PublicProfile } from '../../src/domain/models/PublicProfile';
+import { ErrorState } from '../../src/components/ui/ErrorState';
+import { errorMessage } from '../../src/data/network/errors';
 
 export default function PublicProfileScreen() {
   const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { data: profile, isLoading } = usePublicProfile(id);
+  const { data: profile, isLoading, error, refetch } = usePublicProfile(id);
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <ScreenHeader title="프로필" />
       {isLoading ? (
         <View style={{ paddingTop: 40 }}><ActivityIndicator color={c.primary} /></View>
-      ) : !profile ? (
+      ) : error ? <ErrorState message={errorMessage(error)} onRetry={refetch} /> : !profile ? (
         <View style={{ alignItems: 'center', paddingTop: 60, paddingHorizontal: 24 }}>
           <Ionicons name="person-remove-outline" size={40} color={c.textSecondary} />
           <Text style={{ color: c.textSecondary, marginTop: 12, fontFamily: fontCute }}>프로필을 찾을 수 없어요</Text>

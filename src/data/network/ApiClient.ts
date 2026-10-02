@@ -8,12 +8,27 @@ import { ApiError, kindOf, toApiError } from './errors';
 import { logger } from '../../utils/logger';
 import { enqueue, flushQueue, setQueueSender, type QueuedWrite } from './offlineQueue';
 import { emitSessionExpired } from './sessionEvents';
+import { getSessionEpoch, assertSessionEpoch as assertSession } from './sessionEpoch';
 
 /** 읽기 요청 재시도 정책 — 일시적 실패(연결 없음·5xx·429)에 한해 지수 백오프로 다시 시도. */
 const GET_RETRIES = 2;
 const RETRY_BASE_MS = 400;
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+// RN의 fetch/본문 구현이 abort를 무시해도 화면과 single-flight가 무한 대기하지 않게 한다.
+function bounded<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const abort = () => {
+      const error = new Error('Request aborted');
+      error.name = 'AbortError';
+      reject(error);
+    };
+    signal.addEventListener('abort', abort, { once: true });
+    if (signal.aborted) abort();
+    work.then(resolve, reject).finally(() => signal.removeEventListener('abort', abort));
+  });
+}
 
 /**
  * 네트워크 단계의 원시 예외를 ApiError 로 정규화한다.
@@ -37,14 +52,14 @@ function toNetworkError(e: unknown): ApiError {
  * 본문이 없는 경우를 성공으로 다뤄야 한다(res.json() 을 그냥 걸면 SyntaxError 가
  * 나면서 성공한 요청이 실패로 둔갑한다).
  */
-async function readJsonBody(res: Response): Promise<unknown> {
+async function readJsonBody(res: Response, signal: AbortSignal): Promise<unknown> {
   if (res.status === 204 || res.status === 205) return {};
   // 본문 읽기 실패를 삼키면 안 된다. `.catch(() => '')` 로 빈 문자열을 만들면
   // **중간에 끊긴 응답이 '내용 없는 성공'으로 둔갑한다** — 카드 목록 GET 이
   // 조용히 빈 배열이 되어 화면은 "학습할 카드가 없습니다"를 보여주고,
   // 사용자는 서버가 그렇게 답한 줄 안다. 여기서 던져야 바깥이 offline 으로
   // 정규화하고 GET 재시도·오프라인 배너가 정상 동작한다.
-  const text = await res.text();
+  const text = await bounded(res.text(), signal);
   if (text.trim().length === 0) return {};
   try {
     return JSON.parse(text) as unknown;
@@ -60,10 +75,13 @@ class ApiClient {
   // 동시에 여러 요청이 401을 받아도 refresh 는 한 번만 수행하고 결과를 공유한다(single-flight).
   // 이렇게 하지 않으면 refresh 쇄도(stampede)가 일어나, 서버가 refresh 토큰을 회전시킬 때
   // 첫 refresh 가 토큰을 무효화 → 나머지 refresh 가 전부 실패 → 사용자가 로그아웃된다.
-  private refreshInFlight: Promise<boolean> | null = null;
+  private refreshInFlight: { epoch: number; promise: Promise<boolean> } | null = null;
 
-  private async request<T>(path: string, init: RequestInit = {}, isRetry = false): Promise<T> {
-    const token = await secureStorage.getItem(StorageKeys.accessToken);
+  private async request<T>(path: string, init: RequestInit = {}, isRetry = false, epoch = getSessionEpoch()): Promise<T> {
+    assertSession(epoch);
+    const publicAuth = /^\/inner\/api\/v1\/auth\/(login|register)$/.test(path);
+    const token = publicAuth ? null : await secureStorage.getItem(StorageKeys.accessToken);
+    assertSession(epoch);
     const controller = new AbortController();
     // 타임아웃은 응답 헤더가 아니라 **본문을 다 읽을 때까지** 걸려 있어야 한다.
     // 예전처럼 fetch 직후 clearTimeout 하면, 헤더만 보내고 본문을 흘리지 않는
@@ -71,7 +89,7 @@ class ApiClient {
     const timeout = setTimeout(() => controller.abort(), env.apiTimeoutMs);
 
     try {
-      const res = await fetch(`${env.apiBaseUrl}${path}`, {
+      const res = await bounded(fetch(`${env.apiBaseUrl}${path}`, {
         ...init,
         headers: {
           'Content-Type': 'application/json',
@@ -79,19 +97,32 @@ class ApiClient {
           ...init.headers,
         },
         signal: controller.signal,
-      });
+      }), controller.signal);
+      assertSession(epoch);
 
-      if (res.status === 401 && !isRetry) {
+      if (res.status === 401 && token && !isRetry) {
         clearTimeout(timeout); // 재시도는 자기 타이머를 새로 건다
-        return await this.handleUnauthorized<T>(path, init, token);
+        return await this.handleUnauthorized<T>(path, init, token, epoch);
       }
       if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { message?: string };
+        let body: { message?: unknown } | null = null;
+        try {
+          body = await bounded(res.json(), controller.signal);
+        } catch (error) {
+          if (!(error instanceof SyntaxError)) throw error;
+        }
+        assertSession(epoch);
+        if (res.status === 401 && token) {
+          await this.clearTokens(epoch);
+          emitSessionExpired();
+        }
         // 실패한 요청을 구조화 로그로 남긴다(경로·상태만 — 본문/토큰은 남기지 않는다).
         logger.warn('api_request_failed', { path, status: res.status, method: init.method ?? 'GET' });
-        throw new ApiError(res.status, body.message ?? '', kindOf(res.status));
+        throw new ApiError(res.status, typeof body?.message === 'string' ? body.message : '', kindOf(res.status));
       }
-      return validateResponse<T>(await readJsonBody(res));
+      const body = await readJsonBody(res, controller.signal);
+      assertSession(epoch);
+      return validateResponse<T>(body);
     } catch (e) {
       // fetch 실패(타임아웃 AbortError·네트워크 단절 TypeError)와 본문 읽기 중단을
       // 한 곳에서 ApiError 로 정규화한다 — status 0 = 응답을 완성하지 못한 실패.
@@ -119,19 +150,23 @@ class ApiClient {
     path: string,
     init: RequestInit,
     usedToken: string | null,
+    epoch: number,
   ): Promise<T> {
     const current = await secureStorage.getItem(StorageKeys.accessToken);
-    if (current && current !== usedToken) return this.request<T>(path, init, true);
+    assertSession(epoch);
+    if (current && current !== usedToken) return this.request<T>(path, init, true, epoch);
 
-    const refreshed = await this.refreshOnce();
-    if (refreshed) return this.request<T>(path, init, true);
+    const refreshed = await this.refreshOnce(epoch);
+    assertSession(epoch);
+    if (refreshed) return this.request<T>(path, init, true, epoch);
 
     // 여기서도 한 번 더 확인한다 — 내 refresh 가 실패로 끝나는 사이에 다른 흐름이
     // 성공시켜 놓았을 수 있다. 그 경우 토큰을 지우면 남의 성공을 무효로 만든다.
     const afterRefresh = await secureStorage.getItem(StorageKeys.accessToken);
-    if (afterRefresh && afterRefresh !== usedToken) return this.request<T>(path, init, true);
+    assertSession(epoch);
+    if (afterRefresh && afterRefresh !== usedToken) return this.request<T>(path, init, true, epoch);
 
-    await this.clearTokens();
+    await this.clearTokens(epoch);
     // 토큰을 실어 보낸 요청이 거절됐을 때만 '세션이 끝났다'고 알린다.
     // 토큰 없이 나간 요청(틀린 비밀번호로 로그인, 서버 토큰이 없는 로컬 관리자
     // 세션)의 401 은 세션이 끝난 것이 아니다 — 그걸 알리면 로그인 화면에서
@@ -144,17 +179,20 @@ class ApiClient {
    * 진행 중인 refresh 가 있으면 그 결과를 공유하고, 없으면 새로 시작한다(single-flight).
    * 완료되면 슬롯을 비워 다음 만료 때 다시 refresh 할 수 있게 한다.
    */
-  private refreshOnce(): Promise<boolean> {
-    if (!this.refreshInFlight) {
-      this.refreshInFlight = this.tryRefresh().finally(() => {
-        this.refreshInFlight = null;
+  private refreshOnce(epoch: number): Promise<boolean> {
+    if (!this.refreshInFlight || this.refreshInFlight.epoch !== epoch) {
+      const flight = { epoch, promise: this.tryRefresh(epoch) };
+      this.refreshInFlight = flight;
+      flight.promise = flight.promise.finally(() => {
+        if (this.refreshInFlight === flight) this.refreshInFlight = null;
       });
     }
-    return this.refreshInFlight;
+    return this.refreshInFlight.promise;
   }
 
-  private async tryRefresh(): Promise<boolean> {
+  private async tryRefresh(epoch: number): Promise<boolean> {
     const refreshToken = await secureStorage.getItem(StorageKeys.refreshToken);
+    assertSession(epoch);
     if (!refreshToken) return false;
     // refresh 에는 타임아웃이 반드시 있어야 한다. 이 fetch 는 single-flight 라
     // 여기가 멈추면 **뒤따르는 모든 401 이 같은 약속을 기다리며 영원히 멈춘다** —
@@ -163,37 +201,46 @@ class ApiClient {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), env.apiTimeoutMs);
     try {
-      const res = await fetch(`${env.apiBaseUrl}/inner/api/v1/auth/refresh`, {
+      const res = await bounded(fetch(`${env.apiBaseUrl}/inner/api/v1/auth/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refresh_token: refreshToken }),
         signal: controller.signal,
-      });
-      if (!res.ok) return false;
-      const data = (await res.json().catch(() => ({}))) as {
+      }), controller.signal);
+      assertSession(epoch);
+      if (res.status === 401 || res.status === 403) return false;
+      if (!res.ok) throw new ApiError(res.status, '', kindOf(res.status));
+      const data = (await bounded(res.json(), controller.signal)) as {
         access_token?: string;
         refresh_token?: string;
       };
       // access_token 이 유효한 문자열일 때만 성공으로 본다 — 빈/이상 응답으로
       // undefined 를 토큰으로 저장하고 '성공'으로 오인하는 것을 막는다.
-      if (typeof data.access_token !== 'string' || data.access_token.length === 0) return false;
+      assertSession(epoch);
+      if (typeof data?.access_token !== 'string' || data.access_token.length === 0) {
+        throw new ApiError(502, '로그인 갱신 응답이 올바르지 않아요. 잠시 후 다시 시도해주세요.', 'server');
+      }
       await secureStorage.setItem(StorageKeys.accessToken, data.access_token);
+      assertSession(epoch);
       // 서버가 refresh 토큰을 회전(rotation)시키는 경우 새 refresh 토큰을 반드시 저장해야
       // 다음 refresh 가 성공한다. 없으면(비회전 서버) 기존 토큰을 그대로 둔다.
       if (typeof data.refresh_token === 'string' && data.refresh_token.length > 0) {
         await secureStorage.setItem(StorageKeys.refreshToken, data.refresh_token);
       }
       return true;
-    } catch {
-      return false;
+    } catch (error) {
+      throw toNetworkError(error);
     } finally {
       clearTimeout(timeout);
     }
   }
 
-  private async clearTokens() {
+  private async clearTokens(epoch: number) {
+    assertSession(epoch);
     await secureStorage.removeItem(StorageKeys.accessToken);
+    assertSession(epoch);
     await secureStorage.removeItem(StorageKeys.refreshToken);
+    assertSession(epoch);
   }
 
   /**
@@ -205,11 +252,12 @@ class ApiClient {
    * 오프라인일 때 타임아웃 3회 + 백오프까지 30초 넘게 멈춘 화면을 보여주게 된다.
    */
   async get<T>(path: string, options: { retries?: number } = {}): Promise<T> {
+    const epoch = getSessionEpoch();
     const retries = options.retries ?? GET_RETRIES;
     let lastError: unknown;
     for (let attempt = 0; attempt <= retries; attempt++) {
       try {
-        return await this.request<T>(path, { method: 'GET' });
+        return await this.request<T>(path, { method: 'GET' }, false, epoch);
       } catch (e) {
         lastError = e;
         const err = toApiError(e);
@@ -241,6 +289,7 @@ class ApiClient {
    * 재전송으로 출석이 두 번 찍히거나 신고가 중복 접수되면 안 되기 때문이다.
    */
   async postDurable(path: string, body: unknown, idempotencyKey?: string): Promise<'sent' | 'queued'> {
+    const epoch = getSessionEpoch();
     const key = idempotencyKey ?? `${path}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`;
     try {
       await this.request(path, {
@@ -252,6 +301,7 @@ class ApiClient {
       void flushQueue();
       return 'sent';
     } catch (e) {
+      assertSession(epoch);
       const err = toApiError(e);
       if (!err.retryable) throw err;
       await enqueue('POST', path, body, key);

@@ -28,6 +28,10 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - 'app.json'
+      - 'app.config.js'
+      - 'plugins/**'
+      - 'scripts/bump-version.mjs'
+      - 'scripts/version-core.cjs'
       - '.github/workflows/build-apk.yml'
   workflow_dispatch:
     inputs:
@@ -94,6 +98,20 @@ jobs:
 
       - name: Type check
         run: npm run typecheck
+
+      # 웹과 같은 원본 커밋에서 같은 다음 버전/빌드 번호를 계산한다.
+      # 기록 커밋은 웹 배포만 수행하므로 중복 push/build를 만들지 않는다.
+      - name: Bump build version
+        run: node scripts/bump-version.mjs
+
+      - name: Append build metadata to .env
+        run: |
+          {
+            echo "EXPO_PUBLIC_BUILD_NUMBER=${APP_BUILD_NUMBER}"
+            echo "EXPO_PUBLIC_APP_VERSION=${APP_VERSION}"
+            echo "EXPO_PUBLIC_COMMIT_SHA=${APP_COMMIT}"
+            echo "EXPO_PUBLIC_BUILD_TIME=${APP_BUILD_TIME}"
+          } >> .env
 
       - name: Setup JDK 17
         uses: actions/setup-java@v4

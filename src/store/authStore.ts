@@ -8,6 +8,7 @@ import { setQueueOwner } from '../data/network/offlineQueue';
 import { applySessionOwner } from './sessionScope';
 import { ApiError } from '../data/network/errors';
 import { onSessionExpired } from '../data/network/sessionEvents';
+import { advanceSessionEpoch, getSessionEpoch } from '../data/network/sessionEpoch';
 
 interface AuthState {
   user: User | null;
@@ -84,8 +85,9 @@ function sessionEndedMessage(err: ApiError | null): string {
 
 /** logout() 이 진행 중인가 — 그 사이에 오는 '세션 만료' 신호는 무시한다. */
 let endingSession = false;
+let restoreInFlight: Promise<void> | null = null;
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   loading: false,
   bootstrapped: false,
@@ -96,26 +98,36 @@ export const useAuthStore = create<AuthState>((set) => ({
   unlock: () => set({ needsUnlock: false }),
 
   login: async (id, password) => {
+    if (get().loading || endingSession || restoreInFlight) return false;
+    const epoch = advanceSessionEpoch();
     set({ loading: true, error: null });
     try {
       const session = await authRepository.login(id, password);
+      if (epoch !== getSessionEpoch()) return false;
       await bindSession(session.user);
-      set({ user: session.user, loading: false, needsUnlock: false });
+      if (epoch !== getSessionEpoch()) return false;
+      set({ user: session.user, loading: false, needsUnlock: false, sessionEndedReason: null });
       return true;
     } catch (e) {
+      if (epoch !== getSessionEpoch()) return false;
       set({ error: e instanceof Error ? e.message : '로그인에 실패했습니다', loading: false });
       return false;
     }
   },
 
   socialLogin: async (name, email) => {
+    if (get().loading || endingSession || restoreInFlight) return false;
+    const epoch = advanceSessionEpoch();
     set({ loading: true, error: null });
     try {
       const session = await authRepository.socialLogin(name, email);
+      if (epoch !== getSessionEpoch()) return false;
       await bindSession(session.user);
+      if (epoch !== getSessionEpoch()) return false;
       set({ user: session.user, loading: false, needsUnlock: false });
       return true;
     } catch (e) {
+      if (epoch !== getSessionEpoch()) return false;
       set({ error: e instanceof Error ? e.message : '간편 로그인에 실패했습니다', loading: false });
       return false;
     }
@@ -133,6 +145,8 @@ export const useAuthStore = create<AuthState>((set) => ({
    * 않고, 서버가 필요한 요청은 그대로 막힌다. 그게 맞다. 권한은 서버가 쥔다.
    */
   adminLogin: async () => {
+    if (get().loading || endingSession || restoreInFlight) return false;
+    const epoch = advanceSessionEpoch();
     set({ loading: true, error: null });
     try {
       let user: User;
@@ -142,18 +156,24 @@ export const useAuthStore = create<AuthState>((set) => ({
       } catch {
         user = { ...ADMIN_DEMO_USER };
       }
+      if (epoch !== getSessionEpoch()) return false;
       await bindSession(user);
+      if (epoch !== getSessionEpoch()) return false;
       set({ user, loading: false, needsUnlock: false });
       return true;
     } catch (e) {
+      if (epoch !== getSessionEpoch()) return false;
       set({ error: e instanceof Error ? e.message : '관리자 모드 진입에 실패했습니다', loading: false });
       return false;
     }
   },
 
   logout: async () => {
+    if (endingSession) return;
+    advanceSessionEpoch();
     // 스스로 나가는 중이다 — 로그아웃 요청 자체가 401 을 받아도 그건 '만료'가 아니다.
     endingSession = true;
+    set({ user: null, needsUnlock: false, loading: false });
     try {
       // 주인을 먼저 떼어 낸다. 로그아웃 도중 큐가 흐르더라도 남은 쓰기가
       // 곧 로그인할 다음 사람 앞으로 나가지 않게 하기 위해서다.
@@ -161,56 +181,79 @@ export const useAuthStore = create<AuthState>((set) => ({
       await authRepository.logout();
     } finally {
       endingSession = false;
-      set({ user: null, needsUnlock: false });
+      set({ user: null, needsUnlock: false, loading: false, bootstrapped: true });
     }
   },
 
-  restore: async () => {
-    try {
-      const user = await authRepository.restore();
-      await bindSession(user);
-      set({ user, bootstrapped: true, sessionEndedReason: null, needsUnlock: !!user });
-    } catch (e) {
-      await bindSession(null);
-      // 서버가 거절한 세션(만료·정지)만 사유를 남긴다. 지하에서 못 닿은 것까지
-      // 안내로 띄우면, 잠깐 끊긴 것이 계정 문제처럼 보인다.
-      const err = e instanceof ApiError ? e : null;
-      const rejected = err?.kind === 'unauthorized' || err?.kind === 'forbidden';
-      set({
-        user: null,
-        bootstrapped: true,
-        needsUnlock: false,
-        sessionEndedReason: rejected ? sessionEndedMessage(err) : null,
-      });
-    }
+  restore: () => {
+    if (restoreInFlight) return restoreInFlight;
+    if (get().loading || endingSession) return Promise.resolve();
+    const epoch = advanceSessionEpoch();
+    restoreInFlight = (async () => {
+      try {
+        const user = await authRepository.restore();
+        if (epoch !== getSessionEpoch()) return;
+        await bindSession(user);
+        if (epoch !== getSessionEpoch()) return;
+        set({ user, bootstrapped: true, sessionEndedReason: null, needsUnlock: !!user });
+      } catch (e) {
+        if (epoch !== getSessionEpoch()) return;
+        await bindSession(null);
+        if (epoch !== getSessionEpoch()) return;
+        // 서버가 거절한 세션(만료·정지)만 사유를 남긴다. 지하에서 못 닿은 것까지
+        // 안내로 띄우면, 잠깐 끊긴 것이 계정 문제처럼 보인다.
+        const err = e instanceof ApiError ? e : null;
+        const rejected = err?.kind === 'unauthorized' || err?.kind === 'forbidden';
+        set({
+          user: null,
+          bootstrapped: true,
+          needsUnlock: false,
+          sessionEndedReason: rejected ? sessionEndedMessage(err) : null,
+        });
+      } finally {
+        restoreInFlight = null;
+      }
+    })();
+    return restoreInFlight;
   },
 
   register: async (input) => {
+    if (get().loading || endingSession || restoreInFlight) return false;
+    const epoch = advanceSessionEpoch();
     set({ loading: true, error: null });
     try {
       const session = await authRepository.register(input);
+      if (epoch !== getSessionEpoch()) return false;
       await bindSession(session.user);
+      if (epoch !== getSessionEpoch()) return false;
       set({ user: session.user, loading: false, needsUnlock: false });
       return true;
     } catch (e) {
+      if (epoch !== getSessionEpoch()) return false;
       set({ error: e instanceof Error ? e.message : '회원가입에 실패했습니다', loading: false });
       return false;
     }
   },
 
   resetPassword: async (username, email, newPassword) => {
+    if (get().loading || endingSession || restoreInFlight) return false;
+    const epoch = getSessionEpoch();
     set({ loading: true, error: null });
     try {
       await authRepository.resetPassword(username, email, newPassword);
+      if (epoch !== getSessionEpoch()) return false;
       set({ loading: false });
       return true;
     } catch (e) {
+      if (epoch !== getSessionEpoch()) return false;
       set({ error: e instanceof Error ? e.message : '비밀번호 재설정에 실패했습니다', loading: false });
       return false;
     }
   },
 
   updateProfile: async (patch) => {
+    if (get().loading || endingSession || restoreInFlight) return false;
+    const epoch = getSessionEpoch();
     const current = useAuthStore.getState().user;
     if (!current) {
       set({ error: '로그인이 필요합니다' });
@@ -219,9 +262,11 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ loading: true, error: null });
     try {
       const updated = await authRepository.updateProfile(current.id, patch);
+      if (epoch !== getSessionEpoch() || get().user?.id !== current.id) return false;
       set({ user: updated, loading: false });
       return true;
     } catch (e) {
+      if (epoch !== getSessionEpoch()) return false;
       set({ error: e instanceof Error ? e.message : '정보 수정에 실패했습니다', loading: false });
       return false;
     }
@@ -242,7 +287,11 @@ export const useAuthStore = create<AuthState>((set) => ({
 onSessionExpired(() => {
   if (endingSession) return;
   if (!useAuthStore.getState().user) return;
-  void bindSession(null).finally(() => {
+  const epoch = advanceSessionEpoch();
+  // UI/동기화 구독을 즉시 닫고 디스크 정리는 이어서 한다.
+  useAuthStore.setState({ user: null, needsUnlock: false, loading: false, sessionEndedReason: sessionEndedMessage(null) });
+  void bindSession(null).catch(() => {}).then(() => {
+    if (epoch !== getSessionEpoch()) return;
     useAuthStore.setState({
       user: null,
       needsUnlock: false,

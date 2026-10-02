@@ -1,10 +1,11 @@
 // 아이디/닉네임 중복확인 입력 필드 — 라벨 + 입력 + '중복확인' 버튼 + 상태 메시지.
 // 회원가입·내 정보 수정에서 공통으로 재사용한다.
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, TextInput, Pressable, ActivityIndicator, StyleSheet, type TextInputProps } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/ThemeProvider';
 import { fontBody, fontDisplay, fontCute } from '../../theme/tokens';
+import { useIsMounted } from '../../hooks/useSafeTimeout';
 
 export type CheckState = 'idle' | 'checking' | 'available' | 'taken' | 'invalid';
 
@@ -39,6 +40,10 @@ export function AvailabilityField({
   const c = theme.colors;
   const [state, setState] = useState<CheckState>('idle');
   const [message, setMessage] = useState<string | null>(null);
+  const request = useRef(0);
+  const checking = useRef(false);
+  const latestValue = useRef(value);
+  const alive = useIsMounted();
 
   const update = (next: CheckState, msg: string | null) => {
     setState(next);
@@ -47,25 +52,43 @@ export function AvailabilityField({
   };
 
   const handleChange = (t: string) => {
+    request.current++;
+    checking.current = false;
+    latestValue.current = t;
     onChangeText(t);
     // 값이 바뀌면 이전 확인 결과는 무효 — 다시 확인하도록 초기화.
     if (state !== 'idle') update('idle', null);
   };
 
   const onCheck = async () => {
+    if (checking.current) return;
     const err = validate(value);
     if (err) {
       update('invalid', err);
       return;
     }
     update('checking', null);
+    checking.current = true;
+    const ticket = ++request.current;
     try {
       const taken = await checkTaken(value.trim());
+      if (!alive() || ticket !== request.current) return;
       update(taken ? 'taken' : 'available', taken ? takenText : availableText);
     } catch {
+      if (!alive() || ticket !== request.current) return;
       update('invalid', '확인 중 오류가 발생했어요. 다시 시도해주세요');
+    } finally {
+      if (ticket === request.current) checking.current = false;
     }
   };
+
+  useEffect(() => {
+    if (latestValue.current === value) return;
+    latestValue.current = value;
+    request.current++;
+    checking.current = false;
+    update('idle', null);
+  }, [value]);
 
   const borderColor =
     state === 'available' ? c.success : state === 'taken' || state === 'invalid' ? c.error : c.border;

@@ -13,41 +13,44 @@
 //     (1)만 있으면 역할을 떼는 것으로 통과해 버리므로, 접근 경로까지 함께 묶어야 한다.
 
 const mockPush = jest.fn();
+const mockMark = jest.fn(() => Promise.resolve());
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush, replace: jest.fn(), back: jest.fn() }),
   useLocalSearchParams: () => ({}),
   // 포커스 시점의 뒤로가기 가로채기 — 이 검사와 무관하다.
-  useFocusEffect: () => undefined,
+  useFocusEffect: (effect: () => void) => require('react').useEffect(effect, [effect]),
 }));
 
 // 데이터 훅은 네트워크·react-query 를 끌고 온다. 화면 구조만 보므로 덱 한 장으로 고정한다.
-jest.mock('../../src/hooks/useCards', () => ({
+jest.mock('../../hooks/useCards', () => ({
   useAllCards: () => ({ data: [], isLoading: false, error: null, refetch: jest.fn() }),
-  useMarkCard: () => ({ mutate: jest.fn(), mutateAsync: jest.fn(() => Promise.resolve()) }),
+  useMarkCard: () => ({ mutate: mockMark, mutateAsync: mockMark }),
 }));
-jest.mock('../../src/hooks/useReview', () => ({ useReview: () => ({ dueCards: [] }) }));
-jest.mock('../../src/hooks/useDifficultyPoll', () => ({
+jest.mock('../../hooks/useReview', () => ({ useReview: () => ({ dueCards: [] }) }));
+jest.mock('../../hooks/useDifficultyPoll', () => ({
   useDifficultyVote: () => jest.fn(),
   useDifficultyPoll: () => ({ counts: null, mine: null, loaded: true }),
 }));
-jest.mock('../../src/hooks/useDailyQuota', () => ({
+jest.mock('../../hooks/useDailyQuota', () => ({
   useDailyQuota: () => ({ limit: 3, used: 0, remaining: 3, canLearn: true }),
   recordNewLearned: jest.fn(),
 }));
-jest.mock('../../src/hooks/useDailyAssignment', () => ({
+jest.mock('../../hooks/useDailyAssignment', () => ({
   DAILY_ASSIGNMENT_KEY: 'daily-assignment',
   useDailyAssignment: () => ({ assignment: { cards: [{ card: mockCard, done: false }] } }),
 }));
 
 import React from 'react';
-import { render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import { Animated } from 'react-native';
+import { useDiffPollStore } from '../../store/diffPollStore';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import CardsScreen from '../(tabs)/cards';
-import { ThemeProvider } from '../../src/theme/ThemeProvider';
-import { useAuthStore } from '../../src/store/authStore';
-import { nestedButtonLabels, type TreeNode } from '../../src/test-utils/nestedButtons';
-import type { LearningCard } from '../../src/domain/models/LearningCard';
-import type { User } from '../../src/domain/models/User';
+import CardsScreen from '../../../app/(tabs)/cards';
+import { ThemeProvider } from '../../theme/ThemeProvider';
+import { useAuthStore } from '../../store/authStore';
+import { nestedButtonLabels, type TreeNode } from '../../test-utils/nestedButtons';
+import type { LearningCard } from '../../domain/models/LearningCard';
+import type { User } from '../../domain/models/User';
 
 // 객관식 + 이미지 카드 — 앞면에 '진짜 버튼'이 가장 많이 생기는 조합이다
 // (보기 4개 + 이미지 확대).
@@ -107,6 +110,30 @@ const nested = () => nestedButtonLabels(screen.UNSAFE_root as unknown as TreeNod
 // 진행시킬 이유가 없다 — 타이머를 세워 둔 채로 첫 프레임만 본다.
 beforeAll(() => jest.useFakeTimers());
 afterAll(() => jest.useRealTimers());
+
+it('완료 버튼 연타와 화면 이탈 후 애니메이션 완료가 중복/늦은 판정을 만들지 않는다', () => {
+  const type = mockCard.type;
+  mockCard.type = 'explanation';
+  useDiffPollStore.setState({ myVotes: { [mockCard.id]: 'easy' } });
+  let callback!: (result: { finished: boolean }) => void;
+  const parallel = jest.spyOn(Animated, 'parallel').mockReturnValue({
+    start: (cb) => { callback = cb!; }, stop: jest.fn(), reset: jest.fn(),
+  });
+  try {
+    const view = wrap('이용재');
+    fireEvent.press(screen.getByLabelText('카드 뒤집기'));
+    act(() => jest.advanceTimersByTime(400));
+    fireEvent.press(screen.getByText('이해했어요'));
+    fireEvent.press(screen.getByText('이해했어요'));
+    expect(parallel).toHaveBeenCalledTimes(1);
+    view.unmount();
+    act(() => callback({ finished: true }));
+    expect(mockMark).not.toHaveBeenCalled();
+  } finally {
+    parallel.mockRestore();
+    mockCard.type = type;
+  }
+});
 
 describe.each([
   ['클래식 트랙', '이용재'],

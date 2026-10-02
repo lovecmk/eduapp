@@ -27,6 +27,12 @@ Actions 가 자동으로 빌드·배포하고, 실행 중인 사용자에게 "�
 
 ## 자동 배포 파이프라인 (`.github/workflows/deploy.yml`)
 
+웹·자동 APK·OTA는 같은 원본 커밋에서 `scripts/bump-version.mjs`로 다음 버전을 계산한다.
+버전 기록을 main에 push하는 곳은 웹 배포뿐이며 `[skip ci]`로 중복 빌드를 막는다.
+APK·OTA도 `EXPO_PUBLIC_BUILD_NUMBER`, 앱 버전, 커밋, 빌드 시각을 번들에 넣는다.
+APK의 Android versionCode/iOS buildNumber는 이 빌드 번호를 따른다.
+OTA는 운영 API 주소와 목업 비활성 설정을 명시한다.
+
 `main` 푸시 또는 수동 실행(`workflow_dispatch`) 시:
 
 1. Secrets → `.env` 주입 (없으면 목업 폴백값)

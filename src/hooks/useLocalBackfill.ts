@@ -8,6 +8,7 @@ import { FEED_KEY } from './useFeed';
 import { tipsKey } from './useCardTips';
 import { QNA_KEYS } from './useQna';
 import { logger } from '../utils/logger';
+import { getSessionEpoch } from '../data/network/sessionEpoch';
 
 /** 같은 실행에서 너무 자주 두드리지 않는다 — 라우트가 없으면 매번 404 만 받는다. */
 const MIN_INTERVAL_MS = 10 * 60_000;
@@ -31,8 +32,10 @@ export function useLocalBackfill(): void {
       if (running.current || Date.now() - lastRun.current < MIN_INTERVAL_MS) return;
       running.current = true;
       lastRun.current = Date.now();
-      try {
-        const r = await runLocalBackfill(live);
+        try {
+          const epoch = getSessionEpoch();
+          const r = await runLocalBackfill(live);
+          if (epoch !== getSessionEpoch()) return;
         if (r.feed) void qc.invalidateQueries({ queryKey: FEED_KEY });
         for (const cardId of r.tips) void qc.invalidateQueries({ queryKey: tipsKey(cardId) });
         if (r.votes) void qc.invalidateQueries({ queryKey: ['difficulty-poll'] });

@@ -136,6 +136,7 @@ function FormAuthor({ createCards, onDone }: { createCards: ReturnType<typeof us
   const errFor = (f: keyof CardDraft) => submitted && errors.find((e) => e.field === f)?.message;
 
   const submit = async () => {
+    if (createCards.isPending) return;
     setSubmitted(true);
     setSendError(null);
     if (errors.length > 0) return;
@@ -238,6 +239,7 @@ function JsonAuthor({ createCards, onDone }: { createCards: ReturnType<typeof us
 
   const submit = async () => {
     let parsed: unknown;
+    if (createCards.isPending) return;
     try {
       parsed = JSON.parse(text);
     } catch {
@@ -245,6 +247,7 @@ function JsonAuthor({ createCards, onDone }: { createCards: ReturnType<typeof us
       return;
     }
     const arr = Array.isArray(parsed) ? parsed : [parsed];
+    if (arr.length === 0) { setResult({ ok: false, msg: '등록할 문제를 한 개 이상 넣어주세요' }); return; }
     const allErrors: string[] = [];
     arr.forEach((d, i) => {
       const errs = validateCardDraft(d as Partial<CardDraft>);

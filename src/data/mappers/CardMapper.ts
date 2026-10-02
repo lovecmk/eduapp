@@ -2,6 +2,8 @@ import type { CardDTO } from '../dto/CardDTO';
 import type { LearningCard, CardCategory, CardStatus } from '../../domain/models/LearningCard';
 import { parseDate } from './_date';
 import { logger } from '../../utils/logger';
+import { ApiError } from '../network/errors';
+import { validateArray } from '../network/validation';
 
 /**
  * 서버 분류 코드 → 앱 대분류.
@@ -60,6 +62,10 @@ const CARD_TYPE_MAP: Record<string, 'explanation' | 'ox' | 'choice'> = {
   CHOICE: 'choice',
 };
 
+function codeValue<T extends string>(map: Record<string, T>, code: unknown, fallback: T): T {
+  return typeof code === 'string' && Object.prototype.hasOwnProperty.call(map, code) ? map[code] : fallback;
+}
+
 /**
  * 값이 비어 있는가 — **문자열 'null' 도 비어 있는 것으로 본다.**
  *
@@ -74,7 +80,7 @@ const CARD_TYPE_MAP: Record<string, 'explanation' | 'ox' | 'choice'> = {
  * 카드마다 매번. 사용자는 앱이 사진을 잃어버렸다고 읽는다.
  */
 function blank(value: string | null | undefined): boolean {
-  const v = value?.trim() ?? '';
+  const v = typeof value === 'string' ? value.trim() : '';
   return v === '' || v.toLowerCase() === 'null' || v.toLowerCase() === 'undefined';
 }
 
@@ -103,7 +109,7 @@ function quizIsAnswerable(dto: CardDTO): boolean {
   const choices = dto.choices ?? [];
   const answer = dto.answer_index;
   return (
-    choices.length >= 2 &&
+    Array.isArray(choices) && choices.length >= 2 && choices.every((v) => typeof v === 'string' && !!v.trim()) &&
     typeof answer === 'number' &&
     Number.isInteger(answer) &&
     answer >= 0 &&
@@ -113,6 +119,10 @@ function quizIsAnswerable(dto: CardDTO): boolean {
 
 export class CardMapper {
   static toDomain(dto: CardDTO): LearningCard {
+    if (!dto || typeof dto !== 'object' || typeof dto.id !== 'string' || !dto.id.trim()) {
+      throw new ApiError(502, '학습카드 응답 형식이 올바르지 않습니다', 'server');
+    }
+    const text = (value: unknown) => typeof value === 'string' ? value.trim() : '';
     // 알 수 없는 코드는 폴백하되(화면은 계속 뜬다) 스키마 불일치를 구조화 로그로 남긴다.
     if (!CATEGORY_MAP[dto.category_cd]) {
       logger.warn('dto_unknown_code', { mapper: 'card', field: 'category_cd', value: dto.category_cd });
@@ -120,7 +130,7 @@ export class CardMapper {
     if (!STATUS_MAP[dto.status_cd]) {
       logger.warn('dto_unknown_code', { mapper: 'card', field: 'status_cd', value: dto.status_cd });
     }
-    const declaredType = CARD_TYPE_MAP[dto.card_type_cd ?? 'EXPLANATION'] ?? 'explanation';
+    const declaredType = codeValue(CARD_TYPE_MAP, dto.card_type_cd, 'explanation');
     const answerable = declaredType === 'explanation' || quizIsAnswerable(dto);
     if (!answerable) {
       logger.warn('card_quiz_unanswerable', {
@@ -134,24 +144,24 @@ export class CardMapper {
     return {
       id: dto.id,
       groupCode: optional(dto.group_cd),
-      category: CATEGORY_MAP[dto.category_cd] ?? '전기 위험',
-      subCategory: dto.sub_category_nm?.trim() ?? '',
-      topic: dto.topic_nm?.trim() ?? '',
-      keywords: dto.keywords ?? [],
+      category: codeValue(CATEGORY_MAP, dto.category_cd, '전기 위험'),
+      subCategory: text(dto.sub_category_nm),
+      topic: text(dto.topic_nm),
+      keywords: Array.isArray(dto.keywords) ? dto.keywords.filter((v) => typeof v === 'string') : [],
       industry: optional(dto.industry_nm),
-      title: dto.title_txt?.trim() ?? '',
+      title: text(dto.title_txt),
       format: optional(dto.format_nm),
-      difficulty: DIFFICULTY_MAP[dto.difficulty_cd ?? 'MEDIUM'] ?? 'medium',
-      studySeconds: dto.study_seconds ?? 40,
-      situation: dto.situation_txt?.trim() ?? '',
-      question: dto.question_txt?.trim() ?? '',
+      difficulty: codeValue(DIFFICULTY_MAP, dto.difficulty_cd, 'medium'),
+      studySeconds: typeof dto.study_seconds === 'number' && Number.isFinite(dto.study_seconds) && dto.study_seconds > 0 ? dto.study_seconds : 40,
+      situation: text(dto.situation_txt),
+      question: text(dto.question_txt),
       imageUrl: optional(dto.image_url),
-      principle: dto.principle_txt?.trim() ?? '',
+      principle: text(dto.principle_txt),
       // 선택 본문도 같은 규칙으로 읽는다 — 'null' 이 그대로 통과하면 해설에
       // "null" 이라고 적힌 단계가 그려진다(사진에서 이미 겪은 것과 같은 원인).
       process: optional(dto.process_txt),
       fireTriangle: optional(dto.fire_triangle_txt),
-      conclusion: dto.conclusion_txt?.trim() ?? '',
+      conclusion: text(dto.conclusion_txt),
       answer: optional(dto.answer_txt),
       improvement: optional(dto.improvement_txt),
       answerImageUrl: optional(dto.answer_image_url),
@@ -164,12 +174,12 @@ export class CardMapper {
       // 문제 사진이든 해설 사진이든 하나라도 있으면 '사진 있는 카드'다
       // (시드 생성기가 세는 방식과 같다 — 두 곳이 갈리면 목록과 상세가 어긋난다).
       hasImage: !blank(dto.image_url) || !blank(dto.answer_image_url),
-      status: STATUS_MAP[dto.status_cd] ?? 'new',
+      status: codeValue(STATUS_MAP, dto.status_cd, 'new'),
       dueAt: parseDate(dto.due_at),
     };
   }
 
   static toDomainList(dtos: CardDTO[]): LearningCard[] {
-    return dtos.map(CardMapper.toDomain);
+    return validateArray<CardDTO>(dtos).map(CardMapper.toDomain);
   }
 }

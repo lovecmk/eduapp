@@ -35,9 +35,11 @@ export default function LoginScreen() {
 
   // 저장해 둔 아이디가 있으면 자동으로 채우고 '아이디 저장'을 켜둔다.
   useEffect(() => {
+    let cancelled = false;
     AsyncStorage.getItem(SAVED_ID_KEY).then((saved) => {
-      if (saved) { setId(saved); setRememberId(true); }
-    });
+      if (saved && !cancelled) { setId(saved); setRememberId(true); }
+    }).catch(() => {});
+    return () => { cancelled = true; };
   }, []);
 
   const onLogin = async () => {

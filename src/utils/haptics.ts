@@ -17,7 +17,7 @@ const supported = Platform.OS !== 'web';
 function run(effect: () => Promise<unknown>): void {
   if (!supported) return;
   // 실패(미지원 기기·권한·에뮬레이터)는 조용히 삼킨다. 촉감이 없다고 흐름이 멈추면 안 된다.
-  effect().catch(() => {});
+  try { effect().catch(() => {}); } catch { /* 네이티브 모듈이 동기로 실패해도 터치 동작은 이어간다. */ }
 }
 
 /** 가벼운 탭 확인감 — 버튼·칩·아이콘 등 일상적 터치의 "눌렸어요" 신호. */

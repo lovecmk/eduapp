@@ -11,7 +11,9 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "verify": "npm run typecheck && npm test",
-    "export:cards": "node scripts/export-cards.mjs"
+    "export:cards": "node scripts/export-cards.mjs",
+    "audit:ui": "node scripts/audit-ui.mjs",
+    "test:ui": "node scripts/qa/ui-audit-check.mjs"
   },
   "dependencies": {
     "@expo/metro-runtime": "~4.0.1",
@@ -53,6 +55,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
+    "@playwright/test": "^1.63.0",
     "@testing-library/react-native": "^12.9.0",
     "@types/jest": "^29.5.14",
     "@types/react": "~18.3.12",

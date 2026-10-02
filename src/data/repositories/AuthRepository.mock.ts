@@ -4,6 +4,7 @@ import type { User } from '../../domain/models/User';
 import { secureStorage, StorageKeys } from '../storage/secureStorage';
 import { mockUserDb } from '../auth/mockUserDb';
 import { delay } from './_delay';
+import { getSessionEpoch, assertSessionEpoch } from '../network/sessionEpoch';
 
 /**
  * 목업 인증 — AsyncStorage 기반 사용자 레지스트리(mockUserDb)를 사용해
@@ -55,19 +56,23 @@ export class MockAuthRepository implements IAuthRepository {
     return ok;
   }
 
-  private async persistSession(user: User): Promise<AuthSession> {
+  private async persistSession(user: User, epoch: number): Promise<AuthSession> {
+    assertSessionEpoch(epoch);
     const session: AuthSession = {
       user,
       accessToken: 'mock-access-token',
       refreshToken: 'mock-refresh-token',
     };
     await secureStorage.setItem(StorageKeys.accessToken, session.accessToken);
+    assertSessionEpoch(epoch);
     await secureStorage.setItem(StorageKeys.refreshToken, session.refreshToken);
+    assertSessionEpoch(epoch);
     await secureStorage.setItem(StorageKeys.mockUser, JSON.stringify(session.user));
     return session;
   }
 
   async login(id: string, password: string): Promise<AuthSession> {
+    const epoch = getSessionEpoch();
     await delay(400);
     if (!id.trim() || !password.trim()) {
       throw new Error('아이디와 비밀번호를 모두 입력하세요');
@@ -79,10 +84,11 @@ export class MockAuthRepository implements IAuthRepository {
     if (account.password !== password) {
       throw new Error('비밀번호가 일치하지 않습니다');
     }
-    return this.persistSession(account.user);
+    return this.persistSession(account.user, epoch);
   }
 
   async socialLogin(name: string, email: string): Promise<AuthSession> {
+    const epoch = getSessionEpoch();
     await delay(350);
     // 이름으로 기존 계정을 찾고, 없으면 데모 계정을 즉석에서 만든다.
     let account = await mockUserDb.find(name);
@@ -102,10 +108,11 @@ export class MockAuthRepository implements IAuthRepository {
       await mockUserDb.create({ username: name, password: `social-${Math.random().toString(36).slice(2)}`, user });
       account = { username: name, password: '', user };
     }
-    return this.persistSession(account.user);
+    return this.persistSession(account.user, epoch);
   }
 
   async register(input: SignupInput): Promise<AuthSession> {
+    const epoch = getSessionEpoch();
     await delay(500);
     const user: User = {
       id: `u-${Date.now()}`,
@@ -120,7 +127,7 @@ export class MockAuthRepository implements IAuthRepository {
       isActive: true, isAdmin: false,
     };
     await mockUserDb.create({ username: input.username.trim(), password: input.password, user });
-    return this.persistSession(user);
+    return this.persistSession(user, epoch);
   }
 
   async isNicknameTaken(nickname: string, excludeUserId?: string): Promise<boolean> {
@@ -129,6 +136,7 @@ export class MockAuthRepository implements IAuthRepository {
   }
 
   async updateProfile(userId: string, patch: ProfileUpdateInput): Promise<User> {
+    const epoch = getSessionEpoch();
     await delay(400);
     const clean: Partial<User> = {};
     if (patch.name !== undefined) clean.name = patch.name.trim();
@@ -137,6 +145,7 @@ export class MockAuthRepository implements IAuthRepository {
     if (patch.org !== undefined) clean.org = patch.org.trim() || undefined;
     if (patch.jobTitle !== undefined) clean.jobTitle = patch.jobTitle.trim() || undefined;
     const updated = await mockUserDb.updateUser(userId, clean);
+    assertSessionEpoch(epoch);
     // 세션 캐시(secureStorage)도 갱신해 앱 재시작(restore) 후에도 유지되게 한다.
     await secureStorage.setItem(StorageKeys.mockUser, JSON.stringify(updated));
     return updated;

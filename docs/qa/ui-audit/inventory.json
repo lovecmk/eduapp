@@ -1,0 +1,4765 @@
+{
+  "totals": {
+    "pages": 32,
+    "events": 440,
+    "navigation": 77,
+    "async": 243
+  },
+  "files": [
+    {
+      "file": "app/(auth)/find-pw.tsx",
+      "page": true,
+      "events": [
+        {
+          "line": 81,
+          "event": "onPress",
+          "handler": "{goLogin}"
+        },
+        {
+          "line": 86,
+          "event": "onChangeText",
+          "handler": "{(t) => { setIdentifier(t); clearField('identifier'); }}"
+        },
+        {
+          "line": 88,
+          "event": "onChangeText",
+          "handler": "{(t) => { setPw(t); clearField('pw'); }}"
+        },
+        {
+          "line": 90,
+          "event": "onChangeText",
+          "handler": "{(t) => { setPw2(t); clearField('pw2'); }}"
+        },
+        {
+          "line": 94,
+          "event": "onPress",
+          "handler": "{onSubmit}"
+        },
+        {
+          "line": 98,
+          "event": "onPress",
+          "handler": "{goLogin}"
+        }
+      ],
+      "navigation": [
+        {
+          "line": 36,
+          "call": "router.back()"
+        },
+        {
+          "line": 37,
+          "call": "router.replace(ROUTES.login)"
+        }
+      ],
+      "async": [
+        {
+          "line": 45,
+          "name": "onSubmit"
+        }
+      ]
+    },
+    {
+      "file": "app/(auth)/login.tsx",
+      "page": true,
+      "events": [
+        {
+          "line": 112,
+          "event": "onPress",
+          "handler": "{onLogoTap}"
+        },
+        {
+          "line": 155,
+          "event": "onChangeText",
+          "handler": "{(t) => { setId(t); if (formError) setFormError(null); }}"
+        },
+        {
+          "line": 163,
+          "event": "onChangeText",
+          "handler": "{(t) => { setPw(t); if (formError) setFormError(null); }}"
+        },
+        {
+          "line": 172,
+          "event": "onPress",
+          "handler": "{() => setRememberId((v) => !v)}"
+        },
+        {
+          "line": 185,
+          "event": "onPress",
+          "handler": "{onLogin}"
+        },
+        {
+          "line": 200,
+          "event": "onPress",
+          "handler": "{() => router.push(ROUTES.signup)}"
+        },
+        {
+          "line": 204,
+          "event": "onPress",
+          "handler": "{() => router.push(ROUTES.findPw)}"
+        },
+        {
+          "line": 230,
+          "event": "onPress",
+          "handler": "{onSocial}"
+        }
+      ],
+      "navigation": [
+        {
+          "line": 58,
+          "call": "router.replace(ROUTES.home)"
+        },
+        {
+          "line": 72,
+          "call": "router.replace(ROUTES.home)"
+        },
+        {
+          "line": 98,
+          "call": "router.replace(ROUTES.home)"
+        },
+        {
+          "line": 200,
+          "call": "router.push(ROUTES.signup)"
+        },
+        {
+          "line": 204,
+          "call": "router.push(ROUTES.findPw)"
+        }
+      ],
+      "async": [
+        {
+          "line": 45,
+          "name": "onLogin"
+        },
+        {
+          "line": 67,
+          "name": "onSocial"
+        },
+        {
+          "line": 93,
+          "name": "enterAdminMode"
+        }
+      ]
+    },
+    {
+      "file": "app/(auth)/signup.tsx",
+      "page": true,
+      "events": [
+        {
+          "line": 163,
+          "event": "onChangeText",
+          "handler": "{setUsername}"
+        },
+        {
+          "line": 172,
+          "event": "onStateChange",
+          "handler": "{setUsernameState}"
+        },
+        {
+          "line": 179,
+          "event": "onChangeText",
+          "handler": "{setNickname}"
+        },
+        {
+          "line": 184,
+          "event": "onStateChange",
+          "handler": "{setNicknameState}"
+        },
+        {
+          "line": 188,
+          "event": "onChangeText",
+          "handler": "{(t) => { setName(t); clearField('name'); }}"
+        },
+        {
+          "line": 190,
+          "event": "onChangeText",
+          "handler": "{onEmailChange}"
+        },
+        {
+          "line": 202,
+          "event": "onPress",
+          "handler": "{sendCode}"
+        },
+        {
+          "line": 221,
+          "event": "onChangeText",
+          "handler": "{(t) => { setCodeInput(t); setCodeError(null); }}"
+        },
+        {
+          "line": 224,
+          "event": "onPress",
+          "handler": "{verifyCode}"
+        },
+        {
+          "line": 234,
+          "event": "onChangeText",
+          "handler": "{setOrg}"
+        },
+        {
+          "line": 235,
+          "event": "onChangeText",
+          "handler": "{(t) => { setPw(t); clearField('pw'); }}"
+        },
+        {
+          "line": 237,
+          "event": "onChangeText",
+          "handler": "{(t) => { setPw2(t); clearField('pw2'); }}"
+        },
+        {
+          "line": 241,
+          "event": "onPress",
+          "handler": "{onSubmit}"
+        },
+        {
+          "line": 245,
+          "event": "onPress",
+          "handler": "{goLogin}"
+        }
+      ],
+      "navigation": [
+        {
+          "line": 106,
+          "call": "router.back()"
+        },
+        {
+          "line": 107,
+          "call": "router.replace(ROUTES.login)"
+        },
+        {
+          "line": 147,
+          "call": "router.replace(ROUTES.home)"
+        }
+      ],
+      "async": [
+        {
+          "line": 67,
+          "name": "sendCode"
+        },
+        {
+          "line": 86,
+          "name": "verifyCode"
+        },
+        {
+          "line": 110,
+          "name": "onSubmit"
+        }
+      ]
+    },
+    {
+      "file": "app/(tabs)/cards.tsx",
+      "page": true,
+      "events": [
+        {
+          "line": 797,
+          "event": "onRetry",
+          "handler": "{refetch}"
+        },
+        {
+          "line": 822,
+          "event": "onPress",
+          "handler": "{() => endFlow(router, ROUTES.review)}"
+        },
+        {
+          "line": 875,
+          "event": "onPress",
+          "handler": "{() => endFlow(router, returnTo ?? (isFocusMode ? ROUTES.contents : noContentAtAll ? ROUTES.home : ROUTES.review))}"
+        },
+        {
+          "line": 918,
+          "event": "onPress",
+          "handler": "{() => endFlow(router, isCategoryMode || isDueMode ? ROUTES.review : ROUTES.collection('today'))}"
+        },
+        {
+          "line": 925,
+          "event": "onPress",
+          "handler": "{() => endFlow(router, ROUTES.home)}"
+        },
+        {
+          "line": 991,
+          "event": "onPress",
+          "handler": "{toggleKeepScreenOn}"
+        },
+        {
+          "line": 1079,
+          "event": "onPress",
+          "handler": "{onCardPress}"
+        },
+        {
+          "line": 1109,
+          "event": "onScroll",
+          "handler": "{(e) => { quizBody.scrollProps.onScroll(e); markBodyScroll(); }}"
+        },
+        {
+          "line": 1111,
+          "event": "onPress",
+          "handler": "{onCardPress}"
+        },
+        {
+          "line": 1132,
+          "event": "onPick",
+          "handler": "{handleQuizPick}"
+        },
+        {
+          "line": 1136,
+          "event": "onExpire",
+          "handler": "{haptic}"
+        },
+        {
+          "line": 1152,
+          "event": "onScroll",
+          "handler": "{(e) => { frontBody.scrollProps.onScroll(e); markBodyScroll(); }}"
+        },
+        {
+          "line": 1154,
+          "event": "onPress",
+          "handler": "{onCardPress}"
+        },
+        {
+          "line": 1174,
+          "event": "onExpire",
+          "handler": "{haptic}"
+        },
+        {
+          "line": 1194,
+          "event": "onPress",
+          "handler": "{onCardPress}"
+        },
+        {
+          "line": 1224,
+          "event": "onScroll",
+          "handler": "{(e) => {\r\n                  backBody.scrollProps.onScroll(e);\r\n                  markBodyScroll();\r\n                }}"
+        },
+        {
+          "line": 1229,
+          "event": "onPress",
+          "handler": "{onCardPress}"
+        },
+        {
+          "line": 1284,
+          "event": "onPress",
+          "handler": "{onCardPress}"
+        },
+        {
+          "line": 1302,
+          "event": "onPress",
+          "handler": "{againUp}"
+        },
+        {
+          "line": 1307,
+          "event": "onPress",
+          "handler": "{completeLeft}"
+        },
+        {
+          "line": 1326,
+          "event": "onPress",
+          "handler": "{onCardPress}"
+        },
+        {
+          "line": 1343,
+          "event": "onPress",
+          "handler": "{completeLeft}"
+        },
+        {
+          "line": 1348,
+          "event": "onPress",
+          "handler": "{againUp}"
+        },
+        {
+          "line": 1358,
+          "event": "onClose",
+          "handler": "{() => setReportOpen(false)}"
+        },
+        {
+          "line": 1367,
+          "event": "onSelect",
+          "handler": "{(choice) => resolveAsk(choice)}"
+        },
+        {
+          "line": 1368,
+          "event": "onSkip",
+          "handler": "{() => resolveAsk(null)}"
+        },
+        {
+          "line": 1380,
+          "event": "onRequestClose",
+          "handler": "{() => setExitConfirm(false)}"
+        },
+        {
+          "line": 1382,
+          "event": "onPress",
+          "handler": "{() => setExitConfirm(false)}"
+        },
+        {
+          "line": 1394,
+          "event": "onPress",
+          "handler": "{() => setExitConfirm(false)}"
+        },
+        {
+          "line": 1404,
+          "event": "onPress",
+          "handler": "{() => leaveSession(ROUTES.review)}"
+        },
+        {
+          "line": 1409,
+          "event": "onPress",
+          "handler": "{() => leaveSession(ROUTES.home)}"
+        },
+        {
+          "line": 1414,
+          "event": "onPress",
+          "handler": "{() => leaveSession(ROUTES.home)}"
+        }
+      ],
+      "navigation": [],
+      "async": []
+    },
+    {
+      "file": "app/(tabs)/community.tsx",
+      "page": true,
+      "events": [
+        {
+          "line": 91,
+          "event": "onScroll",
+          "handler": "{onScroll}"
+        },
+        {
+          "line": 106,
+          "event": "onPress",
+          "handler": "{() => setComposeOpen(true)}"
+        },
+        {
+          "line": 119,
+          "event": "onPress",
+          "handler": "{(id) => router.push(ROUTES.qna(id) as never)}"
+        },
+        {
+          "line": 133,
+          "event": "onPress",
+          "handler": "{() => router.push(ROUTES.qna(q.id) as never)}"
+        },
+        {
+          "line": 158,
+          "event": "onClose",
+          "handler": "{() => setComposeOpen(false)}"
+        },
+        {
+          "line": 158,
+          "event": "onCreated",
+          "handler": "{(id) => router.push(ROUTES.qna(id) as never)}"
+        },
+        {
+          "line": 170,
+          "event": "onPress",
+          "handler": "{onPress}"
+        }
+      ],
+      "navigation": [
+        {
+          "line": 119,
+          "call": "router.push(ROUTES.qna(id) as never)"
+        },
+        {
+          "line": 133,
+          "call": "router.push(ROUTES.qna(q.id) as never)"
+        },
+        {
+          "line": 158,
+          "call": "router.push(ROUTES.qna(id) as never)"
+        }
+      ],
+      "async": [
+        {
+          "line": 73,
+          "name": "callback"
+        }
+      ]
+    },
+    {
+      "file": "app/(tabs)/index.tsx",
+      "page": true,
+      "events": [
+        {
+          "line": 258,
+          "event": "onRefresh",
+          "handler": "{onRefresh}"
+        },
+        {
+          "line": 361,
+          "event": "onPress",
+          "handler": "{() => router.push(cta.to as never)}"
+        },
+        {
+          "line": 379,
+          "event": "onPress",
+          "handler": "{() => router.push(ROUTES.stats)}"
+        },
+        {
+          "line": 385,
+          "event": "onRetry",
+          "handler": "{refetchStats}"
+        },
+        {
+          "line": 400,
+          "event": "onClose",
+          "handler": "{dismissMoment}"
+        },
+        {
+          "line": 400,
+          "event": "onAction",
+          "handler": "{momentAction}"
+        },
+        {
+          "line": 403,
+          "event": "onClose",
+          "handler": "{() => setResumeOpen(false)}"
+        },
+        {
+          "line": 409,
+          "event": "onPress",
+          "handler": "{() => { setResumeOpen(false); router.push(ROUTES.cards); }}"
+        },
+        {
+          "line": 415,
+          "event": "onPress",
+          "handler": "{() => setResumeOpen(false)}"
+        }
+      ],
+      "navigation": [
+        {
+          "line": 127,
+          "call": "router.push(ROUTES.factionSelect as never)"
+        },
+        {
+          "line": 206,
+          "call": "router.push(ROUTES.cards)"
+        },
+        {
+          "line": 361,
+          "call": "router.push(cta.to as never)"
+        },
+        {
+          "line": 379,
+          "call": "router.push(ROUTES.stats)"
+        },
+        {
+          "line": 409,
+          "call": "router.push(ROUTES.cards)"
+        }
+      ],
+      "async": [
+        {
+          "line": 220,
+          "name": "callback"
+        }
+      ]
+    },
+    {
+      "file": "app/(tabs)/mypage.tsx",
+      "page": true,
+      "events": [
+        {
+          "line": 50,
+          "event": "onPress",
+          "handler": "{() => router.push(ROUTES.profile as never)}"
+        },
+        {
+          "line": 83,
+          "event": "onPress",
+          "handler": "{() => router.push(ROUTES.stats)}"
+        },
+        {
+          "line": 104,
+          "event": "onPress",
+          "handler": "{() => setGuideOpen(true)}"
+        },
+        {
+          "line": 110,
+          "event": "onPress",
+          "handler": "{() => router.push(ROUTES.stats)}"
+        },
+        {
+          "line": 126,
+          "event": "onPress",
+          "handler": "{() => router.push(ROUTES.collectionBook as never)}"
+        },
+        {
+          "line": 149,
+          "event": "onPress",
+          "handler": "{() => router.push(ROUTES.trophy as never)}"
+        },
+        {
+          "line": 171,
+          "event": "onPress",
+          "handler": "{() => router.push(ROUTES.userSearch as never)}"
+        },
+        {
+          "line": 178,
+          "event": "onPress",
+          "handler": "{() => router.push(ROUTES.settings)}"
+        },
+        {
+          "line": 182,
+          "event": "onClose",
+          "handler": "{closeGuide}"
+        },
+        {
+          "line": 212,
+          "event": "onPress",
+          "handler": "{onPress}"
+        }
+      ],
+      "navigation": [
+        {
+          "line": 50,
+          "call": "router.push(ROUTES.profile as never)"
+        },
+        {
+          "line": 83,
+          "call": "router.push(ROUTES.stats)"
+        },
+        {
+          "line": 110,
+          "call": "router.push(ROUTES.stats)"
+        },
+        {
+          "line": 126,
+          "call": "router.push(ROUTES.collectionBook as never)"
+        },
+        {
+          "line": 149,
+          "call": "router.push(ROUTES.trophy as never)"
+        },
+        {
+          "line": 171,
+          "call": "router.push(ROUTES.userSearch as never)"
+        },
+        {
+          "line": 178,
+          "call": "router.push(ROUTES.settings)"
+        }
+      ],
+      "async": []
+    },
+    {
+      "file": "app/(tabs)/review.tsx",
+      "page": true,
+      "events": [
+        {
+          "line": 104,
+          "event": "onRetry",
+          "handler": "{refetch}"
+        },
+        {
+          "line": 115,
+          "event": "onRefresh",
+          "handler": "{onRefresh}"
+        },
+        {
+          "line": 133,
+          "event": "onStart",
+          "handler": "{startReview}"
+        },
+        {
+          "line": 159,
+          "event": "onPress",
+          "handler": "{() => router.push(ROUTES.collection(col.type) as never)}"
+        },
+        {
+          "line": 183,
+          "event": "onPress",
+          "handler": "{() => router.push(ROUTES.cards)}"
+        },
+        {
+          "line": 195,
+          "event": "onPress",
+          "handler": "{() => router.push({ pathname: ROUTES.cards, params: { category: s.category } })}"
+        }
+      ],
+      "navigation": [
+        {
+          "line": 83,
+          "call": "router.push({ pathname: ROUTES.cards, params: { mode: 'due' } })"
+        },
+        {
+          "line": 159,
+          "call": "router.push(ROUTES.collection(col.type) as never)"
+        },
+        {
+          "line": 183,
+          "call": "router.push(ROUTES.cards)"
+        },
+        {
+          "line": 195,
+          "call": "router.push({ pathname: ROUTES.cards, params: { category: s.category } })"
+        }
+      ],
+      "async": []
+    },
+    {
+      "file": "app/(tabs)/stats.tsx",
+      "page": true,
+      "events": [
+        {
+          "line": 118,
+          "event": "onRetry",
+          "handler": "{() => { refetchStats(); refetchAll(); }}"
+        },
+        {
+          "line": 126,
+          "event": "onRefresh",
+          "handler": "{onRefresh}"
+        }
+      ],
+      "navigation": [],
+      "async": [
+        {
+          "line": 75,
+          "name": "callback"
+        }
+      ]
+    },
+    {
+      "file": "app/(tabs)/_layout.tsx",
+      "page": false,
+      "events": [
+        {
+          "line": 86,
+          "event": "onPress",
+          "handler": "{(e) => onPress?.(e)}"
+        },
+        {
+          "line": 119,
+          "event": "onPress",
+          "handler": "{goBack}"
+        },
+        {
+          "line": 124,
+          "event": "onPress",
+          "handler": "{() => router.push(ROUTES.home as never)}"
+        },
+        {
+          "line": 133,
+          "event": "onPress",
+          "handler": "{() => router.push(ROUTES.notifications as never)}"
+        },
+        {
+          "line": 141,
+          "event": "onPress",
+          "handler": "{() => setMenuOpen(true)}"
+        },
+        {
+          "line": 147,
+          "event": "onClose",
+          "handler": "{() => setMenuOpen(false)}"
+        }
+      ],
+      "navigation": [
+        {
+          "line": 110,
+          "call": "router.back()"
+        },
+        {
+          "line": 111,
+          "call": "router.push(ROUTES.home as never)"
+        },
+        {
+          "line": 124,
+          "call": "router.push(ROUTES.home as never)"
+        },
+        {
+          "line": 133,
+          "call": "router.push(ROUTES.notifications as never)"
+        }
+      ],
+      "async": []
+    },
+    {
+      "file": "app/admin.tsx",
+      "page": true,
+      "events": [
+        {
+          "line": 57,
+          "event": "onPress",
+          "handler": "{() => setTab(t.key)}"
+        },
+        {
+          "line": 230,
+          "event": "onPress",
+          "handler": "{() => router.push(ROUTES.authorCard as never)}"
+        },
+        {
+          "line": 243,
+          "event": "onPress",
+          "handler": "{() => removeCard(card.id)}"
+        },
+        {
+          "line": 256,
+          "event": "onToggle",
+          "handler": "{s.toggleCollectionEnabled}"
+        },
+        {
+          "line": 257,
+          "event": "onToggle",
+          "handler": "{s.toggleAchievementBadge}"
+        },
+        {
+          "line": 271,
+          "event": "onValueChange",
+          "handler": "{onToggle}"
+        }
+      ],
+      "navigation": [
+        {
+          "line": 230,
+          "call": "router.push(ROUTES.authorCard as never)"
+        }
+      ],
+      "async": []
+    },
+    {
+      "file": "app/author-card.tsx",
+      "page": true,
+      "events": [
+        {
+          "line": 69,
+          "event": "onPress",
+          "handler": "{goBack}"
+        },
+        {
+          "line": 80,
+          "event": "onChange",
+          "handler": "{setMode}"
+        },
+        {
+          "line": 86,
+          "event": "onDone",
+          "handler": "{goBack}"
+        },
+        {
+          "line": 88,
+          "event": "onDone",
+          "handler": "{goBack}"
+        },
+        {
+          "line": 159,
+          "event": "onChange",
+          "handler": "{setCatIdx}"
+        },
+        {
+          "line": 162,
+          "event": "onChangeText",
+          "handler": "{setSubCategory}"
+        },
+        {
+          "line": 163,
+          "event": "onChangeText",
+          "handler": "{setTopic}"
+        },
+        {
+          "line": 165,
+          "event": "onChangeText",
+          "handler": "{setTitle}"
+        },
+        {
+          "line": 168,
+          "event": "onChange",
+          "handler": "{(i) => { setTypeIdx(i); setAnswerIndex(0); }}"
+        },
+        {
+          "line": 171,
+          "event": "onChangeText",
+          "handler": "{setSituation}"
+        },
+        {
+          "line": 173,
+          "event": "onChangeText",
+          "handler": "{setQuestion}"
+        },
+        {
+          "line": 178,
+          "event": "onChangeText",
+          "handler": "{setChoicesText}"
+        },
+        {
+          "line": 183,
+          "event": "onPress",
+          "handler": "{() => setAnswerIndex(i)}"
+        },
+        {
+          "line": 194,
+          "event": "onChangeText",
+          "handler": "{setPrinciple}"
+        },
+        {
+          "line": 196,
+          "event": "onChangeText",
+          "handler": "{setConclusion}"
+        },
+        {
+          "line": 197,
+          "event": "onChangeText",
+          "handler": "{setSource}"
+        },
+        {
+          "line": 200,
+          "event": "onChange",
+          "handler": "{setDiffIdx}"
+        },
+        {
+          "line": 225,
+          "event": "onPress",
+          "handler": "{submit}"
+        },
+        {
+          "line": 275,
+          "event": "onPress",
+          "handler": "{() => setText(JSON_EXAMPLE)}"
+        },
+        {
+          "line": 283,
+          "event": "onChangeText",
+          "handler": "{setText}"
+        },
+        {
+          "line": 296,
+          "event": "onPress",
+          "handler": "{submit}"
+        }
+      ],
+      "navigation": [],
+      "async": [
+        {
+          "line": 138,
+          "name": "submit"
+        },
+        {
+          "line": 240,
+          "name": "submit"
+        }
+      ]
+    },
+    {
+      "file": "app/collection/[type].tsx",
+      "page": true,
+      "events": [
+        {
+          "line": 109,
+          "event": "onPress",
+          "handler": "{openCard}"
+        },
+        {
+          "line": 124,
+          "event": "onRetry",
+          "handler": "{refetch}"
+        },
+        {
+          "line": 151,
+          "event": "onChangeText",
+          "handler": "{setQuery}"
+        },
+        {
+          "line": 158,
+          "event": "onPress",
+          "handler": "{() => setQuery('')}"
+        },
+        {
+          "line": 170,
+          "event": "onPress",
+          "handler": "{() => setCat(cc)}"
+        },
+        {
+          "line": 188,
+          "event": "onPress",
+          "handler": "{() => router.push(ROUTES.cards)}"
+        },
+        {
+          "line": 199,
+          "event": "onRefresh",
+          "handler": "{onRefresh}"
+        },
+        {
+          "line": 248,
+          "event": "onPress",
+          "handler": "{() => onPress(card.id)}"
+        }
+      ],
+      "navigation": [
+        {
+          "line": 101,
+          "call": "router.push(ROUTES.content(id) as never)"
+        },
+        {
+          "line": 188,
+          "call": "router.push(ROUTES.cards)"
+        }
+      ],
+      "async": []
+    },
+    {
+      "file": "app/collection-book.tsx",
+      "page": true,
+      "events": [
+        {
+          "line": 189,
+          "event": "onScroll",
+          "handler": "{onScroll}"
+        },
+        {
+          "line": 225,
+          "event": "onPress",
+          "handler": "{() => { hapticTap(); setRarityFilter(active ? 'all' : tier); }}"
+        },
+        {
+          "line": 236,
+          "event": "onPress",
+          "handler": "{onOpen}"
+        },
+        {
+          "line": 242,
+          "event": "onPress",
+          "handler": "{onClaimDaily}"
+        },
+        {
+          "line": 282,
+          "event": "onPress",
+          "handler": "{() => { hapticTap(); setHowtoOpen((v) => !v); }}"
+        },
+        {
+          "line": 307,
+          "event": "onPress",
+          "handler": "{() => { hapticTap(); router.push(ROUTES.packRules as never); }}"
+        },
+        {
+          "line": 339,
+          "event": "onChange",
+          "handler": "{setQuery}"
+        },
+        {
+          "line": 346,
+          "event": "onPress",
+          "handler": "{() => { hapticTap(); setCategoryFilter(cat.key); }}"
+        },
+        {
+          "line": 361,
+          "event": "onPress",
+          "handler": "{() => { hapticTap(); setStatusFilter(key); }}"
+        },
+        {
+          "line": 371,
+          "event": "onPress",
+          "handler": "{() => { hapticTap(); resetFilters(); }}"
+        },
+        {
+          "line": 387,
+          "event": "onPress",
+          "handler": "{resetFilters}"
+        },
+        {
+          "line": 403,
+          "event": "onPress",
+          "handler": "{() => onDetail(col.id)}"
+        },
+        {
+          "line": 425,
+          "event": "onClose",
+          "handler": "{onCloseDraw}"
+        },
+        {
+          "line": 431,
+          "event": "onExchange",
+          "handler": "{onExchange}"
+        },
+        {
+          "line": 432,
+          "event": "onClose",
+          "handler": "{() => setDetailId(null)}"
+        },
+        {
+          "line": 458,
+          "event": "onRequestClose",
+          "handler": "{onClose}"
+        },
+        {
+          "line": 473,
+          "event": "onPress",
+          "handler": "{onClose}"
+        },
+        {
+          "line": 491,
+          "event": "onPress",
+          "handler": "{() => id && onExchange(id)}"
+        }
+      ],
+      "navigation": [
+        {
+          "line": 307,
+          "call": "router.push(ROUTES.packRules as never)"
+        }
+      ],
+      "async": []
+    },
+    {
+      "file": "app/content/[id].tsx",
+      "page": true,
+      "events": [
+        {
+          "line": 61,
+          "event": "onRetry",
+          "handler": "{refetch}"
+        },
+        {
+          "line": 85,
+          "event": "onPress",
+          "handler": "{() => toggleBookmark(card.id)}"
+        },
+        {
+          "line": 93,
+          "event": "onPress",
+          "handler": "{() => setReportOpen(true)}"
+        },
+        {
+          "line": 157,
+          "event": "onPress",
+          "handler": "{() => handleReviewMark('learning')}"
+        },
+        {
+          "line": 162,
+          "event": "onPress",
+          "handler": "{() => handleReviewMark('mastered')}"
+        },
+        {
+          "line": 171,
+          "event": "onClose",
+          "handler": "{() => setReportOpen(false)}"
+        }
+      ],
+      "navigation": [],
+      "async": []
+    },
+    {
+      "file": "app/contents.tsx",
+      "page": true,
+      "events": [
+        {
+          "line": 67,
+          "event": "onPress",
+          "handler": "{() => goCard(item.id)}"
+        },
+        {
+          "line": 77,
+          "event": "onRetry",
+          "handler": "{refetch}"
+        },
+        {
+          "line": 88,
+          "event": "onRefresh",
+          "handler": "{onRefresh}"
+        },
+        {
+          "line": 98,
+          "event": "onChange",
+          "handler": "{setSearch}"
+        },
+        {
+          "line": 123,
+          "event": "onRefresh",
+          "handler": "{onRefresh}"
+        },
+        {
+          "line": 127,
+          "event": "onBack",
+          "handler": "{() => setActiveId(null)}"
+        },
+        {
+          "line": 127,
+          "event": "onCard",
+          "handler": "{goCard}"
+        },
+        {
+          "line": 140,
+          "event": "onPress",
+          "handler": "{() => tp.track.locked ? setLockedHint(tp.track.title) : setActiveId(tp.track.id)}"
+        },
+        {
+          "line": 150,
+          "event": "onPress",
+          "handler": "{() => setLockedHint(null)}"
+        },
+        {
+          "line": 178,
+          "event": "onPress",
+          "handler": "{onBack}"
+        },
+        {
+          "line": 219,
+          "event": "onPress",
+          "handler": "{() => onCard(card.id)}"
+        },
+        {
+          "line": 245,
+          "event": "onPress",
+          "handler": "{onPress}"
+        },
+        {
+          "line": 278,
+          "event": "onPress",
+          "handler": "{onPress}"
+        }
+      ],
+      "navigation": [
+        {
+          "line": 59,
+          "call": "router.push(ROUTES.content(id) as never)"
+        }
+      ],
+      "async": [
+        {
+          "line": 41,
+          "name": "callback"
+        }
+      ]
+    },
+    {
+      "file": "app/developer.tsx",
+      "page": true,
+      "events": [
+        {
+          "line": 161,
+          "event": "onPress",
+          "handler": "{runHealthCheck}"
+        },
+        {
+          "line": 231,
+          "event": "onPress",
+          "handler": "{() => router.push(ROUTES.admin as never)}"
+        },
+        {
+          "line": 249,
+          "event": "onPress",
+          "handler": "{() => router.push(ROUTES.authorCard as never)}"
+        },
+        {
+          "line": 274,
+          "event": "onPress",
+          "handler": "{onSend}"
+        },
+        {
+          "line": 309,
+          "event": "onPress",
+          "handler": "{() => onServerAlert(a.v)}"
+        }
+      ],
+      "navigation": [
+        {
+          "line": 231,
+          "call": "router.push(ROUTES.admin as never)"
+        },
+        {
+          "line": 249,
+          "call": "router.push(ROUTES.authorCard as never)"
+        }
+      ],
+      "async": [
+        {
+          "line": 66,
+          "name": "runHealthCheck"
+        },
+        {
+          "line": 80,
+          "name": "onSend"
+        },
+        {
+          "line": 91,
+          "name": "onServerAlert"
+        }
+      ]
+    },
+    {
+      "file": "app/edit-profile.tsx",
+      "page": true,
+      "events": [
+        {
+          "line": 132,
+          "event": "onChangeText",
+          "handler": "{(t) => { setName(t); setErrors((e) => ({ ...e, name: undefined })); }}"
+        },
+        {
+          "line": 138,
+          "event": "onChangeText",
+          "handler": "{setNickname}"
+        },
+        {
+          "line": 143,
+          "event": "onStateChange",
+          "handler": "{setNicknameState}"
+        },
+        {
+          "line": 153,
+          "event": "onChangeText",
+          "handler": "{(t) => { setEmail(t); setErrors((e) => ({ ...e, email: undefined })); }}"
+        },
+        {
+          "line": 155,
+          "event": "onChangeText",
+          "handler": "{setOrg}"
+        },
+        {
+          "line": 156,
+          "event": "onChangeText",
+          "handler": "{setJobTitle}"
+        },
+        {
+          "line": 166,
+          "event": "onPress",
+          "handler": "{onSave}"
+        }
+      ],
+      "navigation": [],
+      "async": [
+        {
+          "line": 66,
+          "name": "onSave"
+        }
+      ]
+    },
+    {
+      "file": "app/faction-select.tsx",
+      "page": true,
+      "events": [
+        {
+          "line": 44,
+          "event": "onPress",
+          "handler": "{press}"
+        },
+        {
+          "line": 146,
+          "event": "onSelect",
+          "handler": "{() => onSelect(f.id)}"
+        },
+        {
+          "line": 175,
+          "event": "onPress",
+          "handler": "{onConfirm}"
+        }
+      ],
+      "navigation": [],
+      "async": []
+    },
+    {
+      "file": "app/index.tsx",
+      "page": true,
+      "events": [],
+      "navigation": [
+        {
+          "line": 18,
+          "call": "href={user ? ROUTES.home : ROUTES.login}"
+        }
+      ],
+      "async": []
+    },
+    {
+      "file": "app/legal.tsx",
+      "page": true,
+      "events": [
+        {
+          "line": 81,
+          "event": "onPress",
+          "handler": "{() => toggle(section.id)}"
+        },
+        {
+          "line": 122,
+          "event": "onValueChange",
+          "handler": "{(v) => updateNotification('marketing', v)}"
+        },
+        {
+          "line": 135,
+          "event": "onPress",
+          "handler": "{() => {\r\n                    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);\r\n                    setOssOpen((v) => !v);\r\n                  }}"
+        },
+        {
+          "line": 177,
+          "event": "onPress",
+          "handler": "{() => {\r\n                        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);\r\n                        setLicenseOpen((v) => !v);\r\n                      }}"
+        }
+      ],
+      "navigation": [],
+      "async": []
+    },
+    {
+      "file": "app/notifications.tsx",
+      "page": true,
+      "events": [
+        {
+          "line": 104,
+          "event": "onPress",
+          "handler": "{() => setHeaderMenu(true)}"
+        },
+        {
+          "line": 119,
+          "event": "onPress",
+          "handler": "{() => setFilter(f.key)}"
+        },
+        {
+          "line": 134,
+          "event": "onRefresh",
+          "handler": "{onRefresh}"
+        },
+        {
+          "line": 151,
+          "event": "onPress",
+          "handler": "{() => setMuteTarget(suggestion.type)}"
+        },
+        {
+          "line": 154,
+          "event": "onPress",
+          "handler": "{() => setSuggestionDismissed(true)}"
+        },
+        {
+          "line": 168,
+          "event": "onPress",
+          "handler": "{() => mutedList.forEach((t) => setMute(t, false))}"
+        },
+        {
+          "line": 197,
+          "event": "onPress",
+          "handler": "{() => openNotification(n)}"
+        },
+        {
+          "line": 220,
+          "event": "onPress",
+          "handler": "{() => setSheetItem(n)}"
+        },
+        {
+          "line": 233,
+          "event": "onClose",
+          "handler": "{() => setHeaderMenu(false)}"
+        },
+        {
+          "line": 235,
+          "event": "onPress",
+          "handler": "{() => setMute('achievement', !mutedTypes.achievement)}"
+        },
+        {
+          "line": 236,
+          "event": "onPress",
+          "handler": "{() => setMute('system', !mutedTypes.system)}"
+        },
+        {
+          "line": 237,
+          "event": "onPress",
+          "handler": "{() => { markAllRead(); setHeaderMenu(false); }}"
+        },
+        {
+          "line": 238,
+          "event": "onPress",
+          "handler": "{() => { clearAll(); setHeaderMenu(false); }}"
+        },
+        {
+          "line": 244,
+          "event": "onClose",
+          "handler": "{() => setSheetItem(null)}"
+        },
+        {
+          "line": 250,
+          "event": "onPress",
+          "handler": "{() => { markRead(sheetItem.id); setSheetItem(null); }}"
+        },
+        {
+          "line": 251,
+          "event": "onPress",
+          "handler": "{() => { remove(sheetItem.id); setSheetItem(null); }}"
+        },
+        {
+          "line": 256,
+          "event": "onPress",
+          "handler": "{() => { const t = sheetItem.type; setSheetItem(null); run(() => setMuteTarget(t), 150); }}"
+        },
+        {
+          "line": 263,
+          "event": "onClose",
+          "handler": "{() => setMuteTarget(null)}"
+        },
+        {
+          "line": 275,
+          "event": "onPress",
+          "handler": "{() => { setMute(muteTarget, true); setMuteTarget(null); setSuggestionDismissed(true); }}"
+        },
+        {
+          "line": 276,
+          "event": "onPress",
+          "handler": "{() => setMuteTarget(null)}"
+        },
+        {
+          "line": 293,
+          "event": "onClose",
+          "handler": "{onClose}"
+        },
+        {
+          "line": 308,
+          "event": "onPress",
+          "handler": "{onPress}"
+        }
+      ],
+      "navigation": [
+        {
+          "line": 73,
+          "call": "router.push(route as never)"
+        }
+      ],
+      "async": [
+        {
+          "line": 60,
+          "name": "onRefresh"
+        }
+      ]
+    },
+    {
+      "file": "app/pack-rules.tsx",
+      "page": true,
+      "events": [
+        {
+          "line": 127,
+          "event": "onPress",
+          "handler": "{() => onClaim(p.rule.id)}"
+        }
+      ],
+      "navigation": [],
+      "async": []
+    },
+    {
+      "file": "app/privacy.tsx",
+      "page": true,
+      "events": [
+        {
+          "line": 42,
+          "event": "onValueChange",
+          "handler": "{() => toggle('searchable')}"
+        },
+        {
+          "line": 55,
+          "event": "onValueChange",
+          "handler": "{() => toggle('showProgress')}"
+        },
+        {
+          "line": 62,
+          "event": "onValueChange",
+          "handler": "{() => toggle('showStreak')}"
+        },
+        {
+          "line": 69,
+          "event": "onValueChange",
+          "handler": "{() => toggle('showEmblems')}"
+        },
+        {
+          "line": 76,
+          "event": "onValueChange",
+          "handler": "{() => toggle('showCollection')}"
+        }
+      ],
+      "navigation": [],
+      "async": []
+    },
+    {
+      "file": "app/profile.tsx",
+      "page": true,
+      "events": [
+        {
+          "line": 85,
+          "event": "onPress",
+          "handler": "{() => router.push(ROUTES.editProfile as never)}"
+        },
+        {
+          "line": 94,
+          "event": "onPress",
+          "handler": "{pickImage}"
+        },
+        {
+          "line": 138,
+          "event": "onPress",
+          "handler": "{() => { setDraft(bio); setEditing(true); }}"
+        },
+        {
+          "line": 149,
+          "event": "onChangeText",
+          "handler": "{(t) => setDraft(t.slice(0, BIO_MAX))}"
+        },
+        {
+          "line": 159,
+          "event": "onPress",
+          "handler": "{() => setEditing(false)}"
+        },
+        {
+          "line": 162,
+          "event": "onPress",
+          "handler": "{saveBio}"
+        },
+        {
+          "line": 182,
+          "event": "onPress",
+          "handler": "{() => router.push(s.route as never)}"
+        },
+        {
+          "line": 190,
+          "event": "onPress",
+          "handler": "{() => router.push(ROUTES.trophy as never)}"
+        }
+      ],
+      "navigation": [
+        {
+          "line": 85,
+          "call": "router.push(ROUTES.editProfile as never)"
+        },
+        {
+          "line": 182,
+          "call": "router.push(s.route as never)"
+        },
+        {
+          "line": 190,
+          "call": "router.push(ROUTES.trophy as never)"
+        }
+      ],
+      "async": [
+        {
+          "line": 61,
+          "name": "pickImage"
+        }
+      ]
+    },
+    {
+      "file": "app/qna/[id].tsx",
+      "page": true,
+      "events": [
+        {
+          "line": 42,
+          "event": "onPress",
+          "handler": "{() => void refetch()}"
+        },
+        {
+          "line": 88,
+          "event": "onPress",
+          "handler": "{() => questionLike.mutate({ id: question.id, liked: !question.likedByMe })}"
+        },
+        {
+          "line": 103,
+          "event": "onLike",
+          "handler": "{() => answerLike.mutate({ answerId: a.id, liked: !a.likedByMe })}"
+        },
+        {
+          "line": 113,
+          "event": "onChangeText",
+          "handler": "{setDraft}"
+        },
+        {
+          "line": 113,
+          "event": "onFocus",
+          "handler": "{() => setFocused(true)}"
+        },
+        {
+          "line": 118,
+          "event": "onPress",
+          "handler": "{submit}"
+        },
+        {
+          "line": 146,
+          "event": "onPress",
+          "handler": "{onLike}"
+        }
+      ],
+      "navigation": [],
+      "async": []
+    },
+    {
+      "file": "app/saved.tsx",
+      "page": true,
+      "events": [
+        {
+          "line": 46,
+          "event": "onPress",
+          "handler": "{() => router.push(ROUTES.contents)}"
+        },
+        {
+          "line": 61,
+          "event": "onPress",
+          "handler": "{() => router.push(ROUTES.content(card.id) as never)}"
+        },
+        {
+          "line": 75,
+          "event": "onPress",
+          "handler": "{() => toggle(card.id)}"
+        }
+      ],
+      "navigation": [
+        {
+          "line": 46,
+          "call": "router.push(ROUTES.contents)"
+        },
+        {
+          "line": 61,
+          "call": "router.push(ROUTES.content(card.id) as never)"
+        }
+      ],
+      "async": []
+    },
+    {
+      "file": "app/settings.tsx",
+      "page": true,
+      "events": [
+        {
+          "line": 233,
+          "event": "onSelect",
+          "handler": "{onSearchSelect}"
+        },
+        {
+          "line": 264,
+          "event": "onPress",
+          "handler": "{go('profile', ROUTES.profile)}"
+        },
+        {
+          "line": 271,
+          "event": "onPress",
+          "handler": "{go('edit-profile', ROUTES.editProfile)}"
+        },
+        {
+          "line": 278,
+          "event": "onPress",
+          "handler": "{go('privacy', ROUTES.privacy)}"
+        },
+        {
+          "line": 285,
+          "event": "onValueChange",
+          "handler": "{(v) => { void onToggleBiometric(v); }}"
+        },
+        {
+          "line": 292,
+          "event": "onPress",
+          "handler": "{() => setLogoutOpen(true)}"
+        },
+        {
+          "line": 307,
+          "event": "onPress",
+          "handler": "{() => { hapticSelection(); toggleInterest(field); }}"
+        },
+        {
+          "line": 325,
+          "event": "onValueChange",
+          "handler": "{toggleShuffleCards}"
+        },
+        {
+          "line": 332,
+          "event": "onValueChange",
+          "handler": "{togglePrioritizeWeakSpots}"
+        },
+        {
+          "line": 339,
+          "event": "onValueChange",
+          "handler": "{toggleKeepScreenOn}"
+        },
+        {
+          "line": 346,
+          "event": "onValueChange",
+          "handler": "{toggleDontKnowHaptic}"
+        },
+        {
+          "line": 353,
+          "event": "onValueChange",
+          "handler": "{toggleOfflineMode}"
+        },
+        {
+          "line": 367,
+          "event": "onValueChange",
+          "handler": "{(v) => { void onToggleNotification(v); }}"
+        },
+        {
+          "line": 375,
+          "event": "onPress",
+          "handler": "{openTimePicker}"
+        },
+        {
+          "line": 382,
+          "event": "onPress",
+          "handler": "{go('notify-inbox', ROUTES.notifications)}"
+        },
+        {
+          "line": 392,
+          "event": "onChange",
+          "handler": "{(i) => setThemeMode(THEME_OPTIONS[i])}"
+        },
+        {
+          "line": 399,
+          "event": "onChange",
+          "handler": "{(i) => setFontScale(FONT_OPTIONS[i])}"
+        },
+        {
+          "line": 409,
+          "event": "onPress",
+          "handler": "{() => { hapticSelection(); setAmbientTheme(opt.value); }}"
+        },
+        {
+          "line": 426,
+          "event": "onValueChange",
+          "handler": "{toggleHighContrast}"
+        },
+        {
+          "line": 441,
+          "event": "onValueChange",
+          "handler": "{toggleAchievementBadge}"
+        },
+        {
+          "line": 449,
+          "event": "onValueChange",
+          "handler": "{toggleCollectionEnabled}"
+        },
+        {
+          "line": 457,
+          "event": "onPress",
+          "handler": "{go('collection-book', ROUTES.collectionBook)}"
+        },
+        {
+          "line": 466,
+          "event": "onPress",
+          "handler": "{go('pack-rules', ROUTES.packRules)}"
+        },
+        {
+          "line": 478,
+          "event": "onPress",
+          "handler": "{() => { pushRecentSetting('support'); setSupportOpen(true); }}"
+        },
+        {
+          "line": 485,
+          "event": "onPress",
+          "handler": "{go('faq', ROUTES.support)}"
+        },
+        {
+          "line": 493,
+          "event": "onPress",
+          "handler": "{() => { pushRecentSetting('changelog'); setChangelogOpen(true); }}"
+        },
+        {
+          "line": 500,
+          "event": "onPress",
+          "handler": "{() => { void downloadSystemLog(); }}"
+        },
+        {
+          "line": 507,
+          "event": "onPress",
+          "handler": "{go('developer', ROUTES.developer)}"
+        },
+        {
+          "line": 525,
+          "event": "onPress",
+          "handler": "{() => setResetOpen(true)}"
+        },
+        {
+          "line": 539,
+          "event": "onPress",
+          "handler": "{go('terms', ROUTES.legal)}"
+        },
+        {
+          "line": 546,
+          "event": "onPress",
+          "handler": "{() => {\r\n                  pushRecentSetting('privacy-policy');\r\n                  router.push({ pathname: ROUTES.legal, params: { focus: 'privacy-policy' } } as never);\r\n                }}"
+        },
+        {
+          "line": 557,
+          "event": "onPress",
+          "handler": "{() => {\r\n                  pushRecentSetting('consent-marketing');\r\n                  router.push({ pathname: ROUTES.legal, params: { focus: 'consent-marketing' } } as never);\r\n                }}"
+        },
+        {
+          "line": 579,
+          "event": "onSelect",
+          "handler": "{onSearchSelect}"
+        },
+        {
+          "line": 585,
+          "event": "onRequestClose",
+          "handler": "{() => setTimePickerOpen(false)}"
+        },
+        {
+          "line": 593,
+          "event": "onPress",
+          "handler": "{() => setTimePickerOpen(false)}"
+        },
+        {
+          "line": 608,
+          "event": "onPress",
+          "handler": "{() => { hapticSelection(); wheel.set(wheel.val + 1); }}"
+        },
+        {
+          "line": 614,
+          "event": "onPress",
+          "handler": "{() => { hapticSelection(); wheel.set(wheel.val - 1); }}"
+        },
+        {
+          "line": 621,
+          "event": "onPress",
+          "handler": "{saveTime}"
+        },
+        {
+          "line": 628,
+          "event": "onClose",
+          "handler": "{() => setSupportOpen(false)}"
+        },
+        {
+          "line": 631,
+          "event": "onClose",
+          "handler": "{() => setChangelogOpen(false)}"
+        },
+        {
+          "line": 634,
+          "event": "onClose",
+          "handler": "{() => setLogoutOpen(false)}"
+        },
+        {
+          "line": 639,
+          "event": "onPress",
+          "handler": "{() => { void doLogout(); }}"
+        },
+        {
+          "line": 640,
+          "event": "onPress",
+          "handler": "{() => setLogoutOpen(false)}"
+        },
+        {
+          "line": 647,
+          "event": "onClose",
+          "handler": "{() => !resetting && setResetOpen(false)}"
+        },
+        {
+          "line": 658,
+          "event": "onPress",
+          "handler": "{doReset}"
+        },
+        {
+          "line": 659,
+          "event": "onPress",
+          "handler": "{() => !resetting && setResetOpen(false)}"
+        }
+      ],
+      "navigation": [
+        {
+          "line": 181,
+          "call": "router.replace(ROUTES.login)"
+        },
+        {
+          "line": 193,
+          "call": "router.replace(ROUTES.login)"
+        },
+        {
+          "line": 217,
+          "call": "router.push({ pathname: entry.route, params: { focus: entry.id } } as never)"
+        },
+        {
+          "line": 223,
+          "call": "router.push(route as never)"
+        },
+        {
+          "line": 548,
+          "call": "router.push({ pathname: ROUTES.legal, params: { focus: 'privacy-policy' } } as never)"
+        },
+        {
+          "line": 559,
+          "call": "router.push({ pathname: ROUTES.legal, params: { focus: 'consent-marketing' } } as never)"
+        }
+      ],
+      "async": [
+        {
+          "line": 125,
+          "name": "onToggleNotification"
+        },
+        {
+          "line": 147,
+          "name": "onToggleBiometric"
+        },
+        {
+          "line": 158,
+          "name": "doReset"
+        },
+        {
+          "line": 187,
+          "name": "doLogout"
+        }
+      ]
+    },
+    {
+      "file": "app/share.tsx",
+      "page": true,
+      "events": [
+        {
+          "line": 108,
+          "event": "onPress",
+          "handler": "{onShare}"
+        }
+      ],
+      "navigation": [],
+      "async": [
+        {
+          "line": 50,
+          "name": "onShare"
+        }
+      ]
+    },
+    {
+      "file": "app/support.tsx",
+      "page": true,
+      "events": [
+        {
+          "line": 52,
+          "event": "onPress",
+          "handler": "{() => setSupportOpen(true)}"
+        },
+        {
+          "line": 60,
+          "event": "onPress",
+          "handler": "{() => setChangelogOpen(true)}"
+        },
+        {
+          "line": 65,
+          "event": "onPress",
+          "handler": "{() => router.push(ROUTES.legal as never)}"
+        },
+        {
+          "line": 74,
+          "event": "onPress",
+          "handler": "{() => toggleFaq(i)}"
+        },
+        {
+          "line": 90,
+          "event": "onClose",
+          "handler": "{() => setSupportOpen(false)}"
+        },
+        {
+          "line": 91,
+          "event": "onClose",
+          "handler": "{() => setChangelogOpen(false)}"
+        },
+        {
+          "line": 100,
+          "event": "onPress",
+          "handler": "{onPress}"
+        }
+      ],
+      "navigation": [
+        {
+          "line": 65,
+          "call": "router.push(ROUTES.legal as never)"
+        }
+      ],
+      "async": []
+    },
+    {
+      "file": "app/trophy.tsx",
+      "page": true,
+      "events": [
+        {
+          "line": 112,
+          "event": "onPress",
+          "handler": "{() => setSelected(t)}"
+        },
+        {
+          "line": 129,
+          "event": "onPress",
+          "handler": "{() => router.push(ROUTES.share as never)}"
+        },
+        {
+          "line": 143,
+          "event": "onClose",
+          "handler": "{() => setSelected(null)}"
+        },
+        {
+          "line": 157,
+          "event": "onRequestClose",
+          "handler": "{onClose}"
+        },
+        {
+          "line": 172,
+          "event": "onPress",
+          "handler": "{onClose}"
+        },
+        {
+          "line": 185,
+          "event": "onPress",
+          "handler": "{onClose}"
+        }
+      ],
+      "navigation": [
+        {
+          "line": 129,
+          "call": "router.push(ROUTES.share as never)"
+        }
+      ],
+      "async": []
+    },
+    {
+      "file": "app/u/[id].tsx",
+      "page": true,
+      "events": [
+        {
+          "line": 26,
+          "event": "onRetry",
+          "handler": "{refetch}"
+        }
+      ],
+      "navigation": [],
+      "async": []
+    },
+    {
+      "file": "app/user-search.tsx",
+      "page": true,
+      "events": [
+        {
+          "line": 41,
+          "event": "onPress",
+          "handler": "{openProfile}"
+        },
+        {
+          "line": 54,
+          "event": "onChangeText",
+          "handler": "{setRaw}"
+        },
+        {
+          "line": 63,
+          "event": "onPress",
+          "handler": "{() => setRaw('')}"
+        },
+        {
+          "line": 77,
+          "event": "onRetry",
+          "handler": "{refetch}"
+        },
+        {
+          "line": 122,
+          "event": "onPress",
+          "handler": "{() => onPress(user.id)}"
+        }
+      ],
+      "navigation": [
+        {
+          "line": 36,
+          "call": "router.push(ROUTES.publicProfile(id) as never)"
+        }
+      ],
+      "async": []
+    },
+    {
+      "file": "app/_layout.tsx",
+      "page": false,
+      "events": [
+        {
+          "line": 182,
+          "event": "onUpdate",
+          "handler": "{apply}"
+        },
+        {
+          "line": 183,
+          "event": "onDismiss",
+          "handler": "{dismiss}"
+        }
+      ],
+      "navigation": [],
+      "async": []
+    },
+    {
+      "file": "src/components/auth/AvailabilityField.tsx",
+      "page": false,
+      "events": [
+        {
+          "line": 110,
+          "event": "onChangeText",
+          "handler": "{handleChange}"
+        },
+        {
+          "line": 115,
+          "event": "onPress",
+          "handler": "{onCheck}"
+        }
+      ],
+      "navigation": [],
+      "async": [
+        {
+          "line": 63,
+          "name": "onCheck"
+        }
+      ]
+    },
+    {
+      "file": "src/components/auth/BiometricLockGate.tsx",
+      "page": false,
+      "events": [
+        {
+          "line": 105,
+          "event": "onPress",
+          "handler": "{() => { void tryUnlock(); }}"
+        },
+        {
+          "line": 114,
+          "event": "onPress",
+          "handler": "{() => { void logout().catch(() => {}); }}"
+        }
+      ],
+      "navigation": [],
+      "async": [
+        {
+          "line": 57,
+          "name": "callback"
+        },
+        {
+          "line": 77,
+          "name": "callback"
+        }
+      ]
+    },
+    {
+      "file": "src/components/cards/CardDifficultyAsk.tsx",
+      "page": false,
+      "events": [
+        {
+          "line": 54,
+          "event": "onRequestClose",
+          "handler": "{onSkip}"
+        },
+        {
+          "line": 57,
+          "event": "onPress",
+          "handler": "{onSkip}"
+        },
+        {
+          "line": 77,
+          "event": "onPress",
+          "handler": "{() => { hapticTap(); onSelect(o.key); }}"
+        },
+        {
+          "line": 100,
+          "event": "onPress",
+          "handler": "{() => { hapticTap(); reactions.onToggleLike(); }}"
+        },
+        {
+          "line": 109,
+          "event": "onPress",
+          "handler": "{() => { hapticTap(); reactions.onToggleBookmark(); }}"
+        },
+        {
+          "line": 118,
+          "event": "onPress",
+          "handler": "{reactions.onReport}"
+        },
+        {
+          "line": 128,
+          "event": "onPress",
+          "handler": "{onSkip}"
+        }
+      ],
+      "navigation": [],
+      "async": []
+    },
+    {
+      "file": "src/components/cards/CardDifficultyPoll.tsx",
+      "page": false,
+      "events": [
+        {
+          "line": 47,
+          "event": "onPress",
+          "handler": "{() => vote(cardId, o.key)}"
+        }
+      ],
+      "navigation": [],
+      "async": []
+    },
+    {
+      "file": "src/components/cards/CardQuiz.tsx",
+      "page": false,
+      "events": [
+        {
+          "line": 91,
+          "event": "onPress",
+          "handler": "{(e) => { (e as unknown as { stopPropagation?: () => void })?.stopPropagation?.(); onPick(i); }}"
+        },
+        {
+          "line": 115,
+          "event": "onPress",
+          "handler": "{(e) => { (e as unknown as { stopPropagation?: () => void })?.stopPropagation?.(); onPick(i); }}"
+        }
+      ],
+      "navigation": [],
+      "async": []
+    },
+    {
+      "file": "src/components/cards/CardReportModal.tsx",
+      "page": false,
+      "events": [
+        {
+          "line": 43,
+          "event": "onClose",
+          "handler": "{handleClose}"
+        },
+        {
+          "line": 53,
+          "event": "onPress",
+          "handler": "{handleClose}"
+        },
+        {
+          "line": 69,
+          "event": "onPress",
+          "handler": "{() => setReason(r)}"
+        },
+        {
+          "line": 81,
+          "event": "onChangeText",
+          "handler": "{setDetail}"
+        },
+        {
+          "line": 91,
+          "event": "onPress",
+          "handler": "{send}"
+        }
+      ],
+      "navigation": [],
+      "async": [
+        {
+          "line": 33,
+          "name": "send"
+        }
+      ]
+    },
+    {
+      "file": "src/components/collection/PackOpenModal.tsx",
+      "page": false,
+      "events": [
+        {
+          "line": 42,
+          "event": "onRequestClose",
+          "handler": "{onClose}"
+        },
+        {
+          "line": 46,
+          "event": "onPress",
+          "handler": "{open}"
+        },
+        {
+          "line": 82,
+          "event": "onPress",
+          "handler": "{onClose}"
+        }
+      ],
+      "navigation": [],
+      "async": []
+    },
+    {
+      "file": "src/components/community/BragFeedCard.tsx",
+      "page": false,
+      "events": [
+        {
+          "line": 44,
+          "event": "onPress",
+          "handler": "{() => router.push(ROUTES.share as never)}"
+        },
+        {
+          "line": 97,
+          "event": "onPress",
+          "handler": "{() => react(p.id, kind)}"
+        }
+      ],
+      "navigation": [
+        {
+          "line": 44,
+          "call": "router.push(ROUTES.share as never)"
+        }
+      ],
+      "async": []
+    },
+    {
+      "file": "src/components/community/CardTips.tsx",
+      "page": false,
+      "events": [
+        {
+          "line": 58,
+          "event": "onChangeText",
+          "handler": "{setDraft}"
+        },
+        {
+          "line": 59,
+          "event": "onFocus",
+          "handler": "{() => setFocused(true)}"
+        },
+        {
+          "line": 66,
+          "event": "onPress",
+          "handler": "{() => { void submit(); }}"
+        },
+        {
+          "line": 104,
+          "event": "onPress",
+          "handler": "{() => toggleLike(tip)}"
+        },
+        {
+          "line": 109,
+          "event": "onPress",
+          "handler": "{() => remove(tip)}"
+        },
+        {
+          "line": 133,
+          "event": "onTextLayout",
+          "handler": "{(e) => { if (!expanded && e.nativeEvent.lines.length > 4) setTruncated(true); }}"
+        },
+        {
+          "line": 139,
+          "event": "onPress",
+          "handler": "{() => setExpanded((v) => !v)}"
+        }
+      ],
+      "navigation": [],
+      "async": [
+        {
+          "line": 28,
+          "name": "submit"
+        }
+      ]
+    },
+    {
+      "file": "src/components/community/CollectionTeaserCard.tsx",
+      "page": false,
+      "events": [
+        {
+          "line": 29,
+          "event": "onPress",
+          "handler": "{() => router.push(ROUTES.collectionBook as never)}"
+        }
+      ],
+      "navigation": [
+        {
+          "line": 29,
+          "call": "router.push(ROUTES.collectionBook as never)"
+        }
+      ],
+      "async": []
+    },
+    {
+      "file": "src/components/community/CommunityBuildCard.tsx",
+      "page": false,
+      "events": [
+        {
+          "line": 157,
+          "event": "onPress",
+          "handler": "{() => router.push(ROUTES.factionSelect as never)}"
+        },
+        {
+          "line": 183,
+          "event": "onPress",
+          "handler": "{() => toggleFaction(s.id)}"
+        },
+        {
+          "line": 254,
+          "event": "onPress",
+          "handler": "{toggleHistory}"
+        }
+      ],
+      "navigation": [
+        {
+          "line": 157,
+          "call": "router.push(ROUTES.factionSelect as never)"
+        }
+      ],
+      "async": []
+    },
+    {
+      "file": "src/components/community/HelpWantedCard.tsx",
+      "page": false,
+      "events": [
+        {
+          "line": 52,
+          "event": "onPress",
+          "handler": "{() => onPress(target.id)}"
+        }
+      ],
+      "navigation": [],
+      "async": []
+    },
+    {
+      "file": "src/components/community/LearningCalendar.tsx",
+      "page": false,
+      "events": [
+        {
+          "line": 155,
+          "event": "onPress",
+          "handler": "{prev}"
+        },
+        {
+          "line": 156,
+          "event": "onPress",
+          "handler": "{() => { setPickYear(year); setPickMonth(month); setPickerOpen(true); }}"
+        },
+        {
+          "line": 159,
+          "event": "onPress",
+          "handler": "{next}"
+        },
+        {
+          "line": 214,
+          "event": "onPress",
+          "handler": "{() => setSelected(key)}"
+        },
+        {
+          "line": 279,
+          "event": "onPress",
+          "handler": "{onCheckIn}"
+        },
+        {
+          "line": 286,
+          "event": "onRequestClose",
+          "handler": "{() => setPickerOpen(false)}"
+        },
+        {
+          "line": 294,
+          "event": "onPress",
+          "handler": "{() => setPickerOpen(false)}"
+        },
+        {
+          "line": 303,
+          "event": "onPress",
+          "handler": "{() => setPickYear(y)}"
+        },
+        {
+          "line": 313,
+          "event": "onPress",
+          "handler": "{() => setPickMonth(i)}"
+        },
+        {
+          "line": 320,
+          "event": "onPress",
+          "handler": "{() => { setYear(pickYear); setMonth(pickMonth); setPickerOpen(false); }}"
+        },
+        {
+          "line": 332,
+          "event": "onClose",
+          "handler": "{() => setSelected(null)}"
+        },
+        {
+          "line": 366,
+          "event": "onClose",
+          "handler": "{onClose}"
+        },
+        {
+          "line": 370,
+          "event": "onPress",
+          "handler": "{onClose}"
+        },
+        {
+          "line": 379,
+          "event": "onPress",
+          "handler": "{() => openDetail(card.id)}"
+        },
+        {
+          "line": 385,
+          "event": "onPress",
+          "handler": "{() => openDetail(card.id)}"
+        },
+        {
+          "line": 410,
+          "event": "onPress",
+          "handler": "{onPress}"
+        }
+      ],
+      "navigation": [
+        {
+          "line": 362,
+          "call": "router.push(ROUTES.content(id) as never)"
+        }
+      ],
+      "async": []
+    },
+    {
+      "file": "src/components/community/LivePresenceStrip.tsx",
+      "page": false,
+      "events": [
+        {
+          "line": 51,
+          "event": "onPress",
+          "handler": "{() => router.push(ROUTES.community)}"
+        }
+      ],
+      "navigation": [
+        {
+          "line": 51,
+          "call": "router.push(ROUTES.community)"
+        }
+      ],
+      "async": []
+    },
+    {
+      "file": "src/components/community/QuestionComposeModal.tsx",
+      "page": false,
+      "events": [
+        {
+          "line": 43,
+          "event": "onClose",
+          "handler": "{handleClose}"
+        },
+        {
+          "line": 50,
+          "event": "onPress",
+          "handler": "{() => setCategory(active ? undefined : cat)}"
+        },
+        {
+          "line": 59,
+          "event": "onChangeText",
+          "handler": "{setTitle}"
+        },
+        {
+          "line": 62,
+          "event": "onChangeText",
+          "handler": "{setBody}"
+        },
+        {
+          "line": 73,
+          "event": "onPress",
+          "handler": "{submit}"
+        }
+      ],
+      "navigation": [],
+      "async": []
+    },
+    {
+      "file": "src/components/community/RooftopCrates.tsx",
+      "page": false,
+      "events": [
+        {
+          "line": 71,
+          "event": "onPress",
+          "handler": "{onPress}"
+        },
+        {
+          "line": 184,
+          "event": "onClose",
+          "handler": "{onClose}"
+        },
+        {
+          "line": 212,
+          "event": "onPress",
+          "handler": "{() => {\r\n                onClose();\r\n                router.push(ROUTES.collectionBook as never);\r\n              }}"
+        },
+        {
+          "line": 217,
+          "event": "onPress",
+          "handler": "{onClose}"
+        },
+        {
+          "line": 240,
+          "event": "onPress",
+          "handler": "{() => {\r\n                  if (!collectionEnabled) enableCollection();\r\n                  open();\r\n                }}"
+        },
+        {
+          "line": 334,
+          "event": "onPress",
+          "handler": "{() => {\r\n                hapticTap();\r\n                setSelected(s.crate.floor);\r\n              }}"
+        },
+        {
+          "line": 351,
+          "event": "onPress",
+          "handler": "{() => {\r\n              enableCollection();\r\n              toast('카드 수집을 켰어요 · 설정에서 언제든 끌 수 있어요', 'success');\r\n            }}"
+        },
+        {
+          "line": 366,
+          "event": "onClose",
+          "handler": "{() => setSelected(null)}"
+        }
+      ],
+      "navigation": [
+        {
+          "line": 214,
+          "call": "router.push(ROUTES.collectionBook as never)"
+        }
+      ],
+      "async": []
+    },
+    {
+      "file": "src/components/home/MomentModal.tsx",
+      "page": false,
+      "events": [
+        {
+          "line": 67,
+          "event": "onRequestClose",
+          "handler": "{onClose}"
+        },
+        {
+          "line": 69,
+          "event": "onPress",
+          "handler": "{onClose}"
+        },
+        {
+          "line": 83,
+          "event": "onPress",
+          "handler": "{onAction}"
+        },
+        {
+          "line": 90,
+          "event": "onPress",
+          "handler": "{onClose}"
+        }
+      ],
+      "navigation": [],
+      "async": []
+    },
+    {
+      "file": "src/components/review/ReviewPlanCard.tsx",
+      "page": false,
+      "events": [
+        {
+          "line": 72,
+          "event": "onPress",
+          "handler": "{onStart}"
+        }
+      ],
+      "navigation": [],
+      "async": []
+    },
+    {
+      "file": "src/components/review/ReviewStatusCard.tsx",
+      "page": false,
+      "events": [
+        {
+          "line": 41,
+          "event": "onPress",
+          "handler": "{() => router.push(ROUTES.review)}"
+        }
+      ],
+      "navigation": [
+        {
+          "line": 41,
+          "call": "router.push(ROUTES.review)"
+        }
+      ],
+      "async": []
+    },
+    {
+      "file": "src/components/rewards/RewardsGuideSheet.tsx",
+      "page": false,
+      "events": [
+        {
+          "line": 79,
+          "event": "onClose",
+          "handler": "{onClose}"
+        },
+        {
+          "line": 107,
+          "event": "onPress",
+          "handler": "{() => goto(it.route)}"
+        },
+        {
+          "line": 115,
+          "event": "onPress",
+          "handler": "{onClose}"
+        }
+      ],
+      "navigation": [
+        {
+          "line": 75,
+          "call": "router.push(route as never)"
+        }
+      ],
+      "async": []
+    },
+    {
+      "file": "src/components/settings/ChangelogModal.tsx",
+      "page": false,
+      "events": [
+        {
+          "line": 29,
+          "event": "onClose",
+          "handler": "{onClose}"
+        },
+        {
+          "line": 33,
+          "event": "onPress",
+          "handler": "{() => setSelected(null)}"
+        },
+        {
+          "line": 65,
+          "event": "onPress",
+          "handler": "{() => setSelected(entry)}"
+        }
+      ],
+      "navigation": [],
+      "async": []
+    },
+    {
+      "file": "src/components/settings/SettingsFocus.tsx",
+      "page": false,
+      "events": [
+        {
+          "line": 45,
+          "event": "onLayout",
+          "handler": "{(e) => {\r\n          const next = e.nativeEvent.layout.y;\r\n          setY((prev) => (Math.abs(prev - next) > 0.5 ? next : prev));\r\n        }}"
+        },
+        {
+          "line": 163,
+          "event": "onLayout",
+          "handler": "{(e) => {\r\n        const next = e.nativeEvent.layout.y;\r\n        setOwnY((prev) => (prev === null || Math.abs(prev - next) > 0.5 ? next : prev));\r\n      }}"
+        }
+      ],
+      "navigation": [],
+      "async": []
+    },
+    {
+      "file": "src/components/settings/SettingsSearch.tsx",
+      "page": false,
+      "events": [
+        {
+          "line": 77,
+          "event": "onChangeText",
+          "handler": "{search.setQuery}"
+        },
+        {
+          "line": 78,
+          "event": "onFocus",
+          "handler": "{() => setFocused(true)}"
+        },
+        {
+          "line": 79,
+          "event": "onBlur",
+          "handler": "{() => setFocused(false)}"
+        },
+        {
+          "line": 94,
+          "event": "onPress",
+          "handler": "{() => search.setQuery('')}"
+        },
+        {
+          "line": 111,
+          "event": "onPress",
+          "handler": "{() => { hapticSelection(); onSelect(entry); }}"
+        },
+        {
+          "line": 178,
+          "event": "onPress",
+          "handler": "{() => pick(entry)}"
+        }
+      ],
+      "navigation": [],
+      "async": []
+    },
+    {
+      "file": "src/components/settings/SupportModal.tsx",
+      "page": false,
+      "events": [
+        {
+          "line": 107,
+          "event": "onClose",
+          "handler": "{handleClose}"
+        },
+        {
+          "line": 121,
+          "event": "onPress",
+          "handler": "{handleClose}"
+        },
+        {
+          "line": 132,
+          "event": "onPress",
+          "handler": "{() => setCategory(cat)}"
+        },
+        {
+          "line": 153,
+          "event": "onChangeText",
+          "handler": "{setEmail}"
+        },
+        {
+          "line": 166,
+          "event": "onChangeText",
+          "handler": "{setMessage}"
+        },
+        {
+          "line": 194,
+          "event": "onPress",
+          "handler": "{submit}"
+        }
+      ],
+      "navigation": [],
+      "async": [
+        {
+          "line": 78,
+          "name": "submit"
+        }
+      ]
+    },
+    {
+      "file": "src/components/stats/WeeklyChart.tsx",
+      "page": false,
+      "events": [
+        {
+          "line": 47,
+          "event": "onPress",
+          "handler": "{() => setPeriod(p.key)}"
+        }
+      ],
+      "navigation": [],
+      "async": []
+    },
+    {
+      "file": "src/components/ui/AnimatedSheet.tsx",
+      "page": false,
+      "events": [
+        {
+          "line": 46,
+          "event": "onRequestClose",
+          "handler": "{onClose}"
+        },
+        {
+          "line": 49,
+          "event": "onPress",
+          "handler": "{onClose}"
+        }
+      ],
+      "navigation": [],
+      "async": []
+    },
+    {
+      "file": "src/components/ui/BottomSheet.tsx",
+      "page": false,
+      "events": [
+        {
+          "line": 33,
+          "event": "onRequestClose",
+          "handler": "{onClose}"
+        },
+        {
+          "line": 35,
+          "event": "onPress",
+          "handler": "{onClose}"
+        }
+      ],
+      "navigation": [],
+      "async": []
+    },
+    {
+      "file": "src/components/ui/Button.tsx",
+      "page": false,
+      "events": [
+        {
+          "line": 45,
+          "event": "onPress",
+          "handler": "{onPress}"
+        },
+        {
+          "line": 47,
+          "event": "onPressIn",
+          "handler": "{() => {\r\n          scale.value = withTiming(0.94, { duration: 90 });\r\n          // 손끝이 닿는 즉시(누름 확정 전) 미세 확인감 — 반응이 빠르게 느껴진다.\r\n          if (haptic && !disabled && !loading) hapticTap();\r\n        }}"
+        },
+        {
+          "line": 52,
+          "event": "onPressOut",
+          "handler": "{() => { scale.value = withSpring(1, { damping: 9, stiffness: 260 }); }}"
+        }
+      ],
+      "navigation": [],
+      "async": []
+    },
+    {
+      "file": "src/components/ui/CenterModal.tsx",
+      "page": false,
+      "events": [
+        {
+          "line": 61,
+          "event": "onRequestClose",
+          "handler": "{onClose}"
+        },
+        {
+          "line": 63,
+          "event": "onPress",
+          "handler": "{onClose}"
+        },
+        {
+          "line": 80,
+          "event": "onPress",
+          "handler": "{onClose}"
+        }
+      ],
+      "navigation": [],
+      "async": []
+    },
+    {
+      "file": "src/components/ui/EmojiBurstButton.tsx",
+      "page": false,
+      "events": [
+        {
+          "line": 101,
+          "event": "onPress",
+          "handler": "{handle}"
+        }
+      ],
+      "navigation": [],
+      "async": []
+    },
+    {
+      "file": "src/components/ui/ErrorBoundary.tsx",
+      "page": false,
+      "events": [
+        {
+          "line": 43,
+          "event": "onPress",
+          "handler": "{() => this.setState({ error: null })}"
+        }
+      ],
+      "navigation": [],
+      "async": []
+    },
+    {
+      "file": "src/components/ui/ErrorState.tsx",
+      "page": false,
+      "events": [
+        {
+          "line": 20,
+          "event": "onPress",
+          "handler": "{onRetry}"
+        }
+      ],
+      "navigation": [],
+      "async": []
+    },
+    {
+      "file": "src/components/ui/HeaderMenuSheet.tsx",
+      "page": false,
+      "events": [
+        {
+          "line": 89,
+          "event": "onClose",
+          "handler": "{onClose}"
+        },
+        {
+          "line": 93,
+          "event": "onPress",
+          "handler": "{() => go(ROUTES.profile)}"
+        },
+        {
+          "line": 115,
+          "event": "onPress",
+          "handler": "{() => go(s.route)}"
+        },
+        {
+          "line": 135,
+          "event": "onPress",
+          "handler": "{() => setThemeMode(t.key)}"
+        },
+        {
+          "line": 147,
+          "event": "onPress",
+          "handler": "{onLogout}"
+        }
+      ],
+      "navigation": [
+        {
+          "line": 73,
+          "call": "router.push(route as never)"
+        },
+        {
+          "line": 85,
+          "call": "router.replace(ROUTES.login as never)"
+        }
+      ],
+      "async": [
+        {
+          "line": 76,
+          "name": "callback"
+        }
+      ]
+    },
+    {
+      "file": "src/components/ui/MaintenanceGate.tsx",
+      "page": false,
+      "events": [
+        {
+          "line": 105,
+          "event": "onPress",
+          "handler": "{() => void refetch()}"
+        }
+      ],
+      "navigation": [],
+      "async": []
+    },
+    {
+      "file": "src/components/ui/NoticeBanner.tsx",
+      "page": false,
+      "events": [
+        {
+          "line": 88,
+          "event": "onPress",
+          "handler": "{() => setDismissed(notice)}"
+        }
+      ],
+      "navigation": [],
+      "async": []
+    },
+    {
+      "file": "src/components/ui/OfflineBanner.tsx",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 40,
+          "name": "callback"
+        },
+        {
+          "line": 59,
+          "name": "onOnline"
+        }
+      ]
+    },
+    {
+      "file": "src/components/ui/PressableScale.tsx",
+      "page": false,
+      "events": [
+        {
+          "line": 25,
+          "event": "onPressIn",
+          "handler": "{(e) => {\r\n          scale.value = withTiming(activeScale, { duration: 90 });\r\n          if (haptic) hapticTap();\r\n          onPressIn?.(e);\r\n        }}"
+        },
+        {
+          "line": 30,
+          "event": "onPressOut",
+          "handler": "{(e) => {\r\n          scale.value = withSpring(1, { damping: 8, stiffness: 260 });\r\n          onPressOut?.(e);\r\n        }}"
+        }
+      ],
+      "navigation": [],
+      "async": []
+    },
+    {
+      "file": "src/components/ui/QuestionImage.tsx",
+      "page": false,
+      "events": [
+        {
+          "line": 131,
+          "event": "onPress",
+          "handler": "{(e) => {\r\n          (e as unknown as { stopPropagation?: () => void })?.stopPropagation?.();\r\n          if (held) { setAllowed(true); return; }\r\n          setViewerOpen(true);\r\n        }}"
+        },
+        {
+          "line": 146,
+          "event": "onLoadEnd",
+          "handler": "{() => setLoading(false)}"
+        },
+        {
+          "line": 147,
+          "event": "onError",
+          "handler": "{() => { setFailed(true); setLoading(false); }}"
+        },
+        {
+          "line": 190,
+          "event": "onRequestClose",
+          "handler": "{() => setViewerOpen(false)}"
+        },
+        {
+          "line": 200,
+          "event": "onPress",
+          "handler": "{() => setViewerOpen(false)}"
+        },
+        {
+          "line": 216,
+          "event": "onPress",
+          "handler": "{() => setViewerOpen(false)}"
+        }
+      ],
+      "navigation": [],
+      "async": []
+    },
+    {
+      "file": "src/components/ui/ScreenHeader.tsx",
+      "page": false,
+      "events": [
+        {
+          "line": 40,
+          "event": "onPress",
+          "handler": "{back}"
+        }
+      ],
+      "navigation": [
+        {
+          "line": 32,
+          "call": "router.back()"
+        },
+        {
+          "line": 33,
+          "call": "router.replace(ROUTES.home as never)"
+        }
+      ],
+      "async": []
+    },
+    {
+      "file": "src/components/ui/SearchBar.tsx",
+      "page": false,
+      "events": [
+        {
+          "line": 22,
+          "event": "onChangeText",
+          "handler": "{onChange}"
+        },
+        {
+          "line": 29,
+          "event": "onPress",
+          "handler": "{() => onChange('')}"
+        }
+      ],
+      "navigation": [],
+      "async": []
+    },
+    {
+      "file": "src/components/ui/SegmentedControl.tsx",
+      "page": false,
+      "events": [
+        {
+          "line": 25,
+          "event": "onPress",
+          "handler": "{() => onChange(i)}"
+        }
+      ],
+      "navigation": [],
+      "async": []
+    },
+    {
+      "file": "src/components/ui/SettingsGroup.tsx",
+      "page": false,
+      "events": [
+        {
+          "line": 128,
+          "event": "onPress",
+          "handler": "{onPress}"
+        },
+        {
+          "line": 131,
+          "event": "onPressIn",
+          "handler": "{() => { pressed.value = withTiming(1, { duration: 80 }); }}"
+        },
+        {
+          "line": 132,
+          "event": "onPressOut",
+          "handler": "{() => { pressed.value = withTiming(0, { duration: 160 }); }}"
+        }
+      ],
+      "navigation": [],
+      "async": []
+    },
+    {
+      "file": "src/components/ui/SocialButton.tsx",
+      "page": false,
+      "events": [
+        {
+          "line": 22,
+          "event": "onPress",
+          "handler": "{() => onPress?.(s.key)}"
+        }
+      ],
+      "navigation": [],
+      "async": []
+    },
+    {
+      "file": "src/components/ui/Switch.tsx",
+      "page": false,
+      "events": [
+        {
+          "line": 68,
+          "event": "onPress",
+          "handler": "{handlePress}"
+        }
+      ],
+      "navigation": [],
+      "async": []
+    },
+    {
+      "file": "src/components/ui/TextField.tsx",
+      "page": false,
+      "events": [
+        {
+          "line": 42,
+          "event": "onFocus",
+          "handler": "{() => setFocused(true)}"
+        },
+        {
+          "line": 43,
+          "event": "onBlur",
+          "handler": "{() => setFocused(false)}"
+        }
+      ],
+      "navigation": [],
+      "async": []
+    },
+    {
+      "file": "src/components/ui/UpdatePrompt.tsx",
+      "page": false,
+      "events": [
+        {
+          "line": 61,
+          "event": "onPress",
+          "handler": "{onDismiss}"
+        },
+        {
+          "line": 96,
+          "event": "onPress",
+          "handler": "{onUpdate}"
+        },
+        {
+          "line": 98,
+          "event": "onPress",
+          "handler": "{onDismiss}"
+        }
+      ],
+      "navigation": [],
+      "async": []
+    },
+    {
+      "file": "src/data/auth/BiometricAuth.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 11,
+          "name": "isBiometricAvailable"
+        },
+        {
+          "line": 23,
+          "name": "authenticateWithBiometrics"
+        }
+      ]
+    },
+    {
+      "file": "src/data/auth/mockUserDb.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 65,
+          "name": "readAll"
+        },
+        {
+          "line": 78,
+          "name": "writeAll"
+        },
+        {
+          "line": 99,
+          "name": "find"
+        },
+        {
+          "line": 104,
+          "name": "isTaken"
+        },
+        {
+          "line": 109,
+          "name": "isNicknameTaken"
+        },
+        {
+          "line": 120,
+          "name": "create"
+        },
+        {
+          "line": 121,
+          "name": "callback"
+        },
+        {
+          "line": 136,
+          "name": "updateUser"
+        },
+        {
+          "line": 137,
+          "name": "callback"
+        },
+        {
+          "line": 156,
+          "name": "updatePassword"
+        },
+        {
+          "line": 157,
+          "name": "callback"
+        },
+        {
+          "line": 173,
+          "name": "listUsers"
+        }
+      ]
+    },
+    {
+      "file": "src/data/network/ApiClient.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 55,
+          "name": "readJsonBody"
+        },
+        {
+          "line": 80,
+          "name": "request"
+        },
+        {
+          "line": 149,
+          "name": "handleUnauthorized"
+        },
+        {
+          "line": 193,
+          "name": "tryRefresh"
+        },
+        {
+          "line": 238,
+          "name": "clearTokens"
+        },
+        {
+          "line": 254,
+          "name": "get"
+        },
+        {
+          "line": 291,
+          "name": "postDurable"
+        },
+        {
+          "line": 331,
+          "name": "health"
+        }
+      ]
+    },
+    {
+      "file": "src/data/network/offlineQueue.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 91,
+          "name": "persist"
+        },
+        {
+          "line": 99,
+          "name": "ensureLoaded"
+        },
+        {
+          "line": 102,
+          "name": "callback"
+        },
+        {
+          "line": 123,
+          "name": "pendingCount"
+        },
+        {
+          "line": 129,
+          "name": "clearQueue"
+        },
+        {
+          "line": 144,
+          "name": "enqueue"
+        },
+        {
+          "line": 183,
+          "name": "flushQueue"
+        }
+      ]
+    },
+    {
+      "file": "src/data/notifications/NotificationService.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 18,
+          "name": "callback"
+        },
+        {
+          "line": 30,
+          "name": "ensureAndroidChannel"
+        },
+        {
+          "line": 52,
+          "name": "requestNotificationPermission"
+        },
+        {
+          "line": 75,
+          "name": "scheduleDailyReminder"
+        },
+        {
+          "line": 107,
+          "name": "reconcileDailyReminder"
+        },
+        {
+          "line": 118,
+          "name": "cancelAllReminders"
+        },
+        {
+          "line": 141,
+          "name": "getExpoPushToken"
+        },
+        {
+          "line": 174,
+          "name": "syncPushTokenWithServer"
+        },
+        {
+          "line": 204,
+          "name": "triggerServerAlert"
+        },
+        {
+          "line": 217,
+          "name": "sendTestNotification"
+        }
+      ]
+    },
+    {
+      "file": "src/data/repositories/AuthRepository.mock.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 27,
+          "name": "requestEmailCode"
+        },
+        {
+          "line": 40,
+          "name": "verifyEmailCode"
+        },
+        {
+          "line": 59,
+          "name": "persistSession"
+        },
+        {
+          "line": 74,
+          "name": "login"
+        },
+        {
+          "line": 90,
+          "name": "socialLogin"
+        },
+        {
+          "line": 114,
+          "name": "register"
+        },
+        {
+          "line": 133,
+          "name": "isNicknameTaken"
+        },
+        {
+          "line": 138,
+          "name": "updateProfile"
+        },
+        {
+          "line": 154,
+          "name": "resetPassword"
+        },
+        {
+          "line": 159,
+          "name": "isUsernameTaken"
+        },
+        {
+          "line": 164,
+          "name": "logout"
+        },
+        {
+          "line": 171,
+          "name": "restore"
+        }
+      ]
+    },
+    {
+      "file": "src/data/repositories/AuthRepository.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 13,
+          "name": "persistSession"
+        },
+        {
+          "line": 32,
+          "name": "cacheUser"
+        },
+        {
+          "line": 41,
+          "name": "readCachedUser"
+        },
+        {
+          "line": 51,
+          "name": "login"
+        },
+        {
+          "line": 71,
+          "name": "socialLogin"
+        },
+        {
+          "line": 79,
+          "name": "register"
+        },
+        {
+          "line": 98,
+          "name": "resetPassword"
+        },
+        {
+          "line": 112,
+          "name": "requestEmailCode"
+        },
+        {
+          "line": 121,
+          "name": "verifyEmailCode"
+        },
+        {
+          "line": 129,
+          "name": "isUsernameTaken"
+        },
+        {
+          "line": 134,
+          "name": "isNicknameTaken"
+        },
+        {
+          "line": 140,
+          "name": "updateProfile"
+        },
+        {
+          "line": 149,
+          "name": "clearSession"
+        },
+        {
+          "line": 155,
+          "name": "logout"
+        },
+        {
+          "line": 169,
+          "name": "restore"
+        }
+      ]
+    },
+    {
+      "file": "src/data/repositories/CardRepository.mock.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 43,
+          "name": "getAllCards"
+        },
+        {
+          "line": 48,
+          "name": "markCard"
+        },
+        {
+          "line": 59,
+          "name": "createCards"
+        }
+      ]
+    },
+    {
+      "file": "src/data/repositories/CardRepository.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 16,
+          "name": "getAllCards"
+        },
+        {
+          "line": 21,
+          "name": "markCard"
+        },
+        {
+          "line": 27,
+          "name": "createCards"
+        }
+      ]
+    },
+    {
+      "file": "src/data/repositories/CollectionRepository.mock.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 14,
+          "name": "pull"
+        },
+        {
+          "line": 19,
+          "name": "sync"
+        }
+      ]
+    },
+    {
+      "file": "src/data/repositories/CollectionRepository.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 59,
+          "name": "pull"
+        },
+        {
+          "line": 63,
+          "name": "sync"
+        }
+      ]
+    },
+    {
+      "file": "src/data/repositories/CommunityRepository.mock.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 86,
+          "name": "getSnapshot"
+        }
+      ]
+    },
+    {
+      "file": "src/data/repositories/CommunityRepository.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 77,
+          "name": "getSnapshot"
+        }
+      ]
+    },
+    {
+      "file": "src/data/repositories/DailyAssignmentRepository.mock.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 30,
+          "name": "get"
+        }
+      ]
+    },
+    {
+      "file": "src/data/repositories/DailyAssignmentRepository.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 32,
+          "name": "get"
+        }
+      ]
+    },
+    {
+      "file": "src/data/repositories/DifficultyPollRepository.mock.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 15,
+          "name": "get"
+        },
+        {
+          "line": 24,
+          "name": "vote"
+        }
+      ]
+    },
+    {
+      "file": "src/data/repositories/DifficultyPollRepository.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 21,
+          "name": "get"
+        },
+        {
+          "line": 29,
+          "name": "vote"
+        }
+      ]
+    },
+    {
+      "file": "src/data/repositories/EngagementRepository.mock.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 8,
+          "name": "pull"
+        },
+        {
+          "line": 16,
+          "name": "setLiked"
+        },
+        {
+          "line": 20,
+          "name": "setBookmarked"
+        }
+      ]
+    },
+    {
+      "file": "src/data/repositories/EngagementRepository.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 19,
+          "name": "pull"
+        },
+        {
+          "line": 27,
+          "name": "setLiked"
+        },
+        {
+          "line": 35,
+          "name": "setBookmarked"
+        }
+      ]
+    },
+    {
+      "file": "src/data/repositories/FactionRepository.mock.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 7,
+          "name": "get"
+        },
+        {
+          "line": 11,
+          "name": "set"
+        }
+      ]
+    },
+    {
+      "file": "src/data/repositories/FactionRepository.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 11,
+          "name": "get"
+        },
+        {
+          "line": 16,
+          "name": "set"
+        }
+      ]
+    },
+    {
+      "file": "src/data/repositories/FeedRepository.mock.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 10,
+          "name": "list"
+        },
+        {
+          "line": 16,
+          "name": "post"
+        },
+        {
+          "line": 29,
+          "name": "setReaction"
+        }
+      ]
+    },
+    {
+      "file": "src/data/repositories/FeedRepository.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 49,
+          "name": "list"
+        },
+        {
+          "line": 54,
+          "name": "post"
+        },
+        {
+          "line": 60,
+          "name": "setReaction"
+        }
+      ]
+    },
+    {
+      "file": "src/data/repositories/LearningQuotaRepository.mock.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 25,
+          "name": "getQuota"
+        },
+        {
+          "line": 39,
+          "name": "recordCompletion"
+        }
+      ]
+    },
+    {
+      "file": "src/data/repositories/LearningQuotaRepository.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 24,
+          "name": "getQuota"
+        },
+        {
+          "line": 36,
+          "name": "recordCompletion"
+        }
+      ]
+    },
+    {
+      "file": "src/data/repositories/NotificationRepository.mock.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 8,
+          "name": "list"
+        },
+        {
+          "line": 13,
+          "name": "markRead"
+        },
+        {
+          "line": 18,
+          "name": "markAllRead"
+        },
+        {
+          "line": 23,
+          "name": "dismiss"
+        },
+        {
+          "line": 27,
+          "name": "registerPushToken"
+        }
+      ]
+    },
+    {
+      "file": "src/data/repositories/NotificationRepository.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 39,
+          "name": "list"
+        },
+        {
+          "line": 55,
+          "name": "markRead"
+        },
+        {
+          "line": 59,
+          "name": "markAllRead"
+        },
+        {
+          "line": 69,
+          "name": "dismiss"
+        },
+        {
+          "line": 81,
+          "name": "registerPushToken"
+        }
+      ]
+    },
+    {
+      "file": "src/data/repositories/ProgressRepository.mock.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 12,
+          "name": "pull"
+        },
+        {
+          "line": 23,
+          "name": "pushGrade"
+        },
+        {
+          "line": 28,
+          "name": "pushAttendance"
+        }
+      ]
+    },
+    {
+      "file": "src/data/repositories/ProgressRepository.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 32,
+          "name": "pull"
+        },
+        {
+          "line": 63,
+          "name": "pushGrade"
+        },
+        {
+          "line": 77,
+          "name": "pushAttendance"
+        }
+      ]
+    },
+    {
+      "file": "src/data/repositories/QnaRepository.mock.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 48,
+          "name": "list"
+        },
+        {
+          "line": 56,
+          "name": "get"
+        },
+        {
+          "line": 62,
+          "name": "ask"
+        },
+        {
+          "line": 68,
+          "name": "answer"
+        },
+        {
+          "line": 75,
+          "name": "setQuestionLike"
+        },
+        {
+          "line": 80,
+          "name": "setAnswerLike"
+        }
+      ]
+    },
+    {
+      "file": "src/data/repositories/QnaRepository.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 101,
+          "name": "list"
+        },
+        {
+          "line": 107,
+          "name": "get"
+        },
+        {
+          "line": 112,
+          "name": "ask"
+        },
+        {
+          "line": 121,
+          "name": "answer"
+        },
+        {
+          "line": 129,
+          "name": "setQuestionLike"
+        },
+        {
+          "line": 137,
+          "name": "setAnswerLike"
+        }
+      ]
+    },
+    {
+      "file": "src/data/repositories/ReportRepository.mock.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 7,
+          "name": "submit"
+        },
+        {
+          "line": 16,
+          "name": "listMine"
+        }
+      ]
+    },
+    {
+      "file": "src/data/repositories/ReportRepository.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 18,
+          "name": "submit"
+        },
+        {
+          "line": 31,
+          "name": "listMine"
+        }
+      ]
+    },
+    {
+      "file": "src/data/repositories/ServiceConfigRepository.mock.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 16,
+          "name": "get"
+        }
+      ]
+    },
+    {
+      "file": "src/data/repositories/ServiceConfigRepository.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 45,
+          "name": "get"
+        }
+      ]
+    },
+    {
+      "file": "src/data/repositories/SettingsRepository.mock.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 18,
+          "name": "pull"
+        },
+        {
+          "line": 23,
+          "name": "push"
+        }
+      ]
+    },
+    {
+      "file": "src/data/repositories/SettingsRepository.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 118,
+          "name": "pull"
+        },
+        {
+          "line": 127,
+          "name": "push"
+        }
+      ]
+    },
+    {
+      "file": "src/data/repositories/StatsRepository.mock.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 36,
+          "name": "getStudyStats"
+        }
+      ]
+    },
+    {
+      "file": "src/data/repositories/StatsRepository.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 8,
+          "name": "getStudyStats"
+        }
+      ]
+    },
+    {
+      "file": "src/data/repositories/SupportRepository.mock.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 6,
+          "name": "submit"
+        }
+      ]
+    },
+    {
+      "file": "src/data/repositories/SupportRepository.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 19,
+          "name": "submit"
+        }
+      ]
+    },
+    {
+      "file": "src/data/repositories/TipRepository.mock.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 11,
+          "name": "list"
+        },
+        {
+          "line": 20,
+          "name": "add"
+        },
+        {
+          "line": 40,
+          "name": "setLike"
+        },
+        {
+          "line": 45,
+          "name": "remove"
+        }
+      ]
+    },
+    {
+      "file": "src/data/repositories/TipRepository.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 44,
+          "name": "list"
+        },
+        {
+          "line": 49,
+          "name": "add"
+        },
+        {
+          "line": 55,
+          "name": "setLike"
+        },
+        {
+          "line": 59,
+          "name": "remove"
+        }
+      ]
+    },
+    {
+      "file": "src/data/repositories/UserDirectoryRepository.mock.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 85,
+          "name": "search"
+        },
+        {
+          "line": 92,
+          "name": "getProfile"
+        }
+      ]
+    },
+    {
+      "file": "src/data/repositories/UserDirectoryRepository.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 31,
+          "name": "search"
+        },
+        {
+          "line": 38,
+          "name": "getProfile"
+        }
+      ]
+    },
+    {
+      "file": "src/data/repositories/WeatherRepository.mock.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 18,
+          "name": "getCurrent"
+        }
+      ]
+    },
+    {
+      "file": "src/data/repositories/WeatherRepository.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 35,
+          "name": "getCurrent"
+        }
+      ]
+    },
+    {
+      "file": "src/data/repositories/_fallback.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 172,
+          "name": "callback"
+        }
+      ]
+    },
+    {
+      "file": "src/data/storage/secureStorage.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 16,
+          "name": "guard"
+        },
+        {
+          "line": 62,
+          "name": "getItem"
+        },
+        {
+          "line": 72,
+          "name": "setItem"
+        },
+        {
+          "line": 86,
+          "name": "removeItem"
+        },
+        {
+          "line": 102,
+          "name": "readItem"
+        }
+      ]
+    },
+    {
+      "file": "src/data/sync/localBackfill.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 46,
+          "name": "backfillFeed"
+        },
+        {
+          "line": 61,
+          "name": "backfillTips"
+        },
+        {
+          "line": 74,
+          "name": "backfillVotes"
+        },
+        {
+          "line": 88,
+          "name": "backfillQuestions"
+        },
+        {
+          "line": 109,
+          "name": "backfillDismissed"
+        },
+        {
+          "line": 126,
+          "name": "runLocalBackfill"
+        },
+        {
+          "line": 129,
+          "name": "attempt"
+        }
+      ]
+    },
+    {
+      "file": "src/data/update/NativeUpdateService.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 24,
+          "name": "fetchNativeUpdate"
+        },
+        {
+          "line": 53,
+          "name": "reloadNativeUpdate"
+        }
+      ]
+    },
+    {
+      "file": "src/data/update/UpdateService.ts",
+      "page": false,
+      "events": [],
+      "navigation": [
+        {
+          "line": 105,
+          "call": "location.replace(`${location.pathname}?${params.toString()}${location.hash}`)"
+        }
+      ],
+      "async": [
+        {
+          "line": 38,
+          "name": "fetchRemoteVersion"
+        },
+        {
+          "line": 78,
+          "name": "applyUpdate"
+        }
+      ]
+    },
+    {
+      "file": "src/hooks/useAppBackHandler.ts",
+      "page": false,
+      "events": [],
+      "navigation": [
+        {
+          "line": 44,
+          "call": "router.back()"
+        },
+        {
+          "line": 48,
+          "call": "router.replace(ROUTES.home as never)"
+        }
+      ],
+      "async": []
+    },
+    {
+      "file": "src/hooks/useAppUpdate.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 46,
+          "name": "callback"
+        }
+      ]
+    },
+    {
+      "file": "src/hooks/useCards.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 33,
+          "name": "callback"
+        }
+      ]
+    },
+    {
+      "file": "src/hooks/useCardTips.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 30,
+          "name": "add"
+        }
+      ]
+    },
+    {
+      "file": "src/hooks/useCollectionSync.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 40,
+          "name": "callback"
+        },
+        {
+          "line": 61,
+          "name": "push"
+        }
+      ]
+    },
+    {
+      "file": "src/hooks/useEngagementSync.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 31,
+          "name": "callback"
+        },
+        {
+          "line": 63,
+          "name": "push"
+        }
+      ]
+    },
+    {
+      "file": "src/hooks/useFactionSync.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 30,
+          "name": "pull"
+        }
+      ]
+    },
+    {
+      "file": "src/hooks/useGoBack.ts",
+      "page": false,
+      "events": [],
+      "navigation": [
+        {
+          "line": 22,
+          "call": "router.back()"
+        },
+        {
+          "line": 23,
+          "call": "router.replace(fallback as never)"
+        }
+      ],
+      "async": []
+    },
+    {
+      "file": "src/hooks/useLocalBackfill.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 31,
+          "name": "run"
+        }
+      ]
+    },
+    {
+      "file": "src/hooks/useNotificationSync.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 35,
+          "name": "pullNotifications"
+        },
+        {
+          "line": 68,
+          "name": "pull"
+        }
+      ]
+    },
+    {
+      "file": "src/hooks/useProgressSync.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 60,
+          "name": "callback"
+        }
+      ]
+    },
+    {
+      "file": "src/hooks/usePullToRefresh.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 21,
+          "name": "callback"
+        }
+      ]
+    },
+    {
+      "file": "src/hooks/useReportSync.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 34,
+          "name": "callback"
+        }
+      ]
+    },
+    {
+      "file": "src/hooks/useSettingsSync.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 75,
+          "name": "push"
+        },
+        {
+          "line": 107,
+          "name": "callback"
+        }
+      ]
+    },
+    {
+      "file": "src/navigation/authGuard.ts",
+      "page": false,
+      "events": [],
+      "navigation": [
+        {
+          "line": 44,
+          "call": "router.replace(ROUTES.login as never)"
+        }
+      ],
+      "async": []
+    },
+    {
+      "file": "src/navigation/flow.ts",
+      "page": false,
+      "events": [],
+      "navigation": [
+        {
+          "line": 26,
+          "call": "router.replace(ROUTES.home as never)"
+        },
+        {
+          "line": 29,
+          "call": "router.replace(ROUTES.home as never)"
+        },
+        {
+          "line": 30,
+          "call": "router.push(target as never)"
+        }
+      ],
+      "async": []
+    },
+    {
+      "file": "src/store/authStore.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 67,
+          "name": "bindSession"
+        },
+        {
+          "line": 100,
+          "name": "callback"
+        },
+        {
+          "line": 118,
+          "name": "callback"
+        },
+        {
+          "line": 147,
+          "name": "callback"
+        },
+        {
+          "line": 171,
+          "name": "callback"
+        },
+        {
+          "line": 192,
+          "name": "callback"
+        },
+        {
+          "line": 220,
+          "name": "callback"
+        },
+        {
+          "line": 238,
+          "name": "callback"
+        },
+        {
+          "line": 254,
+          "name": "callback"
+        }
+      ]
+    },
+    {
+      "file": "src/store/cardStore.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 29,
+          "name": "callback"
+        },
+        {
+          "line": 44,
+          "name": "callback"
+        }
+      ]
+    },
+    {
+      "file": "src/store/sessionScope.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 87,
+          "name": "purgeDisk"
+        },
+        {
+          "line": 97,
+          "name": "readOwner"
+        },
+        {
+          "line": 105,
+          "name": "apply"
+        },
+        {
+          "line": 153,
+          "name": "clearSessionOwner"
+        }
+      ]
+    },
+    {
+      "file": "src/store/statsStore.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 18,
+          "name": "callback"
+        }
+      ]
+    },
+    {
+      "file": "src/utils/downloadLog.ts",
+      "page": false,
+      "events": [],
+      "navigation": [],
+      "async": [
+        {
+          "line": 29,
+          "name": "downloadSystemLog"
+        }
+      ]
+    }
+  ]
+}

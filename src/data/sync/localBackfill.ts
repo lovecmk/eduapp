@@ -1,4 +1,5 @@
 import type { IFeedRepository } from '../../domain/repositories/IFeedRepository';
+import { getSessionEpoch, assertSessionEpoch } from '../network/sessionEpoch';
 import type { ITipRepository } from '../../domain/repositories/ITipRepository';
 import type { IDifficultyPollRepository } from '../../domain/repositories/IDifficultyPollRepository';
 import type { IQnaRepository } from '../../domain/repositories/IQnaRepository';
@@ -42,51 +43,60 @@ export interface BackfillResult {
   dismissed: number;
 }
 
-async function backfillFeed(live: IFeedRepository): Promise<number> {
+async function backfillFeed(live: IFeedRepository, epoch: number): Promise<number> {
   const locals = useShareFeedStore.getState().posts
     .filter((p) => p.mine && p.id.startsWith('mybrag-'))
     .reverse(); // 오래된 것부터 — 서버 목록의 순서가 올린 순서와 같도록
   let moved = 0;
   for (const p of locals) {
+    assertSessionEpoch(epoch);
     await live.post({ author: p.author, color: p.color, imageUri: p.imageUri, aspect: p.aspect, snapshot: p.snapshot });
+    assertSessionEpoch(epoch);
     useShareFeedStore.getState().remove(p.id);
     moved++;
   }
   return moved;
 }
 
-async function backfillTips(live: ITipRepository): Promise<string[]> {
+async function backfillTips(live: ITipRepository, epoch: number): Promise<string[]> {
   const locals = useTipStore.getState().tips.filter((t) => t.mine && t.id.startsWith('mine-')).reverse();
   const cards = new Set<string>();
   for (const t of locals) {
+    assertSessionEpoch(epoch);
     await live.add(t.cardId, t.body);
+    assertSessionEpoch(epoch);
     useTipStore.getState().remove(t.id);
     cards.add(t.cardId);
   }
   return [...cards];
 }
 
-async function backfillVotes(live: IDifficultyPollRepository): Promise<number> {
+async function backfillVotes(live: IDifficultyPollRepository, epoch: number): Promise<number> {
   const { myVotes, sent } = useDiffPollStore.getState();
   let moved = 0;
   for (const [cardId, vote] of Object.entries(myVotes)) {
     if (sent[cardId] === vote) continue;
+    assertSessionEpoch(epoch);
     await live.vote(cardId, vote);
+    assertSessionEpoch(epoch);
     useDiffPollStore.getState().markSent(cardId, vote);
     moved++;
   }
   return moved;
 }
 
-async function backfillQuestions(live: IQnaRepository): Promise<number> {
+async function backfillQuestions(live: IQnaRepository, epoch: number): Promise<number> {
   const locals = useQnaStore.getState().questions.filter((q) => q.mine && q.id.startsWith('myq-'));
   const oldestFirst = [...locals].sort((a, b) => a.createdAt - b.createdAt);
   let moved = 0;
   for (const q of oldestFirst) {
+    assertSessionEpoch(epoch);
     const created = await live.ask({ title: q.title, body: q.body, category: q.category });
+    assertSessionEpoch(epoch);
     // 기기에서 내 질문에 달아 둔 내 답변도 함께 옮긴다(남의 답변은 기기에 있을 수 없다).
     for (const a of q.answers.filter((x) => x.mine)) {
       await live.answer(created.id, a.body);
+      assertSessionEpoch(epoch);
     }
     useQnaStore.getState().removeQuestion(q.id);
     moved++;
@@ -95,36 +105,39 @@ async function backfillQuestions(live: IQnaRepository): Promise<number> {
 }
 
 /** 지운 알림은 한 실행에 한 번만 통째로 알린다(서버가 멱등으로 받는다). */
-let dismissedSentThisRun = false;
-async function backfillDismissed(live: INotificationRepository): Promise<number> {
-  if (dismissedSentThisRun) return 0;
+let dismissedSentEpoch: number | null = null;
+async function backfillDismissed(live: INotificationRepository, epoch: number): Promise<number> {
+  if (dismissedSentEpoch === epoch) return 0;
   const ids = useNotificationStore.getState().dismissedIds;
   if (ids.length > 0) await live.dismiss(ids);
-  dismissedSentThisRun = true;
+  assertSessionEpoch(epoch);
+  dismissedSentEpoch = epoch;
   return ids.length;
 }
 
 /** 테스트용 — 실행 단위 표식을 되돌린다. */
 export function __resetBackfillForTests(): void {
-  dismissedSentThisRun = false;
+  dismissedSentEpoch = null;
 }
 
 /**
  * 모든 기능을 하나씩 시도한다. 한 기능의 실패(라우트 없음·연결 없음)는 다른 기능을 막지 않는다.
  */
 export async function runLocalBackfill(live: LiveRepos): Promise<BackfillResult> {
+  const epoch = getSessionEpoch();
   const result: BackfillResult = { feed: 0, tips: [], votes: 0, questions: 0, dismissed: 0 };
   const attempt = async <K extends keyof BackfillResult>(key: K, job: () => Promise<BackfillResult[K]>) => {
     try {
+      assertSessionEpoch(epoch);
       result[key] = await job();
     } catch {
       // 아직 라우트가 없거나 못 닿았다 — 남은 것은 기기에 그대로 두고 다음에 다시 한다.
     }
   };
-  await attempt('feed', () => backfillFeed(live.feed));
-  await attempt('tips', () => backfillTips(live.tips));
-  await attempt('votes', () => backfillVotes(live.poll));
-  await attempt('questions', () => backfillQuestions(live.qna));
-  await attempt('dismissed', () => backfillDismissed(live.notifications));
+  await attempt('feed', () => backfillFeed(live.feed, epoch));
+  await attempt('tips', () => backfillTips(live.tips, epoch));
+  await attempt('votes', () => backfillVotes(live.poll, epoch));
+  await attempt('questions', () => backfillQuestions(live.qna, epoch));
+  await attempt('dismissed', () => backfillDismissed(live.notifications, epoch));
   return result;
 }

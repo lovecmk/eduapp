@@ -19,7 +19,7 @@ export class CardRepository implements ICardRepository {
   }
 
   async markCard(id: string, status: CardStatus): Promise<LearningCard> {
-    const dto = await apiClient.patch<CardDTO>(`/inner/api/v1/cards/${id}`, { status_cd: STATUS_TO_CD[status] });
+    const dto = await apiClient.patch<CardDTO>(`/inner/api/v1/cards/${encodeURIComponent(id)}`, { status_cd: STATUS_TO_CD[status] });
     return CardMapper.toDomain(dto);
   }
 

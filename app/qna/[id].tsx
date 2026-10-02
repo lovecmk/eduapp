@@ -17,12 +17,14 @@ import {
   useQuestion,
   useQuestionLike,
 } from '../../src/hooks/useQna';
+import { toast } from '../../src/store/toastStore';
+import { errorMessage } from '../../src/data/network/errors';
 
 export default function QnaDetailScreen() {
   const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { data: question, isLoading } = useQuestion(id);
+  const { data: question, isLoading, error, refetch } = useQuestion(id);
   const answerMutation = useAnswerQuestion(id ?? '');
   const questionLike = useQuestionLike();
   const answerLike = useAnswerLike(id ?? '');
@@ -35,8 +37,9 @@ export default function QnaDetailScreen() {
         <ScreenHeader title="질문" />
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <Text style={{ color: c.textSecondary, fontFamily: fontBody }}>
-            {isLoading ? '질문을 불러오는 중이에요' : '질문을 찾을 수 없어요'}
+            {isLoading ? '질문을 불러오는 중이에요' : error ? errorMessage(error) : '질문을 찾을 수 없어요'}
           </Text>
+          {!!error && <Pressable accessibilityRole="button" onPress={() => void refetch()} style={{ padding: 16 }}><Text style={{ color: c.primary }}>다시 시도</Text></Pressable>}
         </View>
       </View>
     );
@@ -48,9 +51,16 @@ export default function QnaDetailScreen() {
   const canSend = !!cleaned && !answerMutation.isPending;
   const submit = () => {
     if (!cleaned || answerMutation.isPending) return;
-    answerMutation.mutate(cleaned);
-    setDraft('');
-    setFocused(false);
+    const sentDraft = draft;
+    answerMutation.mutate(cleaned, {
+      onSuccess: () => {
+        // 기다리는 사이 새 내용을 적었다면 그것까지 지우지 않는다.
+        setDraft((current) => current === sentDraft ? '' : current);
+        setFocused(false);
+        toast('답변을 올렸어요', 'success');
+      },
+      onError: (error) => toast(errorMessage(error) + ' 답변을 유지했으니 다시 보내주세요.', 'warn', 4000),
+    });
   };
   const sorted = [...question.answers].sort((a, b) => Number(b.accepted) - Number(a.accepted) || b.likes - a.likes);
 

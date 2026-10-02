@@ -15,11 +15,11 @@ jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush, back: jest
 import React from 'react';
 import { render, screen } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import NotificationsScreen from '../notifications';
-import { ThemeProvider } from '../../src/theme/ThemeProvider';
-import { useNotificationStore } from '../../src/store/notificationStore';
-import { nestedButtonLabels, type TreeNode } from '../../src/test-utils/nestedButtons';
-import type { AppNotification } from '../../src/domain/models/Notification';
+import NotificationsScreen from '../../../app/notifications';
+import { ThemeProvider } from '../../theme/ThemeProvider';
+import { useNotificationStore } from '../../store/notificationStore';
+import { nestedButtonLabels, type TreeNode } from '../../test-utils/nestedButtons';
+import type { AppNotification } from '../../domain/models/Notification';
 
 const FIXTURE: AppNotification[] = [
   { id: 'a1', type: 'achievement', title: '누적 50개 카드 완료 🏅', desc: '50개를 학습했어요.', minutesAgo: 30, read: false, category: '성취' },

@@ -5,6 +5,7 @@ import { withReaction } from '../domain/models/Feed';
 import { useDegraded } from './useDegraded';
 import { env } from '../data/network/env';
 import { logger } from '../utils/logger';
+import { getSessionEpoch } from '../data/network/sessionEpoch';
 
 export const FEED_KEY = ['feed'] as const;
 
@@ -33,12 +34,14 @@ export function usePostToFeed() {
 export function useFeedReaction() {
   const qc = useQueryClient();
   return (postId: string, kind: ReactionKind) => {
+    const epoch = getSessionEpoch();
     const prev = qc.getQueryData<ShareCardPost[]>(FEED_KEY) ?? [];
     const target = prev.find((p) => p.id === postId);
     if (!target) return;
     const on = !target.myReactions.includes(kind);
     qc.setQueryData<ShareCardPost[]>(FEED_KEY, prev.map((p) => (p.id === postId ? withReaction(p, kind, on) : p)));
     feedRepository.setReaction(postId, kind, on).catch((e) => {
+      if (epoch !== getSessionEpoch()) return;
       qc.setQueryData(FEED_KEY, prev);
       logger.warn('feed.reaction_failed', { reason: String(e) });
     });

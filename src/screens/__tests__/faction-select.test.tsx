@@ -15,10 +15,10 @@ jest.mock('expo-router', () => ({
 import React from 'react';
 import { render, screen } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import FactionSelectScreen from '../faction-select';
-import { ThemeProvider } from '../../src/theme/ThemeProvider';
-import { useSettingsStore, FONT_SCALE_FACTOR, type FontScale } from '../../src/store/settingsStore';
-import { FACTION_LIST } from '../../src/constants/factions';
+import FactionSelectScreen from '../../../app/faction-select';
+import { ThemeProvider } from '../../theme/ThemeProvider';
+import { useSettingsStore, FONT_SCALE_FACTOR, type FontScale } from '../../store/settingsStore';
+import { FACTION_LIST } from '../../constants/factions';
 
 const metrics = {
   frame: { x: 0, y: 0, width: 390, height: 844 },

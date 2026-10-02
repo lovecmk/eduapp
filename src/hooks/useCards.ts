@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { cardRepository } from '../data/repositories';
 import type { LearningCard, CardStatus } from '../domain/models/LearningCard';
 import type { CardDraft } from '../domain/models/CardDraft';
+import { getSessionEpoch, assertSessionEpoch } from '../data/network/sessionEpoch';
 
 const CARDS_KEY = 'cards';
 
@@ -30,17 +31,19 @@ export function useMarkCard() {
     mutationFn: ({ id, status }: { id: string; status: CardStatus }) =>
       cardRepository.markCard(id, status),
     onMutate: async ({ id, status }) => {
+      const epoch = getSessionEpoch();
       await queryClient.cancelQueries({ queryKey: [CARDS_KEY] });
+      assertSessionEpoch(epoch);
       const prev = queryClient.getQueryData<LearningCard[]>([CARDS_KEY]);
       if (prev) {
         queryClient.setQueryData<LearningCard[]>([CARDS_KEY], (old) =>
           old?.map((c) => (c.id === id ? { ...c, status } : c))
         );
       }
-      return { prev };
+      return { prev, epoch };
     },
     onError: (_err, _vars, context) => {
-      if (context?.prev) {
+      if (context?.prev && context.epoch === getSessionEpoch()) {
         queryClient.setQueryData([CARDS_KEY], context.prev);
       }
     },

@@ -8,10 +8,10 @@ jest.mock('expo-router', () => ({ Redirect: (props: unknown) => mockRedirect(pro
 
 import React from 'react';
 import { render } from '@testing-library/react-native';
-import Index from '../index';
-import { useAuthStore } from '../../src/store/authStore';
-import { ROUTES } from '../../src/constants/routes';
-import type { User } from '../../src/domain/models/User';
+import Index from '../../../app/index';
+import { useAuthStore } from '../../store/authStore';
+import { ROUTES } from '../../constants/routes';
+import type { User } from '../../domain/models/User';
 
 const someUser: User = {
   id: 'u-1',

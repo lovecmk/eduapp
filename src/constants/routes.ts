@@ -26,8 +26,8 @@ export const ROUTES = {
   userSearch: '/user-search',
   privacy: '/privacy',
   legal: '/legal',
-  publicProfile: (id: string) => `/u/${id}`,
-  content: (id: string) => `/content/${id}`,
-  qna: (id: string) => `/qna/${id}`,
-  collection: (type: string) => `/collection/${type}`,
+  publicProfile: (id: string) => `/u/${encodeURIComponent(id)}`,
+  content: (id: string) => `/content/${encodeURIComponent(id)}`,
+  qna: (id: string) => `/qna/${encodeURIComponent(id)}`,
+  collection: (type: string) => `/collection/${encodeURIComponent(type)}`,
 } as const;

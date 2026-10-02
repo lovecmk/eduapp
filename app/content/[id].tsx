@@ -21,6 +21,8 @@ import { useReportStore } from '../../src/store/reportStore';
 import { useBookmarkStore } from '../../src/store/bookmarkStore';
 import { useSrsStore } from '../../src/store/srsStore';
 import { hapticSuccess, hapticTap } from '../../src/utils/haptics';
+import { ErrorState } from '../../src/components/ui/ErrorState';
+import { errorMessage } from '../../src/data/network/errors';
 
 const statusLabel: Record<string, string> = { new: '새 카드', learning: '학습 중', mastered: '마스터' };
 
@@ -29,7 +31,7 @@ export default function ContentDetailScreen() {
   const c = theme.colors;
   const fs = fontScale;
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { data: allCards = [], refetch } = useAllCards();
+  const { data: allCards = [], isLoading, error, refetch } = useAllCards();
   const card = allCards.find((c) => c.id === id);
   const [reportOpen, setReportOpen] = useState(false);
   const [reviewMark, setReviewMark] = useState<'mastered' | 'learning' | null>(null);
@@ -39,7 +41,7 @@ export default function ContentDetailScreen() {
   const markCardMutation = useMarkCard();
   const srsGrade = useSrsStore((s) => s.grade);
 
-  useEffect(() => { if (!card) refetch(); }, [card, refetch]);
+  useEffect(() => { setReviewMark(null); setReportOpen(false); }, [id]);
 
   // 복습 상세에서 '이해했어요 / 다음에 한번 더' — 학습 모드로 전환하지 않고 자기평가만 기록한다.
   // (마스터/학습 상태 갱신 + 간격반복 일정 반영으로 다음 복습 시점과 달력에 반영된다.)
@@ -56,7 +58,8 @@ export default function ContentDetailScreen() {
       <View style={{ flex: 1, backgroundColor: c.bg }}>
         <ScreenHeader title="컨텐츠 상세" />
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ color: c.textSecondary, fontFamily: fontCute }}>카드를 찾을 수 없어요</Text>
+          {error ? <ErrorState message={errorMessage(error)} onRetry={refetch} /> :
+            <Text style={{ color: c.textSecondary, fontFamily: fontCute }}>{isLoading ? '카드를 불러오는 중이에요' : '카드를 찾을 수 없어요'}</Text>}
         </View>
       </View>
     );

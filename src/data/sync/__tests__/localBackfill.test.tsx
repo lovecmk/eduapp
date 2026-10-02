@@ -10,6 +10,7 @@ import { useDiffPollStore } from '../../../store/diffPollStore';
 import { useQnaStore } from '../../../store/qnaStore';
 import { useNotificationStore } from '../../../store/notificationStore';
 import { ApiError } from '../../network/errors';
+import { advanceSessionEpoch } from '../../network/sessionEpoch';
 
 const notDeployed = () => Promise.reject(new ApiError(404, ''));
 
@@ -47,6 +48,20 @@ beforeEach(() => {
 });
 
 describe('runLocalBackfill', () => {
+  it('계정이 바뀌면 이전 전송 결과로 새 계정 데이터를 삭제하거나 추가 전송하지 않는다', async () => {
+    useShareFeedStore.setState({ posts: [post('mybrag-1')] });
+    let finish!: () => void;
+    const live = fakeLive({ feed: { post: jest.fn(() => new Promise<void>((resolve) => { finish = resolve; })) as never } });
+    const job = runLocalBackfill(live);
+    advanceSessionEpoch();
+    useShareFeedStore.setState({ posts: [post('mybrag-1')] });
+    useDiffPollStore.setState({ myVotes: { lc001: 'hard' }, sent: {} });
+    finish();
+    const result = await job;
+    expect(useShareFeedStore.getState().posts).toHaveLength(1);
+    expect(live.poll.vote).not.toHaveBeenCalled();
+    expect(result.feed).toBe(0);
+  });
   it('기기에서 만든 것만 오래된 순서로 올리고, 올린 것은 기기에서 지운다', async () => {
     useShareFeedStore.setState({ posts: [post('mybrag-2'), post('mybrag-1'), post('brag-seed', false)] });
     useTipStore.setState({ tips: [{ id: 'mine-1', cardId: 'lc001', author: '나', color: '#000', body: '방전 먼저', likes: 0, likedByMe: false, mine: true, minutesAgo: 0 }] });

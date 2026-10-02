@@ -4,6 +4,7 @@ import type { Question, QuestionDraft } from '../domain/models/Qna';
 import { withAppendedAnswer } from '../domain/models/Qna';
 import { sanitizeText, isMeaningful, INPUT_LIMITS } from '../utils/sanitize';
 import { logger } from '../utils/logger';
+import { getSessionEpoch } from '../data/network/sessionEpoch';
 
 /**
  * 질문 & 답변 훅.
@@ -95,7 +96,9 @@ export function useAskQuestion() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (draft: QuestionDraft) => qnaRepository.ask(draft),
-    onSuccess: (created) => {
+    onMutate: () => ({ epoch: getSessionEpoch() }),
+    onSuccess: (created, _variables, context) => {
+      if (context?.epoch !== getSessionEpoch()) return;
       qc.setQueryData<Question[]>(QNA_KEYS.list, (list) => [created, ...(list ?? [])]);
       qc.setQueryData(QNA_KEYS.detail(created.id), created);
       void qc.invalidateQueries({ queryKey: QNA_KEYS.list });
@@ -108,7 +111,9 @@ export function useAnswerQuestion(questionId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (body: string) => qnaRepository.answer(questionId, body),
-    onSuccess: (created) => {
+    onMutate: () => ({ epoch: getSessionEpoch() }),
+    onSuccess: (created, _variables, context) => {
+      if (context?.epoch !== getSessionEpoch()) return;
       // 개수는 '다시 세기'가 아니라 '더하기'다 — 목록 캐시의 질문은 답변 본문을
       // 들고 있지 않아, 다시 세면 12개짜리 질문이 '답변 1'로 바뀐다
       // (withAppendedAnswer 주석 참고).
@@ -134,8 +139,10 @@ export function useQuestionLike() {
       qnaRepository.setQuestionLike(id, liked),
     onMutate: ({ id, liked }) => {
       patchQuestion(qc, id, (q) => likeApplied(q, liked));
+      return { epoch: getSessionEpoch() };
     },
-    onError: (e, { id, liked }) => {
+    onError: (e, { id, liked }, context) => {
+      if (context?.epoch !== getSessionEpoch()) return;
       patchQuestion(qc, id, (q) => likeApplied(q, !liked));
       logger.warn('qna.like_failed', { reason: String(e) });
     },
@@ -152,8 +159,12 @@ export function useAnswerLike(questionId: string) {
   return useMutation({
     mutationFn: ({ answerId, liked }: { answerId: string; liked: boolean }) =>
       qnaRepository.setAnswerLike(questionId, answerId, liked),
-    onMutate: ({ answerId, liked }) => apply(answerId, liked),
-    onError: (e, { answerId, liked }) => {
+    onMutate: ({ answerId, liked }) => {
+      apply(answerId, liked);
+      return { epoch: getSessionEpoch() };
+    },
+    onError: (e, { answerId, liked }, context) => {
+      if (context?.epoch !== getSessionEpoch()) return;
       apply(answerId, !liked);
       logger.warn('qna.answer_like_failed', { reason: String(e) });
     },

@@ -22,6 +22,10 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - 'app.json'
+      - 'app.config.js'
+      - 'scripts/bump-version.mjs'
+      - 'scripts/version-core.cjs'
+      - '.github/workflows/eas-update.yml'
   workflow_dispatch:
     inputs:
       branch:
@@ -69,6 +73,24 @@ jobs:
 
       - name: Type check
         run: npm run typecheck
+
+      - name: Bump build version
+        run: node scripts/bump-version.mjs
+
+      # APK/Web와 버전 메타데이터를 맞추고, 미설정 주소 때문에 목업 OTA가
+      # production에 게시되는 것을 막는다.
+      - name: Inject production config and build metadata
+        run: |
+          cat > .env <<EOF
+          EXPO_PUBLIC_API_BASE_URL=https://bridge.kfpa.or.kr
+          EXPO_PUBLIC_API_TIMEOUT_MS=${{ secrets.EXPO_PUBLIC_API_TIMEOUT_MS || '10000' }}
+          EXPO_PUBLIC_USE_MOCK_DATA=false
+          EXPO_PUBLIC_SENTRY_DSN=${{ secrets.EXPO_PUBLIC_SENTRY_DSN }}
+          EXPO_PUBLIC_BUILD_NUMBER=${APP_BUILD_NUMBER}
+          EXPO_PUBLIC_APP_VERSION=${APP_VERSION}
+          EXPO_PUBLIC_COMMIT_SHA=${APP_COMMIT}
+          EXPO_PUBLIC_BUILD_TIME=${APP_BUILD_TIME}
+          EOF
 
       - name: Publish OTA update
         # 커밋 메시지를 셸에 직접 넣지 않고 env 로 전달(스크립트 인젝션 방지).

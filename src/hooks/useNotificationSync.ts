@@ -1,9 +1,10 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
 import { useNotificationStore } from '../store/notificationStore';
 import { useAuthStore } from '../store/authStore';
 import { notificationRepository } from '../data/repositories';
 import { logger } from '../utils/logger';
+import { getSessionEpoch } from '../data/network/sessionEpoch';
 
 /**
  * 서버 알림(관리 콘솔이 보낸 공지)을 받아오고 읽음 상태를 되돌려준다.
@@ -32,8 +33,12 @@ const POLL_MS = 60_000;
  * @returns 받아 왔으면 true. 못 받았으면 지금 목록을 그대로 두고 false.
  */
 export async function pullNotifications(): Promise<boolean> {
+  const epoch = getSessionEpoch();
+  const userId = useAuthStore.getState().user?.id;
+  if (!userId) return false;
   try {
     const items = await notificationRepository.list();
+    if (epoch !== getSessionEpoch() || useAuthStore.getState().user?.id !== userId) return false;
     useNotificationStore.getState().applyServer(items);
     return true;
   } catch (e) {
@@ -55,8 +60,6 @@ export function useNotificationSync(): void {
    * 앞사람이 읽은 것과 id 가 겹치는 알림의 읽음이 뒷사람에게서는 서버로 나가지
    * 않는다(아래 구독이 userId 로 다시 걸리는 이유).
    */
-  const readSent = useRef<Set<string>>(new Set());
-
   // 1) 목록 가져오기(진입 시 + 주기적으로).
   useEffect(() => {
     if (!enabled) return;
@@ -95,7 +98,7 @@ export function useNotificationSync(): void {
   // 2) 읽음 되돌려주기.
   useEffect(() => {
     if (!enabled) return;
-    readSent.current = new Set();
+    const readSent = new Set<string>();
     let prev = useNotificationStore.getState().items;
 
     let prevDismissed = useNotificationStore.getState().dismissedIds;
@@ -119,17 +122,17 @@ export function useNotificationSync(): void {
       const allRead = s.items.length > 0 && s.items.every((n) => n.read);
 
       if (allRead && newlyRead.length > 1) {
-        for (const n of newlyRead) readSent.current.add(n.id);
+        for (const n of newlyRead) readSent.add(n.id);
         void notificationRepository.markAllRead().catch((e) => {
-          for (const n of newlyRead) readSent.current.delete(n.id);
+          for (const n of newlyRead) readSent.delete(n.id);
           logger.warn('notification.mark_all_failed', { reason: String(e) });
         });
       } else {
         for (const n of newlyRead) {
-          if (readSent.current.has(n.id)) continue;
-          readSent.current.add(n.id);
+          if (readSent.has(n.id)) continue;
+          readSent.add(n.id);
           void notificationRepository.markRead(n.id).catch((e) => {
-            readSent.current.delete(n.id);
+            readSent.delete(n.id);
             logger.warn('notification.mark_read_failed', { id: n.id, reason: String(e) });
           });
         }

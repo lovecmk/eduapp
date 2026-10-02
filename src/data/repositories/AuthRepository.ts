@@ -6,13 +6,20 @@ import { apiClient } from '../network/ApiClient';
 import { secureStorage, StorageKeys } from '../storage/secureStorage';
 import { ApiError, toApiError } from '../network/errors';
 import { logger } from '../../utils/logger';
+import { getSessionEpoch, assertSessionEpoch } from '../network/sessionEpoch';
 
 export class AuthRepository implements IAuthRepository {
   /** 로그인 성공 결과(토큰 + 프로필 캐시)를 저장하고 세션으로 만든다. */
-  private async persistSession(dto: AuthResultDTO): Promise<AuthSession> {
+  private async persistSession(dto: AuthResultDTO, epoch: number): Promise<AuthSession> {
+    assertSessionEpoch(epoch);
+    if (!dto?.user || typeof dto.access_token !== 'string' || !dto.access_token || typeof dto.refresh_token !== 'string' || !dto.refresh_token) {
+      throw new ApiError(502, '로그인 응답이 올바르지 않아요. 잠시 후 다시 시도해주세요.', 'server');
+    }
     const user = UserMapper.toDomain(dto.user);
     await secureStorage.setItem(StorageKeys.accessToken, dto.access_token);
+    assertSessionEpoch(epoch);
     await secureStorage.setItem(StorageKeys.refreshToken, dto.refresh_token);
+    assertSessionEpoch(epoch);
     await this.cacheUser(dto.user);
     return { user, accessToken: dto.access_token, refreshToken: dto.refresh_token };
   }
@@ -42,8 +49,10 @@ export class AuthRepository implements IAuthRepository {
   }
 
   async login(id: string, password: string): Promise<AuthSession> {
+    const epoch = getSessionEpoch();
     return this.persistSession(
       await apiClient.post<AuthResultDTO>('/inner/api/v1/auth/login', { id, password }),
+      epoch,
     );
   }
 
@@ -68,8 +77,10 @@ export class AuthRepository implements IAuthRepository {
   }
 
   async register(input: SignupInput): Promise<AuthSession> {
+    const epoch = getSessionEpoch();
     return this.persistSession(
       await apiClient.post<AuthResultDTO>('/inner/api/v1/auth/register', input),
+      epoch,
     );
   }
 
@@ -127,7 +138,9 @@ export class AuthRepository implements IAuthRepository {
   }
 
   async updateProfile(userId: string, patch: ProfileUpdateInput): Promise<User> {
+    const epoch = getSessionEpoch();
     const dto = await apiClient.patch<UserDTO>('/inner/api/v1/auth/me', patch);
+    assertSessionEpoch(epoch);
     await this.cacheUser(dto); // 캐시가 옛 이름을 들고 있으면 오프라인 복구 때 되돌아간 것처럼 보인다
     return UserMapper.toDomain(dto);
   }
@@ -154,13 +167,17 @@ export class AuthRepository implements IAuthRepository {
    * 뒤는 정직하게 로그아웃한다.
    */
   async restore(): Promise<User | null> {
+    const epoch = getSessionEpoch();
     const token = await secureStorage.getItem(StorageKeys.accessToken);
+    assertSessionEpoch(epoch);
     if (!token) return null;
     try {
       const dto = await apiClient.get<UserDTO>('/inner/api/v1/auth/me', { retries: 0 });
+      assertSessionEpoch(epoch);
       await this.cacheUser(dto);
       return UserMapper.toDomain(dto);
     } catch (e) {
+      assertSessionEpoch(epoch);
       const err = toApiError(e);
       // 서버가 거절한 세션(만료·정지)은 캐시로 되살리지 않는다 —
       // 그러면 정지된 사용자가 오프라인에서 계속 앱을 쓰게 된다.
@@ -172,6 +189,7 @@ export class AuthRepository implements IAuthRepository {
       }
       if (!err.retryable) throw err;
       const cached = await this.readCachedUser();
+      assertSessionEpoch(epoch);
       if (!cached) throw err;
       logger.info('session_restored_from_cache', { reason: err.kind });
       return cached;

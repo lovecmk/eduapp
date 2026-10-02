@@ -3,6 +3,7 @@ import { useCollectionStore } from '../store/collectionStore';
 import { collectionRepository } from '../data/repositories';
 import { useAuthStore } from '../store/authStore';
 import { logger } from '../utils/logger';
+import { getSessionEpoch } from '../data/network/sessionEpoch';
 
 /**
  * 도감을 서버와 맞춘다.
@@ -30,17 +31,16 @@ export function useCollectionSync(): void {
   const enabled = !!userId;
 
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const inFlight = useRef(false);
-  const lastSent = useRef<string>('');
 
   // 1) 처음 붙을 때(그리고 계정이 바뀔 때) 서버 상태를 가져와 합친다.
   useEffect(() => {
     if (!enabled) return;
     let cancelled = false;
+    const epoch = getSessionEpoch();
     void (async () => {
       try {
         const remote = await collectionRepository.pull();
-        if (!cancelled) useCollectionStore.getState().applyServer(remote);
+        if (!cancelled && epoch === getSessionEpoch()) useCollectionStore.getState().applyServer(remote);
       } catch (e) {
         // 못 가져와도 로컬 도감으로 계속 쓴다 — 여기서 막으면 오프라인에서
         // 도감이 아예 안 열린다.
@@ -53,24 +53,29 @@ export function useCollectionSync(): void {
   // 2) 값이 바뀌면 잠깐 기다렸다가 보낸다.
   useEffect(() => {
     if (!enabled) return;
+    let cancelled = false;
+    let inFlight = false;
+    let lastSent = '';
+    const epoch = getSessionEpoch();
 
     const push = async () => {
-      if (inFlight.current) return;
+      if (inFlight || cancelled || epoch !== getSessionEpoch()) return;
       const snap = useCollectionStore.getState().snapshot();
       // 같은 내용을 반복해서 보내지 않는다(화면 재진입마다 요청이 나가면
       // 오프라인 큐가 의미 없는 항목으로 찬다).
       const fingerprint = JSON.stringify(snap);
-      if (fingerprint === lastSent.current) return;
+      if (fingerprint === lastSent) return;
 
-      inFlight.current = true;
+      inFlight = true;
       try {
         const merged = await collectionRepository.sync(snap);
-        lastSent.current = fingerprint;
+        if (cancelled || epoch !== getSessionEpoch()) return;
+        lastSent = fingerprint;
         useCollectionStore.getState().applyServer(merged);
       } catch (e) {
         logger.warn('collection.sync_failed', { reason: String(e) });
       } finally {
-        inFlight.current = false;
+        inFlight = false;
       }
     };
 
@@ -85,8 +90,9 @@ export function useCollectionSync(): void {
     schedule();
 
     return () => {
+      cancelled = true;
       unsub();
       if (timer.current) clearTimeout(timer.current);
     };
-  }, [enabled]);
+  }, [enabled, userId]);
 }

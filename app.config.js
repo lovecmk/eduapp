@@ -35,5 +35,10 @@ module.exports = ({ config }) => {
   );
 
   const next = { ...config };
+  const buildNumber = Number(process.env.EXPO_PUBLIC_BUILD_NUMBER);
+  if (Number.isSafeInteger(buildNumber) && buildNumber > 0 && buildNumber <= 2100000000) {
+    next.android = { ...config.android, versionCode: buildNumber };
+    next.ios = { ...config.ios, buildNumber: String(buildNumber) };
+  }
   return insecure ? withInsecureApiHost(next, { host }) : next;
 };

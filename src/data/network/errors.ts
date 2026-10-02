@@ -21,6 +21,8 @@ export type ApiErrorKind =
   | 'rateLimited'
   /** 서버 오류(5xx) */
   | 'server'
+  /** 작업 도중 로그인 세션이 바뀜 — 재전송하지 않는다 */
+  | 'cancelled'
   /** 그 외 */
   | 'unknown';
 
@@ -46,6 +48,7 @@ const DEFAULT_MESSAGE: Record<ApiErrorKind, string> = {
   conflict: '이미 처리된 요청이에요.',
   rateLimited: '요청이 너무 잦아요. 잠시 후 다시 시도해주세요.',
   server: '서버에 문제가 생겼어요. 잠시 후 다시 시도해주세요.',
+  cancelled: '계정이 변경되어 요청을 취소했어요.',
   unknown: '알 수 없는 오류가 발생했어요.',
 };
 

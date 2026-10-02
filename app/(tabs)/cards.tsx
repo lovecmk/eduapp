@@ -41,6 +41,8 @@ import { useDiffPollStore, type DiffVote } from '../../src/store/diffPollStore';
 import { useDifficultyVote } from '../../src/hooks/useDifficultyPoll';
 import { predictLabel, initialState } from '../../src/domain/srs';
 import { safeInternalPath } from '../../src/utils/safeRoute';
+import { getSessionEpoch } from '../../src/data/network/sessionEpoch';
+import { useIsMounted } from '../../src/hooks/useSafeTimeout';
 
 // 하루 학습 정책(운영 지속가능성 · '하루 3분'):
 //  · '오늘의 학습'은 신규 카드만, 하루 상한(DAILY_MIN_CARDS)까지만 진행할 수 있다.
@@ -112,6 +114,9 @@ export default function CardsScreen() {
   const quizBody = useScrollHasMore();
   const frontBody = useScrollHasMore();
   const [exiting, setExiting] = useState(false);
+  const actionLocked = useRef(false);
+  const focused = useRef(true);
+  const alive = useIsMounted();
   // 퀴즈형(ox/choice) 앞면 정답 선택 상태.
   const [quizPick, setQuizPick] = useState<number | null>(null);
   const [quizRevealed, setQuizRevealed] = useState(false);
@@ -294,7 +299,9 @@ export default function CardsScreen() {
   // (2) 'learning' 으로 바뀐 신규 카드는 복습 구간에 다시 편입되어 같은 문제가 두 번 나온다.
   // 진행 중인 세션의 덱은 데이터 갱신과 무관하게 고정되어야 한다.
   const [sessionDeck, setSessionDeck] = useState<LearningCard[] | null>(null);
-  const sessionKey = isFocusMode ? `focus:${focusId}` : isDueMode ? 'due' : isCategoryMode ? `category:${category}` : 'today';
+  const sessionKey = `${user?.id ?? 'guest'}:${isFocusMode ? `focus:${focusId}` : isDueMode ? 'due' : isCategoryMode ? `category:${category}` : 'today'}`;
+  const activeSession = useRef(sessionKey);
+  activeSession.current = sessionKey;
 
   useEffect(() => {
     // 세션 대상(오늘 학습 / 카테고리 복습 / 단일 카드)이 바뀌면 덱뿐 아니라 진행 상태를
@@ -309,7 +316,40 @@ export default function CardsScreen() {
     setQuizPick(null);
     setQuizRevealed(false);
     setExiting(false);
+    actionLocked.current = false;
+    setAskVisible(false);
+    pendingAdvanceRef.current = null;
+    if (autoFlipTimer.current) clearTimeout(autoFlipTimer.current);
+    if (controlTimer.current) clearTimeout(controlTimer.current);
+    progressAnim.stopAnimation();
+    translateX.stopAnimation();
+    translateY.stopAnimation();
+    cardOpacity.stopAnimation();
+    flipAnim.setValue(0);
+    translateX.setValue(0);
+    translateY.setValue(0);
+    cardOpacity.setValue(1);
   }, [sessionKey]);
+
+  useFocusEffect(useCallback(() => {
+    focused.current = true;
+    // 중간에 취소한 넘김의 위치/투명도를 복원해 돌아왔을 때 카드가 보이게 한다.
+    translateX.setValue(0);
+    translateY.setValue(0);
+    cardOpacity.setValue(1);
+    shadowAnim.setValue(1);
+    return () => {
+      focused.current = false;
+      progressAnim.stopAnimation();
+      translateX.stopAnimation();
+      translateY.stopAnimation();
+      cardOpacity.stopAnimation();
+      pendingAdvanceRef.current = null;
+      actionLocked.current = false;
+      setAskVisible(false);
+      setExiting(false);
+    };
+  }, [progressAnim, translateX, translateY, cardOpacity, shadowAnim]));
 
   useEffect(() => {
     if (sessionDeck === null && computedDeck.length > 0) setSessionDeck(computedDeck);
@@ -460,6 +500,7 @@ export default function CardsScreen() {
     resetCardAnims();
     enterAnim.setValue(0); // 다음 카드는 등장 애니메이션이 재생되도록 숨긴 상태에서 시작.
     setExiting(false);
+    actionLocked.current = false;
     const nextIdx = index + 1;
     if (nextIdx >= deck.length) setFinished(true);
     else setIndex(nextIdx);
@@ -507,7 +548,9 @@ export default function CardsScreen() {
 
   // "학습 완료" → 왼쪽으로 넘김.
   const completeLeft = useCallback(() => {
-    if (exiting) return;
+    if (exiting || actionLocked.current) return;
+    actionLocked.current = true;
+    const epoch = getSessionEpoch();
     askDifficulty(() => {
       setExiting(true);
       hideCardShadow();
@@ -515,13 +558,17 @@ export default function CardsScreen() {
       Animated.parallel([
         Animated.timing(translateX, { toValue: -SCREEN_W - 80, duration: 300, useNativeDriver: true }),
         Animated.timing(cardOpacity, { toValue: 0, duration: 260, useNativeDriver: true }),
-      ]).start(() => advance('mastered'));
+      ]).start(({ finished }) => {
+        if (finished && alive() && focused.current && epoch === getSessionEpoch() && activeSession.current === sessionKey) advance('mastered');
+      });
     });
-  }, [exiting, translateX, cardOpacity, advance, askDifficulty, hideCardShadow]);
+  }, [exiting, translateX, cardOpacity, advance, askDifficulty, hideCardShadow, alive, sessionKey]);
 
   // "다음에 한번 더"(모를 때 = 빨간 버튼) → 위로 올림. 최소 햅틱을 준다.
   const againUp = useCallback(() => {
-    if (exiting) return;
+    if (exiting || actionLocked.current) return;
+    actionLocked.current = true;
+    const epoch = getSessionEpoch();
     askDifficulty(() => {
       setExiting(true);
       hideCardShadow();
@@ -529,9 +576,11 @@ export default function CardsScreen() {
       Animated.parallel([
         Animated.timing(translateY, { toValue: -SCREEN_H, duration: 320, useNativeDriver: true }),
         Animated.timing(cardOpacity, { toValue: 0, duration: 280, useNativeDriver: true }),
-      ]).start(() => advance('learning'));
+      ]).start(({ finished }) => {
+        if (finished && alive() && focused.current && epoch === getSessionEpoch() && activeSession.current === sessionKey) advance('learning');
+      });
     });
-  }, [exiting, translateY, cardOpacity, advance, dnkHaptic, askDifficulty, hideCardShadow]);
+  }, [exiting, translateY, cardOpacity, advance, dnkHaptic, askDifficulty, hideCardShadow, alive, sessionKey]);
 
   // ── 스와이프 트랙(원진섭) 전용 동작 ───────────────────────────────
   const solveHintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -557,7 +606,9 @@ export default function CardsScreen() {
 
   // 좌/우로 카드를 날려보내며 분류한다. (오른쪽=아는 것=학습 완료, 왼쪽=모르는 것=다시)
   const swipeAway = useCallback((dir: 'left' | 'right', status: 'mastered' | 'learning') => {
-    if (exiting) return;
+    if (exiting || actionLocked.current) return;
+    actionLocked.current = true;
+    const epoch = getSessionEpoch();
     askDifficulty(() => {
       setExiting(true);
       hideCardShadow();
@@ -566,9 +617,11 @@ export default function CardsScreen() {
       Animated.parallel([
         Animated.timing(translateX, { toValue: dir === 'right' ? SCREEN_W + 100 : -SCREEN_W - 100, duration: 280, useNativeDriver: true }),
         Animated.timing(cardOpacity, { toValue: 0, duration: 240, useNativeDriver: true }),
-      ]).start(() => advance(status));
+      ]).start(({ finished }) => {
+        if (finished && alive() && focused.current && epoch === getSessionEpoch() && activeSession.current === sessionKey) advance(status);
+      });
     });
-  }, [exiting, translateX, cardOpacity, advance, dnkHaptic, askDifficulty, hideCardShadow]);
+  }, [exiting, translateX, cardOpacity, advance, dnkHaptic, askDifficulty, hideCardShadow, alive, sessionKey]);
 
   // 스와이프 시도 — 퀴즈 미풀이면 막고, 아니면 방향에 맞게 분류.
   const trySwipe = useCallback((dir: 'left' | 'right') => {
@@ -652,13 +705,17 @@ export default function CardsScreen() {
     // 오늘의 학습·카테고리 복습은 자동으로 넘기지 않고 완료 화면에서 '대기'한다
     // (사용자가 직접 복습하러 가거나 홈으로 이동). 로딩바/이동 안내 문구도 두지 않는다.
     if (returnTo) {
-      Animated.timing(progressAnim, { toValue: 1, duration: 900, useNativeDriver: false }).start(({ finished: ok }) => {
-        if (ok) endFlow(router, returnTo);
+      const epoch = getSessionEpoch();
+      const animation = Animated.timing(progressAnim, { toValue: 1, duration: 900, useNativeDriver: false });
+      animation.start(({ finished: ok }) => {
+        if (ok && focused.current && epoch === getSessionEpoch()) endFlow(router, returnTo);
       });
+      return () => animation.stop();
     }
-  }, [finished]);
+  }, [finished, returnTo, router, progressAnim, sessionKey]);
 
   const restart = () => {
+    actionLocked.current = false;
     if (autoFlipTimer.current) clearTimeout(autoFlipTimer.current);
     setAskVisible(false);
     pendingAdvanceRef.current = null;

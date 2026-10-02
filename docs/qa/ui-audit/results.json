@@ -1,0 +1,189 @@
+{
+  "checks": [
+    {
+      "path": "/find-pw",
+      "width": 390
+    },
+    {
+      "path": "/login",
+      "width": 390
+    },
+    {
+      "path": "/signup",
+      "width": 390
+    },
+    {
+      "path": "/cards",
+      "width": 390
+    },
+    {
+      "path": "/community",
+      "width": 390
+    },
+    {
+      "path": "/",
+      "width": 390
+    },
+    {
+      "path": "/mypage",
+      "width": 390
+    },
+    {
+      "path": "/review",
+      "width": 390
+    },
+    {
+      "path": "/stats",
+      "width": 390
+    },
+    {
+      "path": "/admin",
+      "width": 390
+    },
+    {
+      "path": "/author-card",
+      "width": 390
+    },
+    {
+      "path": "/collection/today",
+      "width": 390
+    },
+    {
+      "path": "/collection-book",
+      "width": 390
+    },
+    {
+      "path": "/content/lc001",
+      "width": 390
+    },
+    {
+      "path": "/contents",
+      "width": 390
+    },
+    {
+      "path": "/developer",
+      "width": 390
+    },
+    {
+      "path": "/edit-profile",
+      "width": 390
+    },
+    {
+      "path": "/faction-select",
+      "width": 390
+    },
+    {
+      "path": "/",
+      "width": 390
+    },
+    {
+      "path": "/legal",
+      "width": 390
+    },
+    {
+      "path": "/notifications",
+      "width": 390
+    },
+    {
+      "path": "/pack-rules",
+      "width": 390
+    },
+    {
+      "path": "/privacy",
+      "width": 390
+    },
+    {
+      "path": "/profile",
+      "width": 390
+    },
+    {
+      "path": "/qna/not-found",
+      "width": 390
+    },
+    {
+      "path": "/saved",
+      "width": 390
+    },
+    {
+      "path": "/settings",
+      "width": 390
+    },
+    {
+      "path": "/share",
+      "width": 390
+    },
+    {
+      "path": "/support",
+      "width": 390
+    },
+    {
+      "path": "/trophy",
+      "width": 390
+    },
+    {
+      "path": "/u/qa-user",
+      "width": 390
+    },
+    {
+      "path": "/user-search",
+      "width": 390
+    },
+    {
+      "path": "/",
+      "width": 390
+    },
+    {
+      "path": "/cards",
+      "width": 390
+    },
+    {
+      "path": "/community",
+      "width": 390
+    },
+    {
+      "path": "/settings",
+      "width": 390
+    },
+    {
+      "path": "/content/lc001",
+      "width": 390
+    },
+    {
+      "path": "/content/lc001",
+      "width": 390
+    },
+    {
+      "path": "/saved",
+      "width": 390
+    },
+    {
+      "path": "/support",
+      "width": 390
+    },
+    {
+      "interaction": "support modal X/Escape/overlay"
+    },
+    {
+      "path": "/settings",
+      "width": 320
+    },
+    {
+      "path": "/cards",
+      "width": 320
+    },
+    {
+      "path": "/community",
+      "width": 320
+    },
+    {
+      "path": "/content/lc001",
+      "width": 320
+    },
+    {
+      "interaction": "signed-out deep link + login validation"
+    }
+  ],
+  "runtimeErrors": [],
+  "unexpectedWarnings": [],
+  "note": "Mock repositories; no production requests or real-device APIs"
+}

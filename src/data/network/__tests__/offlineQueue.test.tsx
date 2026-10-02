@@ -24,6 +24,15 @@ beforeEach(async () => {
 });
 
 describe('오프라인 쓰기 큐', () => {
+  it('세션 변경으로 취소된 요청은 버리지 않고 다음 동기화까지 보존한다', async () => {
+    setQueueSender(async () => { throw new ApiError(0, '세션 변경', 'cancelled'); });
+    await enqueue('POST', '/inner/api/v1/a', {});
+    await enqueue('POST', '/inner/api/v1/b', {});
+    expect(await flushQueue()).toBe(0);
+    expect(await pendingCount()).toBe(2);
+    setQueueSender(async () => {});
+    expect(await flushQueue()).toBe(2);
+  });
   it('쓰기를 쌓고 개수를 알려준다', async () => {
     await enqueue('POST', '/inner/api/v1/progress/attendance', { day: '2026-7-25' });
     await enqueue('POST', '/inner/api/v1/reports', { card_id: 'c1' });

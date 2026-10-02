@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { settingsRepository } from '../data/repositories';
 import { useAuthStore } from '../store/authStore';
 import { selectAccountSettings, useSettingsStore } from '../store/settingsStore';
@@ -10,6 +10,7 @@ import {
 } from '../domain/models/UserSettings';
 import { parseDate } from '../data/mappers/_date';
 import { logger } from '../utils/logger';
+import { getSessionEpoch } from '../data/network/sessionEpoch';
 
 /**
  * 계정 설정을 서버와 맞춘다.
@@ -48,53 +49,57 @@ const fingerprint = (s: AccountSettings) => JSON.stringify(s);
 export function useSettingsSync(): void {
   const userId = useAuthStore((s) => s.user?.id ?? null);
 
-  /** 우리가 스토어를 고치는 중인가 — 서버에서 받은 값을 다시 서버로 되쏘지 않기 위해. */
-  const applying = useRef(false);
-  /** 마지막으로 서버에 보낸(또는 서버에서 받은) 설정의 지문. */
-  const synced = useRef<string>('');
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const inFlight = useRef(false);
-
   useEffect(() => {
     // 로그인 전에는 보낼 곳도, 주인도 없다.
     if (!userId) return;
     let cancelled = false;
+    const epoch = getSessionEpoch();
+    // 각 계정의 전송 상태를 분리한다. 이전 요청의 finally가 새 계정 상태를 건드리지 않는다.
+    let applying = false;
+    let synced = '';
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let inFlight = false;
 
     /** 스토어 변경이 '사용자의 손'이 아님을 표시하고 실행한다. */
     const withoutMarking = (fn: () => void) => {
-      applying.current = true;
+      applying = true;
       try {
         fn();
       } finally {
-        applying.current = false;
+        applying = false;
       }
     };
 
     const currentSettings = () => selectAccountSettings(useSettingsStore.getState());
 
     const push = async (reason: string) => {
-      if (inFlight.current || cancelled) return;
+      if (inFlight || cancelled || epoch !== getSessionEpoch()) return;
       const store = useSettingsStore.getState();
       const settings = selectAccountSettings(store);
       const print = fingerprint(settings);
       // 같은 값을 반복해 보내지 않는다 — 화면을 드나들 때마다 요청이 나가면
       // 오프라인 큐가 의미 없는 항목으로 찬다.
-      if (print === synced.current) return;
+      if (print === synced) return;
 
       const at = store.accountUpdatedAt || Date.now();
-      inFlight.current = true;
+      inFlight = true;
       try {
         await settingsRepository.push(settings, new Date(at));
-        synced.current = print;
+        if (cancelled || epoch !== getSessionEpoch()) return;
+        synced = print;
         // 주인·시각을 확정한다(값은 그대로). 인수(첫 로그인) 경로가 여기서 끝난다.
-        withoutMarking(() =>
-          useSettingsStore.getState().applyAccountSettings({}, at, userId),
-        );
+        if (fingerprint(currentSettings()) === print) {
+          withoutMarking(() =>
+            useSettingsStore.getState().applyAccountSettings({}, at, userId),
+          );
+        }
       } catch (e) {
         // 실패해도 화면은 그대로다. 값은 이미 기기에 있고, 되보낼 기회는 또 온다.
         logger.warn('settings.push_failed', { reason: String(e), trigger: reason });
       } finally {
-        inFlight.current = false;
+        inFlight = false;
+        // 전송 중 추가로 바뀐 값도 전송한다. 실패한 동일 값은 무한 재시도하지 않는다.
+        if (!cancelled && epoch === getSessionEpoch() && fingerprint(currentSettings()) !== print) schedule();
       }
     };
 
@@ -105,12 +110,12 @@ export function useSettingsSync(): void {
         // 앞사람이 쓰던 기기다 — 계정 설정만 비운다(기기 취향은 그대로 둔다).
         logger.warn('settings.owner_changed_reset', {});
         withoutMarking(() => before.resetAccountSettings(userId));
-        synced.current = '';
+        synced = '';
       }
 
       try {
         const snap = await settingsRepository.pull();
-        if (cancelled) return;
+        if (cancelled || epoch !== getSessionEpoch()) return;
         const store = useSettingsStore.getState();
         const local = currentSettings();
         const serverAt = parseDate(snap.updatedAt)?.getTime() ?? 0;
@@ -126,11 +131,11 @@ export function useSettingsSync(): void {
           withoutMarking(() =>
             store.applyAccountSettings(snap.settings, serverAt || Date.now(), userId),
           );
-          synced.current = fingerprint(currentSettings());
+          synced = fingerprint(currentSettings());
           return;
         }
         if (decision === 'in-sync') {
-          synced.current = fingerprint(local);
+          synced = fingerprint(local);
           // 주인만 이 계정으로 확정해 둔다(값·시각은 그대로).
           withoutMarking(() =>
             store.applyAccountSettings({}, store.accountUpdatedAt || serverAt, userId),
@@ -152,13 +157,13 @@ export function useSettingsSync(): void {
 
     // 2) 사용자가 설정을 바꾸면 잠깐 기다렸다가 보낸다.
     const schedule = () => {
-      if (timer.current) clearTimeout(timer.current);
-      timer.current = setTimeout(() => void push('change'), PUSH_DEBOUNCE_MS);
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => void push('change'), PUSH_DEBOUNCE_MS);
     };
 
     const unsub = useSettingsStore.subscribe((state, prev) => {
       // 우리가 서버 값을 반영하는 중이면 '사용자의 변경'이 아니다.
-      if (applying.current) return;
+      if (applying) return;
       const next = selectAccountSettings(state);
       // 기기 전용 설정(테마·글자 크기 등)이 바뀐 것은 서버와 무관하다.
       if (sameAccountSettings(next, selectAccountSettings(prev))) return;
@@ -169,7 +174,7 @@ export function useSettingsSync(): void {
     return () => {
       cancelled = true;
       unsub();
-      if (timer.current) clearTimeout(timer.current);
+      if (timer) clearTimeout(timer);
     };
   }, [userId]);
 }

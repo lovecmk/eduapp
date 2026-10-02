@@ -43,7 +43,11 @@ const DIFFICULTIES: CardDifficulty[] = ['easy', 'medium', 'hard'];
 const TYPES: CardType[] = ['explanation', 'ox', 'choice'];
 
 /** 등록 전 검증 — 비어 있거나 규칙에 맞지 않는 필드를 모두 모아 반환(빈 배열이면 통과). */
-export function validateCardDraft(d: Partial<CardDraft>): DraftError[] {
+export function validateCardDraft(input: unknown): DraftError[] {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) {
+    return [{ field: 'root', message: '문제는 JSON 객체여야 합니다' }];
+  }
+  const d = input as Partial<CardDraft>;
   const errs: DraftError[] = [];
   const req = (v: unknown, field: keyof CardDraft, label: string) => {
     if (typeof v !== 'string' || v.trim() === '') errs.push({ field, message: `${label}은(는) 필수입니다` });
@@ -56,22 +60,36 @@ export function validateCardDraft(d: Partial<CardDraft>): DraftError[] {
   req(d.topic, 'topic', '소분류');
   req(d.title, 'title', '카드명');
   req(d.question, 'question', '문제');
+  const textFields: (keyof CardDraft)[] = ['situation', 'principle', 'process', 'fireTriangle', 'conclusion', 'imageUrl', 'answerImageUrl', 'source'];
+  for (const field of textFields) {
+    if (d[field] !== undefined && typeof d[field] !== 'string') errs.push({ field, message: `${field}은(는) 문자열이어야 합니다` });
+  }
+  if (d.keywords !== undefined && (!Array.isArray(d.keywords) || !d.keywords.every((v) => typeof v === 'string'))) {
+    errs.push({ field: 'keywords', message: '키워드는 문자열 배열이어야 합니다' });
+  }
+  if (d.studySeconds !== undefined && (typeof d.studySeconds !== 'number' || !Number.isFinite(d.studySeconds) || d.studySeconds <= 0)) {
+    errs.push({ field: 'studySeconds', message: '학습 시간은 0보다 큰 숫자여야 합니다' });
+  }
 
   if (d.difficulty && !DIFFICULTIES.includes(d.difficulty)) errs.push({ field: 'difficulty', message: '난이도는 easy/medium/hard 여야 합니다' });
   if (d.type && !TYPES.includes(d.type)) errs.push({ field: 'type', message: '형식은 explanation/ox/choice 여야 합니다' });
 
   const type = d.type ?? 'explanation';
   if (type === 'ox' || type === 'choice') {
-    const choices = type === 'ox' ? d.choices ?? ['O', 'X'] : d.choices ?? [];
+    const rawChoices = type === 'ox' ? d.choices ?? ['O', 'X'] : d.choices;
+    const choices = Array.isArray(rawChoices) ? rawChoices : [];
+    if (!Array.isArray(rawChoices) || !choices.every((v) => typeof v === 'string' && !!v.trim()) || (type === 'ox' && choices.length !== 2)) {
+      errs.push({ field: 'choices', message: '보기는 비어 있지 않은 문자열 배열이어야 합니다' });
+    }
     if (type === 'choice' && (choices.length < 2 || choices.length > 5)) {
       errs.push({ field: 'choices', message: '객관식 보기는 2~5개여야 합니다' });
     }
-    if (typeof d.answerIndex !== 'number' || d.answerIndex < 0 || d.answerIndex >= choices.length) {
+    if (typeof d.answerIndex !== 'number' || !Number.isInteger(d.answerIndex) || d.answerIndex < 0 || d.answerIndex >= choices.length) {
       errs.push({ field: 'answerIndex', message: '정답 보기 인덱스가 보기 범위를 벗어났습니다' });
     }
   } else {
     // 설명형은 해설(원리·결론) 중 하나라도 있어야 카드가 성립.
-    if (!(d.principle?.trim() || d.conclusion?.trim())) {
+    if (!((typeof d.principle === 'string' && d.principle.trim()) || (typeof d.conclusion === 'string' && d.conclusion.trim()))) {
       errs.push({ field: 'principle', message: '설명형은 핵심 원리 또는 결론 중 하나는 필요합니다' });
     }
   }

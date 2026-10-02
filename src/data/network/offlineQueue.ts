@@ -147,6 +147,7 @@ export async function enqueue(
   body?: unknown,
   idempotencyKey?: string,
 ): Promise<string> {
+  const requestOwner = ownerId;
   await ensureLoaded();
   const key = idempotencyKey ?? newId();
   memory.push({
@@ -157,7 +158,7 @@ export async function enqueue(
     idempotencyKey: key,
     createdAt: Date.now(),
     attempts: 0,
-    userId: ownerId ?? undefined,
+    userId: requestOwner ?? undefined,
   });
   // 오래된 것부터 버려 상한을 지킨다.
   if (memory.length > MAX_QUEUE) memory = memory.slice(memory.length - MAX_QUEUE);
@@ -194,6 +195,8 @@ export async function flushQueue(): Promise<number> {
         sent += 1;
       } catch (e) {
         const err = toApiError(e);
+        // 계정 전환 중 취소된 항목은 원래 주인이 돌아올 때 전송한다.
+        if (err.kind === 'cancelled') break;
         // 서버에 닿지 못한 것은 이 항목의 잘못이 아니다 — 시도로 세지 않는다.
         if (err.kind !== 'offline') item.attempts += 1;
         if (!err.retryable || item.attempts >= MAX_ATTEMPTS) {

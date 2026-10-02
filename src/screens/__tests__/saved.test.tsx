@@ -12,18 +12,18 @@ jest.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush, replace: jest.fn(), back: jest.fn() }),
 }));
 
-jest.mock('../../src/hooks/useCards', () => ({
+jest.mock('../../hooks/useCards', () => ({
   useAllCards: () => ({ data: [mockCard], isLoading: false, error: null, refetch: jest.fn() }),
 }));
 
 import React from 'react';
 import { render, screen } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import SavedScreen from '../saved';
-import { ThemeProvider } from '../../src/theme/ThemeProvider';
-import { useBookmarkStore } from '../../src/store/bookmarkStore';
-import { nestedButtonLabels, type TreeNode } from '../../src/test-utils/nestedButtons';
-import type { LearningCard } from '../../src/domain/models/LearningCard';
+import SavedScreen from '../../../app/saved';
+import { ThemeProvider } from '../../theme/ThemeProvider';
+import { useBookmarkStore } from '../../store/bookmarkStore';
+import { nestedButtonLabels, type TreeNode } from '../../test-utils/nestedButtons';
+import type { LearningCard } from '../../domain/models/LearningCard';
 
 const mockCard: LearningCard = {
   id: 'c-1',

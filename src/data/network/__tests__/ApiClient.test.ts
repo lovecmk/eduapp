@@ -21,6 +21,7 @@ jest.mock('../../storage/secureStorage', () => {
 import { apiClient } from '../ApiClient';
 import { onSessionExpired } from '../sessionEvents';
 import { ApiError } from '../errors';
+import { advanceSessionEpoch } from '../sessionEpoch';
 import { secureStorage, StorageKeys } from '../../storage/secureStorage';
 import { setLogSink, resetLogSink } from '../../../utils/logger';
 
@@ -47,6 +48,85 @@ beforeEach(async () => {
   // 각 테스트 초기화 — 저장소 비우기
   await secureStorage.removeItem(StorageKeys.accessToken);
   await secureStorage.removeItem(StorageKeys.refreshToken);
+});
+
+describe('세션 경계와 갱신 장애', () => {
+  it.each([429, 500, 503])('refresh의 %i는 세션 만료가 아니다', async (status) => {
+    await seedTokens('expired', 'r-1');
+    const heard = jest.fn();
+    const off = onSessionExpired(heard);
+    global.fetch = jest.fn(async (url) => resp(String(url).endsWith('/refresh') ? status : 401, {})) as unknown as typeof fetch;
+    await expect(apiClient.get('/inner/api/v1/protected', { retries: 0 })).rejects.toMatchObject({ status });
+    expect(heard).not.toHaveBeenCalled();
+    expect(await secureStorage.getItem(StorageKeys.accessToken)).toBe('expired');
+    expect(await secureStorage.getItem(StorageKeys.refreshToken)).toBe('r-1');
+    off();
+  });
+
+  it('refresh 연결 단절 시 토큰을 보존한다', async () => {
+    await seedTokens('expired', 'r-1');
+    global.fetch = jest.fn(async (url) => {
+      if (String(url).endsWith('/refresh')) throw new TypeError('offline');
+      return resp(401, {});
+    }) as unknown as typeof fetch;
+    await expect(apiClient.get('/inner/api/v1/protected', { retries: 0 })).rejects.toMatchObject({ kind: 'offline' });
+    expect(await secureStorage.getItem(StorageKeys.refreshToken)).toBe('r-1');
+  });
+
+  it('새 토큰도 거절됐으면 세션을 닫는다', async () => {
+    await seedTokens('expired', 'r-1');
+    const heard = jest.fn();
+    const off = onSessionExpired(heard);
+    global.fetch = jest.fn(async (url) => String(url).endsWith('/refresh') ? resp(200, { access_token: 'new' }) : resp(401, {})) as unknown as typeof fetch;
+    await expect(apiClient.get('/inner/api/v1/protected', { retries: 0 })).rejects.toMatchObject({ status: 401 });
+    expect(heard).toHaveBeenCalledTimes(1);
+    expect(await secureStorage.getItem(StorageKeys.accessToken)).toBeNull();
+    off();
+  });
+
+  it('로그인 401에 앞사람 토큰을 실거나 refresh하지 않는다', async () => {
+    await seedTokens('old', 'old-refresh');
+    const mock = jest.fn(async (_url, init?: Init) => {
+      expect(init?.headers?.Authorization).toBeUndefined();
+      return resp(401, {});
+    });
+    global.fetch = mock as unknown as typeof fetch;
+    await expect(apiClient.post('/inner/api/v1/auth/login', {})).rejects.toMatchObject({ status: 401 });
+    expect(mock).toHaveBeenCalledTimes(1);
+    expect(await secureStorage.getItem(StorageKeys.accessToken)).toBe('old');
+  });
+
+  it('늦은 refresh가 새 로그인 토큰을 덮어쓰지 않는다', async () => {
+    await seedTokens('old', 'old-r');
+    let finish!: (response: ReturnType<typeof resp>) => void;
+    let started!: () => void;
+    const waiting = new Promise<void>((resolve) => { started = resolve; });
+    global.fetch = jest.fn(async (url) => {
+      if (String(url).endsWith('/refresh')) {
+        started();
+        return new Promise((resolve) => { finish = resolve; });
+      }
+      return resp(401, {});
+    }) as unknown as typeof fetch;
+    const request = apiClient.get('/inner/api/v1/protected', { retries: 0 });
+    await waiting;
+    advanceSessionEpoch();
+    await seedTokens('other-user', 'other-r');
+    finish(resp(200, { access_token: 'late-old', refresh_token: 'late-r' }));
+    await expect(request).rejects.toMatchObject({ kind: 'cancelled' });
+    expect(await secureStorage.getItem(StorageKeys.accessToken)).toBe('other-user');
+    expect(await secureStorage.getItem(StorageKeys.refreshToken)).toBe('other-r');
+  });
+
+  it.each([200, 400, 500])('%i 본문이 abort를 무시해도 무한 대기하지 않는다', async (status) => {
+    jest.useFakeTimers();
+    global.fetch = jest.fn(async () => ({ ok: status === 200, status, text: () => new Promise(() => {}), json: () => new Promise(() => {}) })) as unknown as typeof fetch;
+    const request = apiClient.get('/inner/api/v1/thing', { retries: 0 });
+    const checked = expect(request).rejects.toMatchObject({ kind: 'offline', status: 0 });
+    await jest.advanceTimersByTimeAsync(5001);
+    await checked;
+    jest.useRealTimers();
+  });
 });
 
 describe('요청/응답 기본', () => {
@@ -97,7 +177,7 @@ describe('401 → refresh 재시도', () => {
     expect(await secureStorage.getItem(StorageKeys.refreshToken)).toBe('r-2'); // 회전 반영
   });
 
-  it('[F1] refresh 응답에 access_token 이 없으면 성공으로 오인하지 않고 로그아웃한다', async () => {
+  it('[F1] 잘못된 refresh 응답은 서버 오류로 알리고 세션을 지우지 않는다', async () => {
     await seedTokens('expired', 'r-1');
     global.fetch = jest.fn(async (url) => {
       const u = String(url);
@@ -105,10 +185,9 @@ describe('401 → refresh 재시도', () => {
       return resp(401, {});
     }) as unknown as typeof fetch;
 
-    await expect(apiClient.get('/inner/api/v1/protected')).rejects.toMatchObject({ status: 401 });
-    // 토큰이 정리되어야 한다(undefined 저장 금지)
-    expect(await secureStorage.getItem(StorageKeys.accessToken)).toBeNull();
-    expect(await secureStorage.getItem(StorageKeys.refreshToken)).toBeNull();
+    await expect(apiClient.get('/inner/api/v1/protected', { retries: 0 })).rejects.toMatchObject({ kind: 'server' });
+    expect(await secureStorage.getItem(StorageKeys.accessToken)).toBe('expired');
+    expect(await secureStorage.getItem(StorageKeys.refreshToken)).toBe('r-1');
   });
 
   it('refresh 토큰이 없으면 즉시 로그아웃(refresh 시도 없음)', async () => {

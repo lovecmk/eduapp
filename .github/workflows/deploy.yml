@@ -76,6 +76,9 @@ jobs:
       - name: Type check
         run: npm run typecheck
 
+      - name: Unit and regression tests
+        run: npm test -- --runInBand
+
       # --- 웹 빌드 -------------------------------------------------------
       # public/version.json 은 expo export 시 dist 루트로 자동 복사된다.
       - name: Export web bundle

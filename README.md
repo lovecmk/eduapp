@@ -102,6 +102,11 @@ API 계약은 `docs/API_CONTRACT.md` 에 그대로 남아 있다 — 주소가 �
 
 ## 앱 내부를 손보기 전에
 
+화면/라우터/비동기 처리 점검 결과와 재현 명령은
+[docs/UI_AUDIT_2026-10-02.md](./docs/UI_AUDIT_2026-10-02.md)에 있다.
+`npm run audit:ui`는 페이지·이벤트·화면 이동 목록을 생성하고,
+`npm run test:ui -- <목업 웹 번들 경로>`는 격리된 브라우저 검사를 실행한다.
+
 서버와 콘솔은 **다른 사설 저장소**에 있어 여기서 열어 볼 수 없다. 그래서 앱을
 고치는 데 필요한 저쪽 내용을 옮겨 적어 두었다 —
 **[docs/PLATFORM_SPLIT.md](./docs/PLATFORM_SPLIT.md)**.

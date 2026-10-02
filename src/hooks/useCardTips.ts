@@ -5,6 +5,7 @@ import { sortTips } from '../domain/models/CardTip';
 import { useDegraded } from './useDegraded';
 import { env } from '../data/network/env';
 import { logger } from '../utils/logger';
+import { getSessionEpoch } from '../data/network/sessionEpoch';
 
 export const tipsKey = (cardId: string) => ['tips', cardId] as const;
 
@@ -20,9 +21,10 @@ export function useCardTips(cardId: string) {
   const tips = sortTips(query.data ?? []);
 
   const patch = (fn: (list: CardTip[]) => CardTip[]) => {
+    const epoch = getSessionEpoch();
     const prev = qc.getQueryData<CardTip[]>(key) ?? [];
     qc.setQueryData<CardTip[]>(key, fn(prev));
-    return () => qc.setQueryData(key, prev);
+    return () => { if (epoch === getSessionEpoch()) qc.setQueryData(key, prev); };
   };
 
   const add = async (body: string): Promise<boolean> => {

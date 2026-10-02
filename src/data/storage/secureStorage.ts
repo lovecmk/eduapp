@@ -41,6 +41,17 @@ async function guard<T>(op: () => Promise<T>, fallback: T, action: string, key: 
  * 자리가 남는다(빈 화면이 아니라).
  */
 const mirror = new Map<string, string | null>();
+const revisions = new Map<string, number>();
+const pendingWrites = new Map<string, Promise<void>>();
+
+function writeInOrder(key: string, operation: () => Promise<void>): Promise<void> {
+  const previous = pendingWrites.get(key) ?? Promise.resolve();
+  const next = previous.then(operation, operation);
+  pendingWrites.set(key, next);
+  return next.finally(() => {
+    if (pendingWrites.get(key) === next) pendingWrites.delete(key);
+  });
+}
 
 /** 사본에서 곧바로 읽는다 — 아직 한 번도 오가지 않은 키는 null. */
 export function peekItem(key: string): string | null {
@@ -49,12 +60,17 @@ export function peekItem(key: string): string | null {
 
 export const secureStorage = {
   async getItem(key: string): Promise<string | null> {
+    const revision = revisions.get(key) ?? 0;
+    await pendingWrites.get(key);
     const value = await readItem(key);
+    // 읽기를 기다리는 동안 로그아웃/갱신이 일어나면 오래된 읽기로 토큰을 되살리지 않는다.
+    if (revision !== (revisions.get(key) ?? 0)) return peekItem(key);
     mirror.set(key, value);
     return value;
   },
 
   async setItem(key: string, value: string): Promise<void> {
+    revisions.set(key, (revisions.get(key) ?? 0) + 1);
     mirror.set(key, value);
     if (isWeb) {
       try {
@@ -64,10 +80,11 @@ export const secureStorage = {
       }
       return;
     }
-    await guard(() => SecureStore.setItemAsync(key, value), undefined, 'set', key);
+    await writeInOrder(key, () => guard(() => SecureStore.setItemAsync(key, value), undefined, 'set', key));
   },
 
   async removeItem(key: string): Promise<void> {
+    revisions.set(key, (revisions.get(key) ?? 0) + 1);
     mirror.delete(key);
     if (isWeb) {
       try {
@@ -77,7 +94,7 @@ export const secureStorage = {
       }
       return;
     }
-    await guard(() => SecureStore.deleteItemAsync(key), undefined, 'remove', key);
+    await writeInOrder(key, () => guard(() => SecureStore.deleteItemAsync(key), undefined, 'remove', key));
   },
 };
 
