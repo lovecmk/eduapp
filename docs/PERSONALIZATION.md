@@ -3,7 +3,7 @@
 Expo SDK 52와 기존 학습 API를 유지한다. 새 백엔드 배포 전에는 기존 오늘의 학습과 SRS 정책이 동작한다.
 
 - 가입·프로필의 직무/경력/관심분야는 선택 입력이다. 회사 직무가 있으면 재입력하지 않는다.
-- `POST /inner/api/v1/user/settings`의 기존 설정에 `job`, `experience`, `interests`를 추가한다. 구버전 서버는 추가 필드를 무시한다.
+- `POST /inner/api/v1/settings`의 기존 설정에 `job`, `experience`, `interests`를 추가한다. 구버전 서버는 추가 필드를 무시하고 서버가 반환하지 않은 선택 필드는 기기 값을 유지한다.
 - `POST /inner/api/v1/progress/grade`의 기존 durable 재전송 경로에 `event_id`, 실제 `last_reviewed_at`, `self_check` (`KNOWN`/`REVIEW`), `perceived_difficulty` (`EASY`/`MEDIUM`/`HARD`)를 보낸다.
 - 오늘의 배정은 서버가 결정하며 `kind`를 신규/복습으로 표시한다. `recommend_reason`, `recommend_score`는 선택 필드다.
 - `personalized=true`와 유효한 `review_policy`가 함께 오면 최초/반복 복습 주기를 적용한다. 로그인이 바뀌거나 구버전 응답이면 기존 SRS로 돌아간다.
