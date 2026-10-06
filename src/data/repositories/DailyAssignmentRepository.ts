@@ -14,6 +14,7 @@ interface TodayPlanDTO {
   personalized?: boolean;
   review_policy?: PersonalReviewPolicy;
   day?: string;
+	resets_at?: string;
   difficulty_cd?: string;
   target_count?: number;
   done_count?: number;
@@ -41,6 +42,20 @@ export class DailyAssignmentRepository implements IDailyAssignmentRepository {
     if (!dto || !Array.isArray(dto.cards)) throw new ApiError(502, '오늘의 학습 응답 형식이 올바르지 않습니다', 'server');
     const count = (value: unknown) => typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
     if (dto.target_count != null && !count(dto.target_count) || dto.done_count != null && (!count(dto.done_count) || dto.done_count > dto.cards.length)) throw new ApiError(502, '오늘의 학습 목표 응답이 올바르지 않습니다', 'server');
+    if (dto.personalized === true) {
+      const invalid = () => new ApiError(502, '개인화 학습 배포 계약이 올바르지 않습니다', 'server');
+      if (dto.cards.length > 5 || dto.cards.some(c => !c || !['NEW', 'REVIEW'].includes(c.kind ?? '') || typeof c.done !== 'boolean' || typeof c.recommend_reason !== 'string' || !c.recommend_reason || c.recommend_score != null && (typeof c.recommend_score !== 'number' || !Number.isFinite(c.recommend_score)))) throw invalid();
+      if (dto.cards.filter(c => c.kind === 'NEW').length > 3 || dto.cards.filter(c => c.kind === 'REVIEW').length > 2 || dto.target_count !== dto.cards.length || dto.done_count !== dto.cards.filter(c => c.done).length) throw invalid();
+      const policy = dto.review_policy;
+      if (!policy || ![policy.first_days, policy.repeat_days].every(value => Number.isInteger(value) && value >= 1 && value <= 365)) throw invalid();
+      if (dto.day != null || dto.resets_at != null) {
+        const parts = typeof dto.day === 'string' ? /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(dto.day) : null;
+        if (!parts || typeof dto.resets_at !== 'string') throw invalid();
+        const [year, month, day] = parts.slice(1).map(Number);
+        const at = new Date(Date.UTC(year, month, day));
+        if (at.getUTCFullYear() !== year || at.getUTCMonth() !== month || at.getUTCDate() !== day || Date.parse(dto.resets_at) !== Date.UTC(year, month, day + 1) - 9 * 3600000) throw invalid();
+      }
+    }
     const cards: DailyCard[] = dto.cards.map((c) => ({
       card: CardMapper.toDomain(c),
       // 모르는 값은 '새로 배우는 것'으로 본다 — 복습이라고 잘못 말하면
