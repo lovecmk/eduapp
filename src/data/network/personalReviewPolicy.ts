@@ -17,3 +17,9 @@ export function applyPersonalReviewPolicy(previous: SrsCardState, next: SrsCardS
   const kstMidnight = Math.floor((at + 9 * 3600000) / 86400000) * 86400000 - 9 * 3600000;
   return { ...next, dueAt: kstMidnight + days * 86400000 };
 }
+
+export function personalReviewHint(previous: SrsCardState, grade: Grade): string | null {
+  if (!policy || epoch !== getSessionEpoch()) return null;
+  if (grade !== 'again' && grade !== 'hard') return '복습 완료';
+  return `${previous.lastGrade === 'again' || previous.lastGrade === 'hard' ? policy.repeat_days : policy.first_days}일 후 복습`;
+}

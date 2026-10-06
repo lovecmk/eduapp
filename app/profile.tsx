@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, ScrollView, Pressable, TextInput, Platform, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -30,6 +30,11 @@ export default function ProfileScreen() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const learningProfile = useSettingsStore();
+  useEffect(() => {
+    if (user?.jobTitle && learningProfile.job !== user.jobTitle) {
+      learningProfile.setLearnerProfile(user.jobTitle, learningProfile.experience);
+    }
+  }, [user?.jobTitle, learningProfile.job, learningProfile.experience, learningProfile.setLearnerProfile]);
   const { profileImage, setProfileImage, bio, setBio } = useSettingsStore();
   const owned = useCollectionStore((s) => s.owned);
   const { data: allCards = [] } = useAllCards();

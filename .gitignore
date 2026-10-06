@@ -39,3 +39,7 @@ expo-web.log
 
 # typescript
 *.tsbuildinfo
+/.audit.local/
+/mobile-test.local
+/mobile-focused.local
+/dist-audit/

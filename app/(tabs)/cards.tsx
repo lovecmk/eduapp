@@ -40,6 +40,7 @@ import { useSrsStore } from '../../src/store/srsStore';
 import { useDiffPollStore, type DiffVote } from '../../src/store/diffPollStore';
 import { useDifficultyVote } from '../../src/hooks/useDifficultyPoll';
 import { predictLabel, initialState } from '../../src/domain/srs';
+import { personalReviewHint } from '../../src/data/network/personalReviewPolicy';
 import { safeInternalPath } from '../../src/utils/safeRoute';
 import { getSessionEpoch } from '../../src/data/network/sessionEpoch';
 import { useIsMounted } from '../../src/hooks/useSafeTimeout';
@@ -473,7 +474,7 @@ export default function CardsScreen() {
     if (!card) return;
     if (autoFlipTimer.current) clearTimeout(autoFlipTimer.current);
     markCardMutation.mutate({ id: card.id, status });
-    if (!isCategoryMode && !isFocusMode) {
+    {
       // 오늘의 학습(신규+복습)은 모두 SRS 일정에 반영하고 그날 학습 기록(history)에 남긴다.
       // (알았음=good → 다음 복습 간격이 늘고, 몰랐음=again → 곧 다시 복습). 이렇게 하면
       // 신규 카드도 첫 복습 일정이 잡히고, 달력의 '완료/일부완료·카드수'가 정확해진다.
@@ -481,11 +482,11 @@ export default function CardsScreen() {
       // 알고리즘이 잡아준 '다음 복습까지'를 사용자에게 보여준다 —
       // 언제 다시 만나는지 알아야 '이해했어요/한번 더'가 의미 있는 선택이 된다.
       const prevState = useSrsStore.getState().cards[card.id] ?? initialState();
-      setNextReviewHint(predictLabel(prevState, g));
+      setNextReviewHint(personalReviewHint(prevState, g) ?? predictLabel(prevState, g));
       srsGrade(card.id, g, pendingPerception.current);
       pendingPerception.current = '';
       // 신규 카드 한 장을 마치면 하루 상한 사용량에도 집계(복습은 상한과 무관).
-      if (card.status === 'new') recordNewLearned(1);
+      if (!isCategoryMode && !isFocusMode && card.status === 'new') recordNewLearned(1);
     }
     setDoneCount((n) => n + 1);
     // 도감 적립도 여기서 한 장씩 한다 — **세션을 마쳐야 주면 안 된다.**
