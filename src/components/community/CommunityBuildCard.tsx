@@ -11,7 +11,6 @@ import {
   getFaction,
   toFactionId,
   type BuildingVariant,
-  type FactionId,
 } from '../../constants/factions';
 import { ROUTES } from '../../constants/routes';
 import { useCollectionStore } from '../../store/collectionStore';
@@ -74,8 +73,6 @@ export function CommunityBuildCard() {
   const claimed = useCollectionStore((s) => s.claimedRules);
   const collectionEnabled = useSettingsStore((s) => s.collectionEnabled);
   const [showHistory, setShowHistory] = useState(false);
-  // 탭해서 펼친 진영(안전 빌딩 기여 상세를 보여준다).
-  const [openFaction, setOpenFaction] = useState<FactionId | null>(null);
   if (!data) return null;
 
   const { current, floorSize, history } = data.building;
@@ -88,25 +85,16 @@ export function CommunityBuildCard() {
   const buildColor = myFaction?.color ?? c.primary;
   const buildVariant = myFaction?.building ?? 'tower';
 
-  // 진영 대항전 — 이번 달 커뮤니티 누적 문제를 세 진영으로 분배해 기여량을 만든다.
-  // **선두는 앱이 정하지 않는다**: 서버가 준 `current.winner` 가 정본이고, 여기서는
-  // 그 진영이 1위가 되도록 맞춘 뒤 순위·기여량만 화면에 쓴다. 서버가 아직 우승을
-  // 말하지 않은 달(빈 값)에는 선두를 단정하지 않고 '집계 중'으로 둔다.
+  // 진영 대항전은 서버의 실제 기여 집계만 사용한다. 동률 우승은 단정하지 않는다.
   const winnerId = toFactionId(current.winner);
   // 진영별 기여는 **서버 집계만** 그린다. 없으면 대항전 자리에 '집계 준비 중'을 둔다.
   const standings = current.factions ?? [];
   // 진영 상세(탭하면 그 진영이 안전 빌딩을 얼마나 지었는지 펼쳐 본다).
   const contestTotal = standings.reduce((a, s) => a + s.problems, 0) || 1;
-  const leadFloors = standings[0]?.floors ?? 0;
 
   const toggleHistory = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setShowHistory((s) => !s);
-  };
-
-  const toggleFaction = (id: FactionId) => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setOpenFaction((prev) => (prev === id ? null : id));
   };
 
   return (
@@ -171,22 +159,19 @@ export function CommunityBuildCard() {
           const isMine = s.id === factionId;
           const topFloors = standings[0].floors || 1;
           const pct = Math.max(6, Math.round((s.floors / topFloors) * 100));
-          const isOpen = openFaction === s.id;
           // 이 진영이 안전 빌딩을 얼마나 지었는지(상세).
           const within = s.problems % floorSize;
           const floorProgress = Math.round((within / floorSize) * 100);
           const share = Math.round((s.problems / contestTotal) * 100);
-          const gap = leadFloors - s.floors;
           return (
             <View key={s.id}>
-              <Pressable accessibilityRole="button"
-                onPress={() => toggleFaction(s.id)}
+              <View
                 style={[styles.vsRow, isMine && { backgroundColor: f.color + '12', borderRadius: 10 }]}
               >
                 <Text style={{ minWidth: 16, color: c.textSecondary, fontSize: 12 * fs, fontFamily: fontMono, textAlign: 'center' }}>{rank + 1}</Text>
                 <Text style={{ fontSize: 15 * fs, minWidth: 22, textAlign: 'center' }}>{f.emoji}</Text>
                 {/* 고정폭 54px 은 '프로스트 (나)'(66px)를 담지 못해 이름이 잘렸다.
-                    최소폭만 주고 남는 공간은 옆 진행바(flex:1)가 흡수하게 한다. */}
+                  최소폭만 주고 남는 공간은 옆 진행바(flex:1)가 흡수하게 한다. */}
                 <View style={{ minWidth: 54 }}>
                   <Text style={{ color: isMine ? f.color : c.textPrimary, fontSize: 12.5 * fs, fontFamily: fontDisplay }} numberOfLines={1}>
                     {f.name}{isMine ? ' (나)' : ''}
@@ -196,52 +181,30 @@ export function CommunityBuildCard() {
                   <View style={{ width: `${pct}%`, height: '100%', backgroundColor: f.color, borderRadius: 4 }} />
                 </View>
                 <Text style={{ color: c.textPrimary, fontSize: 12.5 * fs, fontFamily: fontMono, fontWeight: '800', minWidth: 34, textAlign: 'right' }}>{s.floors}층</Text>
-                <Ionicons name={isOpen ? 'chevron-up' : 'chevron-down'} size={14} color={c.textSecondary} style={{ marginLeft: 4, width: 16 }} />
-              </Pressable>
+              </View>
 
-              {/* 탭하면 펼쳐지는 상세 — 이 진영이 안전 빌딩을 얼마나 지었는지 */}
-              {isOpen && (
-                <View style={{ backgroundColor: c.surfaceAlt, borderRadius: 12, padding: 12, marginTop: 4, marginBottom: 4 }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-                    <Ionicons name="business" size={14} color={f.color} />
-                    <Text style={{ color: c.textPrimary, fontSize: 12.5 * fs, fontFamily: fontDisplay, flex: 1 }}>
-                      {f.emoji} {f.name} 진영의 안전 빌딩
-                    </Text>
-                    <Text style={{ color: c.textSecondary, fontSize: 10.5 * fs, fontFamily: fontBody }}>
-                      {!winnerId ? '집계 중' : rank === 0 ? '🏆 선두' : `선두와 ${gap}층 차`}
-                    </Text>
-                  </View>
-
-                  <View style={{ flexDirection: 'row', gap: 8, marginBottom: 10 }}>
-                    <FactionStat color={f.color} value={`${s.floors}층`} label="지은 층수" c={c} />
-                    <FactionStat color={f.color} value={s.problems.toLocaleString()} label="기여 문제" c={c} />
-                    <FactionStat color={f.color} value={`${share}%`} label="전체 비중" c={c} />
-                  </View>
-
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <Text style={{ color: c.textSecondary, fontSize: 11 * fs, fontFamily: fontBody }}>{s.floors + 1}층까지</Text>
-                    <Text style={{ color: f.color, fontSize: 11 * fs, fontFamily: fontMono }}>{floorProgress}% · {within.toLocaleString()}/{floorSize.toLocaleString()}문제</Text>
-                  </View>
-                  <View style={{ height: 7, backgroundColor: c.bg, borderRadius: 4, overflow: 'hidden' }}>
-                    <View style={{ width: `${Math.max(3, floorProgress)}%`, height: '100%', backgroundColor: f.color, borderRadius: 4 }} />
-                  </View>
-
-                  {isMine ? (
-                    <Text style={{ color: f.color, fontSize: 11 * fs, fontFamily: fontBody, marginTop: 8 }}>
-                      {f.emoji} 내 진영이에요 · 학습 한 장이 곧 한 벽돌이 돼요
-                    </Text>
-                  ) : (
-                    <Text style={{ color: c.textSecondary, fontSize: 11 * fs, fontFamily: fontBody, marginTop: 8 }}>
-                      {f.tagline}
-                    </Text>
-                  )}
+              {/* 모든 진영의 동일 지표를 나란히 비교한다. */}
+              <View style={{ backgroundColor: isMine ? f.color + '0A' : c.surfaceAlt, borderRadius: 12, padding: 10, marginTop: 2, marginBottom: 6 }}>
+                <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
+                  <FactionStat color={f.color} value={`${s.floors}층`} label="지은 층수" c={c} />
+                  <FactionStat color={f.color} value={s.problems.toLocaleString()} label="기여 문제" c={c} />
+                  <FactionStat color={f.color} value={`${share}%`} label="전체 비중" c={c} />
                 </View>
-              )}
+
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <Text style={{ color: c.textSecondary, fontSize: 11 * fs, fontFamily: fontBody }}>{s.floors + 1}층까지</Text>
+                  <Text style={{ color: f.color, fontSize: 11 * fs, fontFamily: fontMono }}>{floorProgress}% · {within.toLocaleString()}/{floorSize.toLocaleString()}문제</Text>
+                </View>
+                <View style={{ height: 7, backgroundColor: c.bg, borderRadius: 4, overflow: 'hidden' }}>
+                  <View style={{ width: `${Math.max(3, floorProgress)}%`, height: '100%', backgroundColor: f.color, borderRadius: 4 }} />
+                </View>
+
+              </View>
             </View>
           );
         })}
         <Text style={{ color: c.textSecondary, fontSize: 10.5 * fs, fontFamily: fontBody, marginTop: 8, textAlign: 'center' }}>
-          진영을 눌러 안전 빌딩 기여를 확인해요 · 한 층 = {floorSize.toLocaleString()}문제
+          모든 진영의 안전 빌딩 현황 · 한 층 = {floorSize.toLocaleString()}문제
         </Text>
       </View>
 

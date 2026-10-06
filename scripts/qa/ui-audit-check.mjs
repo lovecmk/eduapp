@@ -64,6 +64,11 @@ try {
   }
   for (const [path, name] of process.env.QA_QUICK ? [] : [['/', 'home'], ['/cards', 'study'], ['/community', 'community'], ['/settings', 'settings'], ['/content/lc001', 'content']]) {
     await go(path);
+    if (name === 'community') {
+      await page.getByText('기여 문제', { exact: true }).first().waitFor();
+      assert.equal(await page.getByText('기여 문제', { exact: true }).count(), 3, 'All three faction metrics must be visible without expanding');
+      await page.getByText('함께 짓는 안전 빌딩', { exact: true }).scrollIntoViewIfNeeded();
+    }
     await page.screenshot({ path: resolve(out, name + '.png') });
   }
   await go('/content/lc001');

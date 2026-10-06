@@ -24,11 +24,12 @@ type FactionCode = (typeof FACTION_IDS)[number];
 
 function mapFactions(list: BuildingMonthDTO['factions'], floorSize: number) {
   if (!Array.isArray(list) || list.length === 0) return undefined;
-  const rows = list
-    .filter((f): f is { faction_cd: FactionCode; problems: number } => (FACTION_IDS as readonly string[]).includes(f?.faction_cd))
-    .map((f) => {
-      const problems = Math.max(0, Math.trunc(f.problems ?? 0));
-      return { id: f.faction_cd, problems, floors: Math.floor(problems / Math.max(1, floorSize)) };
+  const known = list.filter((f): f is { faction_cd: FactionCode; problems: number } => (FACTION_IDS as readonly string[]).includes(f?.faction_cd));
+  if (known.length === 0) return undefined;
+  const rows = FACTION_IDS.map((id) => {
+      const raw = known.find((f) => f.faction_cd === id)?.problems;
+      const problems = typeof raw === 'number' && Number.isFinite(raw) ? Math.max(0, Math.trunc(raw)) : 0;
+      return { id, problems, floors: Math.floor(problems / Math.max(1, floorSize)) };
     })
     .sort((a, b) => b.floors - a.floors || b.problems - a.problems);
   return rows.length > 0 ? rows : undefined;
@@ -127,7 +128,8 @@ function mapBuilding(dto: CommunityDTO): CommunitySnapshot['building'] {
    * "아무도 모르는 조용함은 사고다"와 같은 종류). 빈 값이면 화면이 '집계 중'
    * 으로 그리고, 이번 달 선두도 단정하지 않는다.
    */
-  const floorSize = dto.building?.floor_size || FLOOR;
+  const suppliedSize = dto.building?.floor_size;
+  const floorSize = typeof suppliedSize === 'number' && Number.isFinite(suppliedSize) && suppliedSize > 0 ? suppliedSize : FLOOR;
   const withWinner = (m: BuildingMonthDTO) => {
     const { factions, ...rest } = m;
     return { ...rest, winner: m.winner ?? '', factions: mapFactions(factions, floorSize) };
