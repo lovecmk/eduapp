@@ -5,21 +5,26 @@ import { dateKey, startOfDay, dayDiff } from '../dateKey';
  * 출석 달력·연속 학습(스트릭)·오늘의 학습량·복습 예정일이 전부 여기에 매달려 있다.
  * 그런데 커버리지가 0% 였다 — 가장 많이 쓰이는데 가장 검증이 없었다.
  *
- * 특히 지켜야 할 것은 **로컬 타임존 기준**이라는 점이다. UTC 로 계산하면
+ * 특히 지켜야 할 것은 **KST 기준**이라는 점이다. UTC 로 계산하면
  * 한국(UTC+9)에서는 자정이 아니라 오전 9시에 날짜가 바뀌어, 새벽에 학습한 기록이
  * 어제 칸에 찍힌다.
  */
 
 describe('dateKey', () => {
+  it('UTC·해외 기기에서도 서버와 같은 KST 자정에 키가 바뀐다', () => {
+    expect(dateKey(new Date('2026-10-01T14:59:59Z'))).toBe('2026-9-1');
+    expect(dateKey(new Date('2026-10-01T15:00:00Z'))).toBe('2026-9-2');
+    expect(dateKey(new Date('2026-10-02T00:00:00+09:00'))).toBe('2026-9-2');
+  });
   it('같은 날이면 시각이 달라도 같은 키다', () => {
-    const morning = new Date(2026, 6, 28, 0, 0, 0);
-    const night = new Date(2026, 6, 28, 23, 59, 59);
+    const morning = new Date('2026-07-28T00:00:00+09:00');
+    const night = new Date('2026-07-28T23:59:59+09:00');
     expect(dateKey(morning)).toBe(dateKey(night));
   });
 
   it('자정을 넘기면 키가 바뀐다', () => {
-    const before = new Date(2026, 6, 28, 23, 59, 59);
-    const after = new Date(2026, 6, 29, 0, 0, 0);
+    const before = new Date('2026-07-28T23:59:59+09:00');
+    const after = new Date('2026-07-29T00:00:00+09:00');
     expect(dateKey(before)).not.toBe(dateKey(after));
   });
 
@@ -29,9 +34,9 @@ describe('dateKey', () => {
     expect(dateKey(new Date(2026, 11, 31))).toBe('2026-11-31');
   });
 
-  it('UTC 가 아니라 로컬 기준이다', () => {
+  it('UTC 가 아니라 KST 기준이다', () => {
     // 로컬 자정 직후는 아직 UTC 로는 전날일 수 있다. 그래도 '오늘'이어야 한다.
-    const justAfterMidnight = new Date(2026, 6, 28, 0, 30);
+    const justAfterMidnight = new Date('2026-07-28T00:30:00+09:00');
     expect(dateKey(justAfterMidnight)).toBe('2026-6-28');
   });
 });

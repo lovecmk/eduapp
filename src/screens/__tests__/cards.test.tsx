@@ -123,8 +123,10 @@ it('완료 버튼 연타와 화면 이탈 후 애니메이션 완료가 중복/�
     const view = wrap('이용재');
     fireEvent.press(screen.getByLabelText('카드 뒤집기'));
     act(() => jest.advanceTimersByTime(400));
-    fireEvent.press(screen.getByText('이해했어요'));
-    fireEvent.press(screen.getByText('이해했어요'));
+    fireEvent.press(screen.getByText('알고 있었어요'));
+    fireEvent.press(screen.getByText('알고 있었어요'));
+    // A previous difficulty vote must not skip this event's reflection input.
+    fireEvent.press(screen.getByLabelText('난이도 쉬움 — 바로 알았어요'));
     expect(parallel).toHaveBeenCalledTimes(1);
     view.unmount();
     act(() => callback({ finished: true }));
