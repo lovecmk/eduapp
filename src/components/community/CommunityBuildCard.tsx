@@ -67,13 +67,23 @@ export function CommunityBuildCard() {
   const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
   const router = useRouter();
-  const { data } = useCommunity();
+  const { data, isLoading, isError, refetch } = useCommunity();
   const factionId = useFactionStore((s) => s.faction);
   const myFaction = getFaction(factionId);
   const claimed = useCollectionStore((s) => s.claimedRules);
   const collectionEnabled = useSettingsStore((s) => s.collectionEnabled);
   const [showHistory, setShowHistory] = useState(false);
-  if (!data) return null;
+  if (!data) return (
+    <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.border }]}>
+      <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontFamily: fontDisplay }}>함께 짓는 안전 빌딩</Text>
+      <Text style={{ color: c.textSecondary, fontSize: 12 * fs, fontFamily: fontBody, marginTop: 8 }}>
+        {isLoading ? '진영 현황을 불러오는 중이에요' : isError ? '진영 현황을 불러오지 못했어요. 연결 상태를 확인해주세요.' : '아직 진영 현황이 없어요'}
+      </Text>
+      {isError && <Pressable accessibilityRole="button" onPress={() => { void refetch(); }} style={{ marginTop: 10 }}>
+        <Text style={{ color: c.primary, fontFamily: fontDisplay }}>진영 현황 다시 불러오기</Text>
+      </Pressable>}
+    </View>
+  );
 
   const { current, floorSize, history } = data.building;
   const floors = current.floors;
