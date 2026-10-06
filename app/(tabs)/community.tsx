@@ -136,14 +136,14 @@ export default function CommunityScreen() {
         )}
 
         {/* 3. 이번 주 목표·성과 — 참여 영역 아래로 */}
-        {(!liveLoading || liveData) && (
-          <View style={{ marginTop: 20 }}>
+        <View style={{ marginTop: 20 }}>
+          {(!liveLoading || liveData) && <>
             <WeeklyChallengeCard />
             <CommunityLeaderboardCard />
-            <CommunityBuildCard />
-            {collectionEnabled && <CollectionTeaserCard />}
-          </View>
-        )}
+          </>}
+          <CommunityBuildCard />
+          {(!liveLoading || liveData) && collectionEnabled && <CollectionTeaserCard />}
+        </View>
 
         {/* 하단 새로고침 — 진행 중일 때만 표시한다.
             '맨 아래까지 내리면 새로고침돼요' 상시 안내는 매번 읽히는 노이즈라 없앴다. */}

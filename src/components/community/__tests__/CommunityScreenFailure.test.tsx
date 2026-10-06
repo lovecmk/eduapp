@@ -1,0 +1,32 @@
+import React from 'react';
+import { fireEvent, render, screen } from '@testing-library/react-native';
+jest.mock('expo-router', () => ({ useRouter: () => ({ push: jest.fn() }) }));
+const mockCommunity = jest.fn();
+jest.mock('../../../hooks/useCommunity', () => ({ useCommunity: () => mockCommunity() }));
+jest.mock('../../../hooks/useQna', () => ({ useQuestions: () => ({ data: [], refetch: jest.fn() }) }));
+jest.mock('../RooftopCrates', () => ({ RooftopCrates: () => null }));
+jest.mock('../LivePresenceCard', () => ({ LivePresenceCard: () => null }));
+jest.mock('../WeeklyChallengeCard', () => ({ WeeklyChallengeCard: () => null }));
+jest.mock('../CommunityLeaderboardCard', () => ({ CommunityLeaderboardCard: () => null }));
+jest.mock('../CollectionTeaserCard', () => ({ CollectionTeaserCard: () => null }));
+jest.mock('../QuestionComposeModal', () => ({ QuestionComposeModal: () => null }));
+jest.mock('../HelpWantedCard', () => ({ HelpWantedCard: () => null, pickHelpWanted: () => null }));
+jest.mock('../MyContributionLine', () => ({ MyContributionLine: () => null }));
+jest.mock('../QnaOfflineNotice', () => ({ QnaOfflineNotice: () => null }));
+jest.mock('../../skeletons', () => ({ CommunitySkeleton: () => null }));
+import CommunityScreen from '../../../../app/(tabs)/community';
+import { ThemeProvider } from '../../../theme/ThemeProvider';
+
+it('keeps the actual building section mounted during loading and exposes error recovery', () => {
+  const refetch = jest.fn();
+  mockCommunity.mockReturnValue({ data: undefined, isLoading: true, refetch });
+  const view = render(<ThemeProvider><CommunityScreen /></ThemeProvider>);
+  expect(screen.getByText('진영 현황을 불러오는 중이에요')).toBeTruthy();
+  mockCommunity.mockReturnValue({ data: undefined, isLoading: false, isError: true, refetch });
+  view.rerender(<ThemeProvider><CommunityScreen /></ThemeProvider>);
+  fireEvent.press(screen.getByText('진영 현황 다시 불러오기'));
+  expect(refetch).toHaveBeenCalledTimes(1);
+  mockCommunity.mockReturnValue({ data: undefined, isLoading: true, refetch });
+  view.rerender(<ThemeProvider><CommunityScreen /></ThemeProvider>);
+  expect(screen.getByText('진영 현황을 불러오는 중이에요')).toBeTruthy();
+});

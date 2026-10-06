@@ -11,5 +11,8 @@ export function useCommunity() {
     queryFn: () => communityRepository.getSnapshot(),
     refetchInterval: 15_000,
     staleTime: 8_000,
+    // Loading-dependent sections remount after an error; do not restart retries on every mount.
+    // Explicit retry, focus recovery and the polling interval still refresh the snapshot.
+    retryOnMount: false,
   });
 }
