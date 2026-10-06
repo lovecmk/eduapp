@@ -6,6 +6,7 @@ import { CardMapper } from '../mappers/CardMapper';
 import { apiClient } from '../network/ApiClient';
 import { dateKey } from '../../utils/dateKey';
 import { setPersonalReviewPolicy, type PersonalReviewPolicy } from '../network/personalReviewPolicy';
+import { ApiError } from '../network/errors';
 
 /** 서버 응답(service.TodayPlan)과 1:1. */
 interface TodayPlanDTO {
@@ -34,8 +35,10 @@ const DIFFICULTY: Record<string, CardDifficulty> = {
 export class DailyAssignmentRepository implements IDailyAssignmentRepository {
   async get(): Promise<DailyAssignment> {
     const dto = await apiClient.get<TodayPlanDTO>('/inner/api/v1/learning/today');
-    setPersonalReviewPolicy(dto.personalized && dto.review_policy ? dto.review_policy : null);
-    const cards: DailyCard[] = (dto.cards ?? []).map((c) => ({
+    if (!dto || !Array.isArray(dto.cards)) throw new ApiError(502, '오늘의 학습 응답 형식이 올바르지 않습니다', 'server');
+    const count = (value: unknown) => typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
+    if (dto.target_count != null && !count(dto.target_count) || dto.done_count != null && (!count(dto.done_count) || dto.done_count > dto.cards.length)) throw new ApiError(502, '오늘의 학습 목표 응답이 올바르지 않습니다', 'server');
+    const cards: DailyCard[] = dto.cards.map((c) => ({
       card: CardMapper.toDomain(c),
       // 모르는 값은 '새로 배우는 것'으로 본다 — 복습이라고 잘못 말하면
       // 사용자는 배운 적 없는 문제를 "또 나왔다"고 여긴다.
@@ -44,6 +47,9 @@ export class DailyAssignmentRepository implements IDailyAssignmentRepository {
       recommendReason: c.recommend_reason,
       recommendScore: c.recommend_score,
     }));
+    if (new Set(cards.map(c => c.card.id)).size !== cards.length) throw new ApiError(502, '오늘의 학습에 중복 카드가 있습니다', 'server');
+    // Install policy only after the entire deck has passed validation.
+    setPersonalReviewPolicy(dto.personalized === true && dto.review_policy ? dto.review_policy : null);
     return {
       day: dto.day ?? dateKey(new Date()),
       difficulty: DIFFICULTY[(dto.difficulty_cd ?? '').toUpperCase()] ?? 'easy',
