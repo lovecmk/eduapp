@@ -22,12 +22,14 @@ import { contentColumn } from '../src/theme/layout';
 // 소개를 열면 화면에는 다 보이는데 한 글자만 고쳐도 60자로 잘렸다(카운터도 거짓말).
 import { BIO_MAX } from '../src/domain/models/UserSettings';
 import { toast } from '../src/store/toastStore';
+import { LearnerProfileFields } from '../src/components/settings/LearnerProfileFields';
 
 export default function ProfileScreen() {
   const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
+  const learningProfile = useSettingsStore();
   const { profileImage, setProfileImage, bio, setBio } = useSettingsStore();
   const owned = useCollectionStore((s) => s.owned);
   const { data: allCards = [] } = useAllCards();
@@ -194,6 +196,7 @@ export default function ProfileScreen() {
           </View>
           <Ionicons name="chevron-forward" size={18} color={c.primary} />
         </Pressable>
+        <LearnerProfileFields job={learningProfile.job} experience={learningProfile.experience} interests={learningProfile.interests} companyJob={user?.jobTitle} onJob={value => learningProfile.setLearnerProfile(value, learningProfile.experience)} onExperience={value => learningProfile.setLearnerProfile(user?.jobTitle || learningProfile.job, value)} onInterest={learningProfile.toggleInterest} />
       </ScrollView>
     </View>
   );

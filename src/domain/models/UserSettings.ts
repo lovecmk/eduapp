@@ -38,6 +38,8 @@ export interface AccountSettings {
   shuffleCards: boolean;
   prioritizeWeakSpots: boolean;
   interests: InterestField[];
+  job?: string;
+  experience?: string;
   bio: string;
   flexPromptEnabled: boolean;
   showAchievementBadge: boolean;
@@ -110,6 +112,8 @@ export function normalizeAccountSettings(
     prioritizeWeakSpots: bool(p.prioritizeWeakSpots, base.prioritizeWeakSpots),
     // 모르는 관심 분야 값은 버린다(구버전·오타로 들어온 값이 칩 목록을 깨뜨리지 않게).
     interests: Array.isArray(p.interests) ? p.interests.filter(isInterestField) : base.interests,
+    job: typeof p.job === 'string' ? p.job.slice(0, 120) : base.job ?? '',
+    experience: typeof p.experience === 'string' ? p.experience.slice(0, 40) : base.experience ?? '',
     bio: typeof p.bio === 'string' ? p.bio.slice(0, BIO_MAX) : base.bio,
     flexPromptEnabled: bool(p.flexPromptEnabled, base.flexPromptEnabled),
     showAchievementBadge: bool(p.showAchievementBadge, base.showAchievementBadge),
@@ -140,6 +144,8 @@ export const DEFAULT_ACCOUNT_SETTINGS: AccountSettings = {
   shuffleCards: true,
   prioritizeWeakSpots: false,
   interests: [],
+  job: '',
+  experience: '',
   bio: '',
   flexPromptEnabled: true,
   showAchievementBadge: true,

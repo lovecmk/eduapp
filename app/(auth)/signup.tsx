@@ -23,10 +23,14 @@ import {
   PASSWORD_PLACEHOLDER,
 } from '../../src/domain/validation/auth';
 import { APP_NAME } from '../../src/constants/brand';
+import { LearnerProfileFields } from '../../src/components/settings/LearnerProfileFields';
+import { useSettingsStore } from '../../src/store/settingsStore';
+import type { InterestField } from '../../src/constants/interests';
 
 type Errors = { name?: string; email?: string; pw?: string; pw2?: string };
 
 export default function SignupScreen() {
+  const [job, setJob] = useState(''); const [experience, setExperience] = useState(''); const [interests, setInterests] = useState<InterestField[]>([]);
   const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
   const router = useRouter();
@@ -144,7 +148,11 @@ export default function SignupScreen() {
       org: org.trim(),
     });
     // 가입 성공 → 홈으로 진입. 진영(팀) 선택은 홈 진입 시점에 유도한다(홈에서 faction==null 이면 자동 안내).
-    if (ok) router.replace(ROUTES.home);
+    if (ok) {
+      const user = useAuthStore.getState().user;
+      if (user) useSettingsStore.getState().applyAccountSettings({ job: user.jobTitle || job, experience, interests }, Date.now(), user.id);
+      router.replace(ROUTES.home);
+    }
   };
 
   return (
@@ -237,6 +245,7 @@ export default function SignupScreen() {
           <TextField label="비밀번호 확인" value={pw2} onChangeText={(t) => { setPw2(t); clearField('pw2'); }} secureTextEntry placeholder="비밀번호를 다시 입력하세요"
             status={errors.pw2 ? 'error' : 'default'} helperText={errors.pw2 ?? authError ?? formHint ?? undefined} />
 
+          <LearnerProfileFields job={job} experience={experience} interests={interests} onJob={setJob} onExperience={setExperience} onInterest={value => setInterests(values => values.includes(value) ? values.filter(v => v !== value) : [...values, value])} />
           <View style={{ marginTop: 8 }}>
             <Button label="가입 완료" variant="filled" loading={loading} onPress={onSubmit} />
           </View>

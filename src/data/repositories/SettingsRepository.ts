@@ -20,6 +20,8 @@ interface SettingsDTO {
   shuffle_yn?: boolean;
   prioritize_weak_yn?: boolean;
   interests?: string[];
+  job?: string;
+  experience?: string;
   bio_txt?: string;
   flex_prompt_yn?: boolean;
   achievement_badge_yn?: boolean;
@@ -58,6 +60,8 @@ function toPatch(dto: SettingsDTO): AccountSettingsPatch {
   if (dto.shuffle_yn !== undefined) out.shuffleCards = dto.shuffle_yn;
   if (dto.prioritize_weak_yn !== undefined) out.prioritizeWeakSpots = dto.prioritize_weak_yn;
   if (dto.interests !== undefined) out.interests = dto.interests;
+  if (dto.job !== undefined) out.job = dto.job;
+  if (dto.experience !== undefined) out.experience = dto.experience;
   if (dto.bio_txt !== undefined) out.bio = dto.bio_txt;
   if (dto.flex_prompt_yn !== undefined) out.flexPromptEnabled = dto.flex_prompt_yn;
   if (dto.achievement_badge_yn !== undefined) out.showAchievementBadge = dto.achievement_badge_yn;
@@ -90,6 +94,8 @@ function toDTO(s: AccountSettings, updatedAt: Date): SettingsDTO {
     shuffle_yn: s.shuffleCards,
     prioritize_weak_yn: s.prioritizeWeakSpots,
     interests: [...s.interests],
+    job: s.job ?? '',
+    experience: s.experience ?? '',
     bio_txt: s.bio,
     flex_prompt_yn: s.flexPromptEnabled,
     achievement_badge_yn: s.showAchievementBadge,

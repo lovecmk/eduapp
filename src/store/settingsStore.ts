@@ -41,6 +41,9 @@ interface SettingsState {
   dontKnowHaptic: boolean;
   /** 관심 분야(설비·시설) — 개인화용 */
   interests: InterestField[];
+  job: string;
+  experience: string;
+  setLearnerProfile: (job: string, experience: string) => void;
   profileImage: string | null;
   /** 내 프로필 한 줄 소개(bio) */
   bio: string;
@@ -145,6 +148,8 @@ export function selectAccountSettings(s: SettingsState): AccountSettings {
     shuffleCards: s.shuffleCards,
     prioritizeWeakSpots: s.prioritizeWeakSpots,
     interests: [...s.interests],
+    job: s.job,
+    experience: s.experience,
     bio: s.bio,
     flexPromptEnabled: s.flexPromptEnabled,
     showAchievementBadge: s.showAchievementBadge,
@@ -157,6 +162,9 @@ export const useSettingsStore = create<SettingsState>()(
   persist(
     (set) => ({
       ...DEFAULT_SETTINGS,
+      job: '',
+      experience: '',
+      setLearnerProfile: (job, experience) => set({ job: job.trim().slice(0, 120), experience: experience.trim().slice(0, 40) }),
       accountOwnerId: null,
       accountUpdatedAt: 0,
 
