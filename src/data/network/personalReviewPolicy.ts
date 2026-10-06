@@ -6,7 +6,7 @@ let policy: PersonalReviewPolicy | null = null;
 let epoch = -1;
 export function setPersonalReviewPolicy(value: PersonalReviewPolicy | null) {
   epoch = getSessionEpoch();
-  policy = value && Number.isInteger(value.first_days) && Number.isInteger(value.repeat_days) && value.first_days >= 1 && value.repeat_days >= 1 && value.first_days <= 365 && value.repeat_days <= 365 ? value : null;
+  policy = value && Number.isInteger(value.first_days) && Number.isInteger(value.repeat_days) && value.first_days >= 1 && value.repeat_days >= 1 && value.first_days <= 365 && value.repeat_days <= 365 ? { ...value } : null;
 }
 export function applyPersonalReviewPolicy(previous: SrsCardState, next: SrsCardState, grade: Grade): SrsCardState {
   if (!policy || epoch !== getSessionEpoch()) return next;

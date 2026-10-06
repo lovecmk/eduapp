@@ -7,6 +7,7 @@ import { apiClient } from '../network/ApiClient';
 import { dateKey } from '../../utils/dateKey';
 import { setPersonalReviewPolicy, type PersonalReviewPolicy } from '../network/personalReviewPolicy';
 import { ApiError } from '../network/errors';
+import { assertSessionEpoch, getSessionEpoch } from '../network/sessionEpoch';
 
 /** 서버 응답(service.TodayPlan)과 1:1. */
 interface TodayPlanDTO {
@@ -34,7 +35,9 @@ const DIFFICULTY: Record<string, CardDifficulty> = {
  */
 export class DailyAssignmentRepository implements IDailyAssignmentRepository {
   async get(): Promise<DailyAssignment> {
+    const epoch = getSessionEpoch();
     const dto = await apiClient.get<TodayPlanDTO>('/inner/api/v1/learning/today');
+    assertSessionEpoch(epoch);
     if (!dto || !Array.isArray(dto.cards)) throw new ApiError(502, '오늘의 학습 응답 형식이 올바르지 않습니다', 'server');
     const count = (value: unknown) => typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
     if (dto.target_count != null && !count(dto.target_count) || dto.done_count != null && (!count(dto.done_count) || dto.done_count > dto.cards.length)) throw new ApiError(502, '오늘의 학습 목표 응답이 올바르지 않습니다', 'server');
