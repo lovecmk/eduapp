@@ -19,6 +19,9 @@ import {
   type CollectionSnapshot,
 } from '../domain/models/Collection';
 import { CRATE_BY_FLOOR, crateKey, evaluateCrate, monthBricks, monthKey, rollCrate } from '../domain/buildingCrates';
+import { env } from '../data/network/env';
+import { canOpenRooftop } from '../domain/rooftopPolicy';
+import type { RooftopReceipt } from '../domain/models/Rooftop';
 import { useSrsStore } from './srsStore';
 
 export type { DrawResult } from '../domain/packDraw';
@@ -54,6 +57,7 @@ const todayKey = () => {
 };
 
 interface CollectionState extends CollectionSnapshot {
+  mockCrateHistory: RooftopReceipt[];
   /** 오늘 학습한 장수(일일 무료팩 조건 판정용) — 기기 로컬 값이라 동기화하지 않는다. */
   todayStudy: number;
   /** todayStudy 가 가리키는 날짜 */
@@ -125,6 +129,7 @@ export const selectStudyToNextPack = (s: CollectionSnapshot) =>
 
 const EMPTY = {
   ...EMPTY_SNAPSHOT,
+  mockCrateHistory: [] as RooftopReceipt[],
   // 첫 방문 보너스는 '적립'으로 기록한다 — 잔액을 직접 세팅하면 카운터와 어긋난다.
   packsEarned: INITIAL_PACKS,
   todayStudy: 0,
@@ -181,12 +186,14 @@ export const useCollectionStore = create<CollectionState>()(
       bricksFor: (month) => monthBricks(month, get(), useSrsStore.getState().cards),
 
       openBuildingCrate: (month, floor, floors, rng) => {
+        if (!env.useMockData) return null;
         const crate = CRATE_BY_FLOOR[floor];
         // 모르는 층은 지급하지 않는다(화면이 임의의 층을 보내도 무해하게).
         if (!crate) return null;
         // 지난 달 상자는 열 수 없다 — 달이 바뀌면 사라진다.
         if (month !== monthKey()) return null;
         const s = get();
+        if (!canOpenRooftop(s.mockCrateHistory)) return null;
         const status = evaluateCrate(crate, {
           month,
           floors,
@@ -200,6 +207,7 @@ export const useCollectionStore = create<CollectionState>()(
           packsEarned: cur.packsEarned + got.packs,
           shardsEarned: cur.shardsEarned + got.shards,
           claimedRules: { ...cur.claimedRules, [key]: 1 },
+          mockCrateHistory: [...cur.mockCrateHistory, { month, floor, ...got, opened_at: new Date().toISOString() }].slice(-60),
         }));
         return got;
       },
@@ -264,6 +272,8 @@ export const useCollectionStore = create<CollectionState>()(
         const s = get();
         return {
           owned: s.owned,
+          ...(s.rooftopPacks != null ? { rooftopPacks: s.rooftopPacks } : {}),
+          ...(s.rooftopShards != null ? { rooftopShards: s.rooftopShards } : {}),
           packsEarned: s.packsEarned,
           packsOpened: s.packsOpened,
           shardsEarned: s.shardsEarned,
@@ -291,7 +301,7 @@ export const useCollectionStore = create<CollectionState>()(
           };
         }),
 
-      reset: () => set({ ...EMPTY }),
+      reset: () => set({ ...EMPTY, rooftopPacks: undefined, rooftopShards: undefined }),
     }),
     {
       name: 'collection',

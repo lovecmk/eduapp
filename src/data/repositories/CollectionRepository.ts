@@ -5,6 +5,8 @@ import { toApiError } from '../network/errors';
 
 /** 서버가 주고받는 도감 표현(snake_case). */
 interface CollectionDTO {
+  rooftop_packs?: number;
+  rooftop_shards?: number;
   owned?: Record<string, number>;
   packs_earned?: number;
   packs_opened?: number;
@@ -21,6 +23,8 @@ interface CollectionDTO {
 function toDomain(dto: CollectionDTO): CollectionSnapshot {
   return {
     owned: dto.owned ?? {},
+    ...(typeof dto.rooftop_packs === 'number' ? { rooftopPacks: dto.rooftop_packs } : {}),
+    ...(typeof dto.rooftop_shards === 'number' ? { rooftopShards: dto.rooftop_shards } : {}),
     packsEarned: dto.packs_earned ?? 0,
     packsOpened: dto.packs_opened ?? 0,
     shardsEarned: dto.shards_earned ?? 0,

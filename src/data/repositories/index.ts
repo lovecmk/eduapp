@@ -238,3 +238,7 @@ export const liveCommunityRepositories = env.useMockData
       qna: new QnaRepository(),
       notifications: notificationRepository,
     };
+
+import { RooftopRepository } from './RooftopRepository';
+import { MockRooftopRepository } from './RooftopRepository.mock';
+export const rooftopRepository = env.useMockData ? new MockRooftopRepository() : new RooftopRepository();

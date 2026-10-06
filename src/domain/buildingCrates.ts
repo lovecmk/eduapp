@@ -55,9 +55,10 @@ export const CRATE_KEY_PREFIX = 'bld:';
 /** 도감 스냅샷의 claimedRules 에 남기는 수령 키. */
 export const crateKey = (month: string, floor: number) => `${CRATE_KEY_PREFIX}${month}:${floor}`;
 
-/** 'YYYY-MM' — 빌딩의 월 키와 같은 모양(로컬 시각 기준). */
+/** 'YYYY-MM' — 서버와 동일한 KST 월 키. */
 export function monthKey(d: Date = new Date()): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  const kst = new Date(d.getTime() + 9 * 3600000);
+  return `${kst.getUTCFullYear()}-${String(kst.getUTCMonth() + 1).padStart(2, '0')}`;
 }
 
 /**

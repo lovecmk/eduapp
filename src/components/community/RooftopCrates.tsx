@@ -21,6 +21,11 @@ import {
   type CrateStatus,
 } from '../../domain/buildingCrates';
 
+import { env } from '../../data/network/env';
+import { rooftopRepository, collectionRepository } from '../../data/repositories';
+import type { RooftopReceipt, RooftopState } from '../../domain/models/Rooftop';
+import { getSessionEpoch, assertSessionEpoch } from '../../data/network/sessionEpoch';
+
 const nativeDriver = Platform.OS !== 'web';
 
 /** 받침 유무에 따른 주격 조사(이/가). */
@@ -113,12 +118,14 @@ function CrateSheet({
   floors,
   bricks,
   onClose,
+  openRemote,
 }: {
   status: CrateStatus | null;
   month: string;
   floors: number;
   bricks: number;
   onClose: () => void;
+  openRemote?: (month: string, floor: number) => Promise<RooftopReceipt>;
 }) {
   const collectionEnabled = useSettingsStore((st) => st.collectionEnabled);
   const enableCollection = useSettingsStore((st) => st.toggleCollectionEnabled);
@@ -129,10 +136,15 @@ function CrateSheet({
   const shake = useRef(new Animated.Value(0)).current;
   const pop = useRef(new Animated.Value(1)).current;
   const [phase, setPhase] = useState<'idle' | 'opening' | 'revealed'>('idle');
+  const inFlight = useRef(false);
+  const active = useRef(true);
+  const activeFloor = useRef(0);
+  useEffect(() => { active.current = true; return () => { active.current = false; }; }, []);
   const [got, setGot] = useState<{ packs: number; shards: number } | null>(null);
 
   // 다른 상자를 고르면 처음 상태로.
   const floorKey = status?.crate.floor ?? 0;
+  activeFloor.current = floorKey;
   useEffect(() => {
     setPhase('idle');
     setGot(null);
@@ -144,6 +156,8 @@ function CrateSheet({
   const { crate, state } = status;
 
   const open = () => {
+    if (inFlight.current) return;
+    inFlight.current = true;
     setPhase('opening');
     hapticImpact();
     // 덜컹덜컹 — 상자가 흔들리다가 열린다.
@@ -153,18 +167,29 @@ function CrateSheet({
       ),
     ]).start();
     run(() => {
-      const res = useCollectionStore.getState().openBuildingCrate(month, crate.floor, floors);
-      if (!res) {
-        // 조건이 그사이 바뀌었다(달이 넘어감·다른 기기에서 먼저 엶).
-        setPhase('idle');
-        toast('지금은 이 상자를 열 수 없어요', 'info');
-        return;
-      }
-      setGot(res);
-      setPhase('revealed');
-      hapticSuccess();
-      pop.setValue(0.4);
-      Animated.spring(pop, { toValue: 1, friction: 4, tension: 120, useNativeDriver: nativeDriver }).start();
+      const reveal = (res: { packs: number; shards: number } | null) => {
+        inFlight.current = false;
+        if (!active.current || activeFloor.current !== crate.floor) return;
+        if (!res) {
+          // 조건이 그사이 바뀌었다(달이 넘어감·다른 기기에서 먼저 엶).
+          setPhase('idle');
+          toast('지금은 이 상자를 열 수 없어요', 'info');
+          return;
+        }
+        setGot(res);
+        setPhase('revealed');
+        hapticSuccess();
+        pop.setValue(0.4);
+        Animated.spring(pop, { toValue: 1, friction: 4, tension: 120, useNativeDriver: nativeDriver }).start();
+      };
+      if (openRemote) {
+        openRemote(month, crate.floor).then(reveal).catch(() => {
+          inFlight.current = false;
+          if (!active.current || activeFloor.current !== crate.floor) return;
+          setPhase('idle');
+          toast('개봉을 확인하지 못했어요. 조건·한도(하루 3개)와 60초 대기 시간을 확인하고 다시 시도해주세요.', 'warn');
+        });
+      } else reveal(useCollectionStore.getState().openBuildingCrate(month, crate.floor, floors));
     }, 560);
   };
 
@@ -235,7 +260,7 @@ function CrateSheet({
             ) : (
               <Button
                 label={state === 'ready' ? (collectionEnabled ? '상자 열기' : '카드 수집 켜고 열기') : state === 'needBricks' ? `벽돌 ${status.bricksLeft}장 더 필요해요` : `${status.floorsLeft}층 더 올라가야 해요`}
-                disabled={state !== 'ready'}
+                disabled={state !== 'ready' || phase === 'opening'}
                 loading={phase === 'opening'}
                 onPress={() => {
                   if (!collectionEnabled) enableCollection();
@@ -246,6 +271,7 @@ function CrateSheet({
           </View>
           <Text style={{ color: c.textSecondary, fontSize: 11 * fs, lineHeight: 16 * fs, fontFamily: fontBody, marginTop: 12, textAlign: 'center' }}>
             카드 학습 1장 = 벽돌 1장 · 열지 않은 상자는 달이 바뀌면 사라져요
+            {'\n'}하루 3개 · 주간 5개 · 개봉 사이 60초 대기
           </Text>
         </>
       )}
@@ -257,7 +283,32 @@ function CrateSheet({
  * 옥상 보물상자 줄 — 안전 빌딩이 정해진 층에 닿으면 상자가 놓이고, 그 달에 벽돌을
  * 충분히 올린 사람이 연다. 규칙·보상액은 domain/buildingCrates 가 정한다.
  */
-export function RooftopCrates({ month, floors, accent }: { month: string; floors: number; accent: string }) {
+export function RooftopCrates({ month: suppliedMonth, floors: suppliedFloors, accent }: { month: string; floors: number; accent: string }) {
+  const [remote, setRemote] = useState<RooftopState | null>(null);
+  const [remoteError, setRemoteError] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+  useEffect(() => {
+    if (env.useMockData) return;
+    let active = true;
+    setRemoteError(false);
+    const refresh = () => rooftopRepository.get().then((state) => { if (active) { setRemote(state); setRemoteError(false); } }).catch(() => { if (active) setRemoteError(true); });
+    void refresh();
+    const timer = setInterval(refresh, 15000);
+    return () => { active = false; clearInterval(timer); };
+  }, [suppliedMonth, suppliedFloors, refreshKey]);
+  const month = env.useMockData ? suppliedMonth : remote?.month ?? suppliedMonth;
+  const floors = env.useMockData ? suppliedFloors : remote?.floors ?? 0;
+  const openRemote = env.useMockData ? undefined : async (m: string, floor: number) => {
+    const epoch = getSessionEpoch();
+    const receipt = await rooftopRepository.open(m, floor);
+    const collection = await collectionRepository.pull();
+    assertSessionEpoch(epoch);
+    useCollectionStore.getState().applyServer(collection);
+    const state = await rooftopRepository.get();
+    assertSessionEpoch(epoch);
+    setRemote(state);
+    return receipt;
+  };
   const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
   const collectionEnabled = useSettingsStore((s) => s.collectionEnabled);
@@ -268,13 +319,15 @@ export function RooftopCrates({ month, floors, accent }: { month: string; floors
   const srsCards = useSrsStore((s) => s.cards);
   const [selected, setSelected] = useState<number | null>(null);
 
-  const bricks = useMemo(
+  const localBricks = useMemo(
     () => monthBricks(month, { monthStudy, monthStudyKey }, srsCards),
     [month, monthStudy, monthStudyKey, srsCards],
   );
+  const bricks = env.useMockData ? localBricks : remote?.my_bricks ?? 0;
+  const authoritativeClaims = env.useMockData ? claimed : Object.fromEntries((remote?.history ?? []).map((h) => [`bld:${h.month}:${h.floor}`, 1]));
   const statuses = useMemo(
-    () => evaluateCrates({ month, floors, myBricks: bricks, claimed }),
-    [month, floors, bricks, claimed],
+    () => evaluateCrates({ month, floors, myBricks: bricks, claimed: authoritativeClaims }),
+    [month, floors, bricks, authoritativeClaims],
   );
 
   const ready = statuses.filter((s) => s.state === 'ready');
@@ -310,6 +363,12 @@ export function RooftopCrates({ month, floors, accent }: { month: string; floors
 
   const selectedStatus = selected == null ? null : statuses.find((s) => s.crate.floor === selected) ?? null;
 
+  if (!env.useMockData && (remoteError || !remote)) return (
+    <View style={{ marginTop: 14, padding: 12 }}>
+      <Text style={{ color: c.textSecondary }}>{remoteError ? '보물상자 서버에 연결할 수 없어요. 개봉은 온라인에서만 가능해요.' : '보물상자 확인 중…'}</Text>
+      {remoteError && <Button label="보물상자 다시 확인" onPress={() => setRefreshKey((n) => n + 1)} />}
+    </View>
+  );
   return (
     <View style={{ marginTop: 14, backgroundColor: c.warning + '0D', borderColor: c.warning + '33', borderWidth: 1, borderRadius: 14, padding: 12 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 }}>
@@ -358,7 +417,14 @@ export function RooftopCrates({ month, floors, accent }: { month: string; floors
         )}
       </View>
 
+      {!env.useMockData && remote && remote.history.length > 0 && (
+        <View style={{ marginTop: 10 }}>
+          <Text style={{ color: c.textSecondary, fontFamily: fontDisplay }}>개봉 내역</Text>
+          {remote.history.map((h) => <Text key={`${h.month}:${h.floor}`} style={{ color: c.textSecondary, fontSize: 11 * fs }}>{h.month} · {h.floor}층 · 카드팩 {h.packs}개 · 조각 {h.shards}</Text>)}
+        </View>
+      )}
       <CrateSheet
+        openRemote={openRemote}
         status={selectedStatus}
         month={month}
         floors={floors}

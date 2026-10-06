@@ -13,6 +13,8 @@
 // 두 번 가도 결과가 같다(서버의 domain.Collection 과 짝을 이룬다).
 
 export interface CollectionSnapshot {
+  rooftopPacks?: number;
+  rooftopShards?: number;
   /** 카드 id → 보유 장수(중복 포함) */
   owned: Record<string, number>;
   /** 지금까지 지급받은 카드팩 총량 */
@@ -77,6 +79,8 @@ function mergeCounts(a: Record<string, number>, b: Record<string, number>): Reco
 export function mergeSnapshots(a: CollectionSnapshot, b: CollectionSnapshot): CollectionSnapshot {
   return {
     owned: mergeCounts(a.owned, b.owned),
+    ...(a.rooftopPacks != null || b.rooftopPacks != null ? { rooftopPacks: maxOf(a.rooftopPacks ?? 0, b.rooftopPacks ?? 0) } : {}),
+    ...(a.rooftopShards != null || b.rooftopShards != null ? { rooftopShards: maxOf(a.rooftopShards ?? 0, b.rooftopShards ?? 0) } : {}),
     packsEarned: maxOf(a.packsEarned, b.packsEarned),
     packsOpened: maxOf(a.packsOpened, b.packsOpened),
     shardsEarned: maxOf(a.shardsEarned, b.shardsEarned),
@@ -95,9 +99,9 @@ export function mergeSnapshots(a: CollectionSnapshot, b: CollectionSnapshot): Co
 }
 
 /** 지금 열 수 있는 카드팩 수. 음수는 나오지 않는다. */
-export const packBalance = (s: Pick<CollectionSnapshot, 'packsEarned' | 'packsOpened'>) =>
-  Math.max(0, s.packsEarned - s.packsOpened);
+export const packBalance = (s: Pick<CollectionSnapshot, 'packsEarned' | 'packsOpened' | 'rooftopPacks'>) =>
+  Math.max(0, s.packsEarned + (s.rooftopPacks ?? 0) - s.packsOpened);
 
 /** 지금 쓸 수 있는 안전 조각 수. */
-export const shardBalance = (s: Pick<CollectionSnapshot, 'shardsEarned' | 'shardsSpent'>) =>
-  Math.max(0, s.shardsEarned - s.shardsSpent);
+export const shardBalance = (s: Pick<CollectionSnapshot, 'shardsEarned' | 'shardsSpent' | 'rooftopShards'>) =>
+  Math.max(0, s.shardsEarned + (s.rooftopShards ?? 0) - s.shardsSpent);
