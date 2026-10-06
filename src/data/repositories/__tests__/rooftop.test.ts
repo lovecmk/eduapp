@@ -7,6 +7,13 @@ import { monthKey } from '../../../domain/buildingCrates';
 
 const receipt = { month: '2026-10', floor: 10, packs: 1, shards: 30, opened_at: '2026-10-06T00:00:00Z' };
 const repo = new RooftopRepository();
+it('accepts optional legacy claim markers and rejects invented floors', async () => {
+  const state = { month: '2026-10', floors: 50, my_bricks: 30, history: [], legacy_claims: ['bld:2026-10:5'] };
+  jest.mocked(apiClient.get).mockResolvedValue(state);
+  expect((await repo.get()).legacy_claims).toEqual(state.legacy_claims);
+  jest.mocked(apiClient.get).mockResolvedValue({ ...state, legacy_claims: ['bld:2026-10:99'] });
+  await expect(repo.get()).rejects.toThrow('응답 형식');
+});
 it('matches authenticated GET and POST contracts without client reward/user fields', async () => {
   jest.mocked(apiClient.get).mockResolvedValue({ month: '2026-10', floors: 10, my_bricks: 5, history: [receipt] });
   expect((await repo.get()).history).toEqual([receipt]);

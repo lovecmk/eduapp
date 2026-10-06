@@ -57,6 +57,15 @@ it('fails closed when API is undeployed and offers retry', async () => {
   expect(screen.queryByText('상자 열기')).toBeNull();
   expect(mockOpen).not.toHaveBeenCalled();
 });
+it('keeps previously credited legacy floors opened without a second grant', async () => {
+  mockGet.mockResolvedValue({ ...state, legacy_claims: [`bld:${month}:5`] });
+  await loaded();
+  expect(screen.getByLabelText('5층 벽돌 꾸러미, 이번 달에 열었어요')).toBeTruthy();
+  fireEvent.press(screen.getByLabelText('5층 벽돌 꾸러미, 이번 달에 열었어요'));
+  expect(screen.queryByText('상자 열기')).toBeNull();
+  expect(mockOpen).not.toHaveBeenCalled();
+  expect(selectPacks(useCollectionStore.getState())).toBe(3);
+});
 it('prevents a delayed response from granting the next logged-in account', async () => {
   mockPull.mockImplementation(async () => { advanceSessionEpoch(); return { ...EMPTY_SNAPSHOT, rooftopPacks: 1 }; });
   await loaded(); await open();

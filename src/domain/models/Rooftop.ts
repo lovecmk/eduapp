@@ -10,6 +10,7 @@ export interface RooftopState {
   floors: number;
   my_bricks: number;
   history: RooftopReceipt[];
+  legacy_claims?: string[];
 }
 export interface IRooftopRepository {
   get(): Promise<RooftopState>;

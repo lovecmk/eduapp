@@ -324,7 +324,10 @@ export function RooftopCrates({ month: suppliedMonth, floors: suppliedFloors, ac
     [month, monthStudy, monthStudyKey, srsCards],
   );
   const bricks = env.useMockData ? localBricks : remote?.my_bricks ?? 0;
-  const authoritativeClaims = env.useMockData ? claimed : Object.fromEntries((remote?.history ?? []).map((h) => [`bld:${h.month}:${h.floor}`, 1]));
+  const authoritativeClaims = env.useMockData ? claimed : Object.fromEntries([
+    ...(remote?.legacy_claims ?? []).map((key) => [key, 1]),
+    ...(remote?.history ?? []).map((h) => [`bld:${h.month}:${h.floor}`, 1]),
+  ]);
   const statuses = useMemo(
     () => evaluateCrates({ month, floors, myBricks: bricks, claimed: authoritativeClaims }),
     [month, floors, bricks, authoritativeClaims],

@@ -15,6 +15,7 @@ const stateSchema = z.object({
   floors: z.number().int().nonnegative(),
   my_bricks: z.number().int().nonnegative(),
   history: z.array(receiptSchema).max(60),
+  legacy_claims: z.array(z.string().regex(/^bld:\d{4}-(0[1-9]|1[0-2]):(5|10|20|35|50)$/)).max(5).optional(),
 });
 function validated<T>(schema: z.ZodType<T>, dto: unknown): T {
   const result = schema.safeParse(dto);
