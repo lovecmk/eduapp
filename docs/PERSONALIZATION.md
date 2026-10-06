@@ -6,6 +6,8 @@ Expo SDK 52와 기존 학습 API를 유지한다. 새 백엔드 배포 전에는
 - `POST /inner/api/v1/settings`의 기존 설정에 `job`, `experience`, `interests`를 추가한다. 구버전 서버는 추가 필드를 무시하고 서버가 반환하지 않은 선택 필드는 기기 값을 유지한다.
 - `POST /inner/api/v1/progress/grade`의 기존 durable 재전송 경로에 `event_id`, 실제 `last_reviewed_at`, `self_check` (`KNOWN`/`REVIEW`), `perceived_difficulty` (`EASY`/`MEDIUM`/`HARD`)를 보낸다.
 - 오늘의 배정은 서버가 결정하며 `kind`를 신규/복습으로 표시한다. `recommend_reason`, `recommend_score`는 선택 필드다.
+- 목록 누락·중복 카드·잘못된 목표/완료 건수는 서버 오류로 표시한다. 검증에 실패한 응답은 복습 정책을 변경하지 않는다.
+- 이전 계정의 지연 응답은 취소하며, 받은 정책 객체는 복사해서 현재 세션에만 적용한다.
 - `personalized=true`와 유효한 `review_policy`가 함께 오면 최초/반복 복습 주기를 적용한다. 로그인이 바뀌거나 구버전 응답이면 기존 SRS로 돌아간다.
 - 서버와 공유하는 날짜 키는 KST `YYYY-M-D`이고 월은 기존 계약대로 0부터 시작한다. 시각은 ISO UTC로 전송한다.
 - 자유학습도 실제 자가진단·체감난이도 이력에 반영한다. 일일 신규 상한 사용량은 오늘의 학습에서만 보고한다.
