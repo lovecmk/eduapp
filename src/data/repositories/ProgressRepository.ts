@@ -66,6 +66,10 @@ export class ProgressRepository implements IProgressRepository {
     await apiClient.postDurable('/inner/api/v1/progress/grade', {
       card_id: cardId,
       grade,
+      self_check: grade === 'again' || grade === 'hard' ? 'REVIEW' : 'KNOWN',
+      perceived_difficulty: state.perceivedDifficulty ?? '',
+      event_id: key,
+      last_reviewed_at: new Date(state.lastReviewedAt ?? Date.now()).toISOString(),
       box: state.box,
       ease: state.ease,
       due_at: new Date(state.dueAt).toISOString(),

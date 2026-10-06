@@ -26,6 +26,7 @@ export function normalizeGrade(value: unknown): Grade | null {
 }
 
 export interface SrsCardState {
+  perceivedDifficulty?: 'EASY' | 'MEDIUM' | 'HARD' | '';
   /** Leitner 박스 단계 (0=방금 배움 ~ 5=장기기억) */
   box: number;
   /**

@@ -5,14 +5,17 @@ import type { CardDTO } from '../dto/CardDTO';
 import { CardMapper } from '../mappers/CardMapper';
 import { apiClient } from '../network/ApiClient';
 import { dateKey } from '../../utils/dateKey';
+import { setPersonalReviewPolicy, type PersonalReviewPolicy } from '../network/personalReviewPolicy';
 
 /** 서버 응답(service.TodayPlan)과 1:1. */
 interface TodayPlanDTO {
+  personalized?: boolean;
+  review_policy?: PersonalReviewPolicy;
   day?: string;
   difficulty_cd?: string;
   target_count?: number;
   done_count?: number;
-  cards?: (CardDTO & { kind?: string; done?: boolean })[];
+  cards?: (CardDTO & { kind?: string; done?: boolean; recommend_reason?: string; recommend_score?: number })[];
 }
 
 const DIFFICULTY: Record<string, CardDifficulty> = {
@@ -31,12 +34,15 @@ const DIFFICULTY: Record<string, CardDifficulty> = {
 export class DailyAssignmentRepository implements IDailyAssignmentRepository {
   async get(): Promise<DailyAssignment> {
     const dto = await apiClient.get<TodayPlanDTO>('/inner/api/v1/learning/today');
+    setPersonalReviewPolicy(dto.personalized && dto.review_policy ? dto.review_policy : null);
     const cards: DailyCard[] = (dto.cards ?? []).map((c) => ({
       card: CardMapper.toDomain(c),
       // 모르는 값은 '새로 배우는 것'으로 본다 — 복습이라고 잘못 말하면
       // 사용자는 배운 적 없는 문제를 "또 나왔다"고 여긴다.
       kind: c.kind === 'REVIEW' ? 'review' : 'new',
       done: c.done === true,
+      recommendReason: c.recommend_reason,
+      recommendScore: c.recommend_score,
     }));
     return {
       day: dto.day ?? dateKey(new Date()),

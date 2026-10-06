@@ -8,7 +8,7 @@ import type { DiffVote } from '../../store/diffPollStore';
 
 const OPTIONS: { key: DiffVote; label: string; hint: string; icon: keyof typeof Ionicons.glyphMap; color: string }[] = [
   { key: 'easy', label: '쉬움', hint: '바로 알았어요', icon: 'happy-outline', color: '#34C759' },
-  { key: 'normal', label: '중간', hint: '조금 고민했어요', icon: 'remove-circle-outline', color: '#FF9500' },
+  { key: 'normal', label: '보통', hint: '조금 고민했어요', icon: 'remove-circle-outline', color: '#FF9500' },
   { key: 'hard', label: '어려움', hint: '많이 헷갈렸어요', icon: 'sad-outline', color: '#FF3B30' },
 ];
 

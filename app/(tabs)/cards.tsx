@@ -357,6 +357,7 @@ export default function CardsScreen() {
 
   const deck = sessionDeck ?? computedDeck;
   const card = deck[index];
+  const todayCard = assignment.cards.find(item => item.card.id === card?.id);
 
   const toggleBookmark = useBookmarkStore((s) => s.toggle);
   const isBookmarked = useBookmarkStore((s) => (card ? s.ids.includes(card.id) : false));
@@ -467,6 +468,7 @@ export default function CardsScreen() {
     if (controlTimer.current) clearTimeout(controlTimer.current);
   }, []);
 
+  const pendingPerception = useRef<'' | 'EASY' | 'MEDIUM' | 'HARD'>('');
   const advance = useCallback((status: 'mastered' | 'learning') => {
     if (!card) return;
     if (autoFlipTimer.current) clearTimeout(autoFlipTimer.current);
@@ -480,7 +482,8 @@ export default function CardsScreen() {
       // 언제 다시 만나는지 알아야 '이해했어요/한번 더'가 의미 있는 선택이 된다.
       const prevState = useSrsStore.getState().cards[card.id] ?? initialState();
       setNextReviewHint(predictLabel(prevState, g));
-      srsGrade(card.id, g);
+      srsGrade(card.id, g, pendingPerception.current);
+      pendingPerception.current = '';
       // 신규 카드 한 장을 마치면 하루 상한 사용량에도 집계(복습은 상한과 무관).
       if (card.status === 'new') recordNewLearned(1);
     }
@@ -512,7 +515,7 @@ export default function CardsScreen() {
    */
   const askDifficulty = useCallback((run: () => void) => {
     if (!card) { run(); return; }
-    if (useDiffPollStore.getState().myVotes[card.id]) { run(); return; }
+    // Every learning event has its own perceived difficulty, including repeated reviews.
     pendingAdvanceRef.current = run;
     // 스와이프로 밀려 있던 카드는 제자리로 되돌려 놓고 묻는다.
     Animated.spring(translateX, { toValue: 0, useNativeDriver: true, friction: 6 }).start();
@@ -522,6 +525,7 @@ export default function CardsScreen() {
 
   /** 난이도를 고르거나 건너뛰면 — 미뤄 둔 넘김 동작을 그때 실행한다. */
   const resolveAsk = useCallback((choice: DiffVote | null) => {
+    pendingPerception.current = choice === 'easy' ? 'EASY' : choice === 'normal' ? 'MEDIUM' : choice === 'hard' ? 'HARD' : '';
     if (choice && card) vote(card.id, choice);
     setAskVisible(false);
     const run = pendingAdvanceRef.current;
@@ -1001,6 +1005,7 @@ export default function CardsScreen() {
           </View>
           <Text style={{ color: c.textSecondary, fontSize: 12, fontFamily: 'monospace' }}>{index + 1} / {deck.length}</Text>
         </View>
+        {todayCard && <Text style={{ color: c.primary, marginBottom: 8, fontSize: 12 * fs }}>{todayCard.kind === 'review' ? '복습 카드' : '신규 카드'}{todayCard.recommendReason ? ` · ${{ JOB: '직무 핵심', WEAKNESS: '취약분야', EXPLORE: '확장·탐색', REVIEW_DUE: '복습예정일 도래', OPERATOR: '필수·우선 학습' }[todayCard.recommendReason] ?? '맞춤 추천'}` : ''}</Text>}
         <View style={{ height: 6, backgroundColor: c.surfaceAlt, borderRadius: 3, overflow: 'hidden' }}>
           <View style={{ width: `${Math.round((index / Math.max(deck.length, 1)) * 100)}%`, height: '100%', backgroundColor: c.primary, borderRadius: 3 }} />
         </View>
@@ -1302,12 +1307,12 @@ export default function CardsScreen() {
               <Pressable accessibilityRole="button" onPress={againUp} disabled={exiting}
                 style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.warning, borderRadius: 14, height: 52, boxShadow: `0 3px 8px ${c.warning}3D` }}>
                 <Ionicons name="refresh-circle" size={19} color="#fff" />
-                <Text style={{ color: '#fff', fontSize: 14.5 * fs, fontWeight: '700', fontFamily: fontCute }}>다음에 한번 더 볼게요</Text>
+                <Text style={{ color: '#fff', fontSize: 14.5 * fs, fontWeight: '700', fontFamily: fontCute }}>다시 보면 좋겠어요</Text>
               </Pressable>
               <Pressable accessibilityRole="button" onPress={completeLeft} disabled={exiting}
                 style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.success, borderRadius: 14, height: 52, boxShadow: `0 3px 8px ${c.success}3D` }}>
                 <Ionicons name="checkmark-circle" size={19} color="#fff" />
-                <Text style={{ color: '#fff', fontSize: 14.5 * fs, fontWeight: '700', fontFamily: fontCute }}>이해했어요</Text>
+                <Text style={{ color: '#fff', fontSize: 14.5 * fs, fontWeight: '700', fontFamily: fontCute }}>알고 있었어요</Text>
               </Pressable>
             </View>
           )
@@ -1343,12 +1348,12 @@ export default function CardsScreen() {
               <Pressable accessibilityRole="button" onPress={completeLeft} disabled={exiting}
                 style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.success, borderRadius: 14, height: 52, boxShadow: `0 3px 8px ${c.success}3D` }}>
                 <Ionicons name="checkmark-circle" size={19} color="#fff" />
-                <Text style={{ color: '#fff', fontSize: 14.5 * fs, fontWeight: '700', fontFamily: fontCute }}>이해했어요</Text>
+                <Text style={{ color: '#fff', fontSize: 14.5 * fs, fontWeight: '700', fontFamily: fontCute }}>알고 있었어요</Text>
               </Pressable>
               <Pressable accessibilityRole="button" onPress={againUp} disabled={exiting}
                 style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.warning, borderRadius: 14, height: 52, boxShadow: `0 3px 8px ${c.warning}3D` }}>
                 <Ionicons name="arrow-up-circle" size={19} color="#fff" />
-                <Text style={{ color: '#fff', fontSize: 14.5 * fs, fontWeight: '700', fontFamily: fontCute }}>다음에 한번 더 볼게요</Text>
+                <Text style={{ color: '#fff', fontSize: 14.5 * fs, fontWeight: '700', fontFamily: fontCute }}>다시 보면 좋겠어요</Text>
               </Pressable>
             </View>
           )

@@ -29,6 +29,8 @@ export interface DailyAssignment {
 
 /** 오늘 나가는 문제 한 장. */
 export interface DailyCard {
+  recommendReason?: string;
+  recommendScore?: number;
   card: LearningCard;
   /**
    * 새로 배우는 것인가, 복습인가.

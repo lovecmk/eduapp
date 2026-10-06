@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { initialState, normalizeGrade, schedule, MAX_BOX, type Grade, type SrsCardState } from '../domain/srs';
 import { dateKey } from '../utils/dateKey';
+import { applyPersonalReviewPolicy } from '../data/network/personalReviewPolicy';
 
 interface SrsState {
   cards: Record<string, SrsCardState>;
@@ -13,7 +14,7 @@ interface SrsState {
   /** 카드 목록의 기본 상태를 보강한다(가짜 이력은 만들지 않는다). */
   ensureSeeded: (cardIds: string[]) => void;
   /** 채점: 상태 갱신 + 오늘 히스토리 기록. 다음 상태의 box 를 반환. */
-  grade: (cardId: string, grade: Grade) => number;
+  grade: (cardId: string, grade: Grade, perceivedDifficulty?: SrsCardState['perceivedDifficulty']) => number;
   getState: (cardId: string) => SrsCardState | undefined;
   /**
    * 서버 스냅샷을 로컬에 병합한다(기기 변경·재설치 후 복원).
@@ -68,9 +69,10 @@ export const useSrsStore = create<SrsState>()(
         if (!get().seeded) set({ seeded: true });
       },
 
-      grade: (cardId, g) => {
+      grade: (cardId, g, perceivedDifficulty) => {
         const prev = get().cards[cardId] ?? initialState();
-        const next = schedule(prev, g);
+        const next = applyPersonalReviewPolicy(prev, schedule(prev, g), g);
+        next.perceivedDifficulty = perceivedDifficulty ?? '';
         const key = dateKey(new Date());
         const today = get().history[key] ?? [];
         set({
