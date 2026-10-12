@@ -16,6 +16,7 @@ jest.mock('../../storage/secureStorage', () => {
 });
 
 import { apiClient } from '../ApiClient';
+import { EngagementRepository } from '../../repositories/EngagementRepository';
 import { pendingCount, clearQueue } from '../offlineQueue';
 import { setLogSink, resetLogSink } from '../../../utils/logger';
 
@@ -131,5 +132,37 @@ describe('postDurable — 유실 없는 쓰기', () => {
     expect(await pendingCount()).toBe(0);
     expect(paths.some((p) => p.endsWith('/inner/api/v1/a'))).toBe(true);
     expect(paths.some((p) => p.endsWith('/inner/api/v1/b'))).toBe(true);
+  });
+});
+
+
+describe('?? ?? ??? ???? ??', () => {
+  it('???? ?? ?? ?? ?? ?? ?? ???? ????', async () => {
+    const keys: string[] = [];
+    const cached = new Set<string>();
+    let liked = false;
+    global.fetch = jest.fn(async (_url, init) => {
+      const key = (init?.headers as Record<string, string>)['Idempotency-Key'];
+      keys.push(key);
+      if (!cached.has(key)) { cached.add(key); liked = JSON.parse(String(init?.body)).liked; }
+      return ok({});
+    }) as unknown as typeof fetch;
+    const repository = new EngagementRepository();
+    await repository.setLiked('c1', true);
+    await repository.setLiked('c1', false);
+    await repository.setLiked('c1', true);
+    expect(liked).toBe(true);
+    expect(new Set(keys).size).toBe(3);
+  });
+
+  it('?? ?? ? ? ??? ??? ?? ?? ?? ????', async () => {
+    global.fetch = jest.fn(async () => { throw new TypeError('offline'); }) as unknown as typeof fetch;
+    const repository = new EngagementRepository();
+    await repository.setLiked('c1', false);
+    const states: boolean[] = [];
+    global.fetch = jest.fn(async (_url, init) => { states.push(JSON.parse(String(init?.body)).liked); return ok({}); }) as unknown as typeof fetch;
+    await repository.setLiked('c1', true);
+    expect(states).toEqual([false, true]);
+    expect(await pendingCount()).toBe(0);
   });
 });

@@ -30,7 +30,6 @@ export class DifficultyPollRepository implements IDifficultyPollRepository {
     await apiClient.postDurable(
       `/inner/api/v1/cards/${encodeURIComponent(cardId)}/difficulty`,
       { vote: choice },
-      `diff:${cardId}:${choice}`,
     );
   }
 }

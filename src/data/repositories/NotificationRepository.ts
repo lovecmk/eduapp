@@ -58,7 +58,7 @@ export class NotificationRepository implements INotificationRepository {
 
   async markAllRead(): Promise<void> {
     // 전체 읽음은 '지금 시각'까지의 상태라 멱등키에 날짜를 넣어 하루 단위로 묶는다.
-    await apiClient.postDurable('/inner/api/v1/notifications/read-all', {}, `notif-read-all:${new Date().toDateString()}`);
+    await apiClient.postDurable('/inner/api/v1/notifications/read-all', {});
   }
 
   /**

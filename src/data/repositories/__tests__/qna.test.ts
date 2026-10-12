@@ -103,13 +103,12 @@ describe('QnaRepository — 상세·쓰기', () => {
   it('공감은 오프라인 큐로 보내고, 멱등키에 원하는 상태를 담는다', async () => {
     postDurable.mockResolvedValue('sent');
     await repo.setQuestionLike('q1', true);
-    expect(postDurable).toHaveBeenCalledWith('/inner/api/v1/qna/q1/like', { liked: true }, 'qna-like:q1:true');
+    expect(postDurable).toHaveBeenCalledWith('/inner/api/v1/qna/q1/like', { liked: true });
 
     await repo.setAnswerLike('q1', 'a2', false);
     expect(postDurable).toHaveBeenCalledWith(
       '/inner/api/v1/qna/q1/answers/a2/like',
       { liked: false },
-      'qna-answer-like:a2:false',
     );
   });
 

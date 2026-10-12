@@ -81,6 +81,7 @@ let loaded = false;
 // memory 가 디스크 내용으로 통째 교체되면서, 그 사이에 들어온 쓰기가 증발한다.
 let loading: Promise<void> | null = null;
 let flushing = false;
+let flushInFlight: Promise<number> | null = null;
 // 지금 로그인한 사람. authStore 가 세션이 바뀔 때마다 갱신한다.
 let ownerId: string | null = null;
 
@@ -180,7 +181,19 @@ export function setQueueSender(fn: QueueSender): void {
  * 그 자리에서 멈춘다 — 순서를 보존하고, 오프라인일 때 큐 전체를 헛되이 소모하지 않는다.
  * 반환값은 이번에 성공적으로 보낸 개수.
  */
-export async function flushQueue(): Promise<number> {
+export function flushQueue(): Promise<number> {
+  if (flushInFlight) return flushInFlight;
+  const flight = flushPendingQueue().finally(() => { if (flushInFlight === flight) flushInFlight = null; });
+  flushInFlight = flight;
+  return flight;
+}
+
+export async function hasPendingWrites(): Promise<boolean> {
+  await ensureLoaded();
+  return nextSendable() !== undefined;
+}
+
+async function flushPendingQueue(): Promise<number> {
   await ensureLoaded();
   if (flushing || !sender || memory.length === 0) return 0;
   flushing = true;
@@ -249,5 +262,6 @@ export function __resetQueueForTests(): void {
   loaded = false;
   loading = null;
   flushing = false;
+  flushInFlight = null;
   sender = null;
 }

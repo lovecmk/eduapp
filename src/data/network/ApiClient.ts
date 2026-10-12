@@ -6,7 +6,7 @@ import { validateResponse } from './validation';
 import { secureStorage, StorageKeys } from '../storage/secureStorage';
 import { ApiError, kindOf, toApiError } from './errors';
 import { logger } from '../../utils/logger';
-import { enqueue, flushQueue, setQueueSender, type QueuedWrite } from './offlineQueue';
+import { enqueue, flushQueue, hasPendingWrites, setQueueSender, type QueuedWrite } from './offlineQueue';
 import { emitSessionExpired } from './sessionEvents';
 import { getSessionEpoch, assertSessionEpoch as assertSession } from './sessionEpoch';
 
@@ -72,6 +72,7 @@ async function readJsonBody(res: Response, signal: AbortSignal): Promise<unknown
 }
 
 class ApiClient {
+  private durableWrites: Promise<void> = Promise.resolve();
   // 동시에 여러 요청이 401을 받아도 refresh 는 한 번만 수행하고 결과를 공유한다(single-flight).
   // 이렇게 하지 않으면 refresh 쇄도(stampede)가 일어나, 서버가 refresh 토큰을 회전시킬 때
   // 첫 refresh 가 토큰을 무효화 → 나머지 refresh 가 전부 실패 → 사용자가 로그아웃된다.
@@ -288,15 +289,31 @@ class ApiClient {
    * 서버는 `Idempotency-Key` 헤더가 같은 요청을 한 번만 반영해야 한다 —
    * 재전송으로 출석이 두 번 찍히거나 신고가 중복 접수되면 안 되기 때문이다.
    */
-  async postDurable(path: string, body: unknown, idempotencyKey?: string): Promise<'sent' | 'queued'> {
+  postDurable(path: string, body: unknown, idempotencyKey?: string): Promise<'sent' | 'queued'> {
     const epoch = getSessionEpoch();
+    const operation = this.durableWrites.then(() => this.sendDurable(path, body, idempotencyKey, epoch));
+    this.durableWrites = operation.then(() => {}, () => {});
+    return operation;
+  }
+
+  private async sendDurable(path: string, body: unknown, idempotencyKey: string | undefined, epoch: number): Promise<'sent' | 'queued'> {
+    assertSession(epoch);
     const key = idempotencyKey ?? `${path}:${Date.now()}:${Math.random().toString(36).slice(2, 8)}`;
+    await flushQueue();
+    assertSession(epoch);
+    // Keep new state changes behind older offline writes, including an active flush.
+    if (await hasPendingWrites()) {
+      assertSession(epoch);
+      await enqueue('POST', path, body, key);
+      return 'queued';
+    }
+    assertSession(epoch);
     try {
       await this.request(path, {
         method: 'POST',
         body: JSON.stringify(body),
         headers: { 'Idempotency-Key': key },
-      });
+      }, false, epoch);
       // 이번 요청이 통했다면 네트워크가 살아났다는 뜻 — 밀린 큐도 함께 흘려보낸다.
       void flushQueue();
       return 'sent';

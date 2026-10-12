@@ -53,10 +53,10 @@ export class TipRepository implements ITipRepository {
   }
 
   async setLike(tipId: string, liked: boolean): Promise<void> {
-    await apiClient.postDurable(`/inner/api/v1/tips/${encodeURIComponent(tipId)}/like`, { liked }, `tip-like:${tipId}:${liked}`);
+    await apiClient.postDurable(`/inner/api/v1/tips/${encodeURIComponent(tipId)}/like`, { liked });
   }
 
   async remove(tipId: string): Promise<void> {
-    await apiClient.delete(`/inner/api/v1/tips/${encodeURIComponent(tipId)}`);
+    await apiClient.post(`/inner/api/v1/tips/${encodeURIComponent(tipId)}/remove`, {});
   }
 }

@@ -18,6 +18,7 @@ jest.mock('../../storage/secureStorage', () => ({
 jest.mock('../../network/offlineQueue', () => ({
   enqueue: jest.fn(() => Promise.resolve()),
   flushQueue: jest.fn(() => Promise.resolve(0)),
+  hasPendingWrites: jest.fn(() => Promise.resolve(false)),
   setQueueSender: jest.fn(),
 }));
 

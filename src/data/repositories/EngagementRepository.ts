@@ -28,7 +28,6 @@ export class EngagementRepository implements IEngagementRepository {
     await apiClient.postDurable(
       '/inner/api/v1/engagement/like',
       { card_id: cardId, liked },
-      `like:${cardId}:${liked}`,
     );
   }
 
@@ -36,7 +35,6 @@ export class EngagementRepository implements IEngagementRepository {
     await apiClient.postDurable(
       '/inner/api/v1/engagement/bookmark',
       { card_id: cardId, bookmarked },
-      `bookmark:${cardId}:${bookmarked}`,
     );
   }
 }

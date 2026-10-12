@@ -130,7 +130,6 @@ export class QnaRepository implements IQnaRepository {
     await apiClient.postDurable(
       `/inner/api/v1/qna/${encodeURIComponent(questionId)}/like`,
       { liked },
-      `qna-like:${questionId}:${liked}`,
     );
   }
 
@@ -138,7 +137,6 @@ export class QnaRepository implements IQnaRepository {
     await apiClient.postDurable(
       `/inner/api/v1/qna/${encodeURIComponent(questionId)}/answers/${encodeURIComponent(answerId)}/like`,
       { liked },
-      `qna-answer-like:${answerId}:${liked}`,
     );
   }
 }

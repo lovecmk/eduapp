@@ -139,7 +139,7 @@ export class AuthRepository implements IAuthRepository {
 
   async updateProfile(userId: string, patch: ProfileUpdateInput): Promise<User> {
     const epoch = getSessionEpoch();
-    const dto = await apiClient.patch<UserDTO>('/inner/api/v1/auth/me', patch);
+    const dto = await apiClient.post<UserDTO>('/inner/api/v1/auth/me/edit', patch);
     assertSessionEpoch(epoch);
     await this.cacheUser(dto); // 캐시가 옛 이름을 들고 있으면 오프라인 복구 때 되돌아간 것처럼 보인다
     return UserMapper.toDomain(dto);

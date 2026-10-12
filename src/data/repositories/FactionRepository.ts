@@ -14,6 +14,6 @@ export class FactionRepository implements IFactionRepository {
   }
 
   async set(id: FactionId): Promise<void> {
-    await apiClient.postDurable('/inner/api/v1/me/faction', { faction_cd: id }, `faction:${id}`);
+    await apiClient.postDurable('/inner/api/v1/me/faction', { faction_cd: id });
   }
 }

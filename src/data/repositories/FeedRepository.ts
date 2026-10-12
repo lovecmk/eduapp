@@ -61,7 +61,6 @@ export class FeedRepository implements IFeedRepository {
     await apiClient.postDurable(
       `/inner/api/v1/feed/${encodeURIComponent(postId)}/reactions`,
       { kind, on },
-      `feed-react:${postId}:${kind}:${on}`,
     );
   }
 }
