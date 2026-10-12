@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo } from 'react';
-import { useAllCards, useMarkCard } from './useCards';
+import { useAllCards } from './useCards';
 import { useSrsStore } from '../store/srsStore';
-import { type Grade, MASTERED_BOX } from '../domain/srs';
+import { type Grade } from '../domain/srs';
 import { buildReviewPlan, REVIEW_SESSION_CAP, type UpcomingDay } from '../domain/reviewPlan';
 import type { LearningCard } from '../domain/models/LearningCard';
 
@@ -19,7 +19,6 @@ export function useReview() {
   const cardsState = useSrsStore((s) => s.cards);
   const ensureSeeded = useSrsStore((s) => s.ensureSeeded);
   const gradeInStore = useSrsStore((s) => s.grade);
-  const markCard = useMarkCard();
 
   useEffect(() => {
     if (allCards.length > 0) ensureSeeded(allCards.map((c) => c.id));
@@ -72,17 +71,8 @@ export function useReview() {
 
   /** 채점 → SRS 갱신 + 백엔드 상태 동기화. */
   const gradeCard = useCallback((card: LearningCard, grade: Grade) => {
-    const nextBox = gradeInStore(card.id, grade);
-    const status =
-      grade === 'again' || grade === 'hard'
-        ? 'learning'
-        : nextBox >= MASTERED_BOX
-          ? 'mastered'
-          : grade === 'easy' && nextBox >= 3
-            ? 'mastered'
-            : 'learning';
-    if (card.status !== status) markCard.mutate({ id: card.id, status });
-  }, [gradeInStore, markCard]);
+    gradeInStore(card.id, grade);
+  }, [gradeInStore]);
 
   const nextDueAt = plan.nextDueAt;
 

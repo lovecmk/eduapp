@@ -1,7 +1,7 @@
 # 완전 자동화 배포 파이프라인 — PART 5.3
 #
 # main 브랜치 푸시 또는 수동 실행 시:
-#  1) Secrets → .env 동적 주입 (없으면 목업 폴백 값)
+#  1) Secrets → .env 동적 주입 (없으면 운영 API 기본값)
 #  2) 배포 버전 카운트(+1) 후 version.json 생성
 #  3) 번들에 버전 정보를 구워 웹 빌드(expo export)
 #  4) 산출물을 GitHub Pages 로 배포
@@ -46,17 +46,28 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # --- .env 동적 주입 ------------------------------------------------
-      # Secrets 값이 비어 있어도 빌드가 죽지 않도록 기본값으로 폴백.
-      # (env.ts 가 빈 API 주소를 감지하면 자동으로 목업 데이터로 폴백한다.)
+      # Production defaults to the live API; mock builds require an explicit flag.
       - name: Inject .env from Secrets
+        env:
+          API_BASE_URL: ${{ secrets.EXPO_PUBLIC_API_BASE_URL || 'https://bridge.kfpa.or.kr' }}
+          API_TIMEOUT_MS: ${{ secrets.EXPO_PUBLIC_API_TIMEOUT_MS || '10000' }}
+          USE_MOCK_DATA: ${{ secrets.EXPO_PUBLIC_USE_MOCK_DATA || 'false' }}
+          SENTRY_DSN: ${{ secrets.EXPO_PUBLIC_SENTRY_DSN }}
         run: |
-          cat > .env <<EOF
-          EXPO_PUBLIC_API_BASE_URL=${{ secrets.EXPO_PUBLIC_API_BASE_URL }}
-          EXPO_PUBLIC_API_TIMEOUT_MS=${{ secrets.EXPO_PUBLIC_API_TIMEOUT_MS || '10000' }}
-          EXPO_PUBLIC_USE_MOCK_DATA=${{ secrets.EXPO_PUBLIC_USE_MOCK_DATA }}
-          EXPO_PUBLIC_SENTRY_DSN=${{ secrets.EXPO_PUBLIC_SENTRY_DSN }}
-          EOF
+          node --input-type=module <<'JS'
+          import { writeFileSync } from 'node:fs';
+          const values = {
+            EXPO_PUBLIC_API_BASE_URL: process.env.API_BASE_URL,
+            EXPO_PUBLIC_API_TIMEOUT_MS: process.env.API_TIMEOUT_MS,
+            EXPO_PUBLIC_USE_MOCK_DATA: process.env.USE_MOCK_DATA,
+            EXPO_PUBLIC_SENTRY_DSN: process.env.SENTRY_DSN,
+          };
+          if (Object.values(values).some(value => /[\r\n]/.test(value ?? ''))) throw new Error('Invalid multiline build configuration');
+          const url = new URL(values.EXPO_PUBLIC_API_BASE_URL);
+          if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password || url.search || url.hash) throw new Error('Invalid API target');
+          if (!['true', 'false'].includes(values.EXPO_PUBLIC_USE_MOCK_DATA)) throw new Error('Invalid mock mode');
+          writeFileSync('.env', Object.entries(values).map(([key, value]) => `${key}=${value ?? ''}`).join('\n') + '\n');
+          JS
           echo ".env 생성 완료 (값은 마스킹됨)"
 
       # --- 버전 카운트 & 매니페스트 -------------------------------------

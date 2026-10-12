@@ -16,7 +16,7 @@ import { CardTips } from '../../src/components/community/CardTips';
 import { fontCute, fontBody } from '../../src/theme/tokens';
 import { getCategoryIcon } from '../../src/constants/categories';
 import { getDifficultyMeta } from '../../src/constants/difficulty';
-import { useAllCards, useMarkCard } from '../../src/hooks/useCards';
+import { useAllCards } from '../../src/hooks/useCards';
 import { useReportStore } from '../../src/store/reportStore';
 import { useBookmarkStore } from '../../src/store/bookmarkStore';
 import { useSrsStore } from '../../src/store/srsStore';
@@ -38,7 +38,6 @@ export default function ContentDetailScreen() {
   const reported = useReportStore((s) => s.hasReported(id ?? ''));
   const bookmarked = useBookmarkStore((s) => s.ids.includes(id ?? ''));
   const toggleBookmark = useBookmarkStore((s) => s.toggle);
-  const markCardMutation = useMarkCard();
   const srsGrade = useSrsStore((s) => s.grade);
 
   useEffect(() => { setReviewMark(null); setReportOpen(false); }, [id]);
@@ -48,7 +47,6 @@ export default function ContentDetailScreen() {
   const handleReviewMark = (status: 'mastered' | 'learning') => {
     if (!card) return;
     if (status === 'mastered') hapticSuccess(); else hapticTap();
-    markCardMutation.mutate({ id: card.id, status });
     srsGrade(card.id, status === 'mastered' ? 'good' : 'again');
     setReviewMark(status);
   };

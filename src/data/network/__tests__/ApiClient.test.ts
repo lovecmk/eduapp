@@ -352,3 +352,8 @@ describe('세션 만료 신호(sessionEvents)', () => {
     off();
   });
 });
+
+it('rejects empty GET responses as a server contract error', async () => {
+ global.fetch=jest.fn(async()=>({ok:true,status:200,text:async()=>''})) as unknown as typeof fetch;
+ await expect(apiClient.get('/inner/api/v1/cards',{retries:0})).rejects.toMatchObject({status:502,kind:'server'});
+});

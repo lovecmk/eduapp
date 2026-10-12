@@ -41,8 +41,6 @@ const baseUrlNote = resolvedBase.note;
 if (baseUrlNote) {
   // 돌아는 가지만 설정이 틀린 상태다. 로그로도 남겨 두면 배포 뒤에 원인을 짚기 쉽다.
   logger.warn('api_base_url_corrected', {
-    given: process.env.EXPO_PUBLIC_API_BASE_URL,
-    used: apiBaseUrl,
     note: baseUrlNote,
   });
 }

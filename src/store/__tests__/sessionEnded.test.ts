@@ -1,3 +1,4 @@
+jest.mock('../../data/network/env', () => ({ env: { useMockData: false, apiBaseUrl: 'https://test.invalid' } }));
 /**
  * 서버가 세션을 거절했을 때, 사용자가 그 사실을 알 수 있는가.
  *

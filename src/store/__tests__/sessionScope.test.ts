@@ -106,3 +106,18 @@ describe('applySessionOwner', () => {
     expect(purgeMemory).not.toHaveBeenCalled();
   });
 });
+
+
+it('isolates mock and live learning for the same login ID', async () => {
+  await applySessionOwner('user-a', 'mock');
+  store.set('srs-scheduler', 'mock-history');
+  store.set('live-daily-assignment', 'cached-deck');
+  await applySessionOwner('user-a', 'live:https://server-a');
+  expect(purgeMemory).toHaveBeenCalledTimes(1);
+  expect(store.has('srs-scheduler')).toBe(false);
+  expect(store.has('live-daily-assignment')).toBe(false);
+  await applySessionOwner('user-a', 'live:https://server-a');
+  expect(purgeMemory).toHaveBeenCalledTimes(1);
+  await applySessionOwner('user-a', 'live:https://server-b');
+  expect(purgeMemory).toHaveBeenCalledTimes(2);
+});

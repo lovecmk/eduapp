@@ -250,3 +250,19 @@ describe('오프라인 쓰기 큐', () => {
     });
   });
 });
+
+
+it('keeps queued learning bound to its original live server', async () => {
+  setQueueOwner('a', 'live:server-a');
+  await enqueue('POST', '/inner/api/v1/progress/grade', { card_id: 'real-card' });
+  const send = jest.fn(async () => {});
+  setQueueSender(send);
+  setQueueOwner('a', 'mock');
+  expect(await flushQueue()).toBe(0);
+  setQueueOwner('a', 'live:server-b');
+  expect(await flushQueue()).toBe(0);
+  expect(await pendingCount()).toBe(1);
+  setQueueOwner('a', 'live:server-a');
+  expect(await flushQueue()).toBe(1);
+  expect(send).toHaveBeenCalledTimes(1);
+});

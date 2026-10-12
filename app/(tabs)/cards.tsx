@@ -26,7 +26,7 @@ import { fontCute } from '../../src/theme/tokens';
 import { getCategoryIcon } from '../../src/constants/categories';
 import { ROUTES } from '../../src/constants/routes';
 import { endFlow } from '../../src/navigation/flow';
-import { useAllCards, useMarkCard } from '../../src/hooks/useCards';
+import { useAllCards } from '../../src/hooks/useCards';
 import { useReview } from '../../src/hooks/useReview';
 import { useDailyQuota, recordNewLearned } from '../../src/hooks/useDailyQuota';
 import { useDailyAssignment } from '../../src/hooks/useDailyAssignment';
@@ -227,7 +227,6 @@ export default function CardsScreen() {
   //  · 오늘의 학습(신규): 아직 학습하지 않은 '신규' 카드를 직접 고른다(복습 세션과 독립).
   const allQuery = useAllCards();
   const { isLoading, error, refetch } = allQuery;
-  const markCardMutation = useMarkCard();
   // 채점 직후 '다음 복습까지' 안내(잠깐 떴다 사라진다).
   const [nextReviewHint, setNextReviewHint] = useState<string | null>(null);
   const hintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -473,7 +472,6 @@ export default function CardsScreen() {
   const advance = useCallback((status: 'mastered' | 'learning') => {
     if (!card) return;
     if (autoFlipTimer.current) clearTimeout(autoFlipTimer.current);
-    markCardMutation.mutate({ id: card.id, status });
     {
       // 오늘의 학습(신규+복습)은 모두 SRS 일정에 반영하고 그날 학습 기록(history)에 남긴다.
       // (알았음=good → 다음 복습 간격이 늘고, 몰랐음=again → 곧 다시 복습). 이렇게 하면
@@ -508,7 +506,7 @@ export default function CardsScreen() {
     const nextIdx = index + 1;
     if (nextIdx >= deck.length) setFinished(true);
     else setIndex(nextIdx);
-  }, [card, index, deck.length, markCardMutation, srsGrade, resetCardAnims, enterAnim, isCategoryMode, isFocusMode]);
+  }, [card, index, deck.length, srsGrade, resetCardAnims, enterAnim, isCategoryMode, isFocusMode]);
 
   /**
    * 넘김 동작을 잠시 붙잡고 "이 문제 얼마나 어려웠나요?"를 먼저 묻는다.

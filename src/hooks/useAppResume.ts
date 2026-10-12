@@ -39,7 +39,7 @@ export const STALE_BACKGROUND_MS = 5 * 60_000; // 5분
 const DAY_SCOPED_KEYS = [['cards'], ['stats'], ['learning-quota'], ['daily-assignment']];
 
 /** 오래 비웠을 때만 갱신하면 되는, 실시간성 데이터. */
-const LIVE_KEYS = [['community-live'], ['stats']];
+const LIVE_KEYS = [['community-live'], ['stats'], ['cards'], ['daily-assignment']];
 
 export function useAppResume(): void {
   const queryClient = useQueryClient();

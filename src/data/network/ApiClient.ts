@@ -52,7 +52,7 @@ function toNetworkError(e: unknown): ApiError {
  * 본문이 없는 경우를 성공으로 다뤄야 한다(res.json() 을 그냥 걸면 SyntaxError 가
  * 나면서 성공한 요청이 실패로 둔갑한다).
  */
-async function readJsonBody(res: Response, signal: AbortSignal): Promise<unknown> {
+async function readJsonBody(res: Response, signal: AbortSignal, allowEmpty = false): Promise<unknown> {
   if (res.status === 204 || res.status === 205) return {};
   // 본문 읽기 실패를 삼키면 안 된다. `.catch(() => '')` 로 빈 문자열을 만들면
   // **중간에 끊긴 응답이 '내용 없는 성공'으로 둔갑한다** — 카드 목록 GET 이
@@ -60,7 +60,10 @@ async function readJsonBody(res: Response, signal: AbortSignal): Promise<unknown
   // 사용자는 서버가 그렇게 답한 줄 안다. 여기서 던져야 바깥이 offline 으로
   // 정규화하고 GET 재시도·오프라인 배너가 정상 동작한다.
   const text = await bounded(res.text(), signal);
-  if (text.trim().length === 0) return {};
+  if (text.trim().length === 0) {
+    if (!allowEmpty) throw new ApiError(502, '서버가 빈 응답을 반환했습니다. 다시 시도해주세요.', 'server');
+    return {};
+  }
   try {
     return JSON.parse(text) as unknown;
   } catch {
@@ -121,7 +124,7 @@ class ApiClient {
         logger.warn('api_request_failed', { path, status: res.status, method: init.method ?? 'GET' });
         throw new ApiError(res.status, typeof body?.message === 'string' ? body.message : '', kindOf(res.status));
       }
-      const body = await readJsonBody(res, controller.signal);
+      const body = await readJsonBody(res, controller.signal, (init.method ?? 'GET') !== 'GET');
       assertSession(epoch);
       return validateResponse<T>(body);
     } catch (e) {

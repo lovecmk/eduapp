@@ -30,6 +30,8 @@ import { resetUserScopedStores } from './resetAppData';
  *     (저장소가 정말 깨졌다면 persist 복원도 안 됐을 테니 지울 것도 없다).
  */
 
+const USER_SCOPED_CACHE_KEYS = ['live-daily-assignment'];
+
 const OWNER_KEY = 'session-owner-id';
 
 /**
@@ -88,7 +90,7 @@ async function purgeDisk(): Promise<void> {
   // 메모리 초기화만으로는 부족한 경우가 있다: 아직 rehydrate 되지 않은 스토어는
   // setState 를 해도 나중에 디스크 값으로 덮어써진다. 키를 직접 지워 그 창을 닫는다.
   try {
-    await AsyncStorage.multiRemove([...USER_SCOPED_PERSIST_KEYS]);
+    await AsyncStorage.multiRemove([...USER_SCOPED_PERSIST_KEYS, ...USER_SCOPED_CACHE_KEYS]);
   } catch {
     // 디스크를 못 지워도 메모리는 이미 비었다 — 이번 세션은 안전하다.
   }
@@ -102,7 +104,7 @@ async function readOwner(): Promise<string | null | 'unknown'> {
   }
 }
 
-async function apply(userId: string | null): Promise<void> {
+async function apply(userId: string | null, source?: string): Promise<void> {
   if (owner === undefined) {
     const stored = await readOwner();
     // 읽지 못했으면 '같은 사람'임을 증명할 수 없다 → 다른 사람으로 취급(fail-closed).
@@ -117,7 +119,14 @@ async function apply(userId: string | null): Promise<void> {
     return;
   }
 
-  if (owner !== null && owner !== userId) {
+  let sourceChanged = false;
+  if (source !== undefined) {
+    try {
+      const previous = await AsyncStorage.getItem('session-data-source');
+      sourceChanged = previous !== null && previous !== source;
+    } catch { sourceChanged = true; }
+  }
+  if (sourceChanged || owner !== null && owner !== userId) {
     // 앞사람의 흔적이 남은 채 다른 사람이 들어왔다.
     // (로그아웃 없이 계정 전환·세션 만료 후 재로그인·앱 강제종료 모두 이 경로다.)
     logger.warn('session_owner_changed_purged', { keys: USER_SCOPED_PERSIST_KEYS.length });
@@ -128,6 +137,7 @@ async function apply(userId: string | null): Promise<void> {
   owner = userId;
   try {
     await AsyncStorage.setItem(OWNER_KEY, userId);
+    if (source !== undefined) await AsyncStorage.setItem('session-data-source', source);
   } catch {
     // 다음 로그인에서 주인을 못 읽으면 fail-closed 로 한 번 더 지울 뿐이다.
   }
@@ -140,10 +150,10 @@ async function apply(userId: string | null): Promise<void> {
  * 호출부는 반드시 **await 한 뒤에** 사용자 상태를 set 해야 한다 — 그래야 새 사용자의
  * 화면이 앞사람 데이터를 한 프레임이라도 그리지 않는다.
  */
-export function applySessionOwner(userId: string | null): Promise<void> {
+export function applySessionOwner(userId: string | null, source?: string): Promise<void> {
   const next = chain.then(
-    () => apply(userId),
-    () => apply(userId),
+    () => apply(userId, source),
+    () => apply(userId, source),
   );
   chain = next.catch(() => undefined);
   return next;

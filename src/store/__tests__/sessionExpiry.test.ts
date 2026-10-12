@@ -1,3 +1,4 @@
+jest.mock('../../data/network/env', () => ({ env: { useMockData: false, apiBaseUrl: 'https://test.invalid' } }));
 /**
  * 쓰는 도중 서버가 세션을 끊었을 때 — 화면이 로그인 상태로 남지 않는가.
  *

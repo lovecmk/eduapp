@@ -8,9 +8,7 @@ import { dateKey } from '../../utils/dateKey';
 import { setPersonalReviewPolicy, type PersonalReviewPolicy } from '../network/personalReviewPolicy';
 import { ApiError } from '../network/errors';
 import { assertSessionEpoch, getSessionEpoch } from '../network/sessionEpoch';
-
-/** 서버 응답(service.TodayPlan)과 1:1. */
-interface TodayPlanDTO {
+export interface TodayPlanDTO {
   personalized?: boolean;
   review_policy?: PersonalReviewPolicy;
   day?: string;
@@ -35,10 +33,20 @@ const DIFFICULTY: Record<string, CardDifficulty> = {
  * 지우면 진도가 초기화되며, 관리자가 출제 정책을 바꿔도 아무 일이 일어나지 않는다.
  */
 export class DailyAssignmentRepository implements IDailyAssignmentRepository {
+  constructor(private readonly onValidated?: (dto: TodayPlanDTO) => Promise<void>) {}
   async get(): Promise<DailyAssignment> {
     const epoch = getSessionEpoch();
     const dto = await apiClient.get<TodayPlanDTO>('/inner/api/v1/learning/today');
     assertSessionEpoch(epoch);
+    const result = this.parse(dto);
+    if (this.onValidated) {
+      try { await this.onValidated(dto); } catch { /* Cache is optional. */ }
+      assertSessionEpoch(epoch);
+    }
+    return result;
+  }
+
+  parse(dto: TodayPlanDTO): DailyAssignment {
     if (!dto || !Array.isArray(dto.cards)) throw new ApiError(502, '오늘의 학습 응답 형식이 올바르지 않습니다', 'server');
     const count = (value: unknown) => typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
     if (dto.target_count != null && !count(dto.target_count) || dto.done_count != null && (!count(dto.done_count) || dto.done_count > dto.cards.length)) throw new ApiError(502, '오늘의 학습 목표 응답이 올바르지 않습니다', 'server');

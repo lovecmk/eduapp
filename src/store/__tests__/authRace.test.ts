@@ -1,3 +1,4 @@
+jest.mock('../../data/network/env', () => ({ env: { useMockData: false, apiBaseUrl: 'https://test.invalid' } }));
 const mockLogin = jest.fn();
 const mockRestore = jest.fn();
 const mockUpdate = jest.fn();

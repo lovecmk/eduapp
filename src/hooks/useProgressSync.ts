@@ -5,6 +5,9 @@ import { useAuthStore } from '../store/authStore';
 import { progressRepository } from '../data/repositories';
 import { logger } from '../utils/logger';
 import { normalizeGrade, type SrsCardState } from '../domain/srs';
+import { queryClient } from '../data/network/queryClient';
+import type { LearningCard } from '../domain/models/LearningCard';
+import { getSessionEpoch } from '../data/network/sessionEpoch';
 
 /**
  * 학습 진행(SRS 일정·학습 이력·출석)을 서버와 맞춘다.
@@ -52,6 +55,7 @@ export function useProgressSync(): void {
   // 출석은 없던 일이 된다. 그래서 아래 구독은 userId 로 다시 걸고 표식을 비운다.
   const sent = useRef<Map<string, number>>(new Map());
   const sentDays = useRef<Set<string>>(new Set());
+  const applyingServer = useRef(false);
 
   // 1) 로그인·계정 변경 시 서버 스냅샷을 받아 로컬에 합친다.
   useEffect(() => {
@@ -61,15 +65,17 @@ export function useProgressSync(): void {
       try {
         const snap = await progressRepository.pull();
         if (cancelled) return;
-        useSrsStore.getState().applyServer({ cards: snap.cards, history: snap.history });
-        useAttendanceStore.getState().applyServer(snap.attendance);
-
         // 서버가 이미 아는 것은 다시 보내지 않는다. 이 표식이 없으면 복원 직후
         // 구독이 깨어나 스냅샷 전체를 되돌려 보내고, 오프라인 큐가 그것으로 찬다.
         for (const [id, st] of Object.entries(snap.cards)) {
           sent.current.set(id, st.lastReviewedAt ?? 0);
         }
         for (const day of Object.keys(snap.attendance)) sentDays.current.add(day);
+        applyingServer.current = true;
+        try {
+          useSrsStore.getState().applyServer({ cards: snap.cards, history: snap.history });
+          useAttendanceStore.getState().applyServer(snap.attendance);
+        } finally { applyingServer.current = false; }
       } catch (e) {
         // 못 가져와도 로컬 기록으로 계속 쓴다 — 여기서 막으면 오프라인에서
         // 학습 화면이 아예 열리지 않는다.
@@ -87,24 +93,39 @@ export function useProgressSync(): void {
     // 앞사람의 '이미 보냄' 표식을 물려받지 않는다(위 주석 참고).
     sent.current = new Map();
     let prevCards = useSrsStore.getState().cards;
+    const epoch = getSessionEpoch();
 
     const unsub = useSrsStore.subscribe((state) => {
       const next = state.cards;
       if (next === prevCards) return;
+      if (applyingServer.current || epoch !== getSessionEpoch()) { prevCards = next; return; }
       for (const [cardId, st] of Object.entries(next)) {
         if (!wasGraded(prevCards[cardId], st)) continue;
         const stamp = st.lastReviewedAt ?? 0;
         if (sent.current.get(cardId) === stamp) continue;
         sent.current.set(cardId, stamp);
+        const status = st.box >= 4 && st.lastGrade !== 'again' && st.lastGrade !== 'hard' ? 'mastered' : 'learning';
+        queryClient.setQueryData<LearningCard[]>(['cards'], old => old?.map(card => card.id === cardId ? { ...card, status, dueAt: new Date(st.dueAt) } : card));
         void progressRepository
           // `??` 로는 부족하다 — 서버는 모르는 등급을 **빈 문자열**로 저장하므로
           // `''` 가 들어올 수 있고, `'' ?? 'good'` 은 `''` 이라 빈 등급을 그대로
           // 되돌려 보내게 된다. 아는 값만 통과시키고 아니면 'good' 으로 둔다.
           .pushGrade(cardId, normalizeGrade(st.lastGrade) ?? 'good', st)
+          .then(async () => {
+            if (epoch !== getSessionEpoch()) return;
+            try {
+              const snap = await progressRepository.pull();
+              if (epoch !== getSessionEpoch()) return;
+              applyingServer.current = true;
+              try { useSrsStore.getState().applyServer({ cards: snap.cards, history: snap.history }); }
+              finally { applyingServer.current = false; }
+            } catch { /* The queued/local schedule remains available during an outage. */ }
+            for (const key of ['cards', 'daily-assignment', 'stats']) void queryClient.invalidateQueries({ queryKey: [key] });
+          })
           .catch((e) => {
             // 다시 보낼 수 있도록 표식을 되돌린다 — 그러지 않으면 이 채점은
             // 앱을 다시 켜기 전까지 영영 올라가지 않는다.
-            sent.current.delete(cardId);
+            if (epoch === getSessionEpoch() && sent.current.get(cardId) === stamp) sent.current.delete(cardId);
             logger.warn('progress.grade_failed', { cardId, reason: String(e) });
           });
       }
@@ -118,16 +139,18 @@ export function useProgressSync(): void {
   useEffect(() => {
     if (!enabled) return;
     sentDays.current = new Set();
+    const epoch = getSessionEpoch();
     let prevStamps = useAttendanceStore.getState().stamps;
 
     const unsub = useAttendanceStore.subscribe((state) => {
       const next = state.stamps;
       if (next === prevStamps) return;
+      if (applyingServer.current) { prevStamps = next; return; }
       for (const day of Object.keys(next)) {
         if (prevStamps[day] || sentDays.current.has(day)) continue;
         sentDays.current.add(day);
         void progressRepository.pushAttendance(day).catch((e) => {
-          sentDays.current.delete(day);
+          if (epoch === getSessionEpoch()) sentDays.current.delete(day);
           logger.warn('progress.attendance_failed', { day, reason: String(e) });
         });
       }

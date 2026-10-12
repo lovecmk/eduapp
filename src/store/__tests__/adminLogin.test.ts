@@ -1,3 +1,4 @@
+jest.mock('../../data/network/env', () => ({ env: { useMockData: false, apiBaseUrl: 'https://test.invalid' } }));
 /**
  * 관리자 모드 진입(로그인 화면 로고 5번 두드리기)이 실제로 관리자 세션을 만드는지.
  *

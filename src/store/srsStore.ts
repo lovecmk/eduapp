@@ -47,7 +47,7 @@ function newerSrs(a: SrsCardState, b: SrsCardState): SrsCardState {
   const at = a.lastReviewedAt ?? 0;
   const bt = b.lastReviewedAt ?? 0;
   if (at !== bt) return at > bt ? a : b;
-  return a.reps >= b.reps ? a : b;
+  return a.reps > b.reps ? a : b;
 }
 
 export const useSrsStore = create<SrsState>()(

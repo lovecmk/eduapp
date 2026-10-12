@@ -34,6 +34,7 @@ export interface QueuedWrite {
    * 소유자를 안 붙이면 A 가 오프라인에서 찍은 출석이 B 의 토큰으로 전송된다.
    */
   userId?: string;
+  sourceId?: string;
 }
 
 const STORAGE_KEY = 'offline-write-queue';
@@ -84,6 +85,7 @@ let flushing = false;
 let flushInFlight: Promise<number> | null = null;
 // 지금 로그인한 사람. authStore 가 세션이 바뀔 때마다 갱신한다.
 let ownerId: string | null = null;
+let sourceId: string | undefined;
 
 function newId(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
@@ -137,8 +139,9 @@ export async function clearQueue(): Promise<void> {
  * 큐의 주인을 알려준다. 세션이 바뀌면(로그인·로그아웃·세션 복구) 반드시 호출해야
  * 앞사람이 남긴 쓰기가 뒷사람 토큰으로 나가지 않는다.
  */
-export function setQueueOwner(userId: string | null): void {
+export function setQueueOwner(userId: string | null, source?: string): void {
   ownerId = userId;
+  sourceId = source;
 }
 
 /** 쓰기 요청을 큐에 넣는다. 넣은 항목의 멱등키를 돌려준다. */
@@ -149,6 +152,7 @@ export async function enqueue(
   idempotencyKey?: string,
 ): Promise<string> {
   const requestOwner = ownerId;
+  const requestSource = sourceId;
   await ensureLoaded();
   const key = idempotencyKey ?? newId();
   memory.push({
@@ -160,6 +164,7 @@ export async function enqueue(
     createdAt: Date.now(),
     attempts: 0,
     userId: requestOwner ?? undefined,
+    sourceId: requestSource,
   });
   // 오래된 것부터 버려 상한을 지킨다.
   if (memory.length > MAX_QUEUE) memory = memory.slice(memory.length - MAX_QUEUE);
@@ -241,7 +246,7 @@ async function flushPendingQueue(): Promise<number> {
  * (영영 안 돌아와도 MAX_QUEUE 상한에 밀려 결국 빠진다).
  */
 function nextSendable(): QueuedWrite | undefined {
-  return memory.find((q) => !q.userId || q.userId === ownerId);
+  return memory.find((q) => (!q.userId || q.userId === ownerId) && (!q.sourceId || q.sourceId === sourceId));
 }
 
 /**
@@ -264,4 +269,6 @@ export function __resetQueueForTests(): void {
   flushing = false;
   flushInFlight = null;
   sender = null;
+  ownerId = null;
+  sourceId = undefined;
 }

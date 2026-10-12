@@ -27,7 +27,7 @@ import { NotificationRepository } from './NotificationRepository';
 import { MockNotificationRepository } from './NotificationRepository.mock';
 import { ServiceConfigRepository } from './ServiceConfigRepository';
 import { MockServiceConfigRepository } from './ServiceConfigRepository.mock';
-import { DailyAssignmentRepository } from './DailyAssignmentRepository';
+import { LiveDailyAssignmentRepository, CachedDailyAssignmentRepository } from './CachedDailyAssignmentRepository';
 import { MockDailyAssignmentRepository } from './DailyAssignmentRepository.mock';
 import { QnaRepository } from './QnaRepository';
 import { MockQnaRepository } from './QnaRepository.mock';
@@ -106,12 +106,12 @@ export const learningQuotaRepository: ILearningQuotaRepository = env.useMockData
  * 서버가 편성의 권위를 갖는다(기기가 바뀌어도 같은 목록, 관리자가 출제 정책을
  * 바꾸면 반영). 다만 이 앱은 지하에서 쓰여 서버에 닿지 못하는 날이 흔하고,
  * 그때 "오늘의 학습이 없습니다"를 띄우면 그날 학습이 없던 일이 된다.
- * 그래서 폴백을 건다 — 목업이 **서버와 같은 규칙**(domain/dailyPlan)으로
- * 로컬 편성을 만들어, 온라인이든 아니든 같은 사람은 같은 날 같은 문제를 본다.
+ * 연결이 끊기면 같은 계정·서버에서 오늘 받은 카드만 다시 읽는다.
+ * 받은 카드가 없으면 연결 오류를 표시한다. 목업 편성은 목업 모드에서만 사용한다.
  */
 export const dailyAssignmentRepository: IDailyAssignmentRepository = env.useMockData
   ? new MockDailyAssignmentRepository()
-  : withMockFallback(new DailyAssignmentRepository(), new MockDailyAssignmentRepository(), 'daily-assignment');
+  : withMockFallback(new LiveDailyAssignmentRepository(), new CachedDailyAssignmentRepository(), 'daily-assignment');
 
 // 서비스 운영 상태(점검 모드·공지 배너·하루 상한) — 관리 콘솔이 바꾸고 앱이 읽는다.
 // 이 값을 못 읽어도 앱은 평상시처럼 돌아야 하므로 보조 기능으로 둔다.

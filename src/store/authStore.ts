@@ -9,6 +9,7 @@ import { applySessionOwner } from './sessionScope';
 import { ApiError } from '../data/network/errors';
 import { onSessionExpired } from '../data/network/sessionEvents';
 import { advanceSessionEpoch, getSessionEpoch } from '../data/network/sessionEpoch';
+import { env } from '../data/network/env';
 
 interface AuthState {
   user: User | null;
@@ -65,8 +66,9 @@ interface AuthState {
  *    새 사용자가 앞사람 데이터를 한 프레임 보게 된다.
  */
 async function bindSession(user: User | null): Promise<void> {
-  setQueueOwner(user?.id ?? null);
-  await applySessionOwner(user?.id ?? null);
+  const source = env.useMockData ? 'mock' : `live:${env.apiBaseUrl}`;
+  setQueueOwner(user?.id ?? null, source);
+  await applySessionOwner(user?.id ?? null, source);
 }
 
 /**
