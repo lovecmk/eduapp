@@ -19,3 +19,15 @@ it('상속된 객체 속성은 분류 코드로 해석하지 않는다', () => {
     difficulty_cd: '__proto__', card_type_cd: 'constructor' } as unknown as CardDTO);
   expect([card.category, card.status, card.difficulty, card.type]).toEqual(['전기 위험', 'new', 'medium', 'explanation']);
 });
+
+it.each([['X', 'O'], ['가', '나'], ['O', 'X', '모름']])('잘못된 OX 보기 %p로 오답을 만들지 않는다', (...choices) => {
+  const card = CardMapper.toDomain({ ...base, card_type_cd: 'OX', choices, answer_index: 0 } as CardDTO);
+  expect(card.type).toBe('explanation');
+  expect(card.choices).toBeUndefined();
+});
+
+it('설명형 카드의 잘못된 퀴즈 필드는 화면 모델에 전달하지 않는다', () => {
+  const card = CardMapper.toDomain({ ...base, card_type_cd: 'EXPLANATION', choices: { invalid: true }, answer_index: '0' } as unknown as CardDTO);
+  expect(card.choices).toBeUndefined();
+  expect(card.answerIndex).toBeUndefined();
+});

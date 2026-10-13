@@ -5,7 +5,7 @@ import { resolve, extname } from 'node:path';
 import { tmpdir } from 'node:os';
 import assert from 'node:assert/strict';
 
-// 준비: EXPO_NO_DOTENV=1 EXPO_PUBLIC_USE_MOCK_DATA=true npx expo export --platform web --output-dir <번들 경로>
+// 준비: EXPO_NO_DOTENV=1 EXPO_PUBLIC_USE_MOCK_DATA=true npx expo export --clear --platform web --output-dir <번들 경로>
 const bundle = resolve(process.argv[2] ?? resolve(tmpdir(), 'field-ui-audit/mock'));
 const out = resolve('docs/qa/ui-audit');
 mkdirSync(out, { recursive: true });
@@ -32,8 +32,7 @@ function track(page) {
 const user = { id: 'qa-user', name: '점검 사용자', nickname: 'QA', email: 'qa@example.test', membership: 'basic', isAdmin: false, isActive: true, createdAt: '2026-10-01T00:00:00.000Z' };
 const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
 await context.addInitScript((user) => {
-  if (localStorage.getItem('qa-seeded')) return;
-  localStorage.setItem('qa-seeded', 'true');
+  // Account/logout routes clear auth; each navigation starts an independent signed-in case.
   localStorage.setItem('accessToken', 'mock-access-token');
   localStorage.setItem('refreshToken', 'mock-refresh-token');
   localStorage.setItem('mockUser', JSON.stringify(user));
@@ -65,8 +64,13 @@ try {
   for (const [path, name] of process.env.QA_QUICK ? [] : [['/', 'home'], ['/cards', 'study'], ['/community', 'community'], ['/settings', 'settings'], ['/content/lc001', 'content']]) {
     await go(path);
     if (name === 'community') {
-      await page.getByText('기여 문제', { exact: true }).first().waitFor();
-      assert.equal(await page.getByText('기여 문제', { exact: true }).count(), 3, 'All three faction metrics must be visible without expanding');
+      await page.getByText('함께 짓는 안전 빌딩', { exact: true }).waitFor();
+      const preparing = page.getByText(/진영별 기여 집계를 준비하고 있어요/);
+      if (await preparing.count()) {
+        assert.equal(await page.getByText('기여 문제', { exact: true }).count(), 0, 'Unavailable aggregates must not fabricate faction metrics');
+      } else {
+        assert.equal(await page.getByText('기여 문제', { exact: true }).count(), 3, 'Available aggregates show all three faction metrics');
+      }
       await page.getByText('함께 짓는 안전 빌딩', { exact: true }).scrollIntoViewIfNeeded();
     }
     await page.screenshot({ path: resolve(out, name + '.png') });
@@ -112,6 +116,11 @@ try {
   assert.equal(unexpectedWarnings.length, 0, JSON.stringify(unexpectedWarnings));
   writeFileSync(resolve(out, 'results.json'), JSON.stringify({ checks, runtimeErrors: errors, unexpectedWarnings, note: 'Mock repositories; no production requests or real-device APIs' }, null, 2) + '\n');
   console.log(JSON.stringify({ checks: checks.length, runtimeErrors: errors.length, unexpectedWarnings: unexpectedWarnings.length }));
+} catch (error) {
+  await page.screenshot({ path: resolve(tmpdir(), 'd3m-app-ui-failure.png'), fullPage: true });
+  console.error(await page.locator('body').innerText());
+  console.error(JSON.stringify({ errors, warnings, url: page.url() }));
+  throw error;
 } finally {
   await browser.close();
   await new Promise((done) => server.close(done));

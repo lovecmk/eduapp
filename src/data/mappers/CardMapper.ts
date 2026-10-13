@@ -110,6 +110,7 @@ function quizIsAnswerable(dto: CardDTO): boolean {
   const answer = dto.answer_index;
   return (
     Array.isArray(choices) && choices.length >= 2 && choices.every((v) => typeof v === 'string' && !!v.trim()) &&
+    (dto.card_type_cd !== 'OX' || (choices.length === 2 && choices[0] === 'O' && choices[1] === 'X')) &&
     typeof answer === 'number' &&
     Number.isInteger(answer) &&
     answer >= 0 &&
@@ -169,8 +170,8 @@ export class CardMapper {
       note: optional(dto.note_txt),
       // 풀 수 없는 퀴즈는 설명형으로 낮춘다(위 quizIsAnswerable 주석 참고).
       type: answerable ? declaredType : 'explanation',
-      choices: answerable ? dto.choices : undefined,
-      answerIndex: answerable ? dto.answer_index : undefined,
+      choices: answerable && declaredType !== 'explanation' ? dto.choices : undefined,
+      answerIndex: answerable && declaredType !== 'explanation' ? dto.answer_index : undefined,
       // 문제 사진이든 해설 사진이든 하나라도 있으면 '사진 있는 카드'다
       // (시드 생성기가 세는 방식과 같다 — 두 곳이 갈리면 목록과 상세가 어긋난다).
       hasImage: !blank(dto.image_url) || !blank(dto.answer_image_url),
