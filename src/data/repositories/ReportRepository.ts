@@ -1,4 +1,4 @@
-import type { IReportRepository, ReportInput } from '../../domain/repositories/IReportRepository';
+import type { IReportRepository, ReportInput, ReportSubmission } from '../../domain/repositories/IReportRepository';
 import { apiClient } from '../network/ApiClient';
 import { sanitizeText, INPUT_LIMITS } from '../../utils/sanitize';
 
@@ -15,12 +15,12 @@ interface MyReportsDTO {
  * postDurable 로 오프라인에서도 큐에 쌓아 뒀다가 재전송한다.
  */
 export class ReportRepository implements IReportRepository {
-  async submit(input: ReportInput): Promise<void> {
+  async submit(input: ReportInput): Promise<ReportSubmission> {
     // 사용자 입력은 서버로 보내기 전에 정제한다(제어문자·과도한 길이 차단).
     const detail = input.detail
       ? sanitizeText(input.detail, { maxLength: INPUT_LIMITS.reportDetail, allowNewlines: true })
       : undefined;
-    await apiClient.postDurable(
+    return apiClient.postDurable(
       '/inner/api/v1/reports',
       { card_id: input.cardId, reason: input.reason, detail },
       // 같은 카드에 대한 같은 사유의 신고는 한 번만 접수되게 한다.

@@ -15,7 +15,7 @@ interface ReportState {
 
 /**
  * 카드 내용 수정 요청(이의제기) 저장소.
- * 실제 서비스에서는 서버로 전송하지만, 여기서는 로컬에 기록해 "요청됨" 상태를 유지한다.
+ * 서버 접수 또는 오프라인 전송 큐 저장에 성공한 신고를 기록해 UI 상태를 유지한다.
  */
 export const useReportStore = create<ReportState>()(
   persist(

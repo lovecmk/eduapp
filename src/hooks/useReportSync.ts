@@ -17,7 +17,7 @@ import { logger } from '../utils/logger';
  *
  * ── 쌓여 있던 것부터 보낸다 ────────────────────────────────────────────
  * 이 훅이 붙기 전에 접수된 신고가 기기에 남아 있다. 처음 붙을 때 그것들을
- * 먼저 올리고(서버가 이미 아는 것은 뺀다), 그 뒤로는 새 신고만 보낸다.
+ * 먼저 올린다(서버가 이미 아는 것은 뺀다). 새 신고는 모달에서 durable API를 기다린 뒤 기록한다.
  * 서버는 (사용자, 카드, 사유)가 유일하므로 중복 전송이 안전하다.
  */
 export function useReportSync(): void {
@@ -30,6 +30,7 @@ export function useReportSync(): void {
   useEffect(() => {
     if (!enabled) return;
     let cancelled = false;
+    sent.current = new Set();
 
     void (async () => {
       try {
@@ -42,7 +43,9 @@ export function useReportSync(): void {
       }
 
       // 그동안 기기에만 쌓여 있던 신고를 흘려보낸다.
+      if (cancelled || useAuthStore.getState().user?.id !== userId) return;
       for (const r of useReportStore.getState().reports) {
+        if (cancelled || useAuthStore.getState().user?.id !== userId) return;
         if (sent.current.has(r.cardId)) continue;
         sent.current.add(r.cardId);
         try {
@@ -59,27 +62,4 @@ export function useReportSync(): void {
     };
   }, [enabled, userId]);
 
-  useEffect(() => {
-    if (!enabled) return;
-    let prev = useReportStore.getState().reports;
-
-    const unsub = useReportStore.subscribe((s) => {
-      if (s.reports === prev) return;
-      const before = new Set(prev.map((r) => `${r.cardId}|${r.reason}`));
-      for (const r of s.reports) {
-        const key = `${r.cardId}|${r.reason}`;
-        if (before.has(key)) continue;
-        sent.current.add(r.cardId);
-        void reportRepository
-          .submit({ cardId: r.cardId, reason: r.reason, detail: r.detail })
-          .catch((e) => {
-            sent.current.delete(r.cardId);
-            logger.warn('report.submit_failed', { cardId: r.cardId, reason: String(e) });
-          });
-      }
-      prev = s.reports;
-    });
-
-    return unsub;
-  }, [enabled]);
 }
