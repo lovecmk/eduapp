@@ -12,10 +12,10 @@ jest.mock('../../storage/secureStorage', () => {
     },
   };
 });
-jest.mock('../../auth/mockUserDb', () => ({ mockUserDb: {} }));
+jest.mock('../../../__tests__/fixtures/data/auth/mockUserDb', () => ({ mockUserDb: {} }));
 jest.mock('../_delay', () => ({ delay: () => Promise.resolve() }));
 
-import { MockAuthRepository } from '../AuthRepository.mock';
+import { MockAuthRepository } from '../../../__tests__/fixtures/data/repositories/AuthRepository.mock';
 
 const EMAIL = 'user@example.com';
 

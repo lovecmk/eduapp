@@ -1,4 +1,4 @@
-import { validateCardDraft } from '../models/CardDraft';
+import { draftToDTO, validateCardDraft } from '../models/CardDraft';
 
 const valid = { category: '전기 위험', subCategory: '배선', topic: '점검', title: '카드', question: '질문', principle: '해설' };
 
@@ -20,4 +20,9 @@ describe('JSON 문제 입력 검증', () => {
     expect(validateCardDraft(valid)).toEqual([]);
     expect(validateCardDraft({ ...valid, type: 'ox', answerIndex: 0 })).toEqual([]);
   });
+});
+
+it('delivers v2 format, independent raw answer, improvement and note without legacy alias loss', () => {
+  const dto = draftToDTO({ ...valid, category: '전기 위험', type: 'ox', answerIndex: 1, answer: 'X', conclusion: 'legacy explanation', improvement: '개선 😀', note: '참고', format: 'OX형' });
+  expect(dto).toMatchObject({ format_nm: 'OX형', answer_txt: 'X', conclusion_txt: 'legacy explanation', improvement_txt: '개선 😀', note_txt: '참고' });
 });

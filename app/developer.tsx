@@ -7,9 +7,8 @@ import { ScreenHeader } from '../src/components/ui/ScreenHeader';
 import { Button } from '../src/components/ui/Button';
 import { fontDisplay, fontBody, fontMono } from '../src/theme/tokens';
 import { sendTestNotification, triggerServerAlert } from '../src/data/notifications/NotificationService';
-import { ENV_SUMMARY, env } from '../src/data/network/env';
+import { ENV_SUMMARY } from '../src/data/network/env';
 import { apiClient, type HealthResult } from '../src/data/network/ApiClient';
-import { listDegradations, type Degradation } from '../src/data/repositories/_fallback';
 import { logger } from '../src/utils/logger';
 import { ROUTES } from '../src/constants/routes';
 import { useAuthoredCardsStore } from '../src/store/authoredCardsStore';
@@ -22,25 +21,6 @@ type SendState = 'idle' | 'sending' | 'sent' | 'denied' | 'error';
  * 목업으로 강등된 기능을 사람이 읽는 이름으로. 목록에 없는 라벨은 그대로 보여준다
  * (저장소를 새로 추가하고 여기 등록을 잊어도 '표시 자체가 사라지지는' 않게).
  */
-const REPOSITORY_LABELS: Record<string, string> = {
-  weather: '날씨(홈 배경)',
-  'learning-quota': '하루 학습량',
-  'daily-assignment': '오늘의 학습',
-  'service-config': '서비스 운영값',
-  'user-directory': '사용자 검색',
-  qna: '질문 & 답변',
-  settings: '계정 설정',
-  feed: '자랑 피드(트로피룸)',
-  tips: '현장 팁',
-  'difficulty-poll': '체감 난이도 투표',
-  faction: '내 진영',
-};
-
-const DEGRADE_REASON: Record<Degradation['reason'], string> = {
-  'not-deployed': '서버에 라우트 없음 — 이 기기에만 저장됨',
-  unreachable: '서버에 닿지 못함 — 잠시 후 자동 재확인',
-};
-
 const ALERT_VERSIONS = [
   { v: 1 as const, label: '알림 1 · 긴급 안전 점검', icon: 'warning' as const },
   { v: 2 as const, label: '알림 2 · 오늘의 학습 리마인더', icon: 'time' as const },
@@ -60,19 +40,14 @@ export default function DeveloperScreen() {
   const [healthBusy, setHealthBusy] = useState(false);
   // 목업으로 떨어진 기능 목록 — 화면에 들어온 시점의 상태를 보여주고,
   // 점검 버튼을 누를 때 다시 읽는다(폴백은 요청이 일어나야 갱신된다).
-  const [degraded, setDegraded] = useState<Degradation[]>(() => listDegradations());
 
   // 서버 헬스체크 — 목업 모드에서는 호출할 서버가 없으므로 즉시 안내한다.
   const runHealthCheck = async () => {
     if (healthBusy) return; // 중복 요청 방지
-    if (env.useMockData) {
-      setHealth({ ok: false, latencyMs: 0, error: '목업 모드 — 점검할 실서버가 없습니다' });
-      return;
-    }
+
     setHealthBusy(true);
     const result = await apiClient.health(); // 내부에서 예외를 흡수해 항상 결과를 반환
     setHealth(result);
-    setDegraded(listDegradations());
     logger.info('health_check', { ok: result.ok, latencyMs: result.latencyMs, version: result.version });
     setHealthBusy(false);
   };
@@ -94,7 +69,7 @@ export default function DeveloperScreen() {
     try {
       const res = await triggerServerAlert(v);
       if (!res) {
-        setAlertMsg('실서버 연결이 필요해요(목업/웹에서는 동작하지 않습니다).');
+        setAlertMsg('알림 권한과 실서버 연결을 확인해주세요.');
       } else {
         setAlertMsg(`✅ "${res.label}" 발송 — ${res.sent}대 기기에 전송했어요.`);
       }
@@ -127,7 +102,7 @@ export default function DeveloperScreen() {
           </Text>
         </View>
 
-        {/* 환경설정 — 현재 번들이 어떤 값으로 돌고 있는지 한눈에 확인(민감정보는 마스킹). */}
+
         <View style={{ backgroundColor: c.surface, borderColor: c.border, borderWidth: 1, borderRadius: 16, padding: 18, marginBottom: 16 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
             <Ionicons name="server-outline" size={18} color={c.primary} />
@@ -155,7 +130,7 @@ export default function DeveloperScreen() {
             ))}
           </View>
 
-          {/* 서버 헬스체크 — 배포 후 스모크 확인용(GET /inner/api/v1/health) */}
+
           <View style={{ marginTop: 14, borderTopWidth: 1, borderTopColor: c.surfaceAlt, paddingTop: 14 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
               <Pressable accessibilityRole="button" onPress={runHealthCheck} disabled={healthBusy}
@@ -168,11 +143,7 @@ export default function DeveloperScreen() {
               {health && (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, flex: 1 }}>
                   <Ionicons name={health.ok ? 'checkmark-circle' : 'alert-circle'} size={15} color={health.ok ? c.success : c.warning} />
-                  {/* '닿지 못함'과 '닿았는데 아픔'은 전혀 다른 문제다. 뒤쪽은 서버가
-                      스스로 사유를 말해 주므로(예: degraded · configuration unavailable)
-                      그대로 보여준다 — 뭉뚱그려 '실패'라고 쓰면 서버가 이미 알려준
-                      답을 앱이 지우는 셈이고, 원인을 찾는 사람은 처음부터 다시 판다.
-                      두 줄까지 허용한다: 사유는 한 줄에 안 들어가는 경우가 많다. */}
+
                   <Text style={{ color: c.textSecondary, fontSize: 11.5 * fs, fontFamily: fontMono, flex: 1 }} numberOfLines={2}>
                     {health.ok
                       ? `정상 · ${health.latencyMs}ms${health.version ? ` · v${health.version}` : ''}`
@@ -184,68 +155,16 @@ export default function DeveloperScreen() {
               )}
             </View>
 
-            {/* 기능별 연결 상태 — '조용한 폴백'을 눈에 보이게 한다.
-                엔드포인트가 아직 없으면 그 기능만 목업으로 도는데, 로그로만 남기면
-                "왜 내가 올린 질문이 다른 기기에서 안 보이지?"의 답을 아무도 못 찾는다. */}
-            {!env.useMockData && (
-              <View style={{ marginTop: 14 }}>
-                <Text style={{ color: c.textSecondary, fontSize: 12 * fs, fontFamily: fontDisplay, marginBottom: 8 }}>
-                  기능별 연결 상태
-                </Text>
-                {degraded.length === 0 ? (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Ionicons name="checkmark-circle" size={14} color={c.success} />
-                    <Text style={{ color: c.textSecondary, fontSize: 11.5 * fs, fontFamily: fontBody, flex: 1 }}>
-                      목업으로 떨어진 기능이 없습니다(아직 호출되지 않은 기능은 표시되지 않습니다).
-                    </Text>
-                  </View>
-                ) : (
-                  degraded.map((d) => (
-                    <View key={d.label} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginBottom: 6 }}>
-                      <Ionicons
-                        name={d.reason === 'not-deployed' ? 'cloud-offline-outline' : 'time-outline'}
-                        size={14}
-                        color={c.warning}
-                      />
-                      <View style={{ flex: 1 }}>
-                        <Text style={{ color: c.textPrimary, fontSize: 12 * fs, fontFamily: fontDisplay }}>
-                          {REPOSITORY_LABELS[d.label] ?? d.label}
-                        </Text>
-                        <Text style={{ color: c.textSecondary, fontSize: 11 * fs, fontFamily: fontBody }}>
-                          {DEGRADE_REASON[d.reason]}
-                        </Text>
-                      </View>
-                    </View>
-                  ))
-                )}
-              </View>
-            )}
+
+
           </View>
         </View>
 
-        {/* 목업 데이터 콘솔 — 목업 모드에서만.
-            운영 콘솔은 브릿지 운영관리로 갔다(docs/PLATFORM_SPLIT.md §1). 여기 남은
-            화면은 이 기기의 목업(회원·팩 규칙·도감·플래그)을 들여다보는 개발 도구라,
-            실서버 모드에서는 보여 줄 것이 없다 — 있으면 운영값으로 오해된다. */}
-        {env.useMockData && (
-          <Pressable accessibilityRole="button" onPress={() => router.push(ROUTES.admin as never)}
-            style={{ backgroundColor: c.surface, borderColor: c.border, borderWidth: 1, borderRadius: 16, padding: 18, marginBottom: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: c.primary + '18', alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name="shield-half-outline" size={20} color={c.primary} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontFamily: fontDisplay }}>목업 데이터 콘솔</Text>
-              <Text style={{ color: c.textSecondary, fontSize: 12.5 * fs, fontFamily: fontBody, marginTop: 2 }}>목업 회원 · 팩 규칙 · 도감 · 기능 플래그</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={c.textSecondary} />
-          </Pressable>
-        )}
 
-        {/* 콘텐츠 관리 — 문제 등록(웹 등록 도구와 동일 메타데이터 계약).
-            실서버에서 `POST /inner/api/v1/cards` 는 **관리자만** 통과한다(docs/PLATFORM_SPLIT.md §4).
-            관리자가 아닌 사람에게 이 항목을 보여 주면, 문제를 다 쓰고 저장을 누른
-            다음에야 403 을 만난다. 눌러 봐야 실패할 버튼은 미리 치운다(User.isAdmin). */}
-        {(env.useMockData || isAdmin) && (
+
+
+
+        {(isAdmin) && (
           <Pressable accessibilityRole="button" onPress={() => router.push(ROUTES.authorCard as never)}
             style={{ backgroundColor: c.surface, borderColor: c.border, borderWidth: 1, borderRadius: 16, padding: 18, marginBottom: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: c.primary + '18', alignItems: 'center', justifyContent: 'center' }}>
@@ -289,7 +208,7 @@ export default function DeveloperScreen() {
           )}
         </View>
 
-        {/* 서버발(發) 알림 3버전 — 텔레그램 /alert1~3 과 동일 경로 */}
+
         <View style={{ backgroundColor: c.surface, borderColor: c.border, borderWidth: 1, borderRadius: 16, padding: 18, marginTop: 16 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
             <Ionicons name="megaphone-outline" size={18} color={c.primary} />

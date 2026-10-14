@@ -7,7 +7,6 @@ import { fontBody, fontDisplay, fontMono } from '../../theme/tokens';
 import { CenterModal } from '../ui/CenterModal';
 import { Button } from '../ui/Button';
 import { useCollectionStore } from '../../store/collectionStore';
-import { useSrsStore } from '../../store/srsStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import { useSafeTimeout } from '../../hooks/useSafeTimeout';
 import { hapticImpact, hapticSuccess, hapticTap } from '../../utils/haptics';
@@ -17,11 +16,9 @@ import {
   BUILDING_CRATES,
   describeContents,
   evaluateCrates,
-  monthBricks,
   type CrateStatus,
 } from '../../domain/buildingCrates';
 
-import { env } from '../../data/network/env';
 import { rooftopRepository, collectionRepository } from '../../data/repositories';
 import type { RooftopReceipt, RooftopState } from '../../domain/models/Rooftop';
 import { getSessionEpoch, assertSessionEpoch } from '../../data/network/sessionEpoch';
@@ -189,7 +186,7 @@ function CrateSheet({
           setPhase('idle');
           toast('개봉을 확인하지 못했어요. 조건·한도(하루 3개)와 60초 대기 시간을 확인하고 다시 시도해주세요.', 'warn');
         });
-      } else reveal(useCollectionStore.getState().openBuildingCrate(month, crate.floor, floors));
+      } else reveal(null);
     }, 560);
   };
 
@@ -288,7 +285,7 @@ export function RooftopCrates({ month: suppliedMonth, floors: suppliedFloors, ac
   const [remoteError, setRemoteError] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   useEffect(() => {
-    if (env.useMockData) return;
+
     let active = true;
     setRemoteError(false);
     const refresh = () => rooftopRepository.get().then((state) => { if (active) { setRemote(state); setRemoteError(false); } }).catch(() => { if (active) setRemoteError(true); });
@@ -296,9 +293,9 @@ export function RooftopCrates({ month: suppliedMonth, floors: suppliedFloors, ac
     const timer = setInterval(refresh, 15000);
     return () => { active = false; clearInterval(timer); };
   }, [suppliedMonth, suppliedFloors, refreshKey]);
-  const month = env.useMockData ? suppliedMonth : remote?.month ?? suppliedMonth;
-  const floors = env.useMockData ? suppliedFloors : remote?.floors ?? 0;
-  const openRemote = env.useMockData ? undefined : async (m: string, floor: number) => {
+  const month = remote?.month ?? suppliedMonth;
+  const floors = remote?.floors ?? 0;
+  const openRemote = async (m: string, floor: number) => {
     const epoch = getSessionEpoch();
     const receipt = await rooftopRepository.open(m, floor);
     const collection = await collectionRepository.pull();
@@ -313,18 +310,10 @@ export function RooftopCrates({ month: suppliedMonth, floors: suppliedFloors, ac
   const c = theme.colors;
   const collectionEnabled = useSettingsStore((s) => s.collectionEnabled);
   const enableCollection = useSettingsStore((s) => s.toggleCollectionEnabled);
-  const monthStudy = useCollectionStore((s) => s.monthStudy);
-  const monthStudyKey = useCollectionStore((s) => s.monthStudyKey);
-  const claimed = useCollectionStore((s) => s.claimedRules);
-  const srsCards = useSrsStore((s) => s.cards);
   const [selected, setSelected] = useState<number | null>(null);
 
-  const localBricks = useMemo(
-    () => monthBricks(month, { monthStudy, monthStudyKey }, srsCards),
-    [month, monthStudy, monthStudyKey, srsCards],
-  );
-  const bricks = env.useMockData ? localBricks : remote?.my_bricks ?? 0;
-  const authoritativeClaims = env.useMockData ? claimed : Object.fromEntries([
+  const bricks = remote?.my_bricks ?? 0;
+  const authoritativeClaims = Object.fromEntries([
     ...(remote?.legacy_claims ?? []).map((key) => [key, 1]),
     ...(remote?.history ?? []).map((h) => [`bld:${h.month}:${h.floor}`, 1]),
   ]);
@@ -366,7 +355,7 @@ export function RooftopCrates({ month: suppliedMonth, floors: suppliedFloors, ac
 
   const selectedStatus = selected == null ? null : statuses.find((s) => s.crate.floor === selected) ?? null;
 
-  if (!env.useMockData && (remoteError || !remote)) return (
+  if ((remoteError || !remote)) return (
     <View style={{ marginTop: 14, padding: 12 }}>
       <Text style={{ color: c.textSecondary }}>{remoteError ? '보물상자 서버에 연결할 수 없어요. 개봉은 온라인에서만 가능해요.' : '보물상자 확인 중…'}</Text>
       {remoteError && <Button label="보물상자 다시 확인" onPress={() => setRefreshKey((n) => n + 1)} />}
@@ -420,7 +409,7 @@ export function RooftopCrates({ month: suppliedMonth, floors: suppliedFloors, ac
         )}
       </View>
 
-      {!env.useMockData && remote && remote.history.length > 0 && (
+      {remote && remote.history.length > 0 && (
         <View style={{ marginTop: 10 }}>
           <Text style={{ color: c.textSecondary, fontFamily: fontDisplay }}>개봉 내역</Text>
           {remote.history.map((h) => <Text key={`${h.month}:${h.floor}`} style={{ color: c.textSecondary, fontSize: 11 * fs }}>{h.month} · {h.floor}층 · 카드팩 {h.packs}개 · 조각 {h.shards}</Text>)}

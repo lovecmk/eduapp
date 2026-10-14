@@ -14,7 +14,7 @@ jest.mock('@react-native-async-storage/async-storage', () => {
   };
 });
 
-import { mockUserDb } from '../mockUserDb';
+import { mockUserDb } from '../../../__tests__/fixtures/data/auth/mockUserDb';
 import type { User } from '../../../domain/models/User';
 
 function account(id: string, username: string) {

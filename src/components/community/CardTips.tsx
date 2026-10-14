@@ -10,28 +10,32 @@ import { useAuthStore } from '../../store/authStore';
 import { timeAgoLabel } from '../../store/notificationStore';
 import { isMeaningful, textLength, INPUT_LIMITS } from '../../utils/sanitize';
 import { authorLabel } from '../../domain/models/User';
+import { ErrorState } from '../ui/ErrorState';
+import { toApiError } from '../../data/network/errors';
 
 /** 카드별 현장 팁(작은 커뮤니티) — 실무 노하우 공유 + 좋아요. */
 export function CardTips({ cardId }: { cardId: string }) {
   const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
   // 서버(`/cards/:id/tips`)가 열리면 자동으로 공유되고, 그 전에는 이 기기 안에서 돈다.
-  const { tips: cardTips, localOnly, add, toggleLike, remove } = useCardTips(cardId);
+  const { tips: cardTips, isLoading, isError, error, refetch, add, toggleLike, remove } = useCardTips(cardId);
   const me = useAuthStore((s) => s.user);
   const [sending, setSending] = useState(false);
   const [draft, setDraft] = useState('');
   const [focused, setFocused] = useState(false);
+  const [submitError, setSubmitError] = useState(false);
 
   const canSubmit = isMeaningful(draft);
   const len = textLength(draft);
 
   const submit = async () => {
     if (!canSubmit || sending) return;
+    setSubmitError(false);
     setSending(true);
     const ok = await add(draft);
     setSending(false);
     // 못 올렸으면 적은 것을 지우지 않는다 — 다시 누르면 된다.
-    if (!ok) return;
+    if (!ok) { setSubmitError(true); return; }
     setDraft('');
     setFocused(false);
   };
@@ -47,9 +51,12 @@ export function CardTips({ cardId }: { cardId: string }) {
           </View>
         </View>
         {/* 팁은 아직 서버에 없다 — 실서버 모드에서 '함께 나눈'이라고 하면 남도 본다고 믿는다. */}
-        <Text style={{ color: c.textSecondary, fontSize: 11 * fs, fontFamily: fontBody }}>{localOnly ? '지금은 이 기기에만 저장돼요' : '함께 나눈 실무 노하우'}</Text>
+        <Text style={{ color: c.textSecondary, fontSize: 11 * fs, fontFamily: fontBody }}>함께 나눈 실무 노하우</Text>
       </View>
 
+      {isLoading && <Text style={{ color: c.textSecondary, paddingVertical: 12 }}>현장 팁을 불러오고 있어요…</Text>}
+      {isError && <ErrorState message={toApiError(error).userMessage} onRetry={() => { void refetch(); }} />}
+      {submitError && <Text style={{ color: c.error, paddingVertical: 8 }}>팁을 저장하지 못했어요. 입력한 내용은 유지됩니다. 다시 시도해주세요.</Text>}
       {/* 입력 */}
       <View style={[styles.inputRow, { backgroundColor: c.surfaceAlt, borderColor: focused ? c.primary : c.border }]}>
         <TextInput

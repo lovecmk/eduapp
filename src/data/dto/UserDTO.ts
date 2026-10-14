@@ -1,6 +1,6 @@
 // Layer 1: Raw DTO — PART 1.2 (백엔드 snake_case 응답 그대로)
 export interface UserDTO {
-  id: number;
+  id: string | number;
   /** 로그인 아이디(표시 전용) */
   login_id?: string;
   user_nm: string;

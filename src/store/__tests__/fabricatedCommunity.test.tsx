@@ -9,7 +9,7 @@ jest.mock('../../data/network/env', () => ({ env: { useMockData: false, apiBaseU
 // 저장소 묶음을 먼저 불러 둔다 — 목업 저장소 파일부터 불러오면 authStore ↔ repositories 순환에서
 // 생성자가 아직 정의되지 않은 채로 index 가 평가된다(앱은 항상 index 쪽에서 들어온다).
 import '../../data/repositories';
-import { MockFeedRepository } from '../../data/repositories/FeedRepository.mock';
+import { MockFeedRepository } from '../../__tests__/fixtures/data/repositories/FeedRepository.mock';
 import { useShareFeedStore, postMinutesAgo } from '../shareFeedStore';
 import { useTipStore, tipMinutesAgo } from '../tipStore';
 

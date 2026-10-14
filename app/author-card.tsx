@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react';
 import { View, Text, ScrollView, Pressable, KeyboardAvoidingView, Platform, TextInput } from 'react-native';
-import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../src/theme/ThemeProvider';
 import { ScreenHeader } from '../src/components/ui/ScreenHeader';
@@ -23,25 +22,11 @@ const TYPE_LABEL = ['설명형', 'OX', '객관식'];
 const DIFFS: CardDifficulty[] = ['easy', 'medium', 'hard'];
 const DIFF_LABEL = ['쉬움', '보통', '어려움'];
 
-const JSON_EXAMPLE = JSON.stringify(
-  [
-    {
-      category: '전기 위험', subCategory: '배선설비', topic: '누전차단기', keywords: ['ELB', '감전'],
-      title: '누전차단기의 목적', difficulty: 'medium', type: 'ox',
-      question: "누전차단기(ELB)의 주된 목적은 '과부하 차단'이다.",
-      choices: ['O', 'X'], answerIndex: 1,
-      principle: 'ELB는 누설전류를 감지해 감전을 예방한다. 과부하·단락 보호는 배선용차단기(MCCB)의 몫이다.',
-      conclusion: 'ELB=감전 보호, MCCB=과부하 보호.', source: 'KEC 211',
-    },
-  ],
-  null,
-  2,
-);
+const JSON_EXAMPLE = '[]';
 
 export default function AuthorCardScreen() {
   const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
-  const router = useRouter();
   const createCards = useCreateCards();
   // 딥링크로 바로 열렸을 때도 등록 후 갈 곳이 있도록 홈 폴백을 둔다.
   const goBack = useGoBack();
@@ -79,7 +64,7 @@ export default function AuthorCardScreen() {
         <View style={{ paddingHorizontal: 20, paddingTop: 12 }}>
           <SegmentedControl options={['폼으로 등록', 'JSON 일괄']} selectedIndex={mode} onChange={setMode} />
           <Text style={{ color: c.textSecondary, fontSize: 11.5 * fs, fontFamily: fontBody, marginTop: 8, lineHeight: 17 }}>
-            추후 웹 등록 도구가 내보내는 메타데이터 형식과 동일해요. 지금은 앱에 저장되고, 서버 연결 시 그대로 전송됩니다.
+            등록한 카드는 서버에 저장됩니다. JSON 입력도 같은 카드 형식을 사용합니다.
           </Text>
         </View>
         {mode === 0 ? (
@@ -109,6 +94,9 @@ function FormAuthor({ createCards, onDone }: { createCards: ReturnType<typeof us
   const [answerIndex, setAnswerIndex] = useState(0);
   const [principle, setPrinciple] = useState('');
   const [conclusion, setConclusion] = useState('');
+  const [answer, setAnswer] = useState('');
+  const [improvement, setImprovement] = useState('');
+  const [note, setNote] = useState('');
   const [source, setSource] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [done, setDone] = useState(false);
@@ -130,7 +118,8 @@ function FormAuthor({ createCards, onDone }: { createCards: ReturnType<typeof us
     situation, question,
     choices: type === 'explanation' ? undefined : choices,
     answerIndex: type === 'explanation' ? undefined : answerIndex,
-    principle, conclusion, source,
+    principle, conclusion, source, improvement, note,
+    answer: type === 'explanation' ? answer || conclusion : undefined,
   };
   const errors = validateCardDraft(draft);
   const errFor = (f: keyof CardDraft) => submitted && errors.find((e) => e.field === f)?.message;
@@ -194,6 +183,9 @@ function FormAuthor({ createCards, onDone }: { createCards: ReturnType<typeof us
         <TextField label="핵심 원리(해설)" value={principle} onChangeText={setPrinciple} placeholder="뒷면 설명" multiline status={errFor('principle') ? 'error' : 'default'} helperText={errFor('principle') || undefined} />
       </View>
       <TextField label="결론(한 줄)" value={conclusion} onChangeText={setConclusion} placeholder="핵심 요약" />
+      {type === 'explanation' && <TextField label="정답 원문(선택)" value={answer} onChangeText={setAnswer} placeholder="미입력 시 결론을 사용합니다" multiline />}
+      <TextField label="위험개선 권고사항(선택)" value={improvement} onChangeText={setImprovement} placeholder="권고사항" multiline />
+      <TextField label="참고사항(선택)" value={note} onChangeText={setNote} placeholder="추가 참고 내용" multiline />
       <TextField label="출처(선택)" value={source} onChangeText={setSource} placeholder="예: KEC 211" />
 
       <Text style={{ color: c.textPrimary, fontSize: 13 * fs, fontFamily: fontDisplay, marginTop: 6, marginBottom: 8 }}>난이도</Text>

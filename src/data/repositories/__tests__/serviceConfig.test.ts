@@ -27,7 +27,7 @@ jest.mock('@react-native-async-storage/async-storage', () => {
 });
 
 import { ServiceConfigRepository } from '../ServiceConfigRepository';
-import { MockServiceConfigRepository } from '../ServiceConfigRepository.mock';
+import { MockServiceConfigRepository } from '../../../__tests__/fixtures/data/repositories/ServiceConfigRepository.mock';
 import { DAILY_MIN_CARDS, DAILY_MAX_CARDS } from '../../../constants/learning';
 import { MIN_DAILY_CARDS, MAX_DAILY_CARDS } from '../../../domain/dailyPlan';
 import { useServerPolicyStore } from '../../../store/serverPolicyStore';

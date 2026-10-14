@@ -47,3 +47,16 @@ export class CachedDailyAssignmentRepository implements IDailyAssignmentReposito
     return result;
   }
 }
+
+/** Network failure may use a real server deck, never fabricated cards or a missing-route fallback. */
+export class OfflineDailyAssignmentRepository implements IDailyAssignmentRepository {
+  private live = new LiveDailyAssignmentRepository();
+  private cached = new CachedDailyAssignmentRepository();
+  async get() {
+    try { return await this.live.get(); }
+    catch (error) {
+      if (!(error instanceof ApiError) || ![0, 502, 503, 504].includes(error.status)) throw error;
+      return this.cached.get();
+    }
+  }
+}

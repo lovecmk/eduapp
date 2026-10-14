@@ -24,7 +24,7 @@ jest.mock('../../../store/authStore', () => ({
   useAuthStore: { getState: () => ({ user: null }) },
 }));
 
-import { MockDailyAssignmentRepository } from '../DailyAssignmentRepository.mock';
+import { MockDailyAssignmentRepository } from '../../../__tests__/fixtures/data/repositories/DailyAssignmentRepository.mock';
 import { useServerPolicyStore } from '../../../store/serverPolicyStore';
 import { DAILY_MIN_CARDS, DAILY_MAX_CARDS } from '../../../constants/learning';
 

@@ -15,6 +15,11 @@ export interface CardDraft {
   difficulty?: CardDifficulty;
   studySeconds?: number;
   type?: CardType;
+  format?: string;
+  answer?: string;
+  improvement?: string;
+  note?: string;
+  industry?: string;
 
   // ── 앞면 ──
   situation?: string;
@@ -60,7 +65,7 @@ export function validateCardDraft(input: unknown): DraftError[] {
   req(d.topic, 'topic', '소분류');
   req(d.title, 'title', '카드명');
   req(d.question, 'question', '문제');
-  const textFields: (keyof CardDraft)[] = ['situation', 'principle', 'process', 'fireTriangle', 'conclusion', 'imageUrl', 'answerImageUrl', 'source'];
+  const textFields: (keyof CardDraft)[] = ['situation', 'principle', 'process', 'fireTriangle', 'conclusion', 'imageUrl', 'answerImageUrl', 'source', 'format', 'answer', 'improvement', 'note', 'industry'];
   for (const field of textFields) {
     if (d[field] !== undefined && typeof d[field] !== 'string') errs.push({ field, message: `${field}은(는) 문자열이어야 합니다` });
   }
@@ -130,7 +135,13 @@ export function draftToSeedCard(d: CardDraft, id?: string): SeedCard {
 /** 서버 전송용 DTO(snake_case) 매핑 — 실서버 POST /inner/api/v1/cards body. */
 export function draftToDTO(d: CardDraft) {
   const type = d.type ?? 'explanation';
+  const format = d.format ?? (type === 'ox' ? 'OX형' : type === 'choice' ? '객관식' : d.situation?.trim() ? '상황형' : '기초용어형');
   return {
+    format_nm: format,
+    answer_txt: d.answer ?? (type === 'ox' ? (d.answerIndex === 1 ? 'X' : 'O') : d.conclusion ?? ''),
+    improvement_txt: d.improvement ?? '',
+    note_txt: d.note ?? '',
+    industry_nm: d.industry ?? '',
     category_cd: d.category,
     sub_category_nm: d.subCategory,
     topic_nm: d.topic,

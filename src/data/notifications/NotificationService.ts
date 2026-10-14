@@ -172,7 +172,7 @@ export async function getExpoPushToken(): Promise<string | null> {
  * @returns 서버에 등록됐거나 큐에 안전히 쌓였으면 true
  */
 export async function syncPushTokenWithServer(): Promise<boolean> {
-  if (!isNative || env.useMockData || !env.apiBaseUrl) return false;
+  if (!isNative || false || !env.apiBaseUrl) return false;
   const token = await getExpoPushToken();
   if (!token) return false;
   try {
@@ -202,7 +202,7 @@ export interface ServerAlertResult {
  * 목업/웹/API 미설정 시에는 null 을 반환한다.
  */
 export async function triggerServerAlert(version: 1 | 2 | 3): Promise<ServerAlertResult | null> {
-  if (env.useMockData || !env.apiBaseUrl) return null;
+  if (!env.apiBaseUrl) return null;
   try {
     return await apiClient.post<ServerAlertResult>('/inner/api/v1/telegram/alert', { version: String(version) });
   } catch {

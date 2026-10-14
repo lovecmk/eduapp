@@ -15,7 +15,7 @@ jest.mock('../../network/ApiClient', () => ({
 }));
 
 import { SettingsRepository } from '../SettingsRepository';
-import { MockSettingsRepository } from '../SettingsRepository.mock';
+import { MockSettingsRepository } from '../../../__tests__/fixtures/data/repositories/SettingsRepository.mock';
 import {
   DEFAULT_ACCOUNT_SETTINGS,
   normalizeAccountSettings,

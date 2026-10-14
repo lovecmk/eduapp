@@ -1,7 +1,6 @@
 const mockMutate = jest.fn();
 jest.mock('expo-router', () => ({ useLocalSearchParams: () => ({ id: 'q1' }) }));
 jest.mock('../../components/ui/ScreenHeader', () => ({ ScreenHeader: () => null }));
-jest.mock('../../components/community/QnaOfflineNotice', () => ({ QnaOfflineNotice: () => null }));
 jest.mock('../../hooks/useQna', () => ({
   cleanAnswerBody: (value: string) => value.trim() || null,
   useQuestion: () => ({ data: { id: 'q1', title: '질문', body: '내용', author: 'QA', createdAt: Date.now(), answers: [], likes: 0 }, isLoading: false }),

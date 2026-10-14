@@ -12,6 +12,8 @@ import { EmojiBurstButton } from '../ui/EmojiBurstButton';
 import { timeAgoLabel } from '../../store/notificationStore';
 import { useAuthStore } from '../../store/authStore';
 import { authorLabel } from '../../domain/models/User';
+import { ErrorState } from '../ui/ErrorState';
+import { toApiError } from '../../data/network/errors';
 
 const REACTION_TINT: Record<string, string> = { clap: '#F2B705', fire: '#FF6B35', up: '#2563EB' };
 
@@ -28,7 +30,7 @@ export function BragFeedCard() {
   const router = useRouter();
   // 서버(/feed)가 열리면 동료들의 카드가 자동으로 들어온다. 그 전(실서버 모드)에는
   // 이 기기에서 올린 카드만 보이고, 그 사실을 화면에 적는다(localOnly).
-  const { posts, localOnly } = useFeed();
+  const { posts, isLoading, isError, error, refetch } = useFeed();
   const react = useFeedReaction();
   // 내 카드의 작성자 이름은 저장된 사본이 아니라 지금 내 표시명으로 그린다
   // (닉네임을 바꾸면 '내 카드' 배지 옆에만 옛 이름이 남았다 — authorLabel 주석).
@@ -48,12 +50,9 @@ export function BragFeedCard() {
         </Pressable>
       </View>
 
-      {localOnly && (
-        <Text style={{ color: c.textSecondary, fontSize: 11.5 * fs, lineHeight: 17 * fs, fontFamily: fontBody, marginTop: -4, marginBottom: 10 }}>
-          지금은 이 기기에서 올린 성취 카드만 보여요. 다른 점검자와 나누는 피드는 준비 중이에요.
-        </Text>
-      )}
-      {posts.length === 0 && (
+      {isLoading && <Text style={{ color: c.textSecondary, paddingVertical: 16 }}>성취 카드를 불러오고 있어요…</Text>}
+      {isError && <ErrorState message={toApiError(error).userMessage} onRetry={() => { void refetch(); }} />}
+      {!isLoading && !isError && posts.length === 0 && (
         <View style={{ alignItems: 'center', paddingVertical: 18, gap: 6 }}>
           <Ionicons name="images-outline" size={24} color={c.textSecondary} />
           <Text style={{ color: c.textSecondary, fontSize: 12.5 * fs, fontFamily: fontBody }}>아직 올린 성취 카드가 없어요</Text>

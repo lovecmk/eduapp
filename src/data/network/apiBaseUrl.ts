@@ -50,7 +50,7 @@ export function resolveApiBaseUrl(raw: string): ResolvedBaseUrl {
   return { url: trimmed, note: trimmed !== raw.trim() ? "끝의 '/' 를 잘라냄" : '' };
 }
 
-export type ServerKind = 'production' | 'test' | 'mock' | 'other';
+export type ServerKind = 'production' | 'test' | 'unconfigured' | 'other';
 
 /** 호스트명만 뽑는다(스킴·포트·경로 제거). */
 function hostOf(url: string): string {
@@ -65,7 +65,7 @@ function hostOf(url: string): string {
  * "왜 테스트 주소지?" 를 다시 묻게 된다.
  */
 export function describeServer(url: string): { kind: ServerKind; label: string } {
-  if (!url) return { kind: 'mock', label: '없음 · 목업으로 도는 빌드 (저장되지 않음)' };
+  if (!url) return { kind: 'unconfigured', label: '미설정 · 서버 주소를 설정하세요' };
   const host = hostOf(url);
   if (host === 'bridge.kfpa.or.kr') return { kind: 'production', label: '운영 (bridge.kfpa.or.kr)' };
   if (host === 'test.inplat.org') {

@@ -2,8 +2,6 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { tipRepository } from '../data/repositories';
 import type { CardTip } from '../domain/models/CardTip';
 import { sortTips } from '../domain/models/CardTip';
-import { useDegraded } from './useDegraded';
-import { env } from '../data/network/env';
 import { logger } from '../utils/logger';
 import { getSessionEpoch } from '../data/network/sessionEpoch';
 
@@ -17,7 +15,6 @@ export function useCardTips(cardId: string) {
   const qc = useQueryClient();
   const key = tipsKey(cardId);
   const query = useQuery({ queryKey: key, queryFn: () => tipRepository.list(cardId), staleTime: 30_000 });
-  const degraded = useDegraded('tips');
   const tips = sortTips(query.data ?? []);
 
   const patch = (fn: (list: CardTip[]) => CardTip[]) => {
@@ -51,5 +48,5 @@ export function useCardTips(cardId: string) {
     tipRepository.remove(tip.id).catch((e) => { undo(); logger.warn('tips.remove_failed', { reason: String(e) }); });
   };
 
-  return { tips, isLoading: query.isLoading, localOnly: !env.useMockData && degraded, add, toggleLike, remove };
+  return { tips, isLoading: query.isLoading, isError: query.isError, error: query.error, refetch: query.refetch, localOnly: false, add, toggleLike, remove };
 }

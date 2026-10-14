@@ -71,7 +71,7 @@ describe('시드가 가리키는 사진이 실제로 있는가', () => {
   //
   // 그래서 시드가 가리키는 모든 키를 여기서 훑는다. 새 사진을 등록하지 않고
   // 시드만 갱신하면 이 시험이 먼저 막는다.
-  const { CARD_SEED } = require('../cards.seed') as typeof import('../cards.seed');
+  const { CARD_SEED } = require('../../__tests__/fixtures/data/cards.seed') as typeof import('../../__tests__/fixtures/data/cards.seed');
 
   const refs = CARD_SEED.flatMap((c) => [c.imageUrl, c.answerImageUrl]).filter(
     (v): v is string => !!v && !v.startsWith('/') && !/^https?:\/\//i.test(v),

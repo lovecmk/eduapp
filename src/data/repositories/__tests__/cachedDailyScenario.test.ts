@@ -11,7 +11,7 @@ jest.mock('../../network/ApiClient', () => ({ apiClient: { get: jest.fn() } }));
 jest.mock('../../../store/srsStore', () => ({ useSrsStore: { getState: () => ({ history }) } }));
 jest.mock('../../../utils/logger', () => ({ logger: { warn: jest.fn() } }));
 
-import { CachedDailyAssignmentRepository, LiveDailyAssignmentRepository, serverDayKey } from '../CachedDailyAssignmentRepository';
+import { CachedDailyAssignmentRepository, LiveDailyAssignmentRepository, OfflineDailyAssignmentRepository, serverDayKey } from '../CachedDailyAssignmentRepository';
 import { apiClient } from '../../network/ApiClient';
 
 beforeEach(() => {
@@ -36,4 +36,15 @@ it.each(['different-owner', 'different-server', 'previous-day', 'missing'])('rej
 });
 it('uses the Korean server day across UTC midnight', () => {
   expect(serverDayKey(Date.parse('2026-10-11T15:01:00Z'))).toBe('2026-9-12');
+});
+
+import { ApiError } from '../../network/errors';
+it('uses the real cache only during a transient outage and rejects missing routes', async () => {
+  (apiClient.get as jest.Mock).mockResolvedValue({ day: serverDayKey(), cards: [card], target_count: 1, done_count: 0 });
+  const repo = new OfflineDailyAssignmentRepository();
+  await repo.get();
+  (apiClient.get as jest.Mock).mockRejectedValue(new ApiError(503, 'outage', 'server'));
+  expect((await repo.get()).cards[0].card.id).toBe(card.id);
+  (apiClient.get as jest.Mock).mockRejectedValue(new ApiError(404, 'missing route', 'server'));
+  await expect(repo.get()).rejects.toMatchObject({ status: 404 });
 });

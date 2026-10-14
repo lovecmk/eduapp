@@ -9,7 +9,7 @@
 
 import { useAuthStore } from '../../../store/authStore';
 import { useQnaStore, resetQnaStore } from '../../../store/qnaStore';
-import { MockQnaRepository } from '../QnaRepository.mock';
+import { MockQnaRepository } from '../../../__tests__/fixtures/data/repositories/QnaRepository.mock';
 import type { User } from '../../../domain/models/User';
 
 const repo = new MockQnaRepository();

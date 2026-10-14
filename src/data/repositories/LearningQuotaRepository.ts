@@ -4,7 +4,6 @@ import { DAILY_MIN_CARDS } from '../../constants/learning';
 import { apiClient } from '../network/ApiClient';
 import { useDailyLearningStore } from '../../store/dailyLearningStore';
 import { dateKey } from '../../utils/dateKey';
-import { isEndpointUnavailable } from './_fallback';
 
 interface QuotaDTO {
   limit?: number;
@@ -34,21 +33,9 @@ export class LearningQuotaRepository implements ILearningQuotaRepository {
   }
 
   async recordCompletion(count: number): Promise<void> {
-    // 로컬을 먼저 반영(즉시 UI), 서버 보고는 뒤따른다.
+    // Temporary failures are durably queued; missing routes and invalid inputs remain errors.
+    const key = `learning-complete:${dateKey(new Date())}:${Date.now()}:${count}`;
+    await apiClient.postDurable('/inner/api/v1/learning/complete', { count }, key);
     useDailyLearningStore.getState().recordNewLearned(count);
-    try {
-      // 사용자가 '이미 학습을 마쳤다'고 믿는 사건이다. 평범한 post 로 보내면
-      // 오프라인일 때 로컬 카운트만 오르고 **서버 기록은 조용히 사라진다** —
-      // 로컬 상한은 찼는데 서버 상한은 그대로라 다음 동기화에서 숫자가 어긋난다.
-      // 유실 방지가 존재 이유인 오프라인 큐(postDurable)로 보낸다.
-      // 멱등키에 날짜와 시각을 담아, 큐가 재전송해도 이중 집계되지 않게 한다.
-      const key = `learning-complete:${dateKey(new Date())}:${Date.now()}:${count}`;
-      await apiClient.postDurable('/inner/api/v1/learning/complete', { count }, key);
-    } catch (e) {
-      // 완료 보고 엔드포인트가 아직 서버에 없으면(부분 배포) 조용히 넘어간다 —
-      // 로컬은 이미 반영됐고 목업 폴백과 결과가 같으므로 여기서 다시 목업을 태우면
-      // 오히려 이중 집계가 된다. 그 외(진짜) 오류는 그대로 던진다.
-      if (!isEndpointUnavailable(e)) throw e;
-    }
   }
 }

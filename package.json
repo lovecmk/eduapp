@@ -12,7 +12,6 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "verify": "npm run typecheck && npm test",
-    "export:cards": "node scripts/export-cards.mjs",
     "audit:ui": "node scripts/audit-ui.mjs",
     "test:ui": "node scripts/qa/ui-audit-check.mjs"
   },

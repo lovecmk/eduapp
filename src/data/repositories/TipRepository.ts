@@ -38,7 +38,7 @@ function toDomain(d: TipDTO): CardTip {
  *  · POST   /inner/api/v1/cards/:cardId/tips        { body }
  *  · POST   /inner/api/v1/tips/:id/like             { liked }   (멱등키)
  *  · DELETE /inner/api/v1/tips/:id                   (내 팁만)
- * 라우트가 없으면 repositories/index 의 withMockFallback 이 이 기기 안(tipStore)으로 돌린다.
+ * 라우트/연결 오류는 화면에 전달하고 샘플 팁으로 대체하지 않는다.
  */
 export class TipRepository implements ITipRepository {
   async list(cardId: string): Promise<CardTip[]> {

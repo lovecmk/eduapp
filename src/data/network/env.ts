@@ -7,12 +7,12 @@ import { resolveApiBaseUrl, describeServer } from './apiBaseUrl';
  *
  * GitHub Actions 가 Secrets 로부터 생성한 `.env` 의 `EXPO_PUBLIC_*` 변수는
  * Metro 번들러에 의해 정적으로 인라인되어 `process.env` 로 노출된다.
- * 로컬 개발 환경처럼 변수가 비어 있어도 앱이 죽지 않고 목업으로 폴백되도록
+ * 변수가 비어 있으면 연결 설정 오류를 표시하도록
  * 모든 접근을 이 파일 한 곳에서 방어적으로 처리한다.
  *
  * 새 환경변수를 추가할 때 지켜야 할 규칙(단일 소스):
  *  1) 반드시 `EXPO_PUBLIC_` 접두사를 붙인다(그래야 번들에 인라인된다).
- *  2) 이 파일의 `readString`/`readNumber`/`readBool` 로만 읽어 기본값을 준다.
+ *  2) 이 파일의 `readString`/`readNumber` 로만 읽어 기본값을 준다.
  *  3) `.env.example` 에 주석과 함께 예시를 추가한다.
  *  4) 필요하면 `env` 객체에 노출하고, 개발자 화면(ENV_SUMMARY)에서 확인 가능하게 한다.
  */
@@ -27,12 +27,6 @@ function readNumber(value: string | undefined, fallback: number): number {
   return Number.isFinite(n) && n > 0 ? n : fallback;
 }
 
-function readBool(value: string | undefined): boolean | undefined {
-  const v = value?.trim().toLowerCase();
-  if (v === 'true' || v === '1' || v === 'yes') return true;
-  if (v === 'false' || v === '0' || v === 'no') return false;
-  return undefined;
-}
 
 const resolvedBase = resolveApiBaseUrl(readString(process.env.EXPO_PUBLIC_API_BASE_URL));
 const apiBaseUrl = resolvedBase.url;
@@ -45,18 +39,6 @@ if (baseUrlNote) {
   });
 }
 
-/**
- * 목업 사용 여부 결정 규칙(우선순위):
- *  1) `EXPO_PUBLIC_USE_MOCK_DATA` 가 명시적으로 'true'/'false' 면 그 값을 따른다.
- *  2) 값이 없으면 → API 주소가 비어 있을 때 자동으로 목업으로 폴백한다.
- * 이렇게 하면 실제 백엔드(기존 플랫폼 or Golang/Mongo)가 확정되기 전에도
- * `.env` 없이 화면을 그대로 테스트할 수 있다.
- */
-function resolveUseMock(): boolean {
-  const flag = readBool(process.env.EXPO_PUBLIC_USE_MOCK_DATA);
-  if (flag !== undefined) return flag;
-  return apiBaseUrl.length === 0;
-}
 
 /**
  * 현재 번들에 구워진(baked-in) 빌드 식별자.
@@ -74,9 +56,8 @@ const appVersion = readString(
 export const env = {
   apiBaseUrl,
   apiTimeoutMs: readNumber(process.env.EXPO_PUBLIC_API_TIMEOUT_MS, 10_000),
-  useMockData: resolveUseMock(),
   sentryDsn: readString(process.env.EXPO_PUBLIC_SENTRY_DSN),
-  // 날씨 API 연동용 슬롯 — 추후 사용자가 채움. 값이 없으면 목업('맑음')으로 폴백한다.
+  // 날씨는 백엔드의 실시간 응답을 사용한다.
   // 자체 백엔드가 프록시하면 apiBaseUrl 만으로 충분하고, 서드파티(OpenWeather 등)를
   // 직접 호출할 경우 아래 키/기본 지역을 사용한다.
   weather: {
@@ -104,9 +85,9 @@ const { kind: SERVER_KIND, label: SERVER_LABEL } = describeServer(apiBaseUrl);
 export const ENV_SUMMARY: { label: string; value: string; ok: boolean }[] = [
   {
     label: 'API 주소',
-    value: baseUrlNote ? `${apiBaseUrl}  (${baseUrlNote})` : apiBaseUrl || '(미설정 · 목업 폴백)',
+    value: baseUrlNote ? `${apiBaseUrl}  (${baseUrlNote})` : apiBaseUrl || '(미설정 · 연결 불가)',
     // 값을 고쳐서 쓰고 있다면 설정이 틀린 것이다 — 돌아는 가더라도 짚어 준다.
-    ok: !baseUrlNote && (env.useMockData || apiBaseUrl.length > 0),
+    ok: !baseUrlNote && (apiBaseUrl.length > 0),
   },
   {
     // '어느 서버인가'는 주소만 봐서는 헷갈린다. 이 줄이 없으면 개발자 화면을 보고
@@ -114,12 +95,12 @@ export const ENV_SUMMARY: { label: string; value: string; ok: boolean }[] = [
     // 앱 안에서 알 방법이 없기 때문이다.
     label: '서버',
     value: SERVER_LABEL,
-    // 운영만 '정상'이다. 테스트·목업 빌드가 사용자 손에 가 있으면 그 자체가 사고다.
+    // 운영만 '정상'이다. 테스트 빌드가 사용자 손에 가 있으면 그 자체가 사고다.
     ok: SERVER_KIND === 'production',
   },
   {
     label: '데이터 소스',
-    value: env.useMockData ? '목업(Mock)' : '실서버(Live)',
+    value: '실서버(Live)',
     ok: true,
   },
   {
@@ -145,13 +126,8 @@ export const ENV_SUMMARY: { label: string; value: string; ok: boolean }[] = [
  */
 export function collectConfigWarnings(): string[] {
   const w: string[] = [];
-  if (!env.useMockData && !apiBaseUrl) {
+  if (!apiBaseUrl) {
     w.push('실서버 모드지만 EXPO_PUBLIC_API_BASE_URL 이 비어 있습니다.');
-  }
-  // 주소는 채웠는데 목업이 켜져 있는 조합 — 화면은 멀쩡히 돌고 아무것도 저장되지
-  // 않는다. 실패가 눈에 보이지 않아 배포된 뒤에야 드러나는 가장 나쁜 오설정이다.
-  if (env.useMockData && apiBaseUrl) {
-    w.push(`API 주소(${apiBaseUrl})가 있는데 목업 모드입니다 — 서버에 아무것도 저장되지 않습니다. EXPO_PUBLIC_USE_MOCK_DATA=false 로 두세요.`);
   }
   // 평문 서버는 사내 테스트 전용이다. 릴리스 빌드에서 평문이 허용되는 것은
   // app.config.js 가 그때만 예외를 붙이기 때문이고, 운영 주소는 https 여야 한다.

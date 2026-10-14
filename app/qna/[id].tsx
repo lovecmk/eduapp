@@ -5,7 +5,6 @@ import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTheme } from '../../src/theme/ThemeProvider';
 import { ScreenHeader } from '../../src/components/ui/ScreenHeader';
-import { QnaOfflineNotice } from '../../src/components/community/QnaOfflineNotice';
 import { fontDisplay, fontBody, fontMono } from '../../src/theme/tokens';
 import { getCategoryColor } from '../../src/constants/categories';
 import { minutesSince, type Answer } from '../../src/domain/models/Qna';
@@ -71,7 +70,6 @@ export default function QnaDetailScreen() {
         <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 20 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
           {/* 여기서도 알린다 — 목록만 보고 들어온 사람은 커뮤니티 화면의 안내를 놓친다.
               답변을 쓰기 직전이라, '이 답변이 누구에게 가는가'는 여기서 더 중요하다. */}
-          <QnaOfflineNotice />
 
           {/* 질문 */}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 }}>

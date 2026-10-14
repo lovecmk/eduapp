@@ -1,8 +1,8 @@
 export interface CardDTO {
   id: string;
-  /** 서버 정본 대분류 코드(RISK/MEASURE). 앱의 표시 분류와 별개다. */
+  /** 서버 정본 대분류 코드(DAILY3MIN; 기존 RISK/MEASURE 호환). */
   group_cd?: string;
-  /** 대분류 코드 */
+  /** 앱 표시용 호환 분류 코드. 서버 정본 중분류와는 별도 매핑이다. */
   category_cd: string;
   /** 중분류 (예: 배선설비) */
   sub_category_nm?: string;

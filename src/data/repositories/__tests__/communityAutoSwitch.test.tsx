@@ -14,7 +14,6 @@ jest.mock('../../network/env', () => ({
 }));
 
 import { feedRepository, tipRepository, difficultyPollRepository } from '../index';
-import { isDegraded, NOT_DEPLOYED_RETRY_MS, __resetDegradationsForTests } from '../_fallback';
 import { setLogSink, resetLogSink } from '../../../utils/logger';
 import { useTipStore } from '../../../store/tipStore';
 import { useDiffPollStore } from '../../../store/diffPollStore';
@@ -31,7 +30,6 @@ beforeAll(() => setLogSink(() => {}));
 afterAll(() => resetLogSink());
 beforeEach(() => {
   routes = {};
-  __resetDegradationsForTests();
   useTipStore.setState({ tips: [] });
   useDiffPollStore.setState({ myVotes: {} });
   global.fetch = jest.fn(async (url: string) => {
@@ -40,52 +38,38 @@ beforeEach(() => {
   }) as unknown as typeof fetch;
 });
 
-describe('라우트가 없을 때 — 이 기기 안에서 돌고, 그 사실을 기록한다', () => {
-  it('현장 팁: 내 팁은 기기에 남고 강등이 기록된다', async () => {
-    const tip = await tipRepository.add('lc001', '절연저항 측정 전 방전!');
-    expect(tip.mine).toBe(true);
-    expect(isDegraded('tips')).toBe(true);
-    expect((await tipRepository.list('lc001')).map((t) => t.id)).toEqual([tip.id]);
-  });
-
-  it('체감 난이도: 내 표만 남고 남의 분포는 지어내지 않는다', async () => {
-    await difficultyPollRepository.vote('lc001', 'hard');
-    const summary = await difficultyPollRepository.get('lc001');
-    expect(summary.mine).toBe('hard');
-    expect(summary.counts).toBeNull();
-    expect(isDegraded('difficulty-poll')).toBe(true);
-  });
-
-  it('자랑 피드: 목록이 비어 있어도 시드를 지어내지 않는다', async () => {
-    expect(await feedRepository.list()).toEqual([]);
-    expect(isDegraded('feed')).toBe(true);
+describe('missing endpoints report errors without local or mock writes', () => {
+  it('does not accept tips or votes and does not fabricate a feed', async () => {
+    await expect(tipRepository.add('lc001', '현장 팁')).rejects.toMatchObject({ status: 404 });
+    await expect(difficultyPollRepository.vote('lc001', 'hard')).rejects.toMatchObject({ status: 404 });
+    await expect(feedRepository.list()).rejects.toMatchObject({ status: 404 });
+    expect(useTipStore.getState().tips).toEqual([]);
+    expect(useDiffPollStore.getState().myVotes).toEqual({});
   });
 });
 
 describe('라우트가 열리면 — 재배포 없이 서버를 쓴다', () => {
   it('다음 확인 시각이 지나면 서버 목록으로 바뀌고 강등이 지워진다', async () => {
     // 앞 테스트가 남긴 강등 창을 지나도록 시간을 민 뒤 시작한다.
-    const now = Date.now() + 10 * NOT_DEPLOYED_RETRY_MS;
+    const now = Date.now() + 10 * 1000;
     const spy = jest.spyOn(Date, 'now').mockReturnValue(now);
-    await feedRepository.list(); // 404 → 기기 안
-    expect(isDegraded('feed')).toBe(true);
+    await expect(feedRepository.list()).rejects.toMatchObject({ status: 404 });
 
     routes['/inner/api/v1/feed'] = () =>
       resp(200, [{ id: 7, author_nm: '박현장', snapshot: { title: '전기 스페셜리스트' }, reactions: { clap: 3 }, my_reactions: ['clap'], created_at: '2026-09-30T00:00:00.000Z' }]);
-    spy.mockReturnValue(now + NOT_DEPLOYED_RETRY_MS + 1);
+    spy.mockReturnValue(now + 1000 + 1);
 
     const posts = await feedRepository.list();
     expect(posts).toHaveLength(1);
     expect(posts[0]).toMatchObject({ id: '7', author: '박현장', myReactions: ['clap'] });
     expect(posts[0].reactions.clap).toBe(3);
-    expect(isDegraded('feed')).toBe(false);
     spy.mockRestore();
   });
 
   it('체감 난이도: 서버가 주는 분포를 그대로 쓴다', async () => {
     routes['/inner/api/v1/cards/lc002/difficulty'] = () => resp(200, { easy: 4, normal: 10, hard: 2, mine: 'normal' });
     // 앞 테스트의 강등 창이 모듈에 남아 있을 수 있어 시간을 앞으로 민다.
-    const spy = jest.spyOn(Date, 'now').mockReturnValue(Date.now() + 30 * NOT_DEPLOYED_RETRY_MS);
+    const spy = jest.spyOn(Date, 'now').mockReturnValue(Date.now() + 30 * 1000);
     const summary = await difficultyPollRepository.get('lc002');
     spy.mockRestore();
     expect(summary).toEqual({ counts: { easy: 4, normal: 10, hard: 2 }, mine: 'normal' });

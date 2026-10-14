@@ -142,7 +142,7 @@ function mapBuilding(dto: CommunityDTO): CommunitySnapshot['building'] {
     };
   }
   const now = new Date();
-  const problems = Math.max(0, Math.round((dto.total_cards_all_time ?? 0) % (FLOOR * 40)));
+  const problems = 0; // Missing monthly aggregates cannot be inferred from all-time totals.
   return {
     floorSize: FLOOR,
     current: { month: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`, label: `${now.getMonth() + 1}월`, problems, floors: Math.floor(problems / FLOOR), winner: '' },

@@ -2,7 +2,6 @@ import { Platform, Share } from 'react-native';
 import { env } from '../data/network/env';
 import { APP_NAME } from '../constants/brand';
 import { recentLogs, type LogRecord } from './logger';
-import { listDegradations } from '../data/repositories/_fallback';
 
 /** 로그 한 줄 — 시각·수준·이벤트·필드. */
 function formatRecord(r: LogRecord): string {
@@ -29,20 +28,14 @@ function formatRecord(r: LogRecord): string {
 export async function downloadSystemLog(): Promise<void> {
   const now = new Date();
   const records = recentLogs();
-  const degraded = listDegradations();
   const log = [
     `=== ${APP_NAME} 시스템 로그 ===`,
     `생성 시각: ${now.toISOString()}`,
     `앱 버전: v${env.build.version} (build ${env.build.buildNumber})`,
     `커밋: ${env.build.commit}`,
     `플랫폼: ${Platform.OS}`,
-    `데이터 소스: ${env.useMockData ? 'MOCK' : 'LIVE'}`,
-    `API: ${env.apiBaseUrl || '(mock fallback)'}`,
-    '',
-    '--- 목업으로 내려간 기능 ---',
-    ...(degraded.length > 0
-      ? degraded.map((d) => `${d.label}: ${d.reason} (since ${new Date(d.since).toISOString()})`)
-      : ['(없음 — 모든 기능이 실서버를 쓰고 있다)']),
+    `데이터 소스: ${'LIVE'}`,
+    `API: ${env.apiBaseUrl || '(미설정)'}`,
     '',
     `--- 최근 이벤트 (${records.length}건) ---`,
     ...(records.length > 0

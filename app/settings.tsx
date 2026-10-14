@@ -566,7 +566,7 @@ function SettingsBody({ scrollRef }: { scrollRef: React.RefObject<ScrollView> })
                 {APP_NAME} v{env.build.version} · build {env.build.buildNumber}
               </Text>
               <Text style={{ color: c.textSecondary, fontSize: 11, opacity: 0.7, fontFamily: fontMono }}>
-                {env.useMockData ? 'MOCK DATA' : 'LIVE'} · {env.build.commit.slice(0, 7)}
+                {'LIVE'} · {env.build.commit.slice(0, 7)}
               </Text>
             </View>
           </MeasureOffset>

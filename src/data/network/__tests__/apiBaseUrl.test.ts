@@ -65,8 +65,8 @@ describe('describeServer — 어느 서버인지 이름으로 말한다', () => 
     expect(describeServer('http://test.inplat.org:8090').kind).toBe('test');
   });
 
-  it('주소가 없으면 목업 빌드', () => {
-    expect(describeServer('').kind).toBe('mock');
+  it('주소가 없으면 설정 누락', () => {
+    expect(describeServer('').kind).toBe('unconfigured');
   });
 
   it('모르는 주소는 감추지 않고 그대로 보여준다', () => {

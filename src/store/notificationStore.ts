@@ -2,7 +2,6 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Ionicons } from '@expo/vector-icons';
-import { env } from '../data/network/env';
 
 // 모델은 domain 으로 옮겨 서버 저장소(INotificationRepository)와 공유한다.
 export type { NotificationType, AppNotification } from '../domain/models/Notification';
@@ -26,15 +25,6 @@ export const NOTIFICATION_TYPE_META: Record<
 //  · 복습은 '오늘의 학습'에서 자동으로 이어 제시하므로 별도 알림이 불필요.
 //  · 새 콘텐츠 안내는 소음이 되기 쉬워 제외.
 // 성취 기준: 연속 학습 5일(주말 제외), 누적 카드 50개 단위(50·100·150…).
-function seedNotifications(): AppNotification[] {
-  return [
-    { id: 'n3', type: 'achievement', title: '연속 학습 5일 달성! 🔥', desc: '평일 5일 동안 꾸준히 학습하셨어요. 축하합니다!', minutesAgo: 180, read: false, category: '성취' },
-    { id: 'n7', type: 'achievement', title: '누적 50개 카드 완료 🏅', desc: '점검 실무 지식 50개를 학습하셨습니다.', minutesAgo: 52 * 60, read: true, category: '성취' },
-    { id: 'n6', type: 'system', title: '하루3분ON 업데이트', desc: '간격 반복 복습과 학습 캘린더가 추가되었어요.', minutesAgo: 30 * 60, read: true, category: '공지' },
-    { id: 'n10', type: 'system', title: '데이터 백업 완료', desc: '학습 진행 상황이 안전하게 백업되었습니다.', minutesAgo: 8 * 1440, read: true, category: '공지' },
-  ];
-}
-
 interface NotificationState {
   items: AppNotification[];
   /** 종류별 알림 끄기 상태 — 스마트 on/off. */
@@ -86,7 +76,7 @@ export const useNotificationStore = create<NotificationState>()(
       // 자기가 5일 연속 학습했다고 읽었다. 서버가 보낸 알림을 받아오는 경로
       // (useNotificationSync)가 붙기 전까지 그 자리를 채우려던 것인데,
       // 그 경로가 없는 동안 화면은 계속 지어낸 값을 보여 주고 있었다.
-      items: env.useMockData ? seedNotifications() : [],
+      items: [],
       // 복습 주기(remind)·새 콘텐츠(new)는 기본적으로 보내지 않는다(사용자 설정에서도 노출 안 함).
       mutedTypes: { new: true, remind: true, achievement: false, system: false },
       dismissedIds: [],

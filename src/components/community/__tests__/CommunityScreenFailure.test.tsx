@@ -12,7 +12,6 @@ jest.mock('../CollectionTeaserCard', () => ({ CollectionTeaserCard: () => null }
 jest.mock('../QuestionComposeModal', () => ({ QuestionComposeModal: () => null }));
 jest.mock('../HelpWantedCard', () => ({ HelpWantedCard: () => null, pickHelpWanted: () => null }));
 jest.mock('../MyContributionLine', () => ({ MyContributionLine: () => null }));
-jest.mock('../QnaOfflineNotice', () => ({ QnaOfflineNotice: () => null }));
 jest.mock('../../skeletons', () => ({ CommunitySkeleton: () => null }));
 import CommunityScreen from '../../../../app/(tabs)/community';
 import { ThemeProvider } from '../../../theme/ThemeProvider';

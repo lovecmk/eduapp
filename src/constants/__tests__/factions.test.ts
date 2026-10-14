@@ -1,4 +1,5 @@
-import { factionStandings, toFactionId, monthToSeed, FACTIONS } from '../factions';
+import { toFactionId, FACTIONS } from '../factions';
+import { factionStandings, monthToSeed } from '../../__tests__/fixtures/factions';
 
 /**
  * 진영 대항전 — **우승 진영은 앱이 정하지 않는다.**

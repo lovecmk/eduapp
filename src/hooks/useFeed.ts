@@ -2,8 +2,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { feedRepository } from '../data/repositories';
 import type { ReactionKind, ShareCardPost, ShareCardUpload } from '../domain/models/Feed';
 import { withReaction } from '../domain/models/Feed';
-import { useDegraded } from './useDegraded';
-import { env } from '../data/network/env';
 import { logger } from '../utils/logger';
 import { getSessionEpoch } from '../data/network/sessionEpoch';
 
@@ -15,8 +13,7 @@ export const FEED_KEY = ['feed'] as const;
  */
 export function useFeed() {
   const query = useQuery({ queryKey: FEED_KEY, queryFn: () => feedRepository.list(), staleTime: 30_000 });
-  const degraded = useDegraded('feed');
-  return { ...query, posts: query.data ?? [], localOnly: !env.useMockData && degraded };
+  return { ...query, posts: query.data ?? [], localOnly: false };
 }
 
 /** 성취 카드 올리기. */

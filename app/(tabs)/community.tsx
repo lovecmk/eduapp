@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet, ActivityIndicator, type NativeSyntheticEvent, type NativeScrollEvent } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,7 +14,6 @@ import { CollectionTeaserCard } from '../../src/components/community/CollectionT
 import { QuestionComposeModal } from '../../src/components/community/QuestionComposeModal';
 import { HelpWantedCard, pickHelpWanted } from '../../src/components/community/HelpWantedCard';
 import { MyContributionLine } from '../../src/components/community/MyContributionLine';
-import { QnaOfflineNotice } from '../../src/components/community/QnaOfflineNotice';
 import { CommunitySkeleton } from '../../src/components/skeletons';
 import { useCommunity } from '../../src/hooks/useCommunity';
 import { fontDisplay, fontBody, fontMono } from '../../src/theme/tokens';
@@ -110,7 +109,6 @@ export default function CommunityScreen() {
         </View>
 
         {/* 서버에 아직 붙지 않았으면 그 사실을 먼저 말한다 — 붙으면 스스로 사라진다 */}
-        <QnaOfflineNotice />
 
         {/* 내 기여 한 줄 — 기여가 있을 때만 조용히 보인다 */}
         <MyContributionLine questions={questions} />
