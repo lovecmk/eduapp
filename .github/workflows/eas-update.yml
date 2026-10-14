@@ -63,7 +63,7 @@ jobs:
         run: npm run typecheck
 
       - name: Bump build version
-        run: node scripts/bump-version.mjs
+        run: node scripts/bump-version.mjs --check-tag "${{ github.ref_name }}"
 
       # APK/Web와 버전 메타데이터를 맞추고, 미설정 주소 때문에 목업 OTA가
       # production에 게시되는 것을 막는다.

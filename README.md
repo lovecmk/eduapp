@@ -97,6 +97,7 @@ eas build --profile preview --platform android      # → https://bridge.kfpa.or
 patch/빌드 번호를 올려 버전 커밋을 만들고 main과 태그를 원자적으로 push한다.
 태그 Actions는 `--check-tag`로 이미 커밋한 버전을 검증하며 이중으로 번호를 올리지 않는다.
 main 푸시만으로는 빌드하지 않는다. 기존 버전/태그는 재사용하지 않는다.
+웹 번들은 gh-pages 브랜치에 게시된다. 현재 비공개 저장소의 GitHub 요금제는 Pages 호스팅을 지원하지 않아 웹 주소는 제공되지 않는다. 호스팅을 사용하려면 지원 요금제에서 Pages Source를 gh-pages로 설정하거나 별도 웹 호스트로 배포해야 한다. 저장소 공개 전환은 하지 않는다.
 
 ## 서버를 손봐야 할 때
 

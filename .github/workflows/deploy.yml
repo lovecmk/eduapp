@@ -20,6 +20,7 @@ on:
 #  최초 1회만 저장소 Settings → Pages → Source 를 'gh-pages' 브랜치로 지정하면 서빙된다.)
 permissions:
   contents: write
+  pages: read
 
 # 동시 배포 방지 — 진행 중 배포가 있으면 최신 것만 남긴다.
 concurrency:
@@ -109,6 +110,16 @@ jobs:
           enable_jekyll: false
           user_name: 'github-actions[bot]'
           user_email: 'github-actions[bot]@users.noreply.github.com'
+
+      - name: Verify Pages hosting availability
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh api "repos/${GITHUB_REPOSITORY}/pages" --jq .html_url; then
+            echo "Pages hosting is configured."
+          else
+            echo "::warning::Web bundle was pushed to gh-pages, but Pages hosting is unavailable. Private repositories require a supported GitHub plan; publishing the branch alone does not make a website available."
+          fi
 
       # --- version.json 자동 커밋/푸시 ----------------------------------
       # 배포된 코드가 참조할 최신 매니페스트를 레포지토리에 기록한다.

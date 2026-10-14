@@ -13,7 +13,7 @@
 | --- | --- |
 | `app.json` → `updates`, `runtimeVersion`, `expo-updates` 플러그인 | 앱이 OTA 서버를 바라보게 함 |
 | `eas.json` | 빌드 프로필(development·preview·production) + 채널 |
-| `.github/workflows/eas-update.yml` | `main` 푸시 시 OTA 자동 게시 |
+| `.github/workflows/eas-update.yml` | `vX.Y.Z-<short SHA>` 릴리스 태그 푸시 시 OTA 자동 게시 |
 | `.github/workflows/eas-build.yml` | 네이티브 빌드(수동 실행) |
 | `src/data/update/NativeUpdateService.ts` | 앱 내부에서 `expo-updates` 로 확인/다운로드/재시작 |
 | `src/hooks/useAppUpdate.ts` | 웹=version.json / 네이티브=EAS Update 자동 분기 |
@@ -22,7 +22,7 @@
 
 ## 자동 업데이트 동작 방식
 
-1. `main` 에 순수 JS/에셋 변경이 푸시되면 `eas-update.yml` 이
+1. 검증된 JS/에셋 변경을 main과 릴리스 태그로 함께 푸시하면 `eas-update.yml` 이
    `eas update --branch production` 으로 새 번들을 게시한다.
 2. 사용자의 설치된 앱은 `app.json` 의 `checkAutomatically: ON_LOAD` 에 따라
    **콜드 스타트마다 자동으로** 새 번들을 확인·다운로드하고, 다음 실행에 적용한다.
@@ -105,7 +105,7 @@ eas build --profile production --platform all
 
 ## 이후 운영
 
-- **JS/에셋만 변경** → `main` 에 푸시하면 끝. `eas-update.yml` 이 자동 OTA.
+- **JS/에셋만 변경** → patch/빌드 번호를 올리고 main과 릴리스 태그를 함께 푸시한다. `eas-update.yml`이 APK/Web과 동일한 태그 버전을 검증해 OTA를 게시한다.
   (수동: Actions → **EAS Update (OTA)** → Run workflow → 브랜치 선택)
 - **네이티브 변경**(새 네이티브 모듈, `app.json` 권한, `runtimeVersion` 등)
   → `eas-build.yml` 로 새 빌드 후 스토어 제출. 그 다음부터 다시 OTA.
