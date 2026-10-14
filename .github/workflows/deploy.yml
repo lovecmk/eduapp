@@ -1,6 +1,6 @@
 # 완전 자동화 배포 파이프라인 — PART 5.3
 #
-# main 브랜치 푸시 또는 수동 실행 시:
+# 릴리스 태그 푸시 또는 수동 실행 시:
 #  1) Secrets → .env 동적 주입 (없으면 운영 API 기본값)
 #  2) 배포 버전 카운트(+1) 후 version.json 생성
 #  3) 번들에 버전 정보를 구워 웹 빌드(expo export)
@@ -10,7 +10,7 @@ name: Build & Deploy (Web + OTA)
 
 on:
   push:
-    branches: [main]
+    tags: ['v*']
   workflow_dispatch:
 
 # version.json 자동 푸시 + gh-pages 브랜치 배포 모두 contents:write 만으로 동작한다.
@@ -46,12 +46,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Production defaults to the live API; mock builds require an explicit flag.
+      # Production uses the live API; demo builds are unsupported.
       - name: Inject .env from Secrets
         env:
           API_BASE_URL: ${{ secrets.EXPO_PUBLIC_API_BASE_URL || 'https://bridge.kfpa.or.kr' }}
           API_TIMEOUT_MS: ${{ secrets.EXPO_PUBLIC_API_TIMEOUT_MS || '10000' }}
-          USE_MOCK_DATA: ${{ secrets.EXPO_PUBLIC_USE_MOCK_DATA || 'false' }}
           SENTRY_DSN: ${{ secrets.EXPO_PUBLIC_SENTRY_DSN }}
         run: |
           node --input-type=module <<'JS'
@@ -59,20 +58,18 @@ jobs:
           const values = {
             EXPO_PUBLIC_API_BASE_URL: process.env.API_BASE_URL,
             EXPO_PUBLIC_API_TIMEOUT_MS: process.env.API_TIMEOUT_MS,
-            EXPO_PUBLIC_USE_MOCK_DATA: process.env.USE_MOCK_DATA,
             EXPO_PUBLIC_SENTRY_DSN: process.env.SENTRY_DSN,
           };
           if (Object.values(values).some(value => /[\r\n]/.test(value ?? ''))) throw new Error('Invalid multiline build configuration');
           const url = new URL(values.EXPO_PUBLIC_API_BASE_URL);
           if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password || url.search || url.hash) throw new Error('Invalid API target');
-          if (!['true', 'false'].includes(values.EXPO_PUBLIC_USE_MOCK_DATA)) throw new Error('Invalid mock mode');
           writeFileSync('.env', Object.entries(values).map(([key, value]) => `${key}=${value ?? ''}`).join('\n') + '\n');
           JS
           echo ".env 생성 완료 (값은 마스킹됨)"
 
       # --- 버전 카운트 & 매니페스트 -------------------------------------
       - name: Bump build version
-        run: node scripts/bump-version.mjs
+        run: node scripts/bump-version.mjs --check-tag "${{ github.ref_name }}"
 
       # 번들에 구워질 빌드 메타데이터를 .env 에 덧붙인다(런타임 OTA 비교 기준).
       - name: Append build metadata to .env
@@ -116,6 +113,7 @@ jobs:
       # --- version.json 자동 커밋/푸시 ----------------------------------
       # 배포된 코드가 참조할 최신 매니페스트를 레포지토리에 기록한다.
       - name: Commit version manifest
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"

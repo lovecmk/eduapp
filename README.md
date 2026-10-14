@@ -1,5 +1,10 @@
 # 하루3분ON (eduapp)
 
+> 목적: 모바일 개발·실서버 연결·릴리스 안내
+> 기준 문서: `AGENTS.md`, `eas.json`, `docs/THREE_REPO_AUDIT.md`
+> 작성자: codex
+> 최종 갱신일: 2026-10-14
+
 현장 안전학습 모바일 앱. Expo(React Native) + expo-router.
 
 ## 이 저장소에 있는 것
@@ -25,7 +30,7 @@ API 는 모두 `/inner/api/v1` 아래에 있다(`/inner/api/v1/auth/login`,
 브릿지 계정으로 로그인한다. **사내 이메일 또는 브릿지 아이디** 둘 다 받는다 —
 사람들이 외우고 있는 것은 대개 아이디가 아니라 자기 이메일이다.
 
-앱 안에는 회원가입·비밀번호 찾기가 없다(목업 모드에서만 보인다). 계정은 브릿지가
+앱 안에는 회원가입·비밀번호 찾기가 없다. 계정은 브릿지가
 쥐고 있어 이 앱이 만들 수도 고칠 수도 없다.
 
 ## 시작하기
@@ -36,8 +41,9 @@ cp .env.example .env    # 서버 주소를 확인한다
 npm start
 ```
 
-`.env` 의 `EXPO_PUBLIC_API_BASE_URL` 이 서버를 가리킨다. 비워 두면 목업으로 돌아
-서버 없이도 화면을 볼 수 있다(`EXPO_PUBLIC_USE_MOCK_DATA` 로 명시할 수도 있다).
+`.env` 의 `EXPO_PUBLIC_API_BASE_URL` 이 서버를 가리킨다. 비어 있으면 연결 설정 오류다.
+목업 모드와 `EXPO_PUBLIC_USE_MOCK_DATA`는 폐지했고 모든 저장소가 실서버 API를 사용한다.
+시험 자료는 `src/__tests__/fixtures/`에 있으며 운영 코드에서 import하지 않는다.
 
 ```bash
 npm run verify   # typecheck + jest
@@ -51,13 +57,12 @@ npm run verify   # typecheck + jest
 |---|---|---|
 | 운영 | `https://bridge.kfpa.or.kr` | **기본값.** 로컬 개발·EAS 프로필 전부 (DMZ1) |
 | 테스트 | `http://test.inplat.org:8090` | 사내망에서만 닿는다. 어느 프로필도 기본으로 쓰지 않는다 |
-| 목업 | (빈 값) | 서버 없이 화면만 |
 
 테스트 주소는 사내망 밖에서 DNS 조차 풀리지 않아, 그대로 앱을 켜면 요청이 서버에
 닿지 못하고 화면에는 "네트워크에 연결할 수 없어요" 만 뜬다(서버는 멀쩡한데 원인을
 서버에서 찾게 되는 실패다). 사내망 안에서 확인할 때만 `.env` 를 손으로 바꿔 쓴다.
 
-`/api` 는 붙이지 않는다 — ApiClient 가 모든 요청에 알아서 붙인다.
+`/api`나 `/inner/api/v1`은 주소에 붙이지 않는다. 각 저장소의 요청 경로에 `/inner/api/v1`이 있다.
 
 주소가 `http://` 면 `app.config.js` 가 **그 호스트 하나에 대해서만** 안드로이드
 cleartext / iOS ATS 예외를 붙인다(`plugins/withInsecureApiHost.js`). 운영(https)
@@ -82,15 +87,16 @@ eas build --profile preview --platform android      # → https://bridge.kfpa.or
 ```
 
 **GitHub Actions APK** — `Build Android APK (Local)` 를 수동 실행하면 드롭다운에서
-`production` / `test` / `mock` 을 고른다. main 푸시로 자동 실행되면 `production` 이다.
+`production` / `test`를 고른다. 태그 푸시로 자동 실행되면 `production`이다.
 
 **로컬 확인** — 앱의 `개발자 모드 > 환경 설정` 화면에 지금 보는 주소와
-`실서버(Live)/목업(Mock)` 이 그대로 표시된다. 서버 점검 버튼은 `GET /inner/api/v1/health` 를
+`실서버(Live)`와 대상 서버가 표시된다. 서버 점검 버튼은 `GET /inner/api/v1/health`를
 때려 응답 시간과 서버 버전을 보여준다.
 
-> 목업으로 배포되는 사고를 막는 장치가 둘 있다. 워크플로가 주소를 스스로 정하고
-> (예전에는 시크릿이 비면 조용히 목업 APK 가 나갔다), 주소가 있는데 목업 모드면
-> `env.ts` 가 경고 로그를 남긴다.
+릴리스 태그는 `vX.Y.Z-<커밋의 짧은 SHA>`다. 검증 후 `node scripts/bump-version.mjs`로
+patch/빌드 번호를 올려 버전 커밋을 만들고 main과 태그를 원자적으로 push한다.
+태그 Actions는 `--check-tag`로 이미 커밋한 버전을 검증하며 이중으로 번호를 올리지 않는다.
+main 푸시만으로는 빌드하지 않는다. 기존 버전/태그는 재사용하지 않는다.
 
 ## 서버를 손봐야 할 때
 
@@ -105,11 +111,12 @@ API 계약은 `docs/API_CONTRACT.md` 에 그대로 남아 있다 — 주소가 �
 화면/라우터/비동기 처리 점검 결과와 재현 명령은
 [docs/UI_AUDIT_2026-10-02.md](./docs/UI_AUDIT_2026-10-02.md)에 있다.
 `npm run audit:ui`는 페이지·이벤트·화면 이동 목록을 생성하고,
-`npm run test:ui -- <목업 웹 번들 경로>`는 격리된 브라우저 검사를 실행한다.
+`npm run test:ui -- dist`는 실서버 저장소를 사용하는 번들에 격리 HTTP 응답을 제공해
+빈 데이터·로딩·오류·세션 만료·좁은 화면을 검사한다. 실제 서버에는 쓰지 않는다.
 
-서버와 콘솔은 **다른 사설 저장소**에 있어 여기서 열어 볼 수 없다. 그래서 앱을
-고치는 데 필요한 저쪽 내용을 옮겨 적어 두었다 —
-**[docs/PLATFORM_SPLIT.md](./docs/PLATFORM_SPLIT.md)**.
+세 저장소의 계약 대조, DB 감사·정리, 백엔드 배포 순서는
+[통합 점검 기록](docs/THREE_REPO_AUDIT.md)을 확인한다. 이전 플랫폼 이관 문서의
+목업 폴백 설명은 현재 적용되지 않는다.
 
 서버가 도는 조건(속도 제한·토큰 수명·반쯤 뜬 상태), 회원·등급 매핑, 실제로 등록된
 경로 목록, 운영자가 재배포 없이 바꾸는 값(`/inner/api/v1/config`)과 콘솔 화면이 앱에 미치는

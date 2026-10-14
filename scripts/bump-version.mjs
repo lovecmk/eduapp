@@ -44,8 +44,12 @@ const current = readJson(publicManifest, readJson(rootManifest, { buildNumber: 0
 const appConfig = readJson(appConfigPath, { expo: {} });
 
 const previousBuild = current.buildNumber;
-const build = nextBuildNumber(previousBuild);
-const version = nextVersion(appConfig?.expo?.version, current.version);
+const requestedTag = process.argv[2] === '--check-tag' ? process.argv[3] : '';
+const tagVersion = /^v(\d+\.\d+\.\d+)-[0-9a-f]+$/.exec(requestedTag ?? '')?.[1];
+if (requestedTag?.startsWith('v') && !tagVersion) throw new Error('Invalid release tag');
+if (tagVersion && (appConfig.expo.version !== tagVersion || current.version !== tagVersion)) throw new Error('Tag and version manifests differ');
+const build = tagVersion ? previousBuild : nextBuildNumber(previousBuild);
+const version = tagVersion ?? nextVersion(appConfig?.expo?.version, current.version);
 
 const manifest = {
   version,

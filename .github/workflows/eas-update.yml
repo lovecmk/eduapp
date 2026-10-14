@@ -1,6 +1,6 @@
 # EAS Update — 모바일 앱 OTA(무선) 자동 업데이트
 #
-# main 브랜치에 푸시되면 JS/에셋 변경분을 EAS Update 로 게시한다.
+# 릴리스 태그를 푸시하면 JS/에셋 변경분을 EAS Update로 게시한다.
 # production 채널에 연결된 기존 네이티브 빌드(스토어 배포본)는 다음 실행 시
 # 자동으로 새 번들을 내려받아 적용한다(app.json 의 checkAutomatically: ON_LOAD).
 #
@@ -13,19 +13,7 @@ name: EAS Update (OTA)
 
 on:
   push:
-    branches: [main]
-    # 네이티브 재빌드가 필요 없는(순수 JS/에셋) 변경만 OTA 대상.
-    paths:
-      - 'app/**'
-      - 'src/**'
-      - 'assets/**'
-      - 'package.json'
-      - 'package-lock.json'
-      - 'app.json'
-      - 'app.config.js'
-      - 'scripts/bump-version.mjs'
-      - 'scripts/version-core.cjs'
-      - '.github/workflows/eas-update.yml'
+    tags: ['v*']
   workflow_dispatch:
     inputs:
       branch:
@@ -84,7 +72,6 @@ jobs:
           cat > .env <<EOF
           EXPO_PUBLIC_API_BASE_URL=https://bridge.kfpa.or.kr
           EXPO_PUBLIC_API_TIMEOUT_MS=${{ secrets.EXPO_PUBLIC_API_TIMEOUT_MS || '10000' }}
-          EXPO_PUBLIC_USE_MOCK_DATA=false
           EXPO_PUBLIC_SENTRY_DSN=${{ secrets.EXPO_PUBLIC_SENTRY_DSN }}
           EXPO_PUBLIC_BUILD_NUMBER=${APP_BUILD_NUMBER}
           EXPO_PUBLIC_APP_VERSION=${APP_VERSION}
