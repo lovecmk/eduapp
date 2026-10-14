@@ -1,6 +1,7 @@
 import { isDue, type SrsCardState } from './srs';
 import { startOfDay as startOfDayDate } from '../utils/dateKey';
 import type { LearningCard } from './models/LearningCard';
+import { DAILY_REVIEW_CARDS } from '../constants/learning';
 
 /**
  * 오늘의 복습 계획.
@@ -79,7 +80,7 @@ export interface ReviewPlan {
 }
 
 /** 한 번에 제시하는 최대 장수 — 마이크로러닝 부담을 넘기지 않는다. */
-export const REVIEW_SESSION_CAP = 20;
+export const REVIEW_SESSION_CAP = DAILY_REVIEW_CARDS;
 
 /** 이만큼 잊었으면 '자주 잊는 카드'로 본다. */
 export const FRAGILE_LAPSES = 2;
@@ -117,15 +118,20 @@ export function buildReviewPlan(
   const longRested = dueList.filter(({ state }) => state.dueAt < startOfToday).length;
   const fragile = dueList.filter(({ state }) => state.lapses >= FRAGILE_LAPSES).length;
 
-  const queue = sorted.slice(0, REVIEW_SESSION_CAP).map((x) => x.card);
+  const kstToday = Math.floor((now + 9 * 3600000) / DAY) * DAY - 9 * 3600000;
+  const reviewedToday = withState.filter(({ state }) => state.reps > 1 &&
+    (state.lastReviewedAt ?? 0) >= kstToday && (state.lastReviewedAt ?? 0) <= now).length;
+  const remaining = Math.max(0, REVIEW_SESSION_CAP - reviewedToday);
+  const queue = sorted.slice(0, remaining).map((x) => x.card);
+  const exhausted = remaining === 0 && dueList.length > 0;
 
   return {
     queue,
-    dueCount: dueList.length,
-    state: decideState(dueList.length, withState.length),
+    dueCount: exhausted ? 0 : dueList.length,
+    state: decideState(queue.length, withState.length),
     longRested,
     fragile,
-    nextDueAt: findNextDue(withState, now),
+    nextDueAt: exhausted ? kstToday + DAY : findNextDue(withState, now),
     upcoming: buildUpcoming(withState, now),
     now,
   };

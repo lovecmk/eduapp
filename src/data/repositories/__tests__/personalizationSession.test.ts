@@ -14,7 +14,8 @@ it('계정 전환 후 도착한 이전 응답이 새 계정의 복습 정책을 
   resolve({ cards: [], personalized: true, review_policy: { first_days: 20, repeat_days: 10 } });
   await expect(pending).rejects.toMatchObject({ kind: 'cancelled' });
   const prev = initialState(); const next = schedule(prev, 'again');
-  expect(applyPersonalReviewPolicy(prev, next, 'again')).toBe(next);
+  expect(applyPersonalReviewPolicy(prev, next, 'again').dueAt).not.toBe(next.dueAt);
+  expect(applyPersonalReviewPolicy(prev, next, 'again').dueAt - (next.lastReviewedAt ?? Date.now())).toBeLessThanOrEqual(3 * 86400000);
 });
 it('응답 객체를 이후 변경해도 설치된 정책은 바뀌지 않는다', () => {
   const policy = { first_days: 5, repeat_days: 3 };

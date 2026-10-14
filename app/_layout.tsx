@@ -21,6 +21,7 @@ import { useReminderSchedule } from '../src/hooks/useReminderSchedule';
 import { useFactionSync } from '../src/hooks/useFactionSync';
 import { useLocalBackfill } from '../src/hooks/useLocalBackfill';
 import { BiometricLockGate } from '../src/components/auth/BiometricLockGate';
+import { useNotificationRouting } from '../src/hooks/useNotificationRouting';
 import { useNotificationSync } from '../src/hooks/useNotificationSync';
 import { useAuthStore } from '../src/store/authStore';
 import { useSettingsStore } from '../src/store/settingsStore';
@@ -121,6 +122,7 @@ function RootContent() {
   useEngagementSync();
   useReportSync();
   useNotificationSync();
+  useNotificationRouting();
   // 내 진영 — 서버가 알아야 진영 대항전을 진영별로 집계한다(서버 미배포면 조용히 기기에만).
   useFactionSync();
   // 서버 라우트가 열리면, 그 전까지 이 기기에만 쌓인 글·팁·투표·질문을 옮긴다.

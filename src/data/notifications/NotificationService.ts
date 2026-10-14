@@ -5,6 +5,7 @@ import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 import { env } from '../network/env';
 import { apiClient } from '../network/ApiClient';
+import { ROUTES } from '../../constants/routes';
 import { hapticSuccess } from '../../utils/haptics';
 
 const isNative = Platform.OS !== 'web';
@@ -81,6 +82,7 @@ export async function scheduleDailyReminder(time: string): Promise<void> {
   await Notifications.scheduleNotificationAsync({
     content: {
       title: '오늘의 학습 카드가 도착했어요',
+      data: { route: ROUTES.cards },
       body: '3분이면 충분해요. 오늘도 안전하게!',
       sound: 'default',
       ...(Platform.OS === 'android' ? { channelId: CHANNEL_ID, vibrationPattern: VIBRATION_PATTERN } : {}),
@@ -241,6 +243,7 @@ export async function sendTestNotification(): Promise<boolean> {
     content: {
       title,
       body,
+      data: { route: ROUTES.review },
       sound: 'default',
       ...(Platform.OS === 'android' ? { channelId: CHANNEL_ID, vibrationPattern: VIBRATION_PATTERN } : {}),
     },

@@ -70,7 +70,8 @@ export default function NotificationsScreen() {
   const openNotification = (n: AppNotification) => {
     markRead(n.id);
     const route = ROUTE_BY_TYPE[n.type];
-    if (route) router.push(route as never);
+    if (route === ROUTES.review) router.navigate(ROUTES.review);
+    else if (route) router.push(route as never);
   };
 
   const filtered = useMemo(

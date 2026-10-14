@@ -8,6 +8,7 @@ import { dateKey } from '../../utils/dateKey';
 import { setPersonalReviewPolicy, type PersonalReviewPolicy } from '../network/personalReviewPolicy';
 import { ApiError } from '../network/errors';
 import { assertSessionEpoch, getSessionEpoch } from '../network/sessionEpoch';
+import { DAILY_NEW_CARDS, DAILY_REVIEW_CARDS } from '../../constants/learning';
 export interface TodayPlanDTO {
   personalized?: boolean;
   review_policy?: PersonalReviewPolicy;
@@ -52,8 +53,8 @@ export class DailyAssignmentRepository implements IDailyAssignmentRepository {
     if (dto.target_count != null && !count(dto.target_count) || dto.done_count != null && (!count(dto.done_count) || dto.done_count > dto.cards.length)) throw new ApiError(502, '오늘의 학습 목표 응답이 올바르지 않습니다', 'server');
     if (dto.personalized === true) {
       const invalid = () => new ApiError(502, '개인화 학습 배포 계약이 올바르지 않습니다', 'server');
-      if (dto.cards.length > 5 || dto.cards.some(c => !c || !['NEW', 'REVIEW'].includes(c.kind ?? '') || typeof c.done !== 'boolean' || typeof c.recommend_reason !== 'string' || !c.recommend_reason || c.recommend_score != null && (typeof c.recommend_score !== 'number' || !Number.isFinite(c.recommend_score)))) throw invalid();
-      if (dto.cards.filter(c => c.kind === 'NEW').length > 3 || dto.cards.filter(c => c.kind === 'REVIEW').length > 2 || dto.target_count !== dto.cards.length || dto.done_count !== dto.cards.filter(c => c.done).length) throw invalid();
+      if (dto.cards.length > DAILY_NEW_CARDS + DAILY_REVIEW_CARDS || dto.cards.some(c => !c || !['NEW', 'REVIEW'].includes(c.kind ?? '') || typeof c.done !== 'boolean' || typeof c.recommend_reason !== 'string' || !c.recommend_reason || c.recommend_score != null && (typeof c.recommend_score !== 'number' || !Number.isFinite(c.recommend_score)))) throw invalid();
+      if (dto.cards.filter(c => c.kind === 'NEW').length > DAILY_NEW_CARDS || dto.cards.filter(c => c.kind === 'REVIEW').length > DAILY_REVIEW_CARDS || dto.target_count !== dto.cards.length || dto.done_count !== dto.cards.filter(c => c.done).length) throw invalid();
       const policy = dto.review_policy;
       if (!policy || ![policy.first_days, policy.repeat_days].every(value => Number.isInteger(value) && value >= 1 && value <= 365)) throw invalid();
       if (dto.day != null || dto.resets_at != null) {

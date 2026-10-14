@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, Pressable, Animated, ScrollView, Dimensions, Platform, BackHandler, Modal, PanResponder, Easing } from 'react-native';
-import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
+import { View, Text, Pressable, Animated, ScrollView, Dimensions, Platform, BackHandler, Modal, PanResponder, Easing, type GestureResponderEvent } from 'react-native';
+import { useRouter, useNavigation, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { hapticTap, hapticSuccess, hapticError } from '../../src/utils/haptics';
@@ -18,6 +18,7 @@ import { CardTimer } from '../../src/components/cards/CardTimer';
 import { CardBackBody } from '../../src/components/cards/CardBackBody';
 import { ScrollFadeEdge } from '../../src/components/ui/ScrollFadeEdge';
 import { CuteScrollRail, ScrollMoreHint, ScrollEndStamp } from '../../src/components/ui/CuteScrollRail';
+import { useCardFlip } from '../../src/hooks/useCardFlip';
 import { useScrollHasMore } from '../../src/hooks/useScrollHasMore';
 import { CardQuiz } from '../../src/components/cards/CardQuiz';
 import { CardReportModal } from '../../src/components/cards/CardReportModal';
@@ -87,17 +88,14 @@ export default function CardsScreen() {
   const c = theme.colors;
   const fs = fontScale;
   const router = useRouter();
+  const tabs = useNavigation();
+  const finishFlow = useCallback((target: string) => endFlow(router, target, tabs), [router, tabs]);
 
   // 투트랙 UI — 원진섭 계정은 스와이프/탭 기반, 그 외는 기존 버튼 기반.
   const user = useAuthStore((s) => s.user);
   const isSwipeTrack = getUxTrack(user) === 'swipe';
 
   const [index, setIndex] = useState(0);
-  const [flipped, setFlipped] = useState(false);
-  // 하단 버튼 전환을 카드 회전 '중간쯤'에 맞추기 위한 지연 상태.
-  // flipped 는 즉시 바뀌지만(애니메이션 시작), 버튼은 카드가 반쯤 돌아갔을 때 나타나거나 사라진다.
-  const [backControls, setBackControls] = useState(false);
-  const controlTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [doneCount, setDoneCount] = useState(0);
   const [finished, setFinished] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
@@ -191,7 +189,7 @@ export default function CardsScreen() {
   const vote = useDifficultyVote();
 
   // 카드 뒤집기(rotateY) + 넘김(translate/opacity) 애니메이션 값.
-  const flipAnim = useRef(new Animated.Value(0)).current;
+
   const translateX = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(0)).current;
   const cardOpacity = useRef(new Animated.Value(1)).current;
@@ -302,6 +300,8 @@ export default function CardsScreen() {
   const sessionKey = `${user?.id ?? 'guest'}:${isFocusMode ? `focus:${focusId}` : isDueMode ? 'due' : isCategoryMode ? `category:${category}` : 'today'}`;
   const activeSession = useRef(sessionKey);
   activeSession.current = sessionKey;
+  const { progress: flipAnim, flipped, backControls, animating: flipAnimating, target: flipTarget, toggle: toggleFlip, reset: resetFlip } = useCardFlip(`${sessionKey}:${index}`);
+
 
   useEffect(() => {
     // 세션 대상(오늘 학습 / 카테고리 복습 / 단일 카드)이 바뀌면 덱뿐 아니라 진행 상태를
@@ -311,8 +311,6 @@ export default function CardsScreen() {
     setFinished(false);
     setIndex(0);
     setDoneCount(0);
-    setFlipped(false);
-    setBackControls(false);
     setQuizPick(null);
     setQuizRevealed(false);
     setExiting(false);
@@ -320,12 +318,11 @@ export default function CardsScreen() {
     setAskVisible(false);
     pendingAdvanceRef.current = null;
     if (autoFlipTimer.current) clearTimeout(autoFlipTimer.current);
-    if (controlTimer.current) clearTimeout(controlTimer.current);
     progressAnim.stopAnimation();
     translateX.stopAnimation();
     translateY.stopAnimation();
     cardOpacity.stopAnimation();
-    flipAnim.setValue(0);
+    resetFlip();
     translateX.setValue(0);
     translateY.setValue(0);
     cardOpacity.setValue(1);
@@ -387,7 +384,7 @@ export default function CardsScreen() {
   }, [shadowAnim]);
 
   const resetCardAnims = useCallback(() => {
-    flipAnim.setValue(0);
+    resetFlip();
     translateX.setValue(0);
     translateY.setValue(0);
     cardOpacity.setValue(1);
@@ -396,31 +393,12 @@ export default function CardsScreen() {
     // 차오르던 중이었다면 먼저 멈춰야 0 으로 되돌린 값이 곧바로 덮어써지지 않는다.
     shadowAnim.stopAnimation();
     shadowAnim.setValue(0);
-  }, [flipAnim, translateX, translateY, cardOpacity, scaleAnim, shadowAnim]);
+  }, [resetFlip, translateX, translateY, cardOpacity, scaleAnim, shadowAnim]);
 
-  const FLIP_DURATION = 360;
-  const doFlip = useCallback((next: boolean) => {
+  const doFlip = useCallback(() => {
     haptic();
-    setFlipped(next);
-    // 뒷면을 열 때는 늘 첫 줄부터. (앞면으로 갔다가 다시 와도 마찬가지다 —
-    // 돌아왔을 때 중간부터 보이면 어디를 읽던 중이었는지 되짚어야 한다.)
-    if (next) resetBackScroll();
-    // 그림자는 **끄지 않는다.** 예전에는 도는 동안 통째로 지웠는데, 라이트 모드에서는
-    // 카드도 배경도 흰색이라 그림자가 사라진 순간 카드가 배경에 녹아 없어져 보였다.
-    // 지금은 그림자 판이 회전각에 맞춰 가로로 좁아졌다 넓어지므로(shadowScaleX),
-    // 잔상 없이 카드와 함께 자연스럽게 얇아진다 — 지울 이유가 없다.
-    // 하단 버튼은 카드가 반쯤 돌아간 시점(≈절반)에 맞춰 나타나거나 사라지게 한다.
-    if (controlTimer.current) clearTimeout(controlTimer.current);
-    controlTimer.current = setTimeout(() => setBackControls(next), FLIP_DURATION * 0.48);
-    // 뒤집힘 — 튀는 스프링·스케일 팝 없이, 부드러운 이징으로 한 번에 매끄럽게 넘긴다.
-    // (통통 튀던 과한 느낌을 걷어내고 종이를 넘기듯 잔잔하게.)
-    Animated.timing(flipAnim, {
-      toValue: next ? 1 : 0,
-      duration: FLIP_DURATION,
-      easing: Easing.inOut(Easing.ease),
-      useNativeDriver: true,
-    }).start();
-  }, [flipAnim, resetBackScroll]);
+    if (toggleFlip()) resetBackScroll();
+  }, [toggleFlip, resetBackScroll]);
 
   // 퀴즈(OX/객관식) 보기 선택 → 정답/오답 이펙트(햅틱)만 주고, 뒤집기는 하지 않는다.
   // 자동으로 넘어가면 정답을 곱씹을 새가 없어, 사용자가 카드를 직접 탭해 해설로 넘어가도록 둔다.
@@ -465,7 +443,6 @@ export default function CardsScreen() {
   // 화면 이탈/카드 전환 시 예약된 타이머 정리.
   useEffect(() => () => {
     if (autoFlipTimer.current) clearTimeout(autoFlipTimer.current);
-    if (controlTimer.current) clearTimeout(controlTimer.current);
   }, []);
 
   const pendingPerception = useRef<'' | 'EASY' | 'MEDIUM' | 'HARD'>('');
@@ -494,9 +471,6 @@ export default function CardsScreen() {
     // 방금 세 장을 풀고 나온 사람에게 0/3 은 앱이 고장 난 것으로 읽힌다.
     // 한 장을 마친 그 순간이 적립의 단위이자 시점이다.
     useCollectionStore.getState().addStudyProgress(1);
-    setFlipped(false);
-    if (controlTimer.current) clearTimeout(controlTimer.current);
-    setBackControls(false);
     setQuizPick(null);
     setQuizRevealed(false);
     resetCardAnims();
@@ -644,14 +618,17 @@ export default function CardsScreen() {
     if (exiting) return;
     // 방금 본문을 움직였다면 이 탭은 스크롤의 꼬리다 — 뒤집지 않는다.
     if (Date.now() - bodyScrolledAtRef.current < BODY_SCROLL_TAP_GUARD_MS) return;
-    if (!flipped) {
+    if (!flipTarget.current) {
       const isQuizCard = card && (card.type === 'ox' || card.type === 'choice');
       if (isQuizCard && !quizRevealed) { shakeMustSolve(); return; }
-      doFlip(true);
-    } else {
-      doFlip(false);
     }
-  }, [exiting, flipped, card, quizRevealed, shakeMustSolve, doFlip]);
+    doFlip();
+  }, [exiting, flipTarget, card, quizRevealed, shakeMustSolve, doFlip]);
+
+  const onBackPress = useCallback((event?: GestureResponderEvent) => {
+    event?.stopPropagation();
+    onCardPress();
+  }, [onCardPress]);
 
   // PanResponder 클로저가 최신 상태를 참조하도록 ref 로 미러링.
   const trySwipeRef = useRef(trySwipe);
@@ -711,11 +688,11 @@ export default function CardsScreen() {
       const epoch = getSessionEpoch();
       const animation = Animated.timing(progressAnim, { toValue: 1, duration: 900, useNativeDriver: false });
       animation.start(({ finished: ok }) => {
-        if (ok && focused.current && epoch === getSessionEpoch()) endFlow(router, returnTo);
+        if (ok && focused.current && epoch === getSessionEpoch()) finishFlow(returnTo);
       });
       return () => animation.stop();
     }
-  }, [finished, returnTo, router, progressAnim, sessionKey]);
+  }, [finished, returnTo, finishFlow, progressAnim, sessionKey]);
 
   const restart = () => {
     actionLocked.current = false;
@@ -726,8 +703,6 @@ export default function CardsScreen() {
     setSessionDeck(null);
     setIndex(0);
     setDoneCount(0);
-    setFlipped(false);
-    setBackControls(false);
     setFinished(false);
     setExiting(false);
     setQuizPick(null);
@@ -779,16 +754,14 @@ export default function CardsScreen() {
     }, [sessionActive, exitConfirm, isSwipeTrack]),
   );
 
-  // 세션을 떠날 때는 endFlow 로 이동한다.
-  // replace 만 쓰면 스택에 돌아갈 곳이 남지 않아, 도착한 화면에서 뒤로가기를 누르면
-  // 앱이 그대로 종료된다. endFlow 는 홈을 깔고 목적지를 얹어 뒤로가기가 홈으로 가게 한다.
+  // 복습은 같은 탭으로 전환하고, 완료한 학습은 뒤로가기 이력에서 지운다.
   const leaveSession = useCallback((target: string) => {
     if (autoFlipTimer.current) clearTimeout(autoFlipTimer.current);
     setExitConfirm(false);
     setAskVisible(false);
     pendingAdvanceRef.current = null;
-    endFlow(router, target);
-  }, [router]);
+    finishFlow(target);
+  }, [finishFlow]);
 
   if (isLoading && deck.length === 0 && !error) {
     return <CardStudySkeleton />;
@@ -822,7 +795,7 @@ export default function CardsScreen() {
           <Text style={{ color: c.textSecondary, fontSize: 12.5 * fs, fontFamily: fontCute }}>내일 자정에 새 학습이 열려요</Text>
         </View>
         <Pressable accessibilityRole="button"
-          onPress={() => endFlow(router, ROUTES.review)}
+          onPress={() => finishFlow(ROUTES.review)}
           style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.primary, borderRadius: 14, paddingVertical: 15, paddingHorizontal: 28, marginTop: 24, boxShadow: '0 6px 16px rgba(37,99,235,0.28)' }}
         >
           <Ionicons name="refresh" size={18} color="#fff" />
@@ -875,7 +848,7 @@ export default function CardsScreen() {
         <Text style={{ color: c.textSecondary, marginTop: 8, textAlign: 'center', lineHeight: 21 * fs, fontFamily: fontCute }}>{emptyBody}</Text>
         <Pressable accessibilityRole="button"
           // 카드가 아예 없으면 복습으로 보내 봐야 거기도 비어 있다 — 막다른 길이다.
-          onPress={() => endFlow(router, returnTo ?? (isFocusMode ? ROUTES.contents : noContentAtAll ? ROUTES.home : ROUTES.review))}
+          onPress={() => finishFlow(returnTo ?? (isFocusMode ? ROUTES.contents : noContentAtAll ? ROUTES.home : ROUTES.review))}
           style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.primary, borderRadius: 14, paddingVertical: 15, paddingHorizontal: 28, marginTop: 24, boxShadow: '0 6px 16px rgba(37,99,235,0.28)' }}
         >
           <Ionicons name={isFocusMode ? 'arrow-back' : noContentAtAll ? 'home' : 'refresh'} size={18} color="#fff" />
@@ -913,19 +886,16 @@ export default function CardsScreen() {
           </>
         ) : (
           <View style={{ width: '100%', gap: 10, marginTop: 4 }}>
-            {/* 오늘의 학습을 마쳤으면 '복습하러 가기' — 방금 학습한 카드를 복습 > 모아보기 >
-                오늘 학습한 카드에서 바로 다시 본다.
-                복습을 마쳤으면 같은 말이 어색하다("복습 완료!" 아래 "복습하러 가기").
-                그때는 다른 분야·남은 복습을 고를 수 있는 복습 목록으로 돌려보낸다. */}
+            {/* 완료 후에는 하단 복습 탭과 같은 화면으로 이동한다. */}
             <Pressable accessibilityRole="button"
-              onPress={() => endFlow(router, isCategoryMode || isDueMode ? ROUTES.review : ROUTES.collection('today'))}
+              onPress={() => finishFlow(ROUTES.review)}
               style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.primary, borderRadius: 14, paddingVertical: 15, paddingHorizontal: 28, boxShadow: '0 6px 16px rgba(37,99,235,0.28)' }}
             >
               <Ionicons name={isCategoryMode || isDueMode ? 'list' : 'refresh'} size={18} color="#fff" />
               <Text style={{ color: '#fff', fontSize: 15 * fs, fontWeight: '800', fontFamily: fontCute }}>{isCategoryMode || isDueMode ? '복습 목록으로' : '복습하러 가기'}</Text>
             </Pressable>
             <Pressable accessibilityRole="button"
-              onPress={() => endFlow(router, ROUTES.home)}
+              onPress={() => finishFlow(ROUTES.home)}
               style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.surfaceAlt, borderRadius: 14, paddingVertical: 15, paddingHorizontal: 28, borderWidth: 1, borderColor: c.border }}
             >
               <Ionicons name="home-outline" size={18} color={c.textPrimary} />
@@ -1068,6 +1038,7 @@ export default function CardsScreen() {
           />
           {/* 앞면 */}
           <Animated.View
+            testID="learning-card-front"
             // Android 는 backfaceVisibility 가 불안정해 숨겨진 뒷면이 터치를 가로챈다.
             // 보이는 면만 터치를 받도록 pointerEvents 를 토글한다(이미지 탭 확대 등 정상화).
             pointerEvents={flipped ? 'none' : 'auto'}
@@ -1186,18 +1157,20 @@ export default function CardsScreen() {
 
           {/* 뒷면 */}
           <Animated.View
+            testID="learning-card-back"
             pointerEvents={flipped ? 'auto' : 'none'}
             style={{
               position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-              backgroundColor: backTint, borderWidth: 1, borderColor: cardEdge, borderRadius: 20, padding: 18,
+              backgroundColor: backTint, borderWidth: 1, borderColor: cardEdge, borderRadius: 20,
               transform: [{ perspective: 1600 }, { rotateY: backRotate }],
               backfaceVisibility: 'hidden',
               opacity: backOpacity,
             }}
           >
-            <Pressable tabIndex={-1} onPress={onCardPress} disabled={exiting} style={{ marginBottom: 12 }}>
-              <CategoryTrail category={card.category} subCategory={card.subCategory} topic={card.topic} size="sm" />
-            </Pressable>
+            <Pressable testID="learning-card-back-tap" tabIndex={-1} onPress={onBackPress} disabled={exiting} style={{ flex: 1, padding: 18 }}>
+              <View style={{ marginBottom: 12 }}>
+                <CategoryTrail category={card.category} subCategory={card.subCategory} topic={card.topic} size="sm" />
+              </View>
             {/* 해설은 카드 **안에서** 끝까지 끌어 내려 읽는다.
 
                 해설이 길면 카드 높이를 넘긴다. 카드를 늘릴 수는 없으니(화면이 정해져 있다)
@@ -1220,7 +1193,7 @@ export default function CardsScreen() {
                 directionalLockEnabled
                 keyboardShouldPersistTaps="handled"
                 // 마지막 줄이 카드 밑동에 딱 붙지 않도록 넉넉히 띄운다.
-                contentContainerStyle={{ paddingBottom: 20 }}
+                contentContainerStyle={{ flexGrow: 1, paddingBottom: 20 }}
                 {...backBody.scrollProps}
                 // 가림막 계산(backBody)과 탭 가드를 **같은 신호**로 처리한다.
                 // 끌기 신호(BeginDrag/EndDrag)는 휠·스크롤 막대에서 오지 않아
@@ -1230,7 +1203,7 @@ export default function CardsScreen() {
                   markBodyScroll();
                 }}
               >
-                <Pressable tabIndex={-1} onPress={onCardPress} disabled={exiting}>
+                <Pressable tabIndex={-1} onPress={onBackPress} disabled={exiting} style={{ flexGrow: 1 }}>
                   <CardBackBody card={card} />
                   {/* 끝까지 내렸을 때 뜬다 — 여기가 끝이라는 표시.
                       **자리는 늘 차지한다**(opacity 만 바뀐다). 넣었다 뺐다 하면
@@ -1249,7 +1222,14 @@ export default function CardsScreen() {
               />
               <ScrollMoreHint visible={backBody.hasMore} color={c.primary} />
             </View>
+            </Pressable>
           </Animated.View>
+
+          {/* A rotating plane can be edge-on/backface-hidden when a second tap
+              arrives. A stationary surface catches every tap during the flip. */}
+          <Pressable testID="learning-card-flip-touch" tabIndex={-1} accessible={false}
+            pointerEvents={flipAnimating ? 'auto' : 'none'} onPress={onCardPress} disabled={exiting}
+            style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, borderRadius: 20 }} />
 
           {/* 스와이프 방향 라벨 — 오른쪽=아는 것, 왼쪽=모르는 것 */}
           {isSwipeTrack && (
@@ -1296,7 +1276,7 @@ export default function CardsScreen() {
               />
               <Text style={{ color: nextReviewHint ? c.primary : solveHint ? c.warning : c.textSecondary, fontSize: 13 * fs, fontFamily: fontCute, textAlign: 'center' }}>
                 {nextReviewHint
-                  ? `다음 복습은 ${nextReviewHint} 뒤에 만나요`
+                  ? (nextReviewHint === '복습 완료' || nextReviewHint.endsWith('후 복습') ? nextReviewHint : `다음 복습은 ${nextReviewHint} 뒤에 만나요`)
                   : solveHint ? '문제를 먼저 풀어주세요!' : '카드를 탭해 뒤집고, 좌우로 넘겨 분류해요'}
               </Text>
             </Pressable>
@@ -1338,7 +1318,7 @@ export default function CardsScreen() {
               />
               <Text style={{ color: nextReviewHint ? c.primary : solveHint ? c.warning : c.textSecondary, fontSize: 13 * fs, fontFamily: fontCute, textAlign: 'center' }}>
                 {nextReviewHint
-                  ? `다음 복습은 ${nextReviewHint} 뒤에 만나요`
+                  ? (nextReviewHint === '복습 완료' || nextReviewHint.endsWith('후 복습') ? nextReviewHint : `다음 복습은 ${nextReviewHint} 뒤에 만나요`)
                   : solveHint ? '문제를 먼저 풀어주세요!' : '카드를 탭하면 해설을 볼 수 있어요'}
               </Text>
             </Pressable>

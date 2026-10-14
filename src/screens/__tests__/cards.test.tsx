@@ -16,6 +16,7 @@ const mockPush = jest.fn();
 const mockMark = jest.fn(() => Promise.resolve());
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush, replace: jest.fn(), back: jest.fn() }),
+  useNavigation: () => undefined,
   useLocalSearchParams: () => ({}),
   // 포커스 시점의 뒤로가기 가로채기 — 이 검사와 무관하다.
   useFocusEffect: (effect: () => void) => require('react').useEffect(effect, [effect]),
@@ -104,6 +105,23 @@ const wrap = (name: string) => {
 };
 
 const nested = () => nestedButtonLabels(screen.UNSAFE_root as unknown as TreeNode);
+
+it('같은 렌더에서 두 번 탭해도 앞면으로 돌아오고 뒷면 빈 공간도 탭할 수 있다', () => {
+  const type = mockCard.type;
+  mockCard.type = 'explanation';
+  try {
+    wrap('이용재');
+    const button = screen.getByLabelText('카드 뒤집기');
+    act(() => { fireEvent.press(button); fireEvent.press(button); jest.advanceTimersByTime(400); });
+    expect(screen.getByTestId('learning-card-front').props.pointerEvents).toBe('auto');
+    act(() => { fireEvent.press(screen.getByLabelText('카드 뒤집기')); jest.advanceTimersByTime(400); });
+    const stopPropagation = jest.fn();
+    fireEvent.press(screen.getByTestId('learning-card-back-tap'), { stopPropagation });
+    expect(stopPropagation).toHaveBeenCalledTimes(1);
+    act(() => jest.advanceTimersByTime(400));
+    expect(screen.getByTestId('learning-card-front').props.pointerEvents).toBe('auto');
+  } finally { mockCard.type = type; }
+});
 
 // 카드 등장 애니메이션(스프링)은 렌더가 끝난 뒤에도 계속 값을 갱신해서, 그때마다
 // "not wrapped in act(...)" 경고가 쏟아진다. 이 검사는 구조만 보므로 애니메이션을

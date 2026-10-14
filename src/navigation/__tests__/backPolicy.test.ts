@@ -109,7 +109,17 @@ describe('endFlow', () => {
   it('끝낸 세션 화면은 스택에 남기지 않는다', () => {
     const r = fakeRouter();
     endFlow(r as never, ROUTES.review);
-    // push 만 했다면 뒤로가기로 방금 끝낸 세션에 다시 들어가게 된다.
-    expect(r.calls[0]).toBe(`replace:${ROUTES.home}`);
+    expect(r.calls).toEqual([`replace:${ROUTES.review}`]);
+  });
+
+  it('탭 안에서는 복습을 활성화하고 뒤로가기 이력에서 완료한 학습을 제거한다', () => {
+    const r = fakeRouter();
+    const state = { type: 'tab', key: 'tabs', index: 1, routeNames: ['index', 'cards', 'review'],
+      routes: [{ key: 'home', name: 'index' }, { key: 'study', name: 'cards' }, { key: 'review', name: 'review' }],
+      history: [{ type: 'route', key: 'home' }, { type: 'route', key: 'study' }] };
+    const reset = jest.fn();
+    endFlow(r as never, ROUTES.review, { getState: () => state, reset } as never);
+    expect(reset).toHaveBeenCalledWith({ ...state, index: 2, history: [{ type: 'route', key: 'home' }, { type: 'route', key: 'review' }] });
+    expect(r.calls).toEqual([]);
   });
 });

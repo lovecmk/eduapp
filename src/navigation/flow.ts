@@ -1,26 +1,30 @@
 import type { Router } from 'expo-router';
+import type { NavigationProp, NavigationState, ParamListBase } from '@react-navigation/native';
 
 import { ROUTES } from '../constants/routes';
 
-/**
- * '흐름을 끝내고 다른 곳으로 보내는' 이동.
- *
- * 학습을 마친 뒤 복습으로 보내는 것 같은 이동은 두 가지를 동시에 만족해야 한다.
- *
- *   (1) 돌아가기로 방금 끝낸 세션에 **다시 들어가면 안 된다.**
- *       완료 화면으로 되돌아가면 "끝냈는데 왜 또?"가 되고, 진행 상태도 이미 비어 있다.
- *   (2) 그렇다고 **돌아갈 곳이 아예 없어서도 안 된다.**
- *
- * 지금까지는 (1)만 지키려고 `replace` 를 썼다. 그 결과 스택에 아무것도 남지 않아
- * 도착한 화면에서 뒤로가기를 누르면 **앱이 그대로 종료**됐다.
- *
- * 그래서 스택을 홈으로 갈아 끼운 뒤 목적지를 그 위에 얹는다.
- * 끝낸 세션은 사라지고(1), 뒤로가기는 홈으로 간다(2).
- *
- *   [학습 세션]  --endFlow-->  [홈] → [복습 모아보기]
- *                                뒤로가기 ↩ 홈
+/** End a session without reopening its completion screen on back.
+ * Review stays in the existing tabs navigator, with home as its back target.
+ * Stack destinations retain the home base used by the global back policy.
  */
-export function endFlow(router: Router, target: string): void {
+export function endFlow(router: Router, target: string, tabs?: Pick<NavigationProp<ParamListBase>, 'reset'> & { getState(): NavigationState | undefined }): void {
+  // Tabs are siblings in one navigator: a single action keeps that navigator
+  // and its tab bar. Replacing home then pushing a tab races two actions.
+  if (target === ROUTES.review || target.startsWith(ROUTES.review + '?')) {
+    const state = tabs?.getState();
+    const index = state?.routes.findIndex(route => route.name === 'review') ?? -1;
+    const home = state?.routes.find(route => route.name === 'index');
+    if (state?.type === 'tab' && index >= 0 && home) {
+      // Replace the tab history too: Android back must not reopen a completed
+      // learning session. Keep all route keys so other tabs retain their state.
+      tabs!.reset({ ...state, index, history: [
+        { type: 'route', key: home.key }, { type: 'route', key: state.routes[index].key },
+      ] } as typeof state);
+      return;
+    }
+    router.replace(target as never);
+    return;
+  }
   // 홈이 목적지면 갈아 끼우는 것만으로 충분하다(홈 위에 홈을 얹지 않는다).
   if (target === ROUTES.home) {
     router.replace(ROUTES.home as never);

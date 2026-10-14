@@ -13,7 +13,8 @@
     "test:watch": "jest --watch",
     "verify": "npm run typecheck && npm test",
     "audit:ui": "node scripts/audit-ui.mjs",
-    "test:ui": "node scripts/qa/ui-audit-check.mjs"
+    "test:ui": "node scripts/qa/ui-audit-check.mjs",
+    "test:learning-ui": "node scripts/qa/learning-interaction-check.mjs"
   },
   "dependencies": {
     "@expo/metro-runtime": "~4.0.1",

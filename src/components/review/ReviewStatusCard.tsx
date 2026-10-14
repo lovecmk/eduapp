@@ -38,7 +38,7 @@ export function ReviewStatusCard() {
 
       {/* 오늘 복습 CTA */}
       <Pressable accessibilityRole="button"
-        onPress={() => router.push(ROUTES.review)}
+        onPress={() => router.navigate(ROUTES.review)}
         style={[styles.cta, { backgroundColor: dueTodayCount > 0 ? c.primary : c.surfaceAlt, borderColor: c.border }]}
       >
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>

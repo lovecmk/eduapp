@@ -44,7 +44,7 @@ describe('buildReviewPlan — 무엇을 먼저 보여 줄 것인가', () => {
       c3: state({ dueAt: NOW - 3 * DAY }),
     };
     const plan = buildReviewPlan(cards, states, NOW);
-    expect(plan.queue.map((c) => c.id)).toEqual(['c2', 'c3', 'c1']);
+    expect(plan.queue.map((c) => c.id)).toEqual(['c2', 'c3']);
   });
 
   it('본 지 지난 시간이 같으면 자주 잊은 카드를 먼저 보여 준다', () => {
@@ -81,6 +81,18 @@ describe('buildReviewPlan — 무엇을 먼저 보여 줄 것인가', () => {
   it('학습한 적 없는 카드는 계획에 들어오지 않는다', () => {
     const plan = buildReviewPlan([card('c1'), card('c2')], { c1: state({ dueAt: NOW - DAY }) }, NOW);
     expect(plan.queue.map((c) => c.id)).toEqual(['c1']);
+  });
+
+  it('오늘 복습을 두 장 마치면 남은 카드는 다음 날로 넘긴다', () => {
+    const cards = [card('one'), card('two'), card('waiting')];
+    const states = { one: state({ reps: 2, lastReviewedAt: NOW, dueAt: NOW + 3 * DAY }),
+      two: state({ reps: 2, lastReviewedAt: NOW, dueAt: NOW + 3 * DAY }),
+      waiting: state({ reps: 1, dueAt: NOW - DAY }) };
+    const plan = buildReviewPlan(cards, states, NOW);
+    expect(plan.queue).toHaveLength(0);
+    expect(plan.dueCount).toBe(0);
+    expect(plan.state).toBe('resting');
+    expect(buildReviewPlan(cards, states, NOW + DAY).queue.map(c => c.id)).toEqual(['waiting']);
   });
 });
 

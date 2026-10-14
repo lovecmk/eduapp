@@ -1,19 +1,14 @@
-// 학습량 정책 상수 — 운영 지속가능성('하루 3분')의 단일 소스.
-//
-// ── 왜 '상한'이 아니라 '범위'인가 ──────────────────────────────────────
-// 하루에 나가는 문제 수는 고정값이 아니라 **그날 그 사람의 난이도가 정한다** —
-// 쉬운 날은 많이(최대), 어려운 날은 적게(최소). 한 장에 드는 시간과 집중이
-// 다르기 때문이다. 개수를 고정하면 '하루 3분'이 날마다 3분도 10분도 된다.
-//
-// 편성 규칙 자체는 `src/domain/dailyPlan.ts` 에 있고, 평상시에는 서버가 정한다.
-// 이 값들은 서버에 닿지 못할 때 쓰는 기본 범위다.
-//
-// ⚠️ 서버의 `domain.DefaultDailyMinCards`·`DefaultDailyMaxCards` 와 **같아야 한다.**
-//    갈리면 서버에 닿은 기기와 목업으로 떨어진 기기가 서로 다른 분량으로 돈다.
-//    서버 쪽에 검사가 걸려 있다(TestDefaultDailyLimitMatchesApp).
+// Standard allocation is three new cards plus at most two due reviews.
+// Keep legacy settings defaults aligned with domain.DefaultDailyMin/MaxCards.
+// Offline study reuses only the validated server deck for the same day.
 
-/** 하루 출제량의 최소(어려운 날). */
+/** Legacy settings default. */
 export const DAILY_MIN_CARDS = 3;
 
-/** 하루 출제량의 최대(쉬운 날). */
+/** Legacy settings default and combined daily ceiling. */
 export const DAILY_MAX_CARDS = 5;
+
+/** Standard daily allocation: three new cards, up to two due reviews. */
+export const DAILY_NEW_CARDS = 3;
+export const DAILY_REVIEW_CARDS = 2;
+export const REVIEW_INTERVAL_DAYS = 3;

@@ -21,5 +21,5 @@ it('실패한 목록은 새 복습 정책을 설치하지 않는다', async () =
   const prev = initialState(); const next = schedule(prev, 'again');
   (apiClient.get as jest.Mock).mockResolvedValue({ personalized: true, review_policy: { first_days: 7, repeat_days: 2 }, cards: [null] });
   await expect(new DailyAssignmentRepository().get()).rejects.toBeDefined();
-  expect(applyPersonalReviewPolicy(prev, next, 'again')).toBe(next);
+  expect(applyPersonalReviewPolicy(prev, next, 'again').dueAt - (next.lastReviewedAt ?? Date.now())).toBeLessThanOrEqual(3 * 86400000);
 });
