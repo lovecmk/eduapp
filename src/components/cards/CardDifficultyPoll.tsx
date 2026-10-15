@@ -6,6 +6,12 @@ import { useTheme } from '../../theme/ThemeProvider';
 import { fontDisplay, fontBody, fontMono } from '../../theme/tokens';
 import type { DiffVote } from '../../domain/models/DifficultyPoll';
 import { useDifficultyPoll } from '../../hooks/useDifficultyPoll';
+import { firstDecision, useSrsStore } from '../../store/srsStore';
+
+const REVIEW_CHOICES = [
+  { needsReview: true, label: '다음에 한번 더 볼게요', icon: 'refresh-circle' as const },
+  { needsReview: false, label: '안 볼게요', icon: 'checkmark-circle' as const },
+];
 
 const OPTIONS: { key: DiffVote; label: string; icon: keyof typeof import('@expo/vector-icons').Ionicons.glyphMap; color: string }[] = [
   { key: 'easy', label: '쉬웠어요', icon: 'happy-outline', color: '#34C759' },
@@ -23,6 +29,8 @@ export function CardDifficultyPoll({ cardId }: { cardId: string }) {
    * 쉬웠어요 34%" 를 지어냈다(목업 모드 시연용 분포는 목업 저장소가 따로 만든다).
    */
   const { counts: crowd, mine: myVote } = useDifficultyPoll(cardId);
+  const first = firstDecision(useSrsStore(s => s.cards[cardId]));
+  const firstNeedsReview = first ? first.grade === 'again' || first.grade === 'hard' : null;
   const showCrowd = crowd !== null;
   const counts = crowd ?? { easy: 0, normal: 0, hard: 0 };
   const total = counts.easy + counts.normal + counts.hard;
@@ -81,6 +89,29 @@ export function CardDifficultyPoll({ cardId }: { cardId: string }) {
           })}
         </Animated.View>
       )}
+
+      <View testID="recorded-review-choice" style={{ marginTop: 16, paddingTop: 14, borderTopWidth: 1, borderTopColor: c.border }}>
+        <Text style={{ color: c.textPrimary, fontSize: 13 * fs, lineHeight: 20 * fs, fontFamily: fontDisplay, marginBottom: 10 }}>처음 선택한 답변</Text>
+        <View style={styles.options}>
+          {REVIEW_CHOICES.map(option => {
+            const active = firstNeedsReview === option.needsReview;
+            const color = option.needsReview ? c.warning : c.success;
+            return (
+              <View key={option.label} accessible accessibilityRole="text" pointerEvents="none"
+                accessibilityLabel={`${option.label}${active ? ' · 처음 선택' : ''}`}
+                accessibilityState={{ disabled: true, selected: active }}
+                style={[styles.opt, { paddingHorizontal: 8, backgroundColor: active ? color + '1A' : c.surfaceAlt, borderColor: active ? color : c.border }]}>
+                <Ionicons name={option.icon} size={20} color={active ? color : c.textSecondary} />
+                <Text style={{ color: active ? color : c.textSecondary, fontSize: 12 * fs, lineHeight: 19 * fs, fontFamily: fontDisplay, marginTop: 5, textAlign: 'center' }}>{option.label}</Text>
+                {active && <Text style={{ color, fontSize: 10 * fs, lineHeight: 16 * fs, fontFamily: fontBody, marginTop: 4 }}>처음 선택</Text>}
+              </View>
+            );
+          })}
+        </View>
+        <Text testID="first-review-choice" style={{ color: c.textSecondary, fontSize: 11 * fs, lineHeight: 18 * fs, fontFamily: fontBody, marginTop: 10 }}>
+          {first ? '처음 선택한 기록이에요. 변경할 수 없어요.' : '이 카드의 최초 선택 기록을 확인할 수 없어요.'}
+        </Text>
+      </View>
     </View>
   );
 }

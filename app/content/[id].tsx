@@ -13,13 +13,11 @@ import { CardReportModal } from '../../src/components/cards/CardReportModal';
 import { CardDifficultyPoll } from '../../src/components/cards/CardDifficultyPoll';
 import { CardBackBody } from '../../src/components/cards/CardBackBody';
 import { CardTips } from '../../src/components/community/CardTips';
-import { fontCute, fontBody } from '../../src/theme/tokens';
+import { fontCute } from '../../src/theme/tokens';
 import { getCategoryIcon } from '../../src/constants/categories';
 import { getDifficultyMeta } from '../../src/constants/difficulty';
 import { useAllCards } from '../../src/hooks/useCards';
 import { CardReactionBar } from '../../src/components/cards/CardReactionBar';
-import { firstDecision, useSrsStore } from '../../src/store/srsStore';
-import { normalizeGrade } from '../../src/domain/srs';
 import { ErrorState } from '../../src/components/ui/ErrorState';
 import { errorMessage } from '../../src/data/network/errors';
 
@@ -33,13 +31,6 @@ export default function ContentDetailScreen() {
   const { data: allCards = [], isLoading, error, refetch } = useAllCards();
   const card = allCards.find((c) => c.id === id);
   const [reportOpen, setReportOpen] = useState(false);
-  const srsState = useSrsStore(s => s.cards[id ?? '']);
-  const first = firstDecision(srsState);
-  const firstLabel = first ? (first.grade === 'again' || first.grade === 'hard' ? '다음에 한번 더 볼게요' : '이해했어요') : null;
-  const lastGrade = normalizeGrade(srsState?.lastGrade);
-  const lastNeedsReview = lastGrade === 'again' || lastGrade === 'hard';
-  const lastLabel = lastGrade ? (lastNeedsReview ? '다음에 한번 더 볼게요' : '이해했어요') : null;
-
   useEffect(() => { setReportOpen(false); }, [id]);
 
   if (!card) {
@@ -111,22 +102,6 @@ export default function ContentDetailScreen() {
         </Animated.View>
 
         <CardDifficultyPoll cardId={card.id} />
-
-        <View testID="recorded-review-choice" style={{ marginBottom: 16, padding: 16, borderRadius: 16, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border }}>
-          <Text style={{ color: c.textPrimary, fontSize: 14 * fs, lineHeight: 21 * fs, fontFamily: fontCute, marginBottom: 10 }}>내가 선택했던 답변</Text>
-          {lastLabel ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8 }}>
-              <Ionicons name={lastNeedsReview ? 'refresh-circle' : 'checkmark-circle'} size={22} color={lastNeedsReview ? c.warning : c.success} />
-              <Text style={{ color: lastNeedsReview ? c.warning : c.success, fontSize: 15 * fs, fontWeight: '700', lineHeight: 23 * fs, fontFamily: fontCute, flex: 1 }}>{lastLabel}</Text>
-            </View>
-          ) : (
-            <Text style={{ color: c.textSecondary, fontSize: 13 * fs, lineHeight: 20 * fs, fontFamily: fontBody }}>아직 선택 기록이 없어요.</Text>
-          )}
-          {lastLabel && <Text style={{ color: c.textSecondary, fontSize: 11 * fs, lineHeight: 17 * fs, fontFamily: fontBody, marginBottom: 6 }}>마지막 학습 때 선택한 답변이에요.</Text>}
-          <Text testID="first-review-choice" style={{ color: c.textSecondary, fontSize: 12 * fs, lineHeight: 19 * fs, fontFamily: fontBody }}>
-            {firstLabel ? `처음엔 '${firstLabel}'를 선택했어요.` : '이 카드의 최초 선택 기록을 확인할 수 없어요.'}
-          </Text>
-        </View>
 
         <CardTips cardId={card.id} />
       </ScrollView>

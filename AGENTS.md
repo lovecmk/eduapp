@@ -33,8 +33,9 @@ fresh clone so the locked SDK 52 versions are installed exactly; a loose
 Card reactions belong on the back face (`CardReactionBar`), not in `CardDifficultyAsk`.
 Keep the immutable first decision separate from the latest SRS grade, and preserve it when
 merging newer server schedules. Never infer the first decision from a multi-review last grade.
-Review detail is read-only for difficulty and self-check: show the recorded choice below difficulty,
-and never grade or vote from that screen. Actual learning flow retains its SRS scheduling.
+Review detail is read-only for difficulty and self-check: put both disabled self-check options inside
+the bottom of the difficulty card and highlight only the immutable first decision, never the latest grade.
+Never grade or vote from that screen. Actual learning flow retains its SRS scheduling.
 `total_learned` currently counts MASTERED cards, so UI labels must describe current completion,
 not lifetime learning attempts. Run `npm run test:card-ui -- <web-export>` for these flows.
 
