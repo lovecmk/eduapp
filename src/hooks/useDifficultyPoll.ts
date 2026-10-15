@@ -11,7 +11,7 @@ export const pollKey = (cardId: string) => ['difficulty-poll', cardId] as const;
  * 한 카드의 체감 난이도 현황 — 서버가 열리면 다른 점검자들의 분포(counts)가 채워진다.
  * counts 가 null 이면 모을 곳이 없다는 뜻이고, 화면은 분포 대신 '준비 중'을 말한다.
  */
-export function useDifficultyPoll(cardId: string) {
+export function useDifficultyPoll(cardId: string): PollSummary & { loaded: boolean } {
   const localMine = useDiffPollStore((s) => s.myVotes[cardId] ?? null);
   const query = useQuery({ queryKey: pollKey(cardId), queryFn: () => difficultyPollRepository.get(cardId), staleTime: 60_000 });
   // 내 표는 이 기기 기록이 가장 빠르다(방금 누른 것). 서버가 아는 표는 다른 기기에서 누른 것일 수 있다.
@@ -20,7 +20,7 @@ export function useDifficultyPoll(cardId: string) {
 }
 
 /**
- * 투표 — 학습 화면(넘기기 직전 질문)과 카드 상세가 같은 함수를 쓴다.
+ * 투표 — 학습 화면에서 넘기기 직전 선택을 기록한다. 복습 상세는 조회만 한다.
  * 기기에 먼저 남겨(다시 묻지 않게) 화면을 바로 바꾸고, 서버로는 뒤에서 보낸다
  * (연결이 없으면 오프라인 큐가 들고 있다가 보낸다).
  */

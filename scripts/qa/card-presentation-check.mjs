@@ -35,6 +35,7 @@ await context.addInitScript(user => {
 let mode = 'one';
 let progress = { cards: {}, history: {}, attendance: {} };
 let engagement = { liked_ids: [], bookmarked_ids: [] };
+const difficultyVotes = { 'qa-card-3': 'normal' };
 const card = { id: 'qa-card', category_cd: 'FIELD', sub_category_nm: '보험·요율', title_txt: '계약 점검', image_url: '1-1', answer_image_url: '1-2', format_nm: '기초용어형', card_type_cd: 'EXPLANATION', question_txt: '조건을 확인했습니까?', answer_txt: 'X', choices: ['O', 'X'], answer_index: 1, principle_txt: '독립된 해설', conclusion_txt: '독립된 해설', improvement_txt: '계약 조건을 확인하세요', note_txt: '예외 조항을 참고하세요', status_cd: 'NEW', difficulty_cd: 'EASY', study_seconds: 30, due_at: null };
 Object.assign(card, { image_url: '', answer_image_url: '', situation_txt: '현장에서 긴 상황을 확인해요. '.repeat(12), conclusion_txt: '해설은 위험을 먼저 확인합니다.', principle_txt: '상세설명은 원인을 설명합니다.', process_txt: '발열 → 점화 → 확산', fire_triangle_txt: '가연물 · 산소 · 열' });
 const deck = [card, { ...card, id: 'qa-card-2', title_txt: '두 번째 점검' }, { ...card, id: 'qa-card-3', title_txt: '세 번째 점검' }];
@@ -62,7 +63,11 @@ await context.route('**/*', async route => {
   else if (path === '/rooftop') body = { month: '2026-10', floors: 0, my_bricks: 0, history: [] };
   else if (/\/(feed|qna|notifications|users|tips|support)$/.test(path) || path.endsWith('/tips')) body = [];
   else if (path === '/weather/current') body = { condition: 'clear', observed_at: '2026-10-14T00:00:00Z' };
-  else if (path.endsWith('/difficulty-poll')) body = { mine: null, counts: null };
+  else if (path.endsWith('/difficulty')) {
+    const cardId = path.split('/')[2];
+    if (route.request().method() === 'POST') difficultyVotes[cardId] = route.request().postDataJSON().vote;
+    body = { mine: difficultyVotes[cardId] ?? null, easy: 1, normal: 2, hard: 7 };
+  }
   else if (path === '/health') body = { status: 'ok', version: 'isolated-test', store: 'test' };
   if (path === '/cards' && mode === 'loading') await new Promise(done => setTimeout(done, 700));
   await route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
@@ -120,7 +125,7 @@ try {
   await page.getByText('이 문제, 얼마나 어려웠나요?', { exact: true }).waitFor();
   const modal = page.getByText('이 문제, 얼마나 어려웠나요?', { exact: true }).locator('..').locator('..');
   assert.equal(await modal.getByTestId('card-reactions').count(), 0, 'No reactions in difficulty modal');
-  await page.getByText('건너뛰기', { exact: true }).click(); await page.waitForTimeout(850); await face(false);
+  await modal.getByText('어려움', { exact: true }).click(); await page.waitForTimeout(850); await face(false);
   await page.getByLabel('카드 뒤집기', { exact: true }).click(); await face(true);
   assert(await back.getByLabel('좋아요', { exact: true }).count(), 'Next card is not liked');
   assert(await back.getByLabel('저장', { exact: true }).count(), 'Next card is not saved');
@@ -130,21 +135,42 @@ try {
   const initial = await page.getByTestId('first-review-choice').innerText();
   assert(await page.getByLabel('좋아요 취소').count(), 'Detail uses same like state');
   assert(await page.getByLabel('저장 취소').count(), 'Detail uses same bookmark state');
-  const choiceY = (await page.getByText('이해했어요', { exact: true }).boundingBox()).y;
-  const difficultyY = (await page.getByText('체감 난이도', { exact: true }).boundingBox()).y;
-  assert(choiceY < difficultyY, 'Review buttons above difficulty');
-  await page.getByText('이해했어요', { exact: true }).click();
-  await page.getByText('이번 복습: 이해했어요', { exact: true }).waitFor();
+  const savedChoice = page.getByTestId('recorded-review-choice');
+  const difficulty = page.getByTestId('review-difficulty');
+  const choiceY = (await savedChoice.boundingBox()).y;
+  const difficultyY = (await difficulty.boundingBox()).y;
+  assert(choiceY > difficultyY, 'Recorded choice below difficulty');
+  assert(await savedChoice.getByText('다음에 한번 더 볼게요', { exact: true }).count(), 'Latest choice restored');
+  assert.equal(await savedChoice.getByRole('button').count(), 0, 'No self-check buttons in review');
+  assert.equal(await difficulty.getByRole('button').count(), 0, 'No voting buttons in review');
+  assert(await difficulty.getByLabel('어려웠어요 · 내 선택', { exact: true }).count(), 'Selected difficulty restored');
+  const cardState = () => page.evaluate(() => JSON.parse(localStorage.getItem('srs-scheduler')).state.cards['qa-card']);
+  const before = await cardState();
+  const writes = () => requests.filter(r => r.method === 'POST' && (r.path === '/progress/grade' || r.path.endsWith('/difficulty'))).length;
+  const beforeWrites = writes();
+  await difficulty.getByLabel('쉬웠어요', { exact: true }).click();
+  await savedChoice.getByText('다음에 한번 더 볼게요', { exact: true }).click();
+  await page.waitForTimeout(300);
+  assert(await difficulty.getByLabel('어려웠어요 · 내 선택', { exact: true }).count(), 'Click cannot change difficulty');
+  assert.deepEqual(await cardState(), before, 'Viewing records leaves schedule and history unchanged');
+  assert.equal(writes(), beforeWrites, 'No grade or vote writes from review');
   assert.equal(await page.getByTestId('first-review-choice').innerText(), initial, 'Review does not overwrite first decision');
   await page.reload(); await page.getByTestId('first-review-choice').waitFor();
   assert.equal(await page.getByTestId('first-review-choice').innerText(), initial, 'First decision survives reload/server merge');
+  assert.deepEqual(await cardState(), before, 'Read-only record survives reload without rescheduling');
+  assert.equal(writes(), beforeWrites, 'Reload creates no grade or vote writes');
   await go('/content/qa-card-3');
   assert((await page.getByTestId('first-review-choice').innerText()).includes('확인할 수 없어요'), 'Unknown history is not invented');
+  assert(await page.getByLabel('적당해요 · 내 선택', { exact: true }).count(), 'Other-device server difficulty restored');
+  assert(await page.getByText('아직 선택 기록이 없어요.', { exact: true }).count(), 'No invented last decision');
+  await go('/content/qa-card-2');
+  assert(await page.getByText('아직 난이도 선택 기록이 없어요', { exact: true }).count(), 'Missing difficulty is read-only too');
+  assert.equal(await page.getByTestId('review-difficulty').getByRole('button').count(), 0, 'Missing difficulty cannot be voted in review');
   for (const theme of ['light', 'dark']) {
     for (const width of [320, 390]) {
       await page.evaluate(theme => localStorage.setItem('app-settings', JSON.stringify({ state: { themeMode: theme, fontScale: 'xlarge' }, version: 2 })), theme);
       await go('/content/qa-card', width);
-      await page.getByText('이해했어요', { exact: true }).scrollIntoViewIfNeeded();
+      await page.getByTestId('recorded-review-choice').scrollIntoViewIfNeeded();
       await page.waitForTimeout(600);
       await page.screenshot({ path: resolve(out, `review-${theme}-${width}.png`), fullPage: true });
       checks.push({ case: 'review responsive/theme/xlarge', theme, width });
@@ -160,7 +186,7 @@ try {
   assert(requests.some(r => r.path === '/engagement/bookmark' && JSON.parse(r.body).card_id === 'qa-card'), 'Bookmark API');
   assert(requests.some(r => r.path === '/reports' && JSON.parse(r.body).card_id === 'qa-card'), 'Report API');
   assert(requests.some(r => r.path === '/progress/grade' && JSON.parse(r.body).self_check === 'REVIEW'), 'Initial REVIEW API');
-  assert(requests.some(r => r.path === '/progress/grade' && JSON.parse(r.body).self_check === 'KNOWN'), 'Review KNOWN API');
+  assert(!requests.some(r => r.path === '/progress/grade' && JSON.parse(r.body).self_check === 'KNOWN'), 'Review never regrades the card');
   assert.equal(errors.length, 0, errors.join('\n'));
   writeFileSync(resolve(out, 'result.json'), JSON.stringify({ checks, errors, requests }, null, 2));
   console.log(JSON.stringify({ checks: checks.length, errors, out }));

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, Pressable } from 'react-native';
+import { View, Text, ScrollView } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -19,7 +19,7 @@ import { getDifficultyMeta } from '../../src/constants/difficulty';
 import { useAllCards } from '../../src/hooks/useCards';
 import { CardReactionBar } from '../../src/components/cards/CardReactionBar';
 import { firstDecision, useSrsStore } from '../../src/store/srsStore';
-import { hapticSuccess, hapticTap } from '../../src/utils/haptics';
+import { normalizeGrade } from '../../src/domain/srs';
 import { ErrorState } from '../../src/components/ui/ErrorState';
 import { errorMessage } from '../../src/data/network/errors';
 
@@ -33,22 +33,14 @@ export default function ContentDetailScreen() {
   const { data: allCards = [], isLoading, error, refetch } = useAllCards();
   const card = allCards.find((c) => c.id === id);
   const [reportOpen, setReportOpen] = useState(false);
-  const [reviewMark, setReviewMark] = useState<'mastered' | 'learning' | null>(null);
   const srsState = useSrsStore(s => s.cards[id ?? '']);
   const first = firstDecision(srsState);
   const firstLabel = first ? (first.grade === 'again' || first.grade === 'hard' ? '다음에 한번 더 볼게요' : '이해했어요') : null;
-  const srsGrade = useSrsStore((s) => s.grade);
+  const lastGrade = normalizeGrade(srsState?.lastGrade);
+  const lastNeedsReview = lastGrade === 'again' || lastGrade === 'hard';
+  const lastLabel = lastGrade ? (lastNeedsReview ? '다음에 한번 더 볼게요' : '이해했어요') : null;
 
-  useEffect(() => { setReviewMark(null); setReportOpen(false); }, [id]);
-
-  // 복습 상세에서 '이해했어요 / 다음에 한번 더' — 학습 모드로 전환하지 않고 자기평가만 기록한다.
-  // (마스터/학습 상태 갱신 + 간격반복 일정 반영으로 다음 복습 시점과 달력에 반영된다.)
-  const handleReviewMark = (status: 'mastered' | 'learning') => {
-    if (!card || reviewMark) return;
-    if (status === 'mastered') hapticSuccess(); else hapticTap();
-    srsGrade(card.id, status === 'mastered' ? 'good' : 'again');
-    setReviewMark(status);
-  };
+  useEffect(() => { setReportOpen(false); }, [id]);
 
   if (!card) {
     return (
@@ -118,34 +110,23 @@ export default function ContentDetailScreen() {
           <CardReactionBar cardId={card.id} onReport={() => setReportOpen(true)} />
         </Animated.View>
 
-        <View style={{ marginBottom: 16, padding: 14, borderRadius: 16, backgroundColor: c.surface, borderTopWidth: 1, borderTopColor: c.border }}>
-          <Text testID="first-review-choice" style={{ color: c.textSecondary, fontSize: 12 * fs, lineHeight: 19 * fs, fontFamily: fontBody, marginBottom: 10 }}>
-            {firstLabel ? `처음엔 '${firstLabel}'를 선택했어요.` : '이 카드의 최초 선택 기록을 확인할 수 없어요.'}
-          </Text>
-          {reviewMark ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, minHeight: 52, paddingVertical: 10 }}>
-              <Ionicons name={reviewMark === 'mastered' ? 'checkmark-circle' : 'refresh-circle'} size={20} color={reviewMark === 'mastered' ? c.success : c.warning} />
-              <Text style={{ color: reviewMark === 'mastered' ? c.success : c.warning, fontSize: 15 * fs, fontWeight: '700', fontFamily: fontCute, flex: 1, textAlign: 'center', lineHeight: 22 * fs }}>
-                {reviewMark === 'mastered' ? '이번 복습: 이해했어요' : '이번 복습: 다음에 한번 더 볼게요'}
-              </Text>
+        <CardDifficultyPoll cardId={card.id} />
+
+        <View testID="recorded-review-choice" style={{ marginBottom: 16, padding: 16, borderRadius: 16, backgroundColor: c.surface, borderWidth: 1, borderColor: c.border }}>
+          <Text style={{ color: c.textPrimary, fontSize: 14 * fs, lineHeight: 21 * fs, fontFamily: fontCute, marginBottom: 10 }}>내가 선택했던 답변</Text>
+          {lastLabel ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8 }}>
+              <Ionicons name={lastNeedsReview ? 'refresh-circle' : 'checkmark-circle'} size={22} color={lastNeedsReview ? c.warning : c.success} />
+              <Text style={{ color: lastNeedsReview ? c.warning : c.success, fontSize: 15 * fs, fontWeight: '700', lineHeight: 23 * fs, fontFamily: fontCute, flex: 1 }}>{lastLabel}</Text>
             </View>
           ) : (
-            <View style={{ flexDirection: 'row', gap: 10 }}>
-              <Pressable accessibilityRole="button" onPress={() => handleReviewMark('learning')}
-                style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.warning, borderRadius: 14, minHeight: 52, paddingVertical: 10, boxShadow: `0 3px 8px ${c.warning}3D` }}>
-                <Ionicons name="refresh-circle" size={19} color="#fff" />
-                <Text style={{ color: '#fff', fontSize: 14.5 * fs, fontWeight: '700', fontFamily: fontCute, flex: 1, textAlign: 'center' }}>다음에 한번 더 볼게요</Text>
-              </Pressable>
-              <Pressable accessibilityRole="button" onPress={() => handleReviewMark('mastered')}
-                style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.success, borderRadius: 14, minHeight: 52, paddingVertical: 10, boxShadow: `0 3px 8px ${c.success}3D` }}>
-                <Ionicons name="checkmark-circle" size={19} color="#fff" />
-                <Text style={{ color: '#fff', fontSize: 14.5 * fs, fontWeight: '700', fontFamily: fontCute, flex: 1, textAlign: 'center' }}>이해했어요</Text>
-              </Pressable>
-            </View>
+            <Text style={{ color: c.textSecondary, fontSize: 13 * fs, lineHeight: 20 * fs, fontFamily: fontBody }}>아직 선택 기록이 없어요.</Text>
           )}
+          {lastLabel && <Text style={{ color: c.textSecondary, fontSize: 11 * fs, lineHeight: 17 * fs, fontFamily: fontBody, marginBottom: 6 }}>마지막 학습 때 선택한 답변이에요.</Text>}
+          <Text testID="first-review-choice" style={{ color: c.textSecondary, fontSize: 12 * fs, lineHeight: 19 * fs, fontFamily: fontBody }}>
+            {firstLabel ? `처음엔 '${firstLabel}'를 선택했어요.` : '이 카드의 최초 선택 기록을 확인할 수 없어요.'}
+          </Text>
         </View>
-
-        <CardDifficultyPoll cardId={card.id} />
 
         <CardTips cardId={card.id} />
       </ScrollView>
