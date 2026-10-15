@@ -7,6 +7,7 @@ import { fontDisplay, fontBody, fontMono } from '../../theme/tokens';
 import type { DiffVote } from '../../domain/models/DifficultyPoll';
 import { useDifficultyPoll } from '../../hooks/useDifficultyPoll';
 import { firstDecision, useSrsStore } from '../../store/srsStore';
+import { SectionTitle } from '../ui/SectionTitle';
 
 const REVIEW_CHOICES = [
   { needsReview: true, label: '다음에 한번 더 볼게요', icon: 'refresh-circle' as const },
@@ -19,7 +20,7 @@ const OPTIONS: { key: DiffVote; label: string; icon: keyof typeof import('@expo/
   { key: 'hard', label: '어려웠어요', icon: 'sad-outline', color: '#FF3B30' },
 ];
 
-/** 복습 상세의 체감 난이도 기록. 학습 중 선택한 값은 여기서 변경하지 않는다. */
+/** 복습 상세의 학습 기록(처음 선택한 답변 + 체감 난이도). 학습 중 선택한 값은 여기서 변경하지 않는다. */
 export function CardDifficultyPoll({ cardId }: { cardId: string }) {
   const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
@@ -36,26 +37,53 @@ export function CardDifficultyPoll({ cardId }: { cardId: string }) {
   const total = counts.easy + counts.normal + counts.hard;
   const pct = (n: number) => (total > 0 ? Math.round((n / total) * 100) : 0);
 
+  const firstColor = firstNeedsReview === null ? c.textSecondary : firstNeedsReview ? c.warning : c.success;
+
+  // 위 → 아래: 처음 선택한 답변 → 체감 난이도. 둘 다 학습 때 남긴 기록이라 한 카드에 담는다.
   return (
     <View testID="review-difficulty" style={[styles.card, { backgroundColor: c.surface, borderColor: c.border }]}>
-      <View style={styles.header}>
-        <Ionicons name="podium-outline" size={16} color={c.primary} />
-        <Text style={{ color: c.textPrimary, fontSize: 14 * fs, fontFamily: fontDisplay }}>체감 난이도</Text>
-        <Text style={{ color: c.textSecondary, fontSize: 11 * fs, lineHeight: 17 * fs, marginLeft: 'auto', fontFamily: fontBody, flexShrink: 1 }}>
-          {myVote ? '내 선택 · 변경할 수 없어요' : '아직 난이도 선택 기록이 없어요'}
-        </Text>
+      <View testID="recorded-review-choice">
+        <SectionTitle icon="checkmark-done-circle" color={c.success} title="처음 선택한 답변"
+          caption={first ? '처음 학습 때 고른 답' : undefined} />
+        <View style={styles.options}>
+          {REVIEW_CHOICES.map(option => {
+            const active = firstNeedsReview === option.needsReview;
+            const color = option.needsReview ? c.warning : c.success;
+            return (
+              <View key={option.label} accessible accessibilityRole="text" pointerEvents="none"
+                accessibilityLabel={`${option.label}${active ? ' · 처음 선택' : ''}`}
+                accessibilityState={{ disabled: true, selected: active }}
+                style={[styles.opt, { paddingHorizontal: 8, backgroundColor: active ? color + '1A' : c.surfaceAlt, borderColor: active ? color : c.border }]}>
+                <Ionicons name={option.icon} size={22} color={active ? color : c.textSecondary} />
+                <Text style={{ color: active ? color : c.textSecondary, fontSize: 12 * fs, lineHeight: 19 * fs, fontFamily: fontDisplay, marginTop: 5, textAlign: 'center' }}>{option.label}</Text>
+                {active && <Pill color={color} label="처음 선택" fs={fs} />}
+              </View>
+            );
+          })}
+        </View>
+        <View style={[styles.note, { backgroundColor: firstColor + '12' }]}>
+          <Ionicons name={first ? 'lock-closed' : 'information-circle-outline'} size={12} color={firstColor} />
+          <Text testID="first-review-choice" style={{ color: c.textSecondary, fontSize: 11 * fs, lineHeight: 17 * fs, fontFamily: fontBody, flexShrink: 1 }}>
+            {first ? '처음 선택한 기록이에요. 변경할 수 없어요.' : '이 카드의 최초 선택 기록을 확인할 수 없어요.'}
+          </Text>
+        </View>
       </View>
 
+      <View style={[styles.divider, { backgroundColor: c.border }]} />
+
+      <SectionTitle icon="podium" color={c.primary} title="체감 난이도"
+        caption={myVote ? '내 선택 · 변경할 수 없어요' : '아직 난이도 선택 기록이 없어요'} />
+
       {/* 저장된 선택을 표시하는 읽기 전용 항목 */}
-      <View style={styles.options}>
+      <View testID="difficulty-options" style={styles.options}>
         {OPTIONS.map((o) => {
           const active = myVote === o.key;
           return (
             <View accessible accessibilityLabel={`${o.label}${active ? ' · 내 선택' : ''}`} key={o.key}
               style={[styles.opt, { backgroundColor: active ? o.color + '1A' : c.surfaceAlt, borderColor: active ? o.color : c.border }]}>
-              <Ionicons name={o.icon} size={20} color={active ? o.color : c.textSecondary} />
+              <Ionicons name={o.icon} size={22} color={active ? o.color : c.textSecondary} />
               <Text style={{ color: active ? o.color : c.textSecondary, fontSize: 11.5 * fs, lineHeight: 18 * fs, fontFamily: fontDisplay, marginTop: 4, textAlign: 'center' }}>{o.label}</Text>
-              {active && <Text style={{ color: o.color, fontSize: 10 * fs, lineHeight: 16 * fs, fontFamily: fontBody }}>내 선택</Text>}
+              {active && <Pill color={o.color} label="내 선택" fs={fs} />}
             </View>
           );
         })}
@@ -69,7 +97,10 @@ export function CardDifficultyPoll({ cardId }: { cardId: string }) {
       )}
       {myVote && showCrowd && (
         <Animated.View entering={FadeIn.duration(300)} style={{ marginTop: 14, gap: 8 }}>
-          <Text style={{ color: c.textSecondary, fontSize: 11 * fs, fontFamily: fontBody }}>{total.toLocaleString()}명 참여</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Ionicons name="people" size={12} color={c.textSecondary} />
+            <Text style={{ color: c.textSecondary, fontSize: 11 * fs, fontFamily: fontBody }}>{total.toLocaleString()}명 참여</Text>
+          </View>
           {OPTIONS.map((o) => {
             const p = pct(counts[o.key]);
             const mine = myVote === o.key;
@@ -79,7 +110,7 @@ export function CardDifficultyPoll({ cardId }: { cardId: string }) {
                   <Text style={{ color: mine ? o.color : c.textSecondary, fontSize: 11.5 * fs, fontFamily: mine ? fontDisplay : fontBody }}>
                     {o.label}{mine ? ' · 내 선택' : ''}
                   </Text>
-                  <Text style={{ color: c.textSecondary, fontSize: 11 * fs, fontFamily: fontMono }}>{p}%</Text>
+                  <Text style={{ color: mine ? o.color : c.textSecondary, fontSize: 11 * fs, fontFamily: fontMono }}>{p}%</Text>
                 </View>
                 <View style={{ height: 7, backgroundColor: c.surfaceAlt, borderRadius: 4, overflow: 'hidden' }}>
                   <View style={{ width: `${p}%`, height: '100%', backgroundColor: o.color, borderRadius: 4, opacity: mine ? 1 : 0.55 }} />
@@ -89,36 +120,23 @@ export function CardDifficultyPoll({ cardId }: { cardId: string }) {
           })}
         </Animated.View>
       )}
+    </View>
+  );
+}
 
-      <View testID="recorded-review-choice" style={{ marginTop: 16, paddingTop: 14, borderTopWidth: 1, borderTopColor: c.border }}>
-        <Text style={{ color: c.textPrimary, fontSize: 13 * fs, lineHeight: 20 * fs, fontFamily: fontDisplay, marginBottom: 10 }}>처음 선택한 답변</Text>
-        <View style={styles.options}>
-          {REVIEW_CHOICES.map(option => {
-            const active = firstNeedsReview === option.needsReview;
-            const color = option.needsReview ? c.warning : c.success;
-            return (
-              <View key={option.label} accessible accessibilityRole="text" pointerEvents="none"
-                accessibilityLabel={`${option.label}${active ? ' · 처음 선택' : ''}`}
-                accessibilityState={{ disabled: true, selected: active }}
-                style={[styles.opt, { paddingHorizontal: 8, backgroundColor: active ? color + '1A' : c.surfaceAlt, borderColor: active ? color : c.border }]}>
-                <Ionicons name={option.icon} size={20} color={active ? color : c.textSecondary} />
-                <Text style={{ color: active ? color : c.textSecondary, fontSize: 12 * fs, lineHeight: 19 * fs, fontFamily: fontDisplay, marginTop: 5, textAlign: 'center' }}>{option.label}</Text>
-                {active && <Text style={{ color, fontSize: 10 * fs, lineHeight: 16 * fs, fontFamily: fontBody, marginTop: 4 }}>처음 선택</Text>}
-              </View>
-            );
-          })}
-        </View>
-        <Text testID="first-review-choice" style={{ color: c.textSecondary, fontSize: 11 * fs, lineHeight: 18 * fs, fontFamily: fontBody, marginTop: 10 }}>
-          {first ? '처음 선택한 기록이에요. 변경할 수 없어요.' : '이 카드의 최초 선택 기록을 확인할 수 없어요.'}
-        </Text>
-      </View>
+/** 선택된 칸 아래의 작은 꼬리표 */
+function Pill({ color, label, fs }: { color: string; label: string; fs: number }) {
+  return (
+    <View style={{ marginTop: 5, backgroundColor: color, borderRadius: 999, paddingHorizontal: 7, paddingVertical: 1 }}>
+      <Text style={{ color: '#fff', fontSize: 9.5 * fs, lineHeight: 15 * fs, fontFamily: fontDisplay }}>{label}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   card: { borderRadius: 16, borderWidth: 1, padding: 16, marginBottom: 14 },
-  header: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6, marginBottom: 12 },
   options: { flexDirection: 'row', gap: 8 },
   opt: { flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: 12, borderWidth: 1.5 },
+  note: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 7 },
+  divider: { height: 1, marginVertical: 16 },
 });

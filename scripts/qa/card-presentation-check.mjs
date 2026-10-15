@@ -141,9 +141,11 @@ try {
   await page.waitForTimeout(500);
   const savedChoice = page.getByTestId('recorded-review-choice');
   const difficulty = page.getByTestId('review-difficulty');
+  // 해설 아래 순서: 현장 팁 → 처음 선택한 답변 → 체감 난이도
+  const tipsY = (await page.getByLabel('이 카드에 남길 팁').boundingBox()).y;
   const choiceY = (await savedChoice.boundingBox()).y;
-  const difficultyY = (await difficulty.boundingBox()).y;
-  assert(choiceY > difficultyY, 'Recorded choice below difficulty');
+  const difficultyY = (await difficulty.getByTestId('difficulty-options').boundingBox()).y;
+  assert(tipsY < choiceY && choiceY < difficultyY, 'Tips, then recorded choice, then difficulty');
   assert.equal(await difficulty.getByTestId('recorded-review-choice').count(), 1, 'Choice belongs inside difficulty card');
   assert(await savedChoice.getByLabel('다음에 한번 더 볼게요 · 처음 선택', { exact: true }).count(), 'Initial choice survives newer last grade');
   assert(await savedChoice.getByText('다음에 한번 더 볼게요', { exact: true }).count(), 'Initial choice restored');

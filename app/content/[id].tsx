@@ -101,9 +101,14 @@ export default function ContentDetailScreen() {
           <CardReactionBar cardId={card.id} onReport={() => setReportOpen(true)} />
         </Animated.View>
 
-        <CardDifficultyPoll cardId={card.id} />
+        {/* 해설 아래: 현장 팁 → 처음 선택한 답변 → 체감 난이도 (뒤 둘은 한 카드) */}
+        <Animated.View entering={FadeInDown.delay(240).duration(360)}>
+          <CardTips cardId={card.id} />
+        </Animated.View>
 
-        <CardTips cardId={card.id} />
+        <Animated.View entering={FadeInDown.delay(300).duration(360)}>
+          <CardDifficultyPoll cardId={card.id} />
+        </Animated.View>
       </ScrollView>
 
       <CardReportModal visible={reportOpen} card={card} onClose={() => setReportOpen(false)} />

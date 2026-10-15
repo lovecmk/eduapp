@@ -56,3 +56,10 @@ it('여러 번 학습한 카드의 최초 기록이 없으면 마지막 선택�
   expect(view.getByLabelText('안 볼게요').props.accessibilityState).toEqual({ disabled: true, selected: false });
   expect(view.getByLabelText('다음에 한번 더 볼게요').props.accessibilityState).toEqual({ disabled: true, selected: false });
 });
+
+it('카드 안에서 처음 선택한 답변이 체감 난이도보다 위에 온다', () => {
+  poll.mockReturnValue({ mine: 'easy', counts: null, loaded: true });
+  const view = render(<CardDifficultyPoll cardId="a" />);
+  const order = view.getAllByRole('header').map((h) => h.props.children);
+  expect(order).toEqual(['처음 선택한 답변', '체감 난이도']);
+});

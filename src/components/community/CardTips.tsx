@@ -11,6 +11,7 @@ import { timeAgoLabel } from '../../store/notificationStore';
 import { isMeaningful, textLength, INPUT_LIMITS } from '../../utils/sanitize';
 import { authorLabel } from '../../domain/models/User';
 import { ErrorState } from '../ui/ErrorState';
+import { SectionTitle } from '../ui/SectionTitle';
 import { toApiError } from '../../data/network/errors';
 
 /** 카드별 현장 팁(작은 커뮤니티) — 실무 노하우 공유 + 좋아요. */
@@ -42,17 +43,8 @@ export function CardTips({ cardId }: { cardId: string }) {
 
   return (
     <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.border }]}>
-      <View style={styles.header}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <Ionicons name="chatbubbles" size={16} color={c.primary} />
-          <Text style={{ color: c.textPrimary, fontSize: 14 * fs, fontFamily: fontDisplay }}>현장 팁</Text>
-          <View style={{ backgroundColor: c.surfaceAlt, borderRadius: 8, paddingHorizontal: 7, paddingVertical: 1 }}>
-            <Text style={{ color: c.textSecondary, fontSize: 11 * fs, fontFamily: fontMono }}>{cardTips.length}</Text>
-          </View>
-        </View>
-        {/* 팁은 아직 서버에 없다 — 실서버 모드에서 '함께 나눈'이라고 하면 남도 본다고 믿는다. */}
-        <Text style={{ color: c.textSecondary, fontSize: 11 * fs, fontFamily: fontBody }}>함께 나눈 실무 노하우</Text>
-      </View>
+      {/* 팁은 아직 서버에 없다 — 실서버 모드에서 '함께 나눈'이라고 하면 남도 본다고 믿는다. */}
+      <SectionTitle icon="bulb" color={c.warning} title="현장 팁" count={cardTips.length} caption="함께 나눈 실무 노하우" />
 
       {isLoading && <Text style={{ color: c.textSecondary, paddingVertical: 12 }}>현장 팁을 불러오고 있어요…</Text>}
       {isError && <ErrorState message={toApiError(error).userMessage} onRetry={() => { void refetch(); }} />}
@@ -153,7 +145,6 @@ function ExpandableText({ text }: { text: string }) {
 
 const styles = StyleSheet.create({
   card: { borderRadius: 16, borderWidth: 1, padding: 16, marginBottom: 14 },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
   inputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, borderRadius: 12, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 8 },
   sendBtn: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
   tip: { flexDirection: 'row', gap: 10, alignItems: 'flex-start', paddingVertical: 12 },
