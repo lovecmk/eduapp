@@ -17,7 +17,7 @@ it('잘못된 선택 필드와 보기는 크래시/잘못된 채점 없이 처�
 it('상속된 객체 속성은 분류 코드로 해석하지 않는다', () => {
   const card = CardMapper.toDomain({ ...base, category_cd: 'constructor', status_cd: 'toString',
     difficulty_cd: '__proto__', card_type_cd: 'constructor' } as unknown as CardDTO);
-  expect([card.category, card.status, card.difficulty, card.type]).toEqual(['전기 위험', 'new', 'medium', 'explanation']);
+  expect([card.category, card.status, card.difficulty, card.type]).toEqual(['현장 점검', 'new', 'medium', 'explanation']);
 });
 
 it.each([['X', 'O'], ['가', '나'], ['O', 'X', '모름']])('잘못된 OX 보기 %p로 오답을 만들지 않는다', (...choices) => {

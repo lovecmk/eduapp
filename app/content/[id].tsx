@@ -87,7 +87,7 @@ export default function ContentDetailScreen() {
         </View>
 
         <View style={{ marginBottom: 14 }}>
-          <CategoryTrail category={card.category} subCategory={card.subCategory} topic={card.topic} />
+          <CategoryTrail category={card.taxonomyCategory || card.category} subCategory={card.subCategory} topic={card.topic} />
         </View>
 
         {hasCardImage(card.imageUrl) ? (

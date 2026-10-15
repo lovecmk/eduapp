@@ -67,7 +67,7 @@ export default function SavedScreen() {
                       </View>
                     )}
                     <View style={{ flex: 1 }}>
-                      <CategoryTrail category={card.category} subCategory={card.subCategory} topic={card.topic} size="sm" />
+                      <CategoryTrail category={card.taxonomyCategory || card.category} subCategory={card.subCategory} topic={card.topic} size="sm" />
                       <Text numberOfLines={2} style={{ color: c.textPrimary, fontSize: 13.5 * fs, lineHeight: 19, marginTop: 5, fontFamily: fontDisplay }}>{card.question}</Text>
                       <Text style={{ color: diff.color, fontSize: 11, marginTop: 6, fontFamily: fontDisplay }}>{diff.label}</Text>
                     </View>

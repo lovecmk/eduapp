@@ -1058,7 +1058,7 @@ export default function CardsScreen() {
                   )}
                 </View>
                 <View style={{ marginTop: 8 }}>
-                  <CategoryTrail category={card.category} subCategory={card.subCategory} topic={card.topic} size="sm" />
+                  <CategoryTrail category={card.taxonomyCategory || card.category} subCategory={card.subCategory} topic={card.topic} size="sm" />
                 </View>
               </View>
               <Text style={{ color: c.textSecondary, fontSize: 11, fontFamily: fontCute }}>{index + 1}/{deck.length}</Text>
@@ -1164,7 +1164,7 @@ export default function CardsScreen() {
           >
             <Pressable testID="learning-card-back-tap" tabIndex={-1} onPress={onBackPress} disabled={exiting} style={{ flex: 1, padding: 18 }}>
               <View style={{ marginBottom: 12 }}>
-                <CategoryTrail category={card.category} subCategory={card.subCategory} topic={card.topic} size="sm" />
+                <CategoryTrail category={card.taxonomyCategory || card.category} subCategory={card.subCategory} topic={card.topic} size="sm" />
               </View>
             {/* 해설은 카드 **안에서** 끝까지 끌어 내려 읽는다.
 

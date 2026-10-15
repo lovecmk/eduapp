@@ -20,6 +20,9 @@ export interface SeedCard {
   id: string;
   /** 서버 정본 대분류 코드(RISK/MEASURE). 기존 앱 표시 분류와 별개다. */
   groupCode?: string;
+  /** 원본 기술 분류(전기·화기 등). 기존 4분야 집계와 별개로 경로에 표시한다. */
+  taxonomyCategoryCode?: string;
+  taxonomyCategory?: string;
   /** 대분류 (예: 전기 위험) */
   category: CardCategory;
   /** 중분류 (예: 배선설비) */

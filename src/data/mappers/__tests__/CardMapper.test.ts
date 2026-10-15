@@ -57,9 +57,9 @@ describe('CardMapper.toDomain', () => {
     expect(card.answerIndex).toBe(0);
   });
 
-  it('알 수 없는 category_cd 는 기본값(전기 위험)으로 안전 폴백한다', () => {
+  it('알 수 없는 category_cd 는 기본값(현장 점검)으로 안전 폴백한다', () => {
     const card = CardMapper.toDomain({ ...base, category_cd: 'UNKNOWN_XYZ' });
-    expect(card.category).toBe('전기 위험');
+    expect(card.category).toBe('현장 점검');
   });
 
   it('선택 필드 누락 시 기본값을 채운다 (undefined 접근으로 크래시하지 않음)', () => {
@@ -219,6 +219,18 @@ describe('CardMapper 분류 코드 계약', () => {
 
   it('정말 모르는 코드는 폴백하되 경고를 남긴다', () => {
     const card = CardMapper.toDomain({ ...base, category_cd: 'NOPE' });
-    expect(card.category).toBe('전기 위험');
+    expect(card.category).toBe('현장 점검');
   });
 });
+
+ it('정본 기술 분류와 구버전 집계 분야를 함께 보존한다', () => {
+  const card = CardMapper.toDomain({ ...base, category_cd: 'PROCESS', taxonomy_category_cd: 'HOTWORK', taxonomy_category_nm: '화기' });
+  expect(card).toMatchObject({ category: '공정 위험', taxonomyCategoryCode: 'HOTWORK', taxonomyCategory: '화기' });
+ });
+ it.each([['HOTWORK', '공정 위험'], ['GAS', '위험물'], ['ALARM', '현장 점검']])('새 원문 코드 %s를 서버와 같은 %s로 읽는다', (code, category) => {
+  expect(CardMapper.toDomain({ ...base, category_cd: code }).category).toBe(category);
+ });
+ it('정본 해설이 있으면 구형 결론 별칭 없이도 읽고 OX는 O/X를 해설로 꾸미지 않는다', () => {
+  expect(CardMapper.toDomain({ ...base, answer_txt: '정본 해설', conclusion_txt: '' }).conclusion).toBe('정본 해설');
+  expect(CardMapper.toDomain({ ...base, card_type_cd: 'OX', answer_txt: 'X', choices: ['O', 'X'], answer_index: 1 }).conclusion).toBe('');
+ });

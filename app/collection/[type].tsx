@@ -258,7 +258,7 @@ const CardRow = React.memo(function CardRow({
         </View>
       )}
       <View style={{ flex: 1 }}>
-        <CategoryTrail category={card.category} subCategory={card.subCategory} topic={card.topic} size="sm" />
+        <CategoryTrail category={card.taxonomyCategory || card.category} subCategory={card.subCategory} topic={card.topic} size="sm" />
         <Text numberOfLines={2} style={{ color: c.textPrimary, fontSize: 13.5 * fs, lineHeight: 19, marginTop: 5, fontFamily: fontDisplay }}>{card.question}</Text>
         {showReport && report ? (
           <View style={{ marginTop: 8, backgroundColor: c.warning + '14', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 7 }}>

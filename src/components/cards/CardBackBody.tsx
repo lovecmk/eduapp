@@ -17,7 +17,7 @@ function splitSteps(text: string): string[] {
 
 /**
  * 학습카드 뒷면(구조화 해설) 공통 렌더러.
- * 해설(결론) → 상세설명(원리) → 진행 프로세스 → 화재 3요소 → 개선 권고 → 관리 기록 순으로 표출.
+ * 해설(conclusion/answer) → 상세설명(principle) → 진행 프로세스 → 화재 3요소 → 개선 권고 → 관리 기록 순으로 표출.
  * 학습(cards)·복습(review)·상세(content)에서 동일한 형태로 재사용한다.
  */
 export function CardBackBody({ card }: { card: LearningCard }) {

@@ -284,7 +284,7 @@ function ContentRow({ card, onPress }: { card: LearningCard; onPress: () => void
         </View>
       )}
       <View style={{ flex: 1 }}>
-        <CategoryTrail category={card.category} subCategory={card.subCategory} topic={card.topic} size="sm" />
+        <CategoryTrail category={card.taxonomyCategory || card.category} subCategory={card.subCategory} topic={card.topic} size="sm" />
         <Text numberOfLines={2} style={{ color: c.textPrimary, fontSize: 13.5 * fs, lineHeight: 19 * fs, marginTop: 5, fontFamily: fontDisplay }}>{card.question}</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 7 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>

@@ -38,3 +38,5 @@ not lifetime learning attempts. Run `npm run test:card-ui -- <web-export>` for t
 
 Follow README release rules: bump with `node scripts/bump-version.mjs`, commit the three version
 files, tag `vX.Y.Z-<short SHA>`, and atomically push main plus that new tag. Do not push main alone.
+
+Preserve the API canonical taxonomy_category_cd/nm separately from the four learning aggregate areas. CategoryTrail uses the canonical name when available; old servers retain aggregate fallback. Never guess unknown codes as electrical hazards. Do not reapply the retired project-taxonomy overwrite SQL.

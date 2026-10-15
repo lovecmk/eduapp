@@ -1,6 +1,6 @@
 import { chromium, expect } from '@playwright/test';
 import { createServer } from 'node:http';
-import { readFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { readFileSync, existsSync, statSync, mkdirSync, writeFileSync } from 'node:fs';
 import { resolve, extname } from 'node:path';
 import { tmpdir } from 'node:os';
 import assert from 'node:assert/strict';
@@ -14,7 +14,7 @@ const server = createServer((request, response) => {
   const path = decodeURIComponent(new URL(request.url, 'http://localhost').pathname).replace(/^\/eduapp(?=\/|$)/, '');
   let file = resolve(bundle, '.' + path);
   if (!file.startsWith(bundle + '/') && !file.startsWith(bundle + '\\') && file !== bundle) { response.writeHead(403).end(); return; }
-  if (!existsSync(file) || !extname(file)) file = resolve(bundle, 'index.html');
+  if (!existsSync(file) || !extname(file) || statSync(file).isDirectory()) file = resolve(bundle, 'index.html');
   response.setHeader('Content-Type', types[extname(file)] ?? 'application/octet-stream');
   response.end(readFileSync(file));
 });
