@@ -15,6 +15,7 @@ import { ErrorState } from '../../src/components/ui/ErrorState';
 import { QuestionImage } from '../../src/components/ui/QuestionImage';
 import { CategoryTrail } from '../../src/components/ui/CategoryTrail';
 import { CardTimer } from '../../src/components/cards/CardTimer';
+import { CardReactionBar } from '../../src/components/cards/CardReactionBar';
 import { CardBackBody } from '../../src/components/cards/CardBackBody';
 import { ScrollFadeEdge } from '../../src/components/ui/ScrollFadeEdge';
 import { CuteScrollRail, ScrollMoreHint, ScrollEndStamp } from '../../src/components/ui/CuteScrollRail';
@@ -355,12 +356,6 @@ export default function CardsScreen() {
   const deck = sessionDeck ?? computedDeck;
   const card = deck[index];
   const todayCard = assignment.cards.find(item => item.card.id === card?.id);
-
-  const toggleBookmark = useBookmarkStore((s) => s.toggle);
-  const isBookmarked = useBookmarkStore((s) => (card ? s.ids.includes(card.id) : false));
-  const toggleLike = useLikeStore((s) => s.toggle);
-  const isLiked = useLikeStore((s) => (card ? s.ids.includes(card.id) : false));
-  const hasReported = useReportStore((s) => (card ? s.reports.some((r) => r.cardId === card.id) : false));
 
   const keepScreenOn = useSettingsStore((s) => s.keepScreenOn);
   const toggleKeepScreenOn = useSettingsStore((s) => s.toggleKeepScreenOn);
@@ -1093,11 +1088,11 @@ export default function CardsScreen() {
                     </View>
                   )}
                   {!!card.situation && (
-                    <Text style={{ color: c.textPrimary, fontSize: 13.5 * fs, lineHeight: 20, textAlign: 'left', fontFamily: fontCute, marginBottom: 8 }}>
+                    <Text style={{ color: c.textPrimary, fontSize: 18 * fs, fontWeight: '800', lineHeight: 26 * fs, textAlign: 'left', fontFamily: fontCute, marginBottom: 8 }}>
                       {card.situation}
                     </Text>
                   )}
-                  <Text style={{ color: c.primary, fontSize: 18 * fs, fontWeight: '800', lineHeight: 26, textAlign: 'left', fontFamily: fontCute, marginBottom: 18 }}>
+                  <Text style={{ color: c.primary, fontSize: 18 * fs, fontWeight: '800', lineHeight: 26 * fs, textAlign: 'left', fontFamily: fontCute, marginBottom: 18 }}>
                     <Text style={{ fontWeight: '900' }}>Q. </Text>{card.question}
                   </Text>
                   <CardQuiz
@@ -1138,11 +1133,11 @@ export default function CardsScreen() {
                       라(아이콘·이미지를 가운데 두려고) 그냥 두면 짧은 문장만 가운데로 몰려,
                       길이에 따라 정렬이 오락가락한다. */}
                   {!!card.situation && (
-                    <Text style={{ alignSelf: 'stretch', color: c.textPrimary, fontSize: 16.5 * fs, lineHeight: 25, textAlign: 'left', fontFamily: fontCute, marginBottom: 14 }}>
+                    <Text style={{ alignSelf: 'stretch', color: c.textPrimary, fontSize: 20 * fs, fontWeight: '800', lineHeight: 29 * fs, textAlign: 'left', fontFamily: fontCute, marginBottom: 14 }}>
                       {card.situation}
                     </Text>
                   )}
-                  <Text style={{ alignSelf: 'stretch', color: c.primary, fontSize: 20 * fs, fontWeight: '800', lineHeight: 29, textAlign: 'left', fontFamily: fontCute }}>
+                  <Text style={{ alignSelf: 'stretch', color: c.primary, fontSize: 20 * fs, fontWeight: '800', lineHeight: 29 * fs, textAlign: 'left', fontFamily: fontCute }}>
                     <Text style={{ fontWeight: '900' }}>Q. </Text>{card.question}
                   </Text>
                   <View style={{ marginTop: 20 }}>
@@ -1205,6 +1200,7 @@ export default function CardsScreen() {
               >
                 <Pressable tabIndex={-1} onPress={onBackPress} disabled={exiting} style={{ flexGrow: 1 }}>
                   <CardBackBody card={card} />
+                  <CardReactionBar cardId={card.id} onReport={() => setReportOpen(true)} disabled={exiting} />
                   {/* 끝까지 내렸을 때 뜬다 — 여기가 끝이라는 표시.
                       **자리는 늘 차지한다**(opacity 만 바뀐다). 넣었다 뺐다 하면
                       콘텐츠 높이가 흔들려 스크롤이 위아래로 튄다. */}
@@ -1341,23 +1337,11 @@ export default function CardsScreen() {
 
       <CardReportModal visible={reportOpen} card={card} onClose={() => setReportOpen(false)} />
 
-      {/* 한 문제를 풀고 넘어가기 직전 — 체감 난이도와 이 문제에 대한 반응을 한 자리에서 받는다.
-
-          신고 모달이 열리는 동안에는 이 카드를 잠시 접는다. 두 모달을 겹쳐 띄우면
-          iOS 는 나중에 뜬 것을 아래에 깔아 버려 신고 창이 보이지 않는다.
-          reportOpen 이 풀리면 난이도 카드가 그대로 다시 올라온다(넘김은 아직 대기 중). */}
+      {/* 카드 반응은 뒷면에 두고, 넘어가기 직전에는 체감 난이도만 묻는다. */}
       <CardDifficultyAsk
         visible={askVisible && !reportOpen}
         onSelect={(choice) => resolveAsk(choice)}
         onSkip={() => resolveAsk(null)}
-        reactions={{
-          liked: isLiked,
-          bookmarked: isBookmarked,
-          reported: hasReported,
-          onToggleLike: () => toggleLike(card.id),
-          onToggleBookmark: () => toggleBookmark(card.id),
-          onReport: () => setReportOpen(true),
-        }}
       />
 
       {/* 뒤로가기 시 이동 위치 확인 — '홈으로 튕기는' UX 방지 */}

@@ -60,7 +60,7 @@ function StatPill({ value, label, icon }: { value: string; label: string; icon?:
     <View style={{ flex: 1, backgroundColor: c.surfaceAlt, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 8, alignItems: 'center' }}>
       {icon && <Ionicons name={icon} size={rs(14)} color={c.warning} style={{ marginBottom: 2 }} />}
       <Text numberOfLines={1} style={{ color: c.primary, fontSize: rs(20) * fontScale, fontWeight: '900', fontFamily: fontMono }}>{value}</Text>
-      <Text numberOfLines={1} style={{ color: c.textSecondary, fontSize: rs(11) * fontScale, marginTop: 3, fontFamily: fontBody }}>{label}</Text>
+      <Text style={{ textAlign: 'center', color: c.textSecondary, fontSize: rs(11) * fontScale, marginTop: 3, fontFamily: fontBody }}>{label}</Text>
     </View>
   );
 }
@@ -384,10 +384,13 @@ export default function HomeScreen() {
           {statsError ? (
             <ErrorState message="통계를 불러올 수 없습니다" onRetry={refetchStats} />
           ) : (
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              <StatPill value={`${quota.used}/${quota.limit}`} label="오늘 학습" icon="today" />
-              <StatPill value={`${stats?.totalLearned ?? masteredCount}개`} label="누적 학습" icon="book" />
-              <StatPill value={`${stats?.streakDays ?? '-'}일`} label="연속 학습" icon="flame" />
+            <View>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <StatPill value={`${quota.used}/${quota.limit}`} label="오늘 학습" icon="today" />
+                <StatPill value={`${stats?.totalLearned ?? masteredCount}장`} label="학습 완료 카드" icon="book" />
+                <StatPill value={`${stats?.streakDays ?? '-'}일`} label="연속 학습" icon="flame" />
+              </View>
+              <Text style={{ color: c.textSecondary, fontSize: 11 * fs, lineHeight: 17 * fs, fontFamily: fontBody, marginTop: 8 }}>'알고 있었어요/이해했어요'로 기록한 카드 수예요. 같은 카드는 한 번만 세며, 다시 복습이 필요해지면 줄어들 수 있어요.</Text>
             </View>
           )}
         </Card>

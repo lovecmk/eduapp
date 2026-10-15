@@ -7,6 +7,7 @@ export function TabBarButton({ children, style, onPress, onLongPress, accessibil
   return (
     <Pressable accessibilityRole="tab"
       accessibilityLabel={label ?? accessibilityLabel}
+      aria-selected={selected ?? accessibilityState?.selected}
       accessibilityState={{ ...accessibilityState, selected: selected ?? accessibilityState?.selected }}
       testID={testID}
       onLongPress={onLongPress}

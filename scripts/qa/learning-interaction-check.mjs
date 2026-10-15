@@ -1,4 +1,4 @@
-import { chromium } from '@playwright/test';
+import { chromium, expect } from '@playwright/test';
 import { createServer } from 'node:http';
 import { readFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { resolve, extname } from 'node:path';
@@ -145,7 +145,7 @@ try {
   await page.waitForTimeout(450);
   assert.equal(new URL(page.url()).pathname, '/eduapp/review');
   assert.equal(await page.getByRole('tab').count(), 5);
-  assert.equal(await reviewTab.getAttribute('aria-selected'), 'true');
+  await expect(reviewTab).toHaveAttribute('aria-selected', 'true');
   const destination = new URL(page.url()).pathname;
   await page.getByRole('tab').filter({ hasText: 'MY' }).click();
   await reviewTab.click();

@@ -126,7 +126,7 @@ export default function StatsScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.primary} />}
         contentContainerStyle={{ padding: 20, ...contentColumn }}>
         <View style={{ flexDirection: 'row', gap: 8, marginBottom: 20 }}>
-          <StatTile icon="book" color={c.primary} value={`${stats?.totalLearned ?? 0}`} label="누적 학습" />
+          <StatTile icon="book" color={c.primary} value={`${stats?.totalLearned ?? 0}장`} label="학습 완료 카드" />
           <StatTile icon="flame" color={c.warning} value={`${stats?.streakDays ?? 0}일`} label="연속 학습" />
           <StatTile icon="trophy" color="#F2705B" value={`${stats?.bestStreak ?? 0}일`} label="최고 기록" />
         </View>

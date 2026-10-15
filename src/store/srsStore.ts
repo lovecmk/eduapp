@@ -72,6 +72,9 @@ export const useSrsStore = create<SrsState>()(
       grade: (cardId, g, perceivedDifficulty) => {
         const prev = get().cards[cardId] ?? initialState();
         const next = applyPersonalReviewPolicy(prev, schedule(prev, g), g);
+        const first = firstDecision(prev);
+        if (first) { next.firstGrade = first.grade; next.firstReviewedAt = first.at; }
+        else if (prev.reps === 0) { next.firstGrade = g; next.firstReviewedAt = next.lastReviewedAt ?? Date.now(); }
         next.perceivedDifficulty = perceivedDifficulty ?? '';
         const key = dateKey(new Date());
         const today = get().history[key] ?? [];
@@ -90,7 +93,9 @@ export const useSrsStore = create<SrsState>()(
         for (const [id, raw] of Object.entries(cards)) {
           const remote = sanitizeRemote(raw);
           const local = localCards[id];
-          mergedCards[id] = local ? newerSrs(local, remote) : remote;
+          const newest = local ? newerSrs(local, remote) : remote;
+          const first = local ? firstDecision(local) : undefined;
+          mergedCards[id] = first ? { ...newest, firstGrade: first.grade, firstReviewedAt: first.at } : newest;
         }
 
         // 이력은 '그날 무엇을 공부했나'라 합집합이 맞다 — 어느 기기에서 풀었든
@@ -132,4 +137,12 @@ export function boxDistribution(cards: Record<string, SrsCardState>): number[] {
   const dist = new Array(MAX_BOX + 1).fill(0) as number[];
   for (const s of Object.values(cards)) dist[Math.max(0, Math.min(MAX_BOX, s.box))]++;
   return dist;
+}
+
+/** 마지막 값은 최초값으로 추측하지 않는다. 채점이 정확히 1회일 때만 복원 가능하다. */
+export function firstDecision(state: SrsCardState | undefined): { grade: Grade; at: number } | undefined {
+  if (!state) return undefined;
+  const grade = normalizeGrade(state.firstGrade) ?? (state.reps === 1 ? normalizeGrade(state.lastGrade) : null);
+  const at = state.firstReviewedAt ?? (state.reps === 1 ? state.lastReviewedAt : null);
+  return grade && at != null ? { grade, at } : undefined;
 }

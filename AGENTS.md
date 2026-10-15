@@ -27,3 +27,14 @@ npm run web     # or: npx expo start --web --offline
 `package-lock.json` is committed and authoritative. Always use `npm ci` on a
 fresh clone so the locked SDK 52 versions are installed exactly; a loose
 `npm install` can drift versions.
+
+## Card learning and release checks
+
+Card reactions belong on the back face (`CardReactionBar`), not in `CardDifficultyAsk`.
+Keep the immutable first decision separate from the latest SRS grade, and preserve it when
+merging newer server schedules. Never infer the first decision from a multi-review last grade.
+`total_learned` currently counts MASTERED cards, so UI labels must describe current completion,
+not lifetime learning attempts. Run `npm run test:card-ui -- <web-export>` for these flows.
+
+Follow README release rules: bump with `node scripts/bump-version.mjs`, commit the three version
+files, tag `vX.Y.Z-<short SHA>`, and atomically push main plus that new tag. Do not push main alone.

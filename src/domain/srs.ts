@@ -26,6 +26,9 @@ export function normalizeGrade(value: unknown): Grade | null {
 }
 
 export interface SrsCardState {
+  /** 최초 자기평가. 서버의 lastGrade와 별개로 기기에 보존한다. */
+  firstGrade?: Grade;
+  firstReviewedAt?: number;
   perceivedDifficulty?: 'EASY' | 'MEDIUM' | 'HARD' | '';
   /** Leitner 박스 단계 (0=방금 배움 ~ 5=장기기억) */
   box: number;

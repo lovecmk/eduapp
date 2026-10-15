@@ -162,7 +162,7 @@ describe.each([
   it('카드가 실제로 그려진다(빈 화면으로 통과하는 헛검사 방지)', () => {
     wrap(name);
     // 앞면의 문제와 보기는 카드가 그려졌을 때만 존재한다.
-    // (추천·저장·신고는 이제 카드 뒷면이 아니라 넘어가기 직전의 난이도 카드에 있다.)
+    // (좋아요·저장·신고는 카드 뒷면에 있다.)
     expect(screen.getByText(mockCard.situation!)).toBeTruthy();
     expect(screen.getByText(mockCard.choices![0])).toBeTruthy();
   });

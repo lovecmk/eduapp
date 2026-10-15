@@ -157,12 +157,12 @@ export class CardMapper {
       situation: text(dto.situation_txt),
       question: text(dto.question_txt),
       imageUrl: optional(dto.image_url),
-      principle: text(dto.principle_txt),
+      principle: optional(dto.principle_txt) ?? '',
       // 선택 본문도 같은 규칙으로 읽는다 — 'null' 이 그대로 통과하면 해설에
       // "null" 이라고 적힌 단계가 그려진다(사진에서 이미 겪은 것과 같은 원인).
       process: optional(dto.process_txt),
       fireTriangle: optional(dto.fire_triangle_txt),
-      conclusion: text(dto.conclusion_txt),
+      conclusion: optional(dto.conclusion_txt) ?? '',
       answer: optional(dto.answer_txt),
       improvement: optional(dto.improvement_txt),
       answerImageUrl: optional(dto.answer_image_url),

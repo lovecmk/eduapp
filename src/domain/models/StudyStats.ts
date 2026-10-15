@@ -44,7 +44,7 @@ export interface StudyStats {
   streakDays: number;
   /** 최대 연속 학습 기록 */
   bestStreak: number;
-  /** 누적 학습 카드 수 */
+  /** 서버 total_learned: 현재 조회 가능한 카드 중 MASTERED인 고유 카드 수(전체 시도/일수 아님). */
   totalLearned: number;
   /** 전체 카드 수 */
   totalCards: number;
