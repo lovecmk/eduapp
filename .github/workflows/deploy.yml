@@ -1,4 +1,5 @@
-# 완전 자동화 배포 파이프라인 — PART 5.3
+# Web deployment: manual fallback only since 2026-10-16.
+# APK releases are built on the PC with `npm run release`.
 #
 # 릴리스 태그 푸시 또는 수동 실행 시:
 #  1) Secrets → .env 동적 주입 (없으면 운영 API 기본값)
@@ -9,8 +10,6 @@
 name: Build & Deploy (Web + OTA)
 
 on:
-  push:
-    tags: ['v*']
   workflow_dispatch:
 
 # version.json 자동 푸시 + gh-pages 브랜치 배포 모두 contents:write 만으로 동작한다.

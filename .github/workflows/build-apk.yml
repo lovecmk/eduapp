@@ -1,4 +1,5 @@
-# Android APK 빌드 (로컬 빌드 · Expo 계정/EAS 불필요)
+# Android APK hosted build: manual fallback only since 2026-10-16.
+# Default: `npm run release` builds on the PC and uploads directly to Releases.
 #
 # GitHub 러너에서 직접 네이티브 빌드를 수행한다.
 #  1) npm ci → .env 주입(시크릿 없으면 목업 폴백)
@@ -19,8 +20,6 @@
 name: Build Android APK (Local)
 
 on:
-  push:
-    tags: ['v*']
   workflow_dispatch:
     inputs:
       api:

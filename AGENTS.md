@@ -40,7 +40,16 @@ Never grade or vote from that screen. Actual learning flow retains its SRS sched
 `total_learned` currently counts MASTERED cards, so UI labels must describe current completion,
 not lifetime learning attempts. Run `npm run test:card-ui -- <web-export>` for these flows.
 
-Follow README release rules: bump with `node scripts/bump-version.mjs`, commit the three version
-files, tag `vX.Y.Z-<short SHA>`, and atomically push main plus that new tag. Do not push main alone.
+Follow README release rules. Since 2026-10-16 use `npm run release` from clean main: bump with
+`node scripts/bump-version.mjs`, commit the three version files, run local tests and Expo SDK 52/Gradle
+APK build, verify package/versionCode and the existing signing certificate, tag `vX.Y.Z-<short SHA>`,
+atomically push main plus that new tag, then upload artifacts/checksums/provenance to a draft GitHub
+Release and publish after verification. Do not push main alone. Hosted APK/web/OTA workflows are
+manual fallbacks only. Keep existing debug signing compatibility; do not generate a new key.
+The certificate baseline belongs in ignored `.release-config.local` or process environment. Never
+store GitHub tokens in files/logs. Use `npm run release -- --dry-run` for preflight, or
+`npm run release:local -- <current-tag> --publish-only` to resume verified existing artifacts after
+upload failure. Never overwrite tags or published assets. Preserve version commits after a build
+failure and resume that version instead of bumping again. See README for local JDK/SDK requirements.
 
 Preserve the API canonical taxonomy_category_cd/nm separately from the four learning aggregate areas. CategoryTrail uses the canonical name when available; old servers retain aggregate fallback. Never guess unknown codes as electrical hazards. Do not reapply the retired project-taxonomy overwrite SQL.

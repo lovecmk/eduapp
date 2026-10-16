@@ -87,16 +87,38 @@ eas build --profile preview --platform android      # → https://bridge.kfpa.or
 ```
 
 **GitHub Actions APK** — `Build Android APK (Local)` 를 수동 실행하면 드롭다운에서
-`production` / `test`를 고른다. 태그 푸시로 자동 실행되면 `production`이다.
+`production` / `test`를 고른다. 2026-10-16부터 태그 자동 실행은 끄고 수동 대체 경로로만 유지한다.
 
 **로컬 확인** — 앱의 `개발자 모드 > 환경 설정` 화면에 지금 보는 주소와
 `실서버(Live)`와 대상 서버가 표시된다. 서버 점검 버튼은 `GET /inner/api/v1/health`를
 때려 응답 시간과 서버 버전을 보여준다.
 
-릴리스 태그는 `vX.Y.Z-<커밋의 짧은 SHA>`다. 검증 후 `node scripts/bump-version.mjs`로
-patch/빌드 번호를 올려 버전 커밋을 만들고 main과 태그를 원자적으로 push한다.
-태그 Actions는 `--check-tag`로 이미 커밋한 버전을 검증하며 이중으로 번호를 올리지 않는다.
-main 푸시만으로는 빌드하지 않는다. 기존 버전/태그는 재사용하지 않는다.
+기본 릴리스는 **PC에서 APK를 빌드하고 GitHub Release에 직접 게시**한다. 깨끗한 main에서
+`npm run release`를 실행하면 `node scripts/bump-version.mjs`로 patch/빌드 번호를 올려
+app.json·version.json·public/version.json을 맞추고 버전 커밋을 만든다. 타입·전체 회귀 시험 및
+릴리스 검사를 통과한 다음 Expo SDK 52 prebuild와 Gradle wrapper로 APK를 만든다.
+APK의 패키지·버전·versionCode·기존 인증서 일치를 검사한 뒤 `vX.Y.Z-<짧은 SHA>` 태그와
+main을 원자적으로 push하고, APK·SHA256SUMS.txt·BUILD-INFO.json이 모두 업로드된 초안만 공개한다.
+기존 테스트 APK와 동일하게 prerelease로 게시한다. GitHub 인증은 Git Credential Manager의 기존
+인증 또는 프로세스 환경의 GH_TOKEN을 사용하며 Expo/EAS 계정은 필요하지 않다.
+
+필요 도구: Node, JDK 17 또는 호환되는 21, Android SDK 35·build-tools 35.0.0·NDK 26.1.10909125·
+CMake 3.22.1. SDK는 `ANDROID_HOME` 또는 Windows 기본 `%LOCALAPPDATA%/Android/Sdk`에서 찾는다.
+이 PC의 기존 전역 Gradle을 사용하지 않고 android/gradlew를 사용한다. prebuild가 android/를 갱신하므로
+네이티브 변경은 Expo config/plugin으로 관리한다. 의존성은 SDK 52에 고정한다.
+
+기존 배포 APK의 `apksigner verify --print-certs`로 확인한 인증서 SHA-256을 git에서 제외되는
+`.release-config.local`에 `{"androidCertificateSha256":"<64자리 SHA-256>"}`로 기록한다.
+`LOCAL_RELEASE_ANDROID_CERT_SHA256` 환경 변수도 지원한다. 기존 디버그 서명은 유지하며 새 키를
+만들지 않는다. 운영 API와 빌드 메타데이터를 프로세스 환경으로 고정하고 로컬 .env는 변경하지 않는다.
+
+`npm run release -- --dry-run`은 버전·GitHub 사전 검사만 하고 변경을 원복한다.
+이미 push된 현재 태그는 `npm run release:local -- vX.Y.Z-SHA`로 빌드·게시할 수 있다.
+업로드 실패 후에는 같은 명령에 `--publish-only`를 붙여 기존 dist-release/<판>의 출처·체크섬을
+검증하고 재개한다. `--prepare-only`는 빌드만 한다. 빌드 실패로 버전 커밋만 남으면 원인을 해결해
+그 버전을 빌드하고 같은 main+새 태그를 함께 push한다. 기존 버전/태그/공개 자산은 덮어쓰지 않는다.
+APK·웹·OTA hosted 워크플로는 수동 실행만 가능하며 태그/main push는 빌드를 시작하지 않는다.
+이번 전환은 APK Release 배포가 대상이며 EAS OTA와 Pages 호스팅은 별도 수동 경로로 유지한다.
 웹 번들은 gh-pages 브랜치에 게시된다. 현재 비공개 저장소의 GitHub 요금제는 Pages 호스팅을 지원하지 않아 웹 주소는 제공되지 않는다. 호스팅을 사용하려면 지원 요금제에서 Pages Source를 gh-pages로 설정하거나 별도 웹 호스트로 배포해야 한다. 저장소 공개 전환은 하지 않는다.
 
 ## 서버를 손봐야 할 때
