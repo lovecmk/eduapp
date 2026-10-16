@@ -25,6 +25,12 @@ export async function buildLocal() {
   if (!/^[a-f0-9]{64}$/i.test(baseline?.replace(/:/g, '') ?? '')) throw new Error('기존 APK 인증서 SHA-256을 .release-config.local에 설정하세요.');
   const sdk = process.env.ANDROID_HOME || process.env.ANDROID_SDK_ROOT || (process.env.LOCALAPPDATA && path.join(process.env.LOCALAPPDATA, 'Android/Sdk'));
   if (!sdk || !fs.existsSync(path.join(sdk, 'platforms/android-35/android.jar'))) throw new Error('Android SDK 35가 필요합니다. ANDROID_HOME을 설정하세요.');
+  if (process.platform === 'win32') {
+    const ninja = path.join(sdk, 'cmake/3.22.1/bin/ninja.exe');
+    const version = run(root, ninja, ['--version'], { stdio: ['ignore', 'pipe', 'pipe'], encoding: 'utf8' }).trim();
+    const [major, minor] = version.split('.').map(Number);
+    if (!(major > 1 || major === 1 && minor >= 12)) throw new Error('Windows 긴 경로를 지원하는 Ninja 1.12 이상이 필요합니다 (SDK CMake 3.22.1/bin).');
+  }
   const { env, jvmArg, wrapperJvmArgs } = androidBuildEnvironment({
     ...process.env, CI: '1', EXPO_NO_TELEMETRY: '1', EXPO_NO_DOTENV: '1',
     ANDROID_HOME: sdk, ANDROID_SDK_ROOT: sdk,
@@ -39,6 +45,9 @@ export async function buildLocal() {
   run(root, process.execPath, [expo, 'prebuild', '--platform', 'android', '--no-install'], { env });
   // Use the generated wrapper, never a machine-wide Gradle installation.
   const android = path.join(root, 'android');
+  // Environment-only build metadata is not a Gradle source input. Regenerate the
+  // JS bundle for each release so a cached bundle cannot retain an older SHA.
+  fs.rmSync(path.join(android, 'app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle'), { force: true });
   const java = env.JAVA_HOME ? path.join(env.JAVA_HOME, 'bin', process.platform === 'win32' ? 'java.exe' : 'java') : 'java';
   // Invoke the same wrapper entry point directly to preserve JVM arguments on Windows.
   run(android, java, [...wrapperJvmArgs, '-classpath', path.join(android, 'gradle/wrapper/gradle-wrapper.jar'), 'org.gradle.wrapper.GradleWrapperMain',

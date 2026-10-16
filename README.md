@@ -103,7 +103,9 @@ main을 원자적으로 push하고, APK·SHA256SUMS.txt·BUILD-INFO.json이 모�
 인증 또는 프로세스 환경의 GH_TOKEN을 사용하며 Expo/EAS 계정은 필요하지 않다.
 
 필요 도구: Node, JDK 17 (React Native Gradle plugin의 고정 toolchain), Android SDK 35·build-tools 35.0.0·NDK 26.1.10909125·
-CMake 3.22.1. SDK는 `ANDROID_HOME` 또는 Windows 기본 `%LOCALAPPDATA%/Android/Sdk`에서 찾는다.
+CMake 3.22.1. Windows에서는 SDK CMake의 Ninja를 1.12 이상으로 준비한다. 기본 1.10.2는
+Reanimated 생성 경로가 260자를 넘으면 mkdir 오류가 난다. 이 PC는 공식 Ninja 1.12.1을 사용한다.
+SDK는 `ANDROID_HOME` 또는 Windows 기본 `%LOCALAPPDATA%/Android/Sdk`에서 찾는다.
 이 PC의 기존 전역 Gradle을 사용하지 않고 android/gradlew를 사용한다. prebuild가 android/를 갱신하므로
 네이티브 변경은 Expo config/plugin으로 관리한다. 의존성은 SDK 52에 고정한다.
 
@@ -118,6 +120,7 @@ Gradle은 Prefab의 비어 있지 않은 stderr를 CXX 오류로 해석하므로
 JAVA_TOOL_OPTIONS·_JAVA_OPTIONS·JDK_JAVA_OPTIONS를 제거한다. 메모리/인증서 옵션은 조용한
 Gradle JVM 인수로 전달하며 사용자의 전역 환경 변수는 변경하지 않는다.
 Windows의 배치/셸 따옴표 변형을 피하려고 동일한 GradleWrapperMain 진입점을 Java 인수 배열로 직접 실행한다.
+이전 SHA가 들어간 Gradle 캐시를 재사용하지 않도록 릴리스마다 JS 번들을 다시 생성한다.
 
 `npm run release -- --dry-run`은 버전·GitHub 사전 검사만 하고 변경을 원복한다.
 이미 push된 현재 태그는 `npm run release:local -- vX.Y.Z-SHA`로 빌드·게시할 수 있다.
