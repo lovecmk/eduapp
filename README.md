@@ -121,6 +121,8 @@ JAVA_TOOL_OPTIONS·_JAVA_OPTIONS·JDK_JAVA_OPTIONS를 제거한다. 메모리/�
 Gradle JVM 인수로 전달하며 사용자의 전역 환경 변수는 변경하지 않는다.
 Windows의 배치/셸 따옴표 변형을 피하려고 동일한 GradleWrapperMain 진입점을 Java 인수 배열로 직접 실행한다.
 이전 SHA가 들어간 Gradle 캐시를 재사용하지 않도록 릴리스마다 JS 번들을 다시 생성한다.
+Expo SDK 52가 CI 모드에서 Metro 캐시 초기화를 무시하므로 네이티브 빌드 프로세스에서만 CI=0을
+사용해 캐시를 비우고, 완성된 번들에 현재 커밋과 운영 API가 들어 있는지도 게시 전에 검사한다.
 
 `npm run release -- --dry-run`은 버전·GitHub 사전 검사만 하고 변경을 원복한다.
 이미 push된 현재 태그는 `npm run release:local -- vX.Y.Z-SHA`로 빌드·게시할 수 있다.

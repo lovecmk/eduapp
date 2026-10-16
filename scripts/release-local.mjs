@@ -48,10 +48,16 @@ export async function buildLocal() {
   // Environment-only build metadata is not a Gradle source input. Regenerate the
   // JS bundle for each release so a cached bundle cannot retain an older SHA.
   fs.rmSync(path.join(android, 'app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle'), { force: true });
+  // Expo SDK 52 suppresses --reset-cache in CI mode. A reused PC needs Metro's
+  // cache reset too, otherwise EXPO_PUBLIC_* can retain the previous release.
+  const nativeEnv = { ...env, CI: '0' };
+  delete nativeEnv.__EXPO_EAGER_BUNDLE_OPTIONS;
   const java = env.JAVA_HOME ? path.join(env.JAVA_HOME, 'bin', process.platform === 'win32' ? 'java.exe' : 'java') : 'java';
   // Invoke the same wrapper entry point directly to preserve JVM arguments on Windows.
   run(android, java, [...wrapperJvmArgs, '-classpath', path.join(android, 'gradle/wrapper/gradle-wrapper.jar'), 'org.gradle.wrapper.GradleWrapperMain',
-    'assembleRelease', '--no-daemon', '--stacktrace', '--max-workers=2', jvmArg], { env });
+    'assembleRelease', '--no-daemon', '--stacktrace', '--max-workers=2', jvmArg], { env: nativeEnv });
+  const bundle = fs.readFileSync(path.join(android, 'app/build/generated/assets/createBundleReleaseJsAndAssets/index.android.bundle'));
+  if (!bundle.includes(Buffer.from(commit)) || !bundle.includes(Buffer.from(env.EXPO_PUBLIC_API_BASE_URL))) throw new Error('JS 번들의 현재 커밋/운영 API 정보를 확인하지 못했습니다. 게시하지 않습니다.');
   const apk = path.join(android, 'app/build/outputs/apk/release/app-release.apk');
   const tools = path.join(sdk, 'build-tools/35.0.0');
   const aapt = path.join(tools, process.platform === 'win32' ? 'aapt.exe' : 'aapt');

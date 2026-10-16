@@ -59,5 +59,8 @@ change NDK/SDK dependencies to work around that stderr parser issue.
 Windows needs Ninja 1.12+ in SDK CMake 3.22.1/bin for Reanimated's long generated paths.
 Regenerate the JS release bundle even when sources are unchanged: build metadata comes from
 process environment and must not retain a previous commit SHA through Gradle output caching.
+Expo SDK 52 disables Metro reset-cache in CI mode. Use CI=0 only for the native build, clear
+eager bundle reuse, and verify the resulting JS bundle contains HEAD and the production API
+before publishing. Tests/prebuild remain non-interactive CI mode.
 
 Preserve the API canonical taxonomy_category_cd/nm separately from the four learning aggregate areas. CategoryTrail uses the canonical name when available; old servers retain aggregate fallback. Never guess unknown codes as electrical hazards. Do not reapply the retired project-taxonomy overwrite SQL.
