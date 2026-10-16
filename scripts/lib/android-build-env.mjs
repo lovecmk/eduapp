@@ -6,7 +6,6 @@ export function androidBuildEnvironment(base, localConfig, platform = process.pl
   for (const key of ['JAVA_TOOL_OPTIONS', '_JAVA_OPTIONS', 'JDK_JAVA_OPTIONS']) delete env[key];
   const trust = platform === 'win32' && localConfig.useWindowsTrustStore
     ? '-Djavax.net.ssl.trustStoreType=Windows-ROOT -Djavax.net.ssl.trustStore=NONE' : '';
-  env.GRADLE_OPTS = [base.GRADLE_OPTS, trust].filter(Boolean).join(' ');
   const jvmArg = '-Dorg.gradle.jvmargs=-Xmx2048m -XX:MaxMetaspaceSize=512m' + (trust ? ' ' + trust : '');
-  return { env, jvmArg };
+  return { env, jvmArg, wrapperJvmArgs: ['-Xmx128m', '-Xms64m', ...(trust ? trust.split(' ') : [])] };
 }

@@ -124,9 +124,9 @@ test('Android subprocess removes noisy Java variables without changing the paren
 });
 
 test('corporate CA uses quiet Gradle JVM options with TLS validation retained', () => {
-  const { env, jvmArg } = androidBuildEnvironment({ GRADLE_OPTS: '-Dexisting=true' }, { useWindowsTrustStore: true }, 'win32');
+  const { env, jvmArg, wrapperJvmArgs } = androidBuildEnvironment({ GRADLE_OPTS: '-Dexisting=true' }, { useWindowsTrustStore: true }, 'win32');
   assert.match(env.GRADLE_OPTS, /-Dexisting=true/);
-  assert.match(env.GRADLE_OPTS, /trustStoreType=Windows-ROOT/);
+  assert.ok(wrapperJvmArgs.includes('-Djavax.net.ssl.trustStoreType=Windows-ROOT'));
   assert.match(jvmArg, /trustStoreType=Windows-ROOT/);
   assert.doesNotMatch(env.GRADLE_OPTS + jvmArg, /trustAll|insecure|disable/i);
 });

@@ -25,7 +25,7 @@ export async function buildLocal() {
   if (!/^[a-f0-9]{64}$/i.test(baseline?.replace(/:/g, '') ?? '')) throw new Error('기존 APK 인증서 SHA-256을 .release-config.local에 설정하세요.');
   const sdk = process.env.ANDROID_HOME || process.env.ANDROID_SDK_ROOT || (process.env.LOCALAPPDATA && path.join(process.env.LOCALAPPDATA, 'Android/Sdk'));
   if (!sdk || !fs.existsSync(path.join(sdk, 'platforms/android-35/android.jar'))) throw new Error('Android SDK 35가 필요합니다. ANDROID_HOME을 설정하세요.');
-  const { env, jvmArg } = androidBuildEnvironment({
+  const { env, jvmArg, wrapperJvmArgs } = androidBuildEnvironment({
     ...process.env, CI: '1', EXPO_NO_TELEMETRY: '1', EXPO_NO_DOTENV: '1',
     ANDROID_HOME: sdk, ANDROID_SDK_ROOT: sdk,
     EXPO_PUBLIC_API_BASE_URL: 'https://bridge.kfpa.or.kr', EXPO_PUBLIC_API_TIMEOUT_MS: '10000',
@@ -39,14 +39,15 @@ export async function buildLocal() {
   run(root, process.execPath, [expo, 'prebuild', '--platform', 'android', '--no-install'], { env });
   // Use the generated wrapper, never a machine-wide Gradle installation.
   const android = path.join(root, 'android');
-  if (process.platform === 'win32') run(android, 'cmd.exe', ['/d', '/s', '/c', `gradlew.bat assembleRelease --no-daemon --stacktrace --max-workers=2 "${jvmArg}"`], { env });
-  else run(android, './gradlew', ['assembleRelease', '--no-daemon', '--stacktrace', '--max-workers=2', jvmArg], { env });
+  const java = env.JAVA_HOME ? path.join(env.JAVA_HOME, 'bin', process.platform === 'win32' ? 'java.exe' : 'java') : 'java';
+  // Invoke the same wrapper entry point directly to preserve JVM arguments on Windows.
+  run(android, java, [...wrapperJvmArgs, '-classpath', path.join(android, 'gradle/wrapper/gradle-wrapper.jar'), 'org.gradle.wrapper.GradleWrapperMain',
+    'assembleRelease', '--no-daemon', '--stacktrace', '--max-workers=2', jvmArg], { env });
   const apk = path.join(android, 'app/build/outputs/apk/release/app-release.apk');
   const tools = path.join(sdk, 'build-tools/35.0.0');
   const aapt = path.join(tools, process.platform === 'win32' ? 'aapt.exe' : 'aapt');
   const details = run(root, aapt, ['dump', 'badging', apk], { env, stdio: ['ignore', 'pipe', 'pipe'], encoding: 'utf8' });
   if (!details.includes("name='com.raywon.newapp'") || !details.includes(`versionCode='${buildNumber}'`) || !details.includes(`versionName='${version}'`)) throw new Error('APK 패키지/버전/빌드 번호가 다릅니다.');
-  const java = env.JAVA_HOME ? path.join(env.JAVA_HOME, 'bin', process.platform === 'win32' ? 'java.exe' : 'java') : 'java';
   const signature = run(root, java, ['-jar', path.join(tools, 'lib/apksigner.jar'), 'verify', '--print-certs', apk], { env, stdio: ['ignore', 'pipe', 'pipe'], encoding: 'utf8' });
   const certificate = /certificate SHA-256 digest: ([a-f0-9]+)/i.exec(signature)?.[1]?.toLowerCase();
   if (!certificate) throw new Error('APK 서명을 확인하지 못했습니다.');
