@@ -53,10 +53,9 @@ export function CardDifficultyPoll({ cardId }: { cardId: string }) {
               <View key={option.label} accessible accessibilityRole="text" pointerEvents="none"
                 accessibilityLabel={`${option.label}${active ? ' · 처음 선택' : ''}`}
                 accessibilityState={{ disabled: true, selected: active }}
-                style={[styles.opt, { paddingHorizontal: 8, backgroundColor: active ? color + '1A' : c.surfaceAlt, borderColor: active ? color : c.border }]}>
-                <Ionicons name={option.icon} size={22} color={active ? color : c.textSecondary} />
-                <Text style={{ color: active ? color : c.textSecondary, fontSize: 12 * fs, lineHeight: 19 * fs, fontFamily: fontDisplay, marginTop: 5, textAlign: 'center' }}>{option.label}</Text>
-                {active && <Pill color={color} label="처음 선택" fs={fs} />}
+                style={[styles.recordedOpt, { backgroundColor: active ? color + '1A' : c.surfaceAlt, borderColor: active ? color : c.border }]}>
+                <Ionicons name={option.icon} size={18} color={active ? color : c.textSecondary} />
+                <Text style={{ color: active ? color : c.textSecondary, fontSize: 12 * fs, lineHeight: 19 * fs, fontFamily: fontDisplay, flexShrink: 1, textAlign: 'center' }}>{option.label}</Text>
               </View>
             );
           })}
@@ -137,6 +136,7 @@ const styles = StyleSheet.create({
   card: { borderRadius: 16, borderWidth: 1, padding: 16, marginBottom: 14 },
   options: { flexDirection: 'row', gap: 8 },
   opt: { flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: 12, borderWidth: 1.5 },
+  recordedOpt: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, minHeight: 44, paddingHorizontal: 8, paddingVertical: 6, borderRadius: 12, borderWidth: 1.5 },
   note: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 7 },
   divider: { height: 1, marginVertical: 16 },
 });
