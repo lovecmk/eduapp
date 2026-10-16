@@ -114,6 +114,9 @@ CMake 3.22.1. SDK는 `ANDROID_HOME` 또는 Windows 기본 `%LOCALAPPDATA%/Androi
 같은 로컬 설정에 `javaHome`을 지정하면 전역 JAVA_HOME 대신 해당 JDK를 이 빌드에서만 사용한다.
 사내 CA가 필요한 Windows PC는 `useWindowsTrustStore: true`로 Windows ROOT 저장소를 사용한다.
 TLS 검증을 끄거나 전역 Java 인증서를 수정하지 않는다.
+Gradle은 Prefab의 비어 있지 않은 stderr를 CXX 오류로 해석하므로 빌드 자식 프로세스에서만
+JAVA_TOOL_OPTIONS·_JAVA_OPTIONS·JDK_JAVA_OPTIONS를 제거한다. 메모리/인증서 옵션은 조용한
+Gradle JVM 인수로 전달하며 사용자의 전역 환경 변수는 변경하지 않는다.
 
 `npm run release -- --dry-run`은 버전·GitHub 사전 검사만 하고 변경을 원복한다.
 이미 push된 현재 태그는 `npm run release:local -- vX.Y.Z-SHA`로 빌드·게시할 수 있다.

@@ -6,6 +6,7 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { collect, preparedAssets, publish, sha256, verifyAsset, assertRemoteTag } from '../lib/local-release.mjs';
+import { androidBuildEnvironment } from '../lib/android-build-env.mjs';
 
 function fixture(t) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'local-release-test-'));
@@ -112,4 +113,20 @@ test('hosted release builds have no push trigger', () => {
       assert.match(workflow, /^  workflow_dispatch:/m, name);
     }
   }
+});
+
+test('Android subprocess removes noisy Java variables without changing the parent', () => {
+  const base = { JAVA_HOME: 'jdk21', JAVA_TOOL_OPTIONS: '-Xmx2048M', _JAVA_OPTIONS: '-Dexample=true', JDK_JAVA_OPTIONS: '-Xmx1g' };
+  const { env } = androidBuildEnvironment(base, { javaHome: 'jdk17' }, 'win32');
+  assert.equal(env.JAVA_HOME, 'jdk17');
+  for (const key of ['JAVA_TOOL_OPTIONS', '_JAVA_OPTIONS', 'JDK_JAVA_OPTIONS']) assert.equal(key in env, false);
+  assert.equal(base.JAVA_TOOL_OPTIONS, '-Xmx2048M');
+});
+
+test('corporate CA uses quiet Gradle JVM options with TLS validation retained', () => {
+  const { env, jvmArg } = androidBuildEnvironment({ GRADLE_OPTS: '-Dexisting=true' }, { useWindowsTrustStore: true }, 'win32');
+  assert.match(env.GRADLE_OPTS, /-Dexisting=true/);
+  assert.match(env.GRADLE_OPTS, /trustStoreType=Windows-ROOT/);
+  assert.match(jvmArg, /trustStoreType=Windows-ROOT/);
+  assert.doesNotMatch(env.GRADLE_OPTS + jvmArg, /trustAll|insecure|disable/i);
 });

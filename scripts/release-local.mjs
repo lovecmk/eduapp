@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { run, npm, git, assertClean, assertRemoteTag, github, collect, preparedAssets, publish } from './lib/local-release.mjs';
+import { androidBuildEnvironment } from './lib/android-build-env.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export function releaseVersion() {
@@ -24,17 +25,13 @@ export async function buildLocal() {
   if (!/^[a-f0-9]{64}$/i.test(baseline?.replace(/:/g, '') ?? '')) throw new Error('기존 APK 인증서 SHA-256을 .release-config.local에 설정하세요.');
   const sdk = process.env.ANDROID_HOME || process.env.ANDROID_SDK_ROOT || (process.env.LOCALAPPDATA && path.join(process.env.LOCALAPPDATA, 'Android/Sdk'));
   if (!sdk || !fs.existsSync(path.join(sdk, 'platforms/android-35/android.jar'))) throw new Error('Android SDK 35가 필요합니다. ANDROID_HOME을 설정하세요.');
-  const env = {
+  const { env, jvmArg } = androidBuildEnvironment({
     ...process.env, CI: '1', EXPO_NO_TELEMETRY: '1', EXPO_NO_DOTENV: '1',
-    JAVA_HOME: process.env.LOCAL_RELEASE_JAVA_HOME || localConfig.javaHome || process.env.JAVA_HOME,
-    ...(process.platform === 'win32' && localConfig.useWindowsTrustStore ? {
-      JAVA_TOOL_OPTIONS: `${process.env.JAVA_TOOL_OPTIONS || ''} -Djavax.net.ssl.trustStoreType=Windows-ROOT -Djavax.net.ssl.trustStore=NONE`.trim(),
-    } : {}),
     ANDROID_HOME: sdk, ANDROID_SDK_ROOT: sdk,
     EXPO_PUBLIC_API_BASE_URL: 'https://bridge.kfpa.or.kr', EXPO_PUBLIC_API_TIMEOUT_MS: '10000',
     EXPO_PUBLIC_BUILD_NUMBER: String(buildNumber), EXPO_PUBLIC_APP_VERSION: version,
     EXPO_PUBLIC_COMMIT_SHA: commit, EXPO_PUBLIC_BUILD_TIME: buildTime,
-  };
+  }, localConfig);
   npm(root, ['run', 'typecheck'], env);
   npm(root, ['test', '--', '--runInBand'], env);
   npm(root, ['run', 'test:release'], env);
@@ -42,8 +39,8 @@ export async function buildLocal() {
   run(root, process.execPath, [expo, 'prebuild', '--platform', 'android', '--no-install'], { env });
   // Use the generated wrapper, never a machine-wide Gradle installation.
   const android = path.join(root, 'android');
-  if (process.platform === 'win32') run(android, 'cmd.exe', ['/d', '/s', '/c', 'gradlew.bat assembleRelease --no-daemon --stacktrace --max-workers=2'], { env });
-  else run(android, './gradlew', ['assembleRelease', '--no-daemon', '--stacktrace', '--max-workers=2'], { env });
+  if (process.platform === 'win32') run(android, 'cmd.exe', ['/d', '/s', '/c', `gradlew.bat assembleRelease --no-daemon --stacktrace --max-workers=2 "${jvmArg}"`], { env });
+  else run(android, './gradlew', ['assembleRelease', '--no-daemon', '--stacktrace', '--max-workers=2', jvmArg], { env });
   const apk = path.join(android, 'app/build/outputs/apk/release/app-release.apk');
   const tools = path.join(sdk, 'build-tools/35.0.0');
   const aapt = path.join(tools, process.platform === 'win32' ? 'aapt.exe' : 'aapt');

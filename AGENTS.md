@@ -53,5 +53,8 @@ upload failure. Never overwrite tags or published assets. Preserve version commi
 failure and resume that version with `npm run release -- --resume` instead of bumping again. Use JDK 17
 for the RN Gradle toolchain. An ignored local javaHome/Windows ROOT option may handle this PC's
 corporate CA without disabling TLS checks or changing global Java configuration. See README.
+Keep Java auto-options out of Android build subprocesses: their launcher stderr causes AGP Prefab
+to report a false CXX1210. Pass memory/TLS settings through Gradle JVM arguments instead; do not
+change NDK/SDK dependencies to work around that stderr parser issue.
 
 Preserve the API canonical taxonomy_category_cd/nm separately from the four learning aggregate areas. CategoryTrail uses the canonical name when available; old servers retain aggregate fallback. Never guess unknown codes as electrical hazards. Do not reapply the retired project-taxonomy overwrite SQL.
