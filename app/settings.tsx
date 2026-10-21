@@ -295,6 +295,13 @@ function SettingsBody({ scrollRef }: { scrollRef: React.RefObject<ScrollView> })
 
             {/* ── 학습 ─────────────────────────────────────────────── */}
             <SettingsGroup title="학습">
+              <SettingsItem
+                anchorId="quiz-examples"
+                icon="extension-puzzle-outline"
+                label="문제 유형 예시"
+                description="복수정답 · 순서맞추기 · 연결하기 체험"
+                onPress={go('quiz-examples', ROUTES.quizExamples)}
+              />
               {/* 목표 학습량(신규 3장 · 복습 포함 최대 7장)은 고정 정책이라 조절 UI를 두지 않는다. */}
               <SettingsBlock anchorId="interests" label="관심 분야" hint="계정에 저장돼 어느 기기에서나 유지돼요">
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>

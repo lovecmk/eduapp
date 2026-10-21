@@ -12,6 +12,7 @@ export const ROUTES = {
   notifications: '/notifications',
   contents: '/contents',
   settings: '/settings',
+  quizExamples: '/quiz-examples',
   developer: '/developer',
   saved: '/saved',
   profile: '/profile',

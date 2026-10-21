@@ -109,6 +109,11 @@ export const SETTINGS_INDEX: SettingsEntry[] = [
 
   // ── 학습 ─────────────────────────────────────────────────────────────
   {
+    id: 'quiz-examples', label: '문제 유형 예시', description: '복수정답 · 순서맞추기 · 연결하기 체험',
+    icon: 'extension-puzzle-outline', group: 'learning', route: '/quiz-examples',
+    breadcrumb: [S, '학습'], keywords: ['예시', '문제', '퀴즈', '복수정답', '순서맞추기', '연결하기'],
+  },
+  {
     id: 'interests', label: '관심 분야', description: '관심 있는 설비 · 시설',
     icon: 'pricetags-outline', group: 'learning', route: '/settings',
     breadcrumb: [S, '학습'], keywords: ['관심사', '분야', '설비', '시설', '추천'],
