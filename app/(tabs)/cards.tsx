@@ -1053,7 +1053,7 @@ export default function CardsScreen() {
                   {isQuiz && (
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: c.warning + '18', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 }}>
                       <Ionicons name="help-circle" size={12} color={c.warning} />
-                      <Text style={{ color: c.warning, fontSize: 10.5, fontFamily: fontCute }}>{card.type === 'ox' ? 'OX 퀴즈' : '객관식'}</Text>
+                      <Text style={{ color: c.warning, fontSize: 10.5, fontFamily: fontCute }}>{card.type === 'ox' ? 'OX 퀴즈' : (card.format || '객관식')}</Text>
                     </View>
                   )}
                 </View>

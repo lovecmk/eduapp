@@ -29,6 +29,7 @@ export function CardQuiz({
   const answer = card.answerIndex ?? 0;
   const isOX = card.type === 'ox';
   const isCorrect = pick === answer;
+  const labelFor = (i: number) => card.format === '선택비교형' ? String.fromCharCode(65 + i) : (CIRCLED[i] ?? String(i + 1));
 
   // 정답/오답 이펙트 애니메이션.
   const shake = useRef(new Animated.Value(0)).current; // 오답 시 좌우 흔들림
@@ -119,7 +120,7 @@ export function CardQuiz({
                   paddingVertical: 13, paddingHorizontal: 14,
                 }}
               >
-                <Text style={{ color: revealed && i === answer ? c.success : c.primary, fontSize: 16 * fs, fontFamily: fontDisplay }}>{CIRCLED[i] ?? i + 1}</Text>
+                <Text style={{ color: revealed && i === answer ? c.success : c.primary, fontSize: 16 * fs, fontFamily: fontDisplay }}>{labelFor(i)}</Text>
                 <Text style={{ color: c.textPrimary, fontSize: 14.5 * fs, lineHeight: 20, flex: 1, fontFamily: fontCute }}>{label}</Text>
                 {mark && <Ionicons name={mark} size={20} color={markColor(i)} />}
               </Pressable>
@@ -138,7 +139,7 @@ export function CardQuiz({
         >
           <Ionicons name={isCorrect ? 'happy' : 'sad'} size={20} color={isCorrect ? c.success : c.error} />
           <Text style={{ color: isCorrect ? c.success : c.error, fontSize: 15 * fs, fontFamily: fontDisplay }}>
-            {isCorrect ? '정답이에요! 🎉' : `아쉬워요 — 정답은 ${isOX ? choices[answer] : (CIRCLED[answer] ?? answer + 1)}`}
+            {isCorrect ? '정답이에요! 🎉' : `아쉬워요 — 정답은 ${isOX ? choices[answer] : labelFor(answer)}`}
           </Text>
         </Animated.View>
       )}

@@ -18,7 +18,8 @@
     "audit:ui": "node scripts/audit-ui.mjs",
     "test:ui": "node scripts/qa/ui-audit-check.mjs",
     "test:learning-ui": "node scripts/qa/learning-interaction-check.mjs",
-    "test:card-ui": "node scripts/qa/card-presentation-check.mjs"
+    "test:card-ui": "node scripts/qa/card-presentation-check.mjs",
+    "test:single-choice": "node scripts/qa/single-choice-check.mjs"
   },
   "dependencies": {
     "@expo/metro-runtime": "~4.0.1",

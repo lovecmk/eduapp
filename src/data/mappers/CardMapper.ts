@@ -1,3 +1,4 @@
+import { choiceQuestionError, isSingleChoiceFormat } from '../../constants/choiceQuestion';
 import type { CardDTO } from '../dto/CardDTO';
 import type { LearningCard, CardCategory, CardStatus } from '../../domain/models/LearningCard';
 import { parseDate } from './_date';
@@ -95,6 +96,11 @@ function quizIsAnswerable(dto: CardDTO): boolean {
     answer < choices.length
   );
   if (!valid) return false;
+  if (isSingleChoiceFormat(dto.format_nm ?? '')) {
+    return dto.card_type_cd === 'CHOICE' && typeof dto.answer_txt === 'string' &&
+      !choiceQuestionError(dto.format_nm!, choices, dto.answer_txt, typeof dto.situation_txt === 'string' ? dto.situation_txt : '') &&
+      typeof dto.question_txt === 'string' && !!dto.question_txt.trim() && dto.answer_txt.trim() === choices[answer!].trim();
+  }
   if (typeof dto.format_nm === 'string' && dto.format_nm.trim() === '빈칸형') {
     // Never record a quiz grade when the canonical answer contradicts its index.
     return dto.card_type_cd === 'CHOICE' && choices.length === 2 &&
