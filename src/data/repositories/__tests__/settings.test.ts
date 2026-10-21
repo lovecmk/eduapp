@@ -15,6 +15,7 @@ jest.mock('../../network/ApiClient', () => ({
 }));
 
 import { SettingsRepository } from '../SettingsRepository';
+import { EXPERIENCE_OPTIONS } from '../../../constants/experience';
 import { MockSettingsRepository } from '../../../__tests__/fixtures/data/repositories/SettingsRepository.mock';
 import {
   DEFAULT_ACCOUNT_SETTINGS,
@@ -74,6 +75,13 @@ describe('SettingsRepository — pull', () => {
 });
 
 describe('SettingsRepository — push', () => {
+  it.each(EXPERIENCE_OPTIONS)('경력 $value를 기존 서버 필드로 저장·복원한다', async ({ value }) => {
+    postDurable.mockResolvedValue('queued');
+    await repo.push({ ...DEFAULT_ACCOUNT_SETTINGS, experience: value }, new Date('2026-10-21T00:00:00Z'));
+    expect(postDurable.mock.calls[0][1].experience).toBe(value);
+    get.mockResolvedValue({ experience: value, updated_at: '2026-10-21T00:00:00Z' });
+    expect((await repo.pull()).settings.experience).toBe(value);
+  });
   it('전체 스냅샷을 보내고, 멱등키에 변경 시각을 담는다(재전송 안전)', async () => {
     postDurable.mockResolvedValue('sent');
     const at = new Date('2026-08-14T01:02:03.000Z');

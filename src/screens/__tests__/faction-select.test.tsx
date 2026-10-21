@@ -13,12 +13,13 @@ jest.mock('expo-router', () => ({
 }));
 
 import React from 'react';
-import { render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import FactionSelectScreen from '../../../app/faction-select';
 import { ThemeProvider } from '../../theme/ThemeProvider';
 import { useSettingsStore, FONT_SCALE_FACTOR, type FontScale } from '../../store/settingsStore';
 import { FACTION_LIST } from '../../constants/factions';
+import { EXPERIENCE_OPTIONS } from '../../constants/experience';
 
 const metrics = {
   frame: { x: 0, y: 0, width: 390, height: 844 },
@@ -37,15 +38,20 @@ function fontSizeOf(text: string): number | undefined {
   return undefined;
 }
 
-function renderAt(scale: FontScale) {
+function renderAt(scale: FontScale, showFaction = true) {
   useSettingsStore.setState({ fontScale: scale } as never);
-  return render(
+  const result = render(
     <SafeAreaProvider initialMetrics={metrics}>
       <ThemeProvider>
         <FactionSelectScreen />
       </ThemeProvider>
     </SafeAreaProvider>,
   );
+  if (showFaction) {
+    fireEvent.press(screen.getByRole('radio', { name: EXPERIENCE_OPTIONS[0].title }));
+    fireEvent.press(screen.getByRole('button', { name: '다음 · 진영 선택' }));
+  }
+  return result;
 }
 
 describe('진영 선택 — 글자 크기 설정 반영', () => {
@@ -82,5 +88,59 @@ describe('진영 선택 — 글자 크기 설정 반영', () => {
       base * (FONT_SCALE_FACTOR.xsmall / FONT_SCALE_FACTOR.medium),
       5,
     );
+  });
+});
+
+describe('경력 확인 후 진영 선택', () => {
+  beforeEach(() => useSettingsStore.setState({ experience: '', job: '안전점검', interests: ['전기시설'], accountUpdatedAt: 0 }));
+  afterEach(() => { screen.unmount(); useSettingsStore.setState({ experience: '', fontScale: 'medium' }); });
+
+  it('먼저 네 경력 구간을 표시하고, 선택 전에는 다음 단계로 진행할 수 없다', () => {
+    renderAt('medium', false);
+    expect(screen.getAllByRole('radio')).toHaveLength(4);
+    expect(screen.queryByText('진영을 선택하세요')).toBeNull();
+    expect(screen.getByRole('button', { name: '다음 · 진영 선택', disabled: true })).toBeTruthy();
+    fireEvent.press(screen.getByRole('button', { name: '다음 · 진영 선택' }));
+    expect(screen.getByText('경력을 알려주세요')).toBeTruthy();
+  });
+
+  it.each(EXPERIENCE_OPTIONS)('$value 선택을 계정 설정에 저장하고 직무·관심분야를 보존한다', option => {
+    renderAt('medium', false);
+    fireEvent.press(screen.getByRole('radio', { name: option.title }));
+    // Choosing an option is a preview until the user continues.
+    expect(useSettingsStore.getState().experience).toBe('');
+    fireEvent.press(screen.getByRole('button', { name: '다음 · 진영 선택' }));
+    expect(screen.getByText('진영을 선택하세요')).toBeTruthy();
+    expect(useSettingsStore.getState()).toMatchObject({ experience: option.value, job: '안전점검', interests: ['전기시설'] });
+    expect(useSettingsStore.getState().accountUpdatedAt).toBeGreaterThan(0);
+    fireEvent.press(screen.getByText('시작하기 · 2 / 2 · 경력 다시 선택'));
+    expect(screen.getByRole('radio', { name: option.title }).props.accessibilityState.checked).toBe(true);
+  });
+
+  it('구버전 경력은 임의로 새 구간에 넣지 않고 그대로 계속할 수 있다', () => {
+    useSettingsStore.setState({ experience: '5년 이상' });
+    renderAt('medium', false);
+    expect(screen.getByText(/기존 선택: 5년 이상/)).toBeTruthy();
+    fireEvent.press(screen.getByRole('button', { name: '다음 · 진영 선택' }));
+    expect(useSettingsStore.getState().experience).toBe('5년 이상');
+    expect(screen.getByText('진영을 선택하세요')).toBeTruthy();
+  });
+
+  it('늦게 복원된 서버값은 반영하되 사용자가 고르는 중이면 덮어쓰지 않는다', () => {
+    renderAt('medium', false);
+    act(() => useSettingsStore.setState({ experience: EXPERIENCE_OPTIONS[1].value }));
+    expect(screen.getByRole('radio', { name: EXPERIENCE_OPTIONS[1].title }).props.accessibilityState.checked).toBe(true);
+    fireEvent.press(screen.getByRole('radio', { name: EXPERIENCE_OPTIONS[2].title }));
+    act(() => useSettingsStore.setState({ experience: EXPERIENCE_OPTIONS[0].value }));
+    fireEvent.press(screen.getByRole('button', { name: '다음 · 진영 선택' }));
+    expect(useSettingsStore.getState().experience).toBe(EXPERIENCE_OPTIONS[2].value);
+  });
+
+  it('경력 화면도 설정된 글자 크기를 적용한다', () => {
+    renderAt('medium', false);
+    const base = fontSizeOf('경력을 알려주세요')!;
+    screen.unmount();
+    renderAt('xlarge', false);
+    expect(fontSizeOf('경력을 알려주세요')).toBeCloseTo(base * FONT_SCALE_FACTOR.xlarge / FONT_SCALE_FACTOR.medium, 5);
   });
 });

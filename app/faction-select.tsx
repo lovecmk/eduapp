@@ -10,6 +10,7 @@ import { FACTION_LIST, type FactionId, type Faction } from '../src/constants/fac
 import { fontBody, fontDisplay } from '../src/theme/tokens';
 import { hapticTap, hapticSuccess } from '../src/utils/haptics';
 import { useGoBack } from '../src/hooks/useGoBack';
+import { ExperienceStep } from '../src/components/settings/ExperienceStep';
 
 // 진영 선택 카드 — 선택되면 진영 색으로 물들며 살짝 떠오른다.
 function FactionCard({
@@ -105,6 +106,7 @@ export default function FactionSelectScreen() {
   const goBack = useGoBack();
   const chooseFaction = useFactionStore((s) => s.chooseFaction);
   const [picked, setPicked] = useState<FactionId | null>(null);
+  const [step, setStep] = useState<'experience' | 'faction'>('experience');
 
   const activeFaction = FACTION_LIST.find((f) => f.id === picked) ?? null;
 
@@ -124,6 +126,8 @@ export default function FactionSelectScreen() {
     goBack();
   };
 
+  if (step === 'experience') return <ExperienceStep onContinue={() => setStep('faction')} />;
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.bg }}>
       <ScrollView
@@ -132,6 +136,9 @@ export default function FactionSelectScreen() {
       >
         <View style={{ alignItems: 'center', marginTop: 12, marginBottom: 20 }}>
           <Text style={{ fontSize: 34 }}>🏳️</Text>
+          <Pressable accessibilityRole="button" onPress={() => setStep('experience')} style={{ padding: 8 }}>
+            <Text style={{ color: c.primary, fontSize: 12 * fs, fontFamily: fontBody }}>시작하기 · 2 / 2 · 경력 다시 선택</Text>
+          </Pressable>
           <Text style={{ color: c.textPrimary, fontSize: 22 * fs, marginTop: 10, fontFamily: fontDisplay }}>진영을 선택하세요</Text>
           <Text style={{ color: c.textSecondary, fontSize: 13 * fs, marginTop: 8, lineHeight: 20 * fs, textAlign: 'center', fontFamily: fontBody }}>
             세 진영이 커뮤니티에서 '안전 빌딩'을 함께 짓고 대항해요.{'\n'}한 번 고른 진영으로 함께 층을 쌓아 올려요.

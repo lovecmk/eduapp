@@ -22,6 +22,8 @@ export function QuizExamplePlayer({ quiz }: { quiz: QuizExample }) {
         accessibilityLabel={settings.accessibilityLabel ?? label}
         accessibilityHint={settings.hint}
         accessibilityState={{ disabled, ...(settings.checkbox ? { checked: !!settings.selected } : settings.selected !== undefined ? { selected: settings.selected } : {}) }}
+        aria-checked={settings.checkbox ? !!settings.selected : undefined}
+        aria-selected={!settings.checkbox ? settings.selected : undefined}
         style={[styles.option, { backgroundColor: settings.selected ? c.primary + '14' : c.surface, borderColor: settings.selected ? c.primary : c.border, opacity: disabled ? 0.7 : 1 }]}>
         <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontFamily: fontBody }}>
           {settings.checkbox ? (settings.selected ? '☑ ' : '☐ ') : ''}{label}

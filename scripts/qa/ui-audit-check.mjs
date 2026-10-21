@@ -21,7 +21,7 @@ const server = createServer((request, response) => {
 await new Promise(done => server.listen(0, '127.0.0.1', done));
 const origin = 'http://127.0.0.1:' + server.address().port;
 const browser = await chromium.launch(process.platform === 'win32' ? { channel: 'msedge' } : {});
-const errors = [], checks = [], requests = [];
+const errors = [], checks = [], requests = [], settingsWrites = [];
 const user = { id: 'qa-isolated-ui', user_nm: '점검 사용자', nickname: 'QA', email_addr: 'qa@example.test', membership_cd: 'BASIC', role_cd: 'USER', status_cd: 'A', created_at: '2026-10-01T00:00:00Z' };
 const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
 await context.addInitScript(user => {
@@ -41,6 +41,7 @@ await context.route('**/*', async route => {
   }
   const path = url.pathname.slice('/inner/api/v1'.length);
   requests.push({ method: route.request().method(), path });
+  if (path === '/settings' && route.request().method() === 'POST') settingsWrites.push(route.request().postDataJSON());
   let status = 200, body = {};
   if (path === '/auth/me') { status = mode === 'expired' ? 401 : 200; body = user; }
   else if (path === '/auth/refresh') { status = 401; body = { message: 'expired' }; }
@@ -67,10 +68,10 @@ async function go(path, width = 390) {
   assert((await page.locator('body').innerText()).trim(), 'Empty screen ' + path);
   assert(!await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), 'Overflow ' + path);
   const bar = page.getByTestId('app-tab-bar');
-  if (mode === 'expired') assert.equal(await bar.count(), 0, 'Signed-out tab bar visible');
+  if (mode === 'expired') await expect(bar).toHaveCount(0);
   else {
-    assert.equal(await bar.count(), 1, 'Missing or duplicated tab bar on ' + path);
-    assert(await bar.isVisible(), 'Hidden tab bar on ' + path);
+    await expect(bar).toHaveCount(1);
+    await expect(bar).toBeVisible();
     assert.equal(await bar.getByRole('tab').count(), 5);
     const bounds = await bar.boundingBox();
     assert(bounds && Math.abs(bounds.y + bounds.height - 844) < 2, 'Tab bar outside viewport on ' + path);
@@ -140,6 +141,26 @@ try {
   assert((await page.locator('body').innerText()).includes('조건을 확인했습니까?'), 'Live card missing');
   const unexpectedWrites = requests.filter(r => r.method !== 'GET' && !['/collection/sync', '/progress/attendance', '/notifications/device', '/auth/logout', '/settings', '/me/faction'].includes(r.path));
   assert.equal(unexpectedWrites.length, 0, JSON.stringify(unexpectedWrites));
+  // A new learner confirms their experience before seeing faction choices.
+  // Exercise the actual persisted store and debounced settings repository too.
+  await page.addInitScript(() => localStorage.setItem('faction', JSON.stringify({ state: { faction: null }, version: 0 })));
+  await page.setViewportSize({ width: 320, height: 844 });
+  await page.goto(origin + '/eduapp/faction-select');
+  await expect(page.getByText('경력을 알려주세요', { exact: true })).toBeVisible();
+  await expect(page.getByRole('radio')).toHaveCount(4);
+  await expect(page.getByRole('button', { name: '다음 · 진영 선택', exact: true })).toBeDisabled();
+  await expect(page.getByTestId('app-tab-bar')).toHaveCount(0);
+  assert(!await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), 'Experience overflow at 320px');
+  await page.getByRole('radio', { name: '7년 이상 ~ 10년 미만', exact: true }).click();
+  await page.screenshot({ path: resolve(out, 'experience-onboarding-320.png'), fullPage: true });
+  await page.getByRole('button', { name: '다음 · 진영 선택', exact: true }).click();
+  await expect(page.getByText('진영을 선택하세요', { exact: true })).toBeVisible();
+  await expect.poll(() => settingsWrites.some(body => body.experience === '7~10년 미만'), { timeout: 10000 }).toBe(true);
+  await page.getByRole('button', { name: '시작하기 · 2 / 2 · 경력 다시 선택', exact: true }).click();
+  await expect(page.getByRole('radio', { name: '7년 이상 ~ 10년 미만', checked: true })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('radio', { name: '7년 이상 ~ 10년 미만', checked: true })).toBeVisible();
+  checks.push({ action: 'experience-before-faction-four-options-narrow-persist-settings-sync' });
   mode = 'expired'; await go('/settings');
   assert(await page.getByRole('button', { name: '로그인', exact: true }).count(), 'Expired session was resurrected');
   await page.getByRole('button', { name: '로그인', exact: true }).click();
