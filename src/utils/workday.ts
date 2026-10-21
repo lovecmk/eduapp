@@ -11,22 +11,50 @@
  * 숫자는 끊긴 셈이라, 둘 중 어느 쪽도 믿기 어려워진다.
  */
 
-// 대한민국 공휴일 — 양력 고정일 + 음력/대체공휴일(해마다 갱신이 필요하다).
-const SOLAR_HOLIDAYS = new Set(['1-1', '3-1', '5-5', '6-6', '8-15', '10-3', '10-9', '12-25']);
-const LUNAR_HOLIDAYS: Record<number, string[]> = {
-  2025: ['1-27', '1-28', '1-29', '1-30', '5-5', '10-6', '10-7', '10-8', '10-9'],
-  2026: ['2-16', '2-17', '2-18', '5-24', '5-25', '9-24', '9-25', '9-26'],
-};
+import calendar from '../constants/learning-holidays.json';
+const holidays: Record<string, string> = calendar.holidays;
+const KST_OFFSET = 9 * 3_600_000;
+
+export interface LearningDay {
+  date: string;
+  can_learn_new: boolean;
+  can_review: boolean;
+  reason: string;
+  holiday_name: string;
+}
+
+/** Civil date in Korea, independent of the phone's timezone. month0 is zero-based. */
+export function koreanDate(year: number, month0: number, day: number): Date {
+  return new Date(Date.UTC(year, month0, day) - KST_OFFSET);
+}
+
+export function holidayName(year: number, month0: number, day: number): string {
+  const iso = `${year}-${String(month0 + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  return holidays[iso] ?? '';
+}
+
+export function learningDay(at = new Date()): LearningDay {
+  const civil = new Date(at.getTime() + KST_OFFSET);
+  const name = holidayName(civil.getUTCFullYear(), civil.getUTCMonth(), civil.getUTCDate());
+  const weekend = civil.getUTCDay() === 0 || civil.getUTCDay() === 6;
+  return { date: civil.toISOString().slice(0, 10), can_learn_new: !name && !weekend,
+    can_review: true, reason: name ? 'HOLIDAY' : weekend ? 'WEEKEND' : '', holiday_name: name };
+}
 
 /** 해당 날짜가 공휴일인지. month0 은 0-based 월. */
 export function isHoliday(year: number, month0: number, day: number): boolean {
-  const md = `${month0 + 1}-${day}`;
-  return SOLAR_HOLIDAYS.has(md) || (LUNAR_HOLIDAYS[year] ?? []).includes(md);
+  return holidayName(year, month0, day) !== '';
 }
 
 /** 근무일(월~금 · 공휴일 제외)인가. */
 export function isWorkday(date: Date): boolean {
-  const dow = date.getDay();
-  if (dow === 0 || dow === 6) return false;
-  return !isHoliday(date.getFullYear(), date.getMonth(), date.getDate());
+  return learningDay(date).can_learn_new;
+}
+
+export function canStudyCard(status: string, reps = 0, at = new Date()): boolean {
+  return hasStudiedCard(status, reps) || isWorkday(at);
+}
+
+export function hasStudiedCard(status: string, reps = 0): boolean {
+  return reps > 0 || status === 'learning' || status === 'mastered';
 }

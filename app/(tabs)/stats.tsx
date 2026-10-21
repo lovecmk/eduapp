@@ -44,7 +44,7 @@ function DailyLearningCard({ streakDays }: { streakDays: number }) {
           <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontWeight: '700', fontFamily: fontCute }}>오늘의 학습</Text>
         </View>
         <Text style={{ color: barColor, fontSize: 18 * fs, fontWeight: '900', fontFamily: fontMono }}>
-          {quota.used}<Text style={{ color: c.textSecondary, fontSize: 13 * fs }}> / {quota.limit}장</Text>
+          {quota.isRestDay ? '쉬는 날' : <>{quota.used}<Text style={{ color: c.textSecondary, fontSize: 13 * fs }}> / {quota.limit}장</Text></>}
         </Text>
       </View>
       <View style={{ height: 10, backgroundColor: c.surfaceAlt, borderRadius: 5, overflow: 'hidden' }}>
@@ -52,7 +52,7 @@ function DailyLearningCard({ streakDays }: { streakDays: number }) {
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
         <Text style={{ color: c.textSecondary, fontSize: 11.5, fontFamily: fontBody }}>
-          {done ? '오늘 신규 학습을 모두 마쳤어요 · 복습으로 이어가요' : `오늘 ${quota.remaining}장 더 학습할 수 있어요`}
+          {quota.isRestDay ? `${quota.restDayName} · 신규 학습 쉬는 날이에요. 복습은 가능해요` : done ? '오늘 신규 학습을 모두 마쳤어요 · 복습으로 이어가요' : `오늘 ${quota.remaining}장 더 학습할 수 있어요`}
         </Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
           <Ionicons name="flame" size={12} color={c.warning} />

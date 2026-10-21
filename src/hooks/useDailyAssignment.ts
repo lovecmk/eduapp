@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { dailyAssignmentRepository } from '../data/repositories';
 import { emptyAssignment, type DailyAssignment } from '../domain/models/DailyAssignment';
 import { dateKey } from '../utils/dateKey';
+import { useLearningDay } from './useLearningDay';
 
 export const DAILY_ASSIGNMENT_KEY = 'daily-assignment';
 
@@ -17,6 +18,7 @@ export const DAILY_ASSIGNMENT_KEY = 'daily-assignment';
  * 오르는데, 오래 캐시하면 화면의 "2/4" 가 멈춰 보인다.
  */
 export function useDailyAssignment() {
+  const learningDay = useLearningDay();
   const day = dateKey(new Date());
   const query = useQuery({
     queryKey: [DAILY_ASSIGNMENT_KEY, day],
@@ -26,6 +28,11 @@ export function useDailyAssignment() {
   });
 
   // 화면이 `data?.` 를 반복하지 않도록 항상 값이 있는 형태로 준다.
-  const assignment: DailyAssignment = query.data ?? emptyAssignment(day);
+  let assignment: DailyAssignment = query.data ?? emptyAssignment(day);
+  const serverDay = assignment.learningDay?.date === learningDay.date ? assignment.learningDay : undefined;
+  if (!learningDay.can_learn_new || serverDay?.can_learn_new === false) {
+    const cards = assignment.cards.filter(card => card.kind === 'review');
+    assignment = { ...assignment, cards, targetCount: cards.length, doneCount: cards.filter(card => card.done).length };
+  }
   return { ...query, assignment };
 }

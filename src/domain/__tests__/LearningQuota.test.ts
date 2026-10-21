@@ -29,9 +29,8 @@ describe('resolveDailyQuota — 상한은 서버가 정한다', () => {
     });
   });
 
-  it('상한이 0 이하로 오면 앱 상수로 되돌린다', () => {
-    // 0 은 '무제한'이 아니라 실수다. 그대로 쓰면 학습이 통째로 잠긴다.
-    expect(resolveDailyQuota(0, server({ limit: 0 }), 3).limit).toBe(3);
+  it('0은 신규 학습을 닫고 잘못된 음수만 기본 상한으로 되돌린다', () => {
+    expect(resolveDailyQuota(0, server({ limit: 0 }), 3)).toMatchObject({ limit: 0, remaining: 0, canLearn: false });
     expect(resolveDailyQuota(0, server({ limit: -1 }), 3).limit).toBe(3);
   });
 });

@@ -14,17 +14,20 @@
 
 const mockPush = jest.fn();
 const mockMark = jest.fn(() => Promise.resolve());
+let mockRestDay = false;
+let mockParams: { category?: string; focusId?: string } = {};
+let mockAvailableCards: LearningCard[] = [];
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush, replace: jest.fn(), back: jest.fn() }),
   useNavigation: () => undefined,
-  useLocalSearchParams: () => ({}),
+  useLocalSearchParams: () => mockParams,
   // 포커스 시점의 뒤로가기 가로채기 — 이 검사와 무관하다.
   useFocusEffect: (effect: () => void) => require('react').useEffect(effect, [effect]),
 }));
 
 // 데이터 훅은 네트워크·react-query 를 끌고 온다. 화면 구조만 보므로 덱 한 장으로 고정한다.
 jest.mock('../../hooks/useCards', () => ({
-  useAllCards: () => ({ data: [], isLoading: false, error: null, refetch: jest.fn() }),
+  useAllCards: () => ({ data: mockAvailableCards, isLoading: false, error: null, refetch: jest.fn() }),
   useMarkCard: () => ({ mutate: mockMark, mutateAsync: mockMark }),
 }));
 jest.mock('../../hooks/useReview', () => ({ useReview: () => ({ dueCards: [] }) }));
@@ -33,7 +36,7 @@ jest.mock('../../hooks/useDifficultyPoll', () => ({
   useDifficultyPoll: () => ({ counts: null, mine: null, loaded: true }),
 }));
 jest.mock('../../hooks/useDailyQuota', () => ({
-  useDailyQuota: () => ({ limit: 3, used: 0, remaining: 3, canLearn: true }),
+  useDailyQuota: () => ({ limit: mockRestDay ? 0 : 3, used: 0, remaining: mockRestDay ? 0 : 3, canLearn: !mockRestDay, isRestDay: mockRestDay, restDayName: '주말' }),
   recordNewLearned: jest.fn(),
 }));
 jest.mock('../../hooks/useDailyAssignment', () => ({
@@ -49,6 +52,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import CardsScreen from '../../../app/(tabs)/cards';
 import { ThemeProvider } from '../../theme/ThemeProvider';
 import { useAuthStore } from '../../store/authStore';
+import { useSrsStore } from '../../store/srsStore';
 import { nestedButtonLabels, type TreeNode } from '../../test-utils/nestedButtons';
 import type { LearningCard } from '../../domain/models/LearningCard';
 import type { User } from '../../domain/models/User';
@@ -105,6 +109,29 @@ const wrap = (name: string) => {
 };
 
 const nested = () => nestedButtonLabels(screen.UNSAFE_root as unknown as TreeNode);
+
+it('주말에 단일 신규 카드로 직접 진입해도 문제를 열거나 학습 기록을 만들지 않는다', () => {
+  mockRestDay = true; mockParams = { focusId: mockCard.id }; mockAvailableCards = [mockCard];
+  useSrsStore.getState().reset();
+  try {
+    wrap('이용재');
+    expect(screen.getByText('오늘은 신규 학습 쉬는 날')).toBeTruthy();
+    expect(screen.queryAllByText(mockCard.question, { exact: false })).toHaveLength(0);
+    expect(useSrsStore.getState().cards).toEqual({});
+  } finally { mockRestDay = false; mockParams = {}; mockAvailableCards = []; }
+});
+
+it('주말 카테고리 복습에서 기존 카드는 열고 신규 카드는 제외한다', () => {
+  mockRestDay = true; mockParams = { category: mockCard.category };
+  const review: LearningCard = { ...mockCard, id: 'already-studied', status: 'learning', question: '기존 학습 복습 문제' };
+  mockAvailableCards = [mockCard, review];
+  useSrsStore.getState().reset();
+  try {
+    wrap('이용재');
+    expect(screen.getAllByText(review.question, { exact: false }).length).toBeGreaterThan(0);
+    expect(screen.queryAllByText(mockCard.question, { exact: false })).toHaveLength(0);
+  } finally { mockRestDay = false; mockParams = {}; mockAvailableCards = []; }
+});
 
 it('같은 렌더에서 두 번 탭해도 앞면으로 돌아오고 뒷면 빈 공간도 탭할 수 있다', () => {
   const type = mockCard.type;

@@ -2,7 +2,10 @@
 // '신규 카드 학습'은 하루 상한이 있고(운영 지속가능성), '복습'은 자유다.
 // 이 값의 원천(源)은 서버가 되어야 정확하다(기기 여러 대·시간대 문제 방지).
 // 오프라인/목업에서는 로컬 스토어(dailyLearningStore)가 임시 원천 역할을 한다.
+import type { LearningDay } from '../../utils/workday';
+
 export interface LearningQuota {
+  learningDay?: LearningDay;
   /** 오늘 신규 학습 상한. */
   limit: number;
   /** 오늘 이미 학습한 신규 카드 수. */
@@ -40,8 +43,8 @@ export function resolveDailyQuota(
   server: LearningQuota | undefined,
   fallbackLimit: number,
 ): ResolvedQuota {
-  // 0 이나 음수는 '무제한'이 아니라 실수다. 그대로 쓰면 학습이 통째로 잠긴다.
-  const limit = server && server.limit > 0 ? server.limit : fallbackLimit;
+  // Zero explicitly closes new learning; invalid or missing limits use the fallback.
+  const limit = server && Number.isSafeInteger(server.limit) && server.limit >= 0 ? server.limit : fallbackLimit;
   const used = Math.max(Math.max(0, localUsed), Math.max(0, server?.used ?? 0));
   const remaining = Math.max(0, limit - used);
   return { limit, used, remaining, canLearn: remaining > 0 };

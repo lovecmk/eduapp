@@ -19,7 +19,9 @@ import { useAttendanceStore } from '../../store/attendanceStore';
 import { AttendanceStamp } from './AttendanceStamp';
 import { CheckInSuccess } from './CheckInSuccess';
 import type { LearningCard } from '../../domain/models/LearningCard';
-import { isHoliday, isWorkday } from '../../utils/workday';
+import { isWorkday, koreanDate, learningDay, holidayName } from '../../utils/workday';
+import { useLearningDay } from '../../hooks/useLearningDay';
+import { useLearningCalendar } from '../../hooks/useLearningCalendar';
 
 /** 날짜 동그라미의 지름 — 이어짐 띠의 높이·모서리도 여기서 따라간다. */
 const DAY_SIZE = 30;
@@ -30,8 +32,8 @@ const DAYS = ['일', '월', '화', '수', '목', '금', '토'];
 const MONTHS = Array.from({ length: 12 }, (_, i) => `${i + 1}월`);
 
 function getMonthCells(year: number, month: number): (number | null)[] {
-  const firstDay = new Date(year, month, 1).getDay();
-  const count = new Date(year, month + 1, 0).getDate();
+  const firstDay = new Date(Date.UTC(year, month, 1)).getUTCDay();
+  const count = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
   const cells: (number | null)[] = Array(firstDay).fill(null);
   for (let d = 1; d <= count; d++) cells.push(d);
   // 마지막 주(토요일 열까지)를 채워 항상 7칸이 되도록 뒤를 null 로 패딩한다.
@@ -55,12 +57,14 @@ export function LearningCalendar() {
   const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
   const now = new Date();
-  const [year, setYear] = useState(now.getFullYear());
-  const [month, setMonth] = useState(now.getMonth());
+  const today = useLearningDay();
+  const [year, setYear] = useState(Number(today.date.slice(0, 4)));
+  const [month, setMonth] = useState(Number(today.date.slice(5, 7)) - 1);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickYear, setPickYear] = useState(year);
   const [pickMonth, setPickMonth] = useState(month);
   const [selected, setSelected] = useState<string | null>(null);
+  const calendarDays = useLearningCalendar(year, month);
 
   const { data: allCards = [] } = useAllCards();
   const history = useSrsStore((s) => s.history);
@@ -120,7 +124,7 @@ export function LearningCalendar() {
   const nearestWorkdayDone = (day: number, step: 1 | -1): boolean => {
     // 연휴가 길어야 열흘 남짓이다 — 그 안에서 근무일을 못 만나면 이어지지 않은 것으로 본다.
     for (let k = 1; k <= 10; k++) {
-      const date = new Date(year, month, day + step * k);
+      const date = koreanDate(year, month, day + step * k);
       if (isWorkday(date)) return (history[dateKey(date)]?.length ?? 0) >= DAILY_MIN_CARDS;
     }
     return false;
@@ -136,7 +140,7 @@ export function LearningCalendar() {
    * 다리는 더 옅게 칠해 '그날 학습했다'와는 구분한다.
    */
   const inStreak = (day: number): boolean => {
-    const date = new Date(year, month, day);
+    const date = koreanDate(year, month, day);
     if (isWorkday(date)) return (history[dateKey(date)]?.length ?? 0) >= DAILY_MIN_CARDS;
     return nearestWorkdayDone(day, -1) && nearestWorkdayDone(day, 1);
   };
@@ -192,10 +196,12 @@ export function LearningCalendar() {
               // 그날 학습한(신규+복습) 카드 수. 근무일 기준으로 완료/일부완료를 판정하고,
               // 미수행(0장)은 아무 표시도 하지 않는다.
               const learned = history[key]?.length ?? 0;
-              const holiday = isHoliday(year, month, d);
+              const calendarDay = calendarDays[key];
+              const name = calendarDay?.holiday_name || holidayName(year, month, d);
+              const holiday = !!name;
               // 근무일(월~금 중 공휴일 제외)만 완료/일부완료 판정 대상.
               // 주말·공휴일은 '학습일'로 세지 않으므로, 기록이 있어도 완료 표시를 하지 않는다.
-              const workday = dow !== 0 && dow !== 6 && !holiday;
+              const workday = calendarDay?.can_learn_new ?? (dow !== 0 && dow !== 6 && !holiday);
               // 완료 기준은 **최소 출제량**이다.
               //
               // 하루 분량은 이제 그날 난이도에 따라 3~5문제로 달라지는데, 지난
@@ -211,7 +217,7 @@ export function LearningCalendar() {
               // 사이의 날들은 띠 위에 숫자만 얹혀, 며칠이 하나로 이어진 하나의 덩어리로 읽힌다.
               const isCap = done && (!contLeft || !contRight);
               return (
-                <Pressable accessibilityRole="button" key={`${w}-${dow}`} style={styles.cell} onPress={() => setSelected(key)}>
+                <Pressable accessibilityRole="button" accessibilityLabel={`${month + 1}월 ${d}일${workday ? ' 신규 학습 가능' : ` ${name || '주말'} 신규 학습 쉬는 날, 복습 가능`}`} key={`${w}-${dow}`} style={styles.cell} onPress={() => setSelected(key)}>
                   {/* 이어짐 띠 — 칸 **폭 전체**를 옅게 채워 옆 칸과 빈틈 없이 붙는다.
                       줄이 이어지는 쪽은 각지게, 끊기는 쪽은 둥글게 닫아 알약 모양이 된다.
                       날짜 동그라미 뒤에 깔리므로 시작/끝의 진한 마개가 띠 위에 얹혀 보인다. */}
@@ -247,7 +253,7 @@ export function LearningCalendar() {
                   <View style={styles.dotRow}>
                     {done || partial ? (
                       <Text style={{ color: done ? c.success : c.warning, fontSize: 9, fontFamily: fontMono, fontWeight: '800' }}>{learned}</Text>
-                    ) : null}
+                    ) : !workday ? <Text style={{ color: c.textSecondary, fontSize: 9 }}>쉼</Text> : null}
                   </View>
                 </Pressable>
               );
@@ -266,8 +272,9 @@ export function LearningCalendar() {
         <View style={[styles.legendBox, { backgroundColor: c.warning + '26', borderWidth: 1.5, borderColor: c.warning }]} />
         <Text style={[styles.legendText, { color: c.textSecondary }]}>일부완료</Text>
         <View style={{ flex: 1 }} />
-        <Text style={[styles.legendText, { color: c.textSecondary }]}>토·일·공휴일 제외</Text>
+        <Text style={[styles.legendText, { color: c.textSecondary }]}>쉼: 신규 학습 쉬는 날</Text>
       </View>
+      <Text style={{ color: c.textSecondary, fontSize: 11 * fs, marginTop: 6 }}>한국 시간 기준 · 주말·공휴일에도 복습은 가능해요</Text>
 
       {/* 오늘 출석 — 캘린더에 자연스럽게 통합(별도 카드 없이 바로 도장 찍기) */}
       {checkedToday ? (
@@ -299,7 +306,7 @@ export function LearningCalendar() {
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.pickLbl, { color: c.textSecondary }]}>년도</Text>
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-                    {Array.from({ length: 4 }, (_, i) => 2024 + i).map((y) => (
+                    {Array.from({ length: 11 }, (_, i) => 2025 + i).map((y) => (
                       <Pressable accessibilityRole="button" key={y} onPress={() => setPickYear(y)} style={{ paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, backgroundColor: pickYear === y ? c.primary : c.surfaceAlt }}>
                         <Text style={{ color: pickYear === y ? c.textOnPrimary : c.textPrimary, fontSize: 13 * fs, fontFamily: fontBody }}>{y}</Text>
                       </Pressable>
@@ -327,6 +334,7 @@ export function LearningCalendar() {
       <DayDetailSheet
         visible={selected !== null}
         dateKey={selected}
+        learningDay={selected ? calendarDays[selected] : undefined}
         reviewed={selectedCards.reviewed}
         due={selectedCards.due}
         onClose={() => setSelected(null)}
@@ -348,13 +356,14 @@ function SummaryPill({ icon, color, value, label }: { icon: keyof typeof Ionicon
 }
 
 function DayDetailSheet({
-  visible, dateKey: key, reviewed, due, onClose,
-}: { visible: boolean; dateKey: string | null; reviewed: LearningCard[]; due: LearningCard[]; onClose: () => void }) {
+  visible, dateKey: key, reviewed, due, onClose, learningDay: calendarDay,
+}: { visible: boolean; dateKey: string | null; reviewed: LearningCard[]; due: LearningCard[]; onClose: () => void; learningDay?: import('../../utils/workday').LearningDay }) {
   const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
   const router = useRouter();
-  const [ , mo, d] = (key ?? '0-0-0').split('-').map(Number);
+  const [year, mo, d] = (key ?? '0-0-0').split('-').map(Number);
   const title = `${mo + 1}월 ${d}일`;
+  const day = calendarDay ?? (key ? learningDay(koreanDate(year, mo, d)) : null);
 
   // 카드를 누르면 시트를 닫고 '컨텐츠 상세'(앞·뒷면 모두 보기)로 이동한다.
   const openDetail = (id: string) => {
@@ -373,6 +382,7 @@ function DayDetailSheet({
           </View>
 
           <ScrollView style={{ maxHeight: 420 }} showsVerticalScrollIndicator={false}>
+            {day && !day.can_learn_new && <Text style={[styles.empty, { color: c.textSecondary }]}>{day.holiday_name || '주말'} · 신규 학습 쉬는 날 · 복습 가능</Text>}
             <SectionTitle icon="checkmark-done" color={c.success} text={`학습한 카드 ${reviewed.length}`} />
             {reviewed.length === 0 ? (
               <Text style={[styles.empty, { color: c.textSecondary }]}>이 날은 학습 기록이 없어요</Text>

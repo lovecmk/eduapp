@@ -1,4 +1,5 @@
 import type { CardDifficulty, LearningCard } from './LearningCard';
+import type { LearningDay } from '../../utils/workday';
 
 /**
  * 오늘 이 사람에게 배정된 학습 한 벌.
@@ -10,6 +11,7 @@ import type { CardDifficulty, LearningCard } from './LearningCard';
  * 관리자가 낮에 문제를 추가·삭제해도 오전에 받은 목록이 오후에 달라지지 않는다.
  */
 export interface DailyAssignment {
+  learningDay?: LearningDay;
   /** 날짜 키(YYYY-M-D, month 0-based) — 앱의 dateKey 와 같은 형식. */
   day: string;
   /** 그날 이 사람에게 맞춰 정해진 난이도. */

@@ -25,6 +25,7 @@ import { CardQuiz } from '../../src/components/cards/CardQuiz';
 import { CardReportModal } from '../../src/components/cards/CardReportModal';
 import { CardDifficultyAsk } from '../../src/components/cards/CardDifficultyAsk';
 import { fontCute } from '../../src/theme/tokens';
+import { canStudyCard, hasStudiedCard } from '../../src/utils/workday';
 import { getCategoryIcon } from '../../src/constants/categories';
 import { ROUTES } from '../../src/constants/routes';
 import { endFlow } from '../../src/navigation/flow';
@@ -258,15 +259,16 @@ export default function CardsScreen() {
   // 오늘의 학습 = 신규(≤ 하루 상한) + 복습 도래 카드를 이어 붙여 최대 DAILY_MAX_CARDS장.
   // 카테고리 복습은 해당 카테고리 전체. 신규/복습 순서 옵션(섞기·약점우선)은 카테고리 복습에만 적용.
   const computedDeck = useMemo(() => {
+    const eligible = (card: LearningCard) => !quota.isRestDay || hasStudiedCard(card.status, srsCards[card.id]?.reps);
     // 단일 카드(focus) 모드는 순서 옵션과 무관(1장).
-    if (isFocusMode) return (allQuery.data ?? []).filter((x) => x.id === focusId);
+    if (isFocusMode) return (allQuery.data ?? []).filter((x) => x.id === focusId && eligible(x));
 
     // 복습 큐 — 계획이 정한 순서를 그대로 쓴다.
     // 여기서 섞거나 다시 정렬하면 '가장 급한 카드부터'라는 계획의 의도가 사라진다.
-    if (isDueMode) return dueCards;
+    if (isDueMode) return dueCards.filter(eligible);
 
     if (isCategoryMode) {
-      const base = (allQuery.data ?? []).filter((x) => x.category === category);
+      const base = (allQuery.data ?? []).filter((x) => x.category === category && eligible(x));
       // 카테고리 복습에서만 약점 우선/섞기 옵션을 적용한다.
       if (prioritizeWeakSpots) {
         const weakScore = (id: string) => {
@@ -290,7 +292,7 @@ export default function CardsScreen() {
     // 지금은 사람·날짜별 편성을 서버가 정하고(오프라인이면 같은 규칙으로 로컬에서),
     // 화면은 받은 것을 보여 주기만 한다. 이미 푼 문제는 빼서 이어서 하게 한다.
     return assignment.cards.filter((c) => !c.done).map((c) => c.card);
-  }, [isFocusMode, focusId, isDueMode, isCategoryMode, category, allQuery.data, prioritizeWeakSpots, shuffleCards, srsCards, dueCards, assignment]);
+  }, [isFocusMode, focusId, isDueMode, isCategoryMode, category, allQuery.data, prioritizeWeakSpots, shuffleCards, srsCards, dueCards, assignment, quota.isRestDay]);
 
   // 덱은 세션 시작 시 한 번만 확정한다.
   // 카드를 마킹하면 cards 쿼리가 무효화되어 목록이 새로 내려오는데, 그때마다 덱을 다시 계산하면
@@ -443,6 +445,14 @@ export default function CardsScreen() {
   const pendingPerception = useRef<'' | 'EASY' | 'MEDIUM' | 'HARD'>('');
   const advance = useCallback((status: 'mastered' | 'learning') => {
     if (!card) return;
+    // Recheck at submission, including a session crossing Korean midnight.
+    const reps = useSrsStore.getState().cards[card.id]?.reps;
+    if (!canStudyCard(card.status, reps) || quota.isRestDay && !hasStudiedCard(card.status, reps)) {
+      setExiting(false);
+      actionLocked.current = false;
+      resetCardAnims();
+      return;
+    }
     if (autoFlipTimer.current) clearTimeout(autoFlipTimer.current);
     {
       // 오늘의 학습(신규+복습)은 모두 SRS 일정에 반영하고 그날 학습 기록(history)에 남긴다.
@@ -475,7 +485,7 @@ export default function CardsScreen() {
     const nextIdx = index + 1;
     if (nextIdx >= deck.length) setFinished(true);
     else setIndex(nextIdx);
-  }, [card, index, deck.length, srsGrade, resetCardAnims, enterAnim, isCategoryMode, isFocusMode]);
+  }, [card, index, deck.length, srsGrade, resetCardAnims, enterAnim, isCategoryMode, isFocusMode, quota.isRestDay]);
 
   /**
    * 넘김 동작을 잠시 붙잡고 "이 문제 얼마나 어려웠나요?"를 먼저 묻는다.
@@ -775,7 +785,17 @@ export default function CardsScreen() {
   // '오늘 학습 완료' 는 오늘 몫을 실제로 채웠을 때만 할 수 있는 말이다. 서버에 카드가
   // 한 장도 없으면 상한을 다 쓴 것처럼 보여도 완료가 아니라 '아직 없음'이다(아래 빈 상태).
   const hasAnyContent = (allQuery.data?.length ?? 0) > 0;
-  if (!isCategoryMode && !isFocusMode && !isDueMode && !finished && hasAnyContent && quota.remaining === 0 && deck.length === 0) {
+  if (!finished && quota.isRestDay && (!card || !hasStudiedCard(card.status, srsCards[card.id]?.reps))) {
+    return (
+      <View style={{ flex: 1, backgroundColor: c.bg, justifyContent: 'center', alignItems: 'center', padding: 28, gap: 16 }}>
+        <Ionicons name="calendar-outline" size={44} color={c.primary} />
+        <Text style={{ color: c.textPrimary, fontSize: 22 * fs, fontFamily: fontCute }}>오늘은 신규 학습 쉬는 날</Text>
+        <Text style={{ color: c.textSecondary, textAlign: 'center', lineHeight: 22 * fs }}>{quota.restDayName} · 한국 시간 기준{'\n'}배운 카드는 계속 복습할 수 있어요.</Text>
+        <Button label="복습하러 가기" onPress={() => finishFlow(ROUTES.review)} />
+      </View>
+    );
+  }
+  if (!isCategoryMode && !isFocusMode && !isDueMode && !finished && hasAnyContent && quota.used > 0 && quota.remaining === 0 && deck.length === 0) {
     return (
       <View style={{ flex: 1, backgroundColor: c.bg, alignItems: 'center', justifyContent: 'center', padding: 28 }}>
         <View style={{ width: 84, height: 84, borderRadius: 42, backgroundColor: c.success + '1A', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>

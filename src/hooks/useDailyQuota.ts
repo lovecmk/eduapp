@@ -6,11 +6,14 @@ import { dateKey } from '../utils/dateKey';
 import { learningQuotaRepository } from '../data/repositories';
 import { resolveDailyQuota } from '../domain/models/LearningQuota';
 import { DAILY_ASSIGNMENT_KEY } from './useDailyAssignment';
+import { useLearningDay } from './useLearningDay';
 
 /** 오늘의 진행 캐시 키 — 무효화할 곳이 흩어지지 않게 한 곳에 둔다. */
 export const DAILY_QUOTA_KEY = 'learning-quota';
 
 export interface DailyQuota {
+  isRestDay: boolean;
+  restDayName: string;
   limit: number;
   used: number;
   remaining: number;
@@ -27,6 +30,7 @@ export interface DailyQuota {
  * 일어나지 않았다.** 이 훅이 그 두 쪽을 잇는 유일한 지점이다.
  */
 export function useDailyQuota(): DailyQuota {
+  const localDay = useLearningDay();
   const today = dateKey(new Date());
   const dayKey = useDailyLearningStore((s) => s.dayKey);
   const count = useDailyLearningStore((s) => s.newLearnedToday);
@@ -48,7 +52,11 @@ export function useDailyQuota(): DailyQuota {
   });
 
   // 합치는 규칙 자체는 도메인에 둔다 — 화면 밖에서 검사할 수 있어야 한다.
-  return resolveDailyQuota(localUsed, data, DAILY_MIN_CARDS);
+  const serverDay = data?.learningDay?.date === localDay.date ? data.learningDay : undefined;
+  const isRestDay = !localDay.can_learn_new || serverDay?.can_learn_new === false;
+  const quota = resolveDailyQuota(localUsed, data, DAILY_MIN_CARDS);
+  return { ...quota, ...(isRestDay ? { limit: 0, remaining: 0, canLearn: false } : {}),
+    isRestDay, restDayName: serverDay?.holiday_name || localDay.holiday_name || '주말' };
 }
 
 /**

@@ -4,8 +4,10 @@ import { DAILY_MIN_CARDS } from '../../constants/learning';
 import { apiClient } from '../network/ApiClient';
 import { useDailyLearningStore } from '../../store/dailyLearningStore';
 import { dateKey } from '../../utils/dateKey';
+import type { LearningDay } from '../../utils/workday';
 
 interface QuotaDTO {
+  learning_day?: LearningDay;
   limit?: number;
   used?: number;
   resets_at?: string;
@@ -25,6 +27,7 @@ export class LearningQuotaRepository implements ILearningQuotaRepository {
     const limit = dto.limit ?? DAILY_MIN_CARDS;
     const used = dto.used ?? 0;
     return {
+      learningDay: dto.learning_day,
       limit,
       used,
       remaining: Math.max(0, limit - used),

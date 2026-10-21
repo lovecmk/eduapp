@@ -9,7 +9,9 @@ import { setPersonalReviewPolicy, type PersonalReviewPolicy } from '../network/p
 import { ApiError } from '../network/errors';
 import { assertSessionEpoch, getSessionEpoch } from '../network/sessionEpoch';
 import { DAILY_NEW_CARDS, DAILY_REVIEW_CARDS } from '../../constants/learning';
+import type { LearningDay } from '../../utils/workday';
 export interface TodayPlanDTO {
+  learning_day?: LearningDay;
   personalized?: boolean;
   review_policy?: PersonalReviewPolicy;
   day?: string;
@@ -78,6 +80,7 @@ export class DailyAssignmentRepository implements IDailyAssignmentRepository {
     // Install policy only after the entire deck has passed validation.
     setPersonalReviewPolicy(dto.personalized === true && dto.review_policy ? dto.review_policy : null);
     return {
+      learningDay: dto.learning_day,
       day: dto.day ?? dateKey(new Date()),
       difficulty: DIFFICULTY[(dto.difficulty_cd ?? '').toUpperCase()] ?? 'easy',
       // 목표를 못 받았으면 실제 배정 수를 목표로 삼는다 — 0 을 그대로 쓰면

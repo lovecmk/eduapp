@@ -321,7 +321,7 @@ export default function HomeScreen() {
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.surfaceAlt, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 4 }}>
               <Ionicons name="hourglass-outline" size={11} color={c.textSecondary} />
-              <Text style={{ color: c.textSecondary, fontSize: 11 * fs, fontFamily: fontCute, fontWeight: '700' }}>{DIFFICULTY_LABEL[assignment.difficulty]} {quota.limit}문제 · 3분</Text>
+              <Text style={{ color: c.textSecondary, fontSize: 11 * fs, fontFamily: fontCute, fontWeight: '700' }}>{quota.isRestDay ? `${quota.restDayName} · 복습 가능` : `${DIFFICULTY_LABEL[assignment.difficulty]} ${quota.limit}문제 · 3분`}</Text>
             </View>
           </View>
 
@@ -333,7 +333,7 @@ export default function HomeScreen() {
                 <View key={i} style={{ flex: 1, height: 8, borderRadius: 4, backgroundColor: done ? c.primary : c.surfaceAlt, borderWidth: done ? 0 : 1, borderColor: c.border }} />
               );
             })}
-            <Text style={{ color: quota.canLearn ? c.primary : c.success, fontSize: 12.5 * fs, fontFamily: fontMono, fontWeight: '900', marginLeft: 4, minWidth: 34, textAlign: 'right' }}>{quota.used}/{quota.limit}</Text>
+            <Text style={{ color: quota.canLearn ? c.primary : c.success, fontSize: 12.5 * fs, fontFamily: fontMono, fontWeight: '900', marginLeft: 4, minWidth: 34, textAlign: 'right' }}>{quota.isRestDay ? '신규 학습 쉬는 날' : `${quota.used}/${quota.limit}`}</Text>
           </View>
 
           {/* 오늘의 학습 CTA — 신규(≤남은 상한) + 복습(도래)을 한 번에 이어서 진행.
@@ -351,8 +351,11 @@ export default function HomeScreen() {
             const countLine = `신규 ${newToStudy} · 복습 ${reviewToStudy} · 3분이면 충분`;
             const cta = sessionCount > 0
               ? { to: ROUTES.cards, bg: c.primary, fg: '#fff', sub: 'rgba(255,255,255,0.85)', iconBg: 'rgba(255,255,255,0.2)', iconColor: '#fff', icon: 'play' as const, bw: 0, border: 'transparent', chevron: true,
-                  title: quota.used > 0 ? '이어서 학습하기' : '오늘 학습 시작', desc: countLine }
-              : quota.remaining === 0
+                  title: quota.isRestDay ? '오늘 복습하기' : quota.used > 0 ? '이어서 학습하기' : '오늘 학습 시작', desc: countLine }
+              : quota.isRestDay
+                ? { to: ROUTES.review, bg: c.primary, fg: '#fff', sub: 'rgba(255,255,255,0.85)', iconBg: 'rgba(255,255,255,0.2)', iconColor: '#fff', icon: 'refresh' as const, bw: 0, border: 'transparent', chevron: true,
+                    title: '오늘은 신규 학습 쉬는 날', desc: `${quota.restDayName} · 배운 카드는 복습할 수 있어요` }
+              : quota.remaining === 0 && quota.used > 0
                 ? { to: ROUTES.stats, bg: c.success + '18', fg: c.success, sub: c.textSecondary, iconBg: c.success + '22', iconColor: c.success, icon: 'checkmark-done' as const, bw: 1, border: c.success + '55', chevron: false,
                     title: '오늘 학습 완료! 🎉', desc: '내일 자정에 새 학습이 열려요' }
                 : { to: ROUTES.contents, bg: c.surfaceAlt, fg: c.textPrimary, sub: c.textSecondary, iconBg: c.surface, iconColor: c.primary, icon: 'sparkles' as const, bw: 1, border: c.border, chevron: true,
@@ -386,7 +389,7 @@ export default function HomeScreen() {
           ) : (
             <View>
               <View style={{ flexDirection: 'row', gap: 8 }}>
-                <StatPill value={`${quota.used}/${quota.limit}`} label="오늘 학습" icon="today" />
+                <StatPill value={quota.isRestDay ? '쉼' : `${quota.used}/${quota.limit}`} label="오늘 학습" icon="today" />
                 <StatPill value={`${stats?.totalLearned ?? masteredCount}장`} label="학습 완료 카드" icon="book" />
                 <StatPill value={`${stats?.streakDays ?? '-'}일`} label="연속 학습" icon="flame" />
               </View>
