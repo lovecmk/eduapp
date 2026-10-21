@@ -272,7 +272,7 @@ export function LearningCalendar() {
         <View style={[styles.legendBox, { backgroundColor: c.warning + '26', borderWidth: 1.5, borderColor: c.warning }]} />
         <Text style={[styles.legendText, { color: c.textSecondary }]}>일부완료</Text>
         <View style={{ flex: 1 }} />
-        <Text style={[styles.legendText, { color: c.textSecondary }]}>쉼: 신규 학습 쉬는 날</Text>
+        <Text style={[styles.legendText, { color: c.textSecondary }]}>쉼: 신규 휴무</Text>
       </View>
       <Text style={{ color: c.textSecondary, fontSize: 11 * fs, marginTop: 6 }}>한국 시간 기준 · 주말·공휴일에도 복습은 가능해요</Text>
 
@@ -307,7 +307,7 @@ export function LearningCalendar() {
                   <Text style={[styles.pickLbl, { color: c.textSecondary }]}>년도</Text>
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
                     {Array.from({ length: 11 }, (_, i) => 2025 + i).map((y) => (
-                      <Pressable accessibilityRole="button" key={y} onPress={() => setPickYear(y)} style={{ paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, backgroundColor: pickYear === y ? c.primary : c.surfaceAlt }}>
+                      <Pressable accessibilityRole="button" key={y} onPress={() => setPickYear(y)} style={{ paddingVertical: 6, paddingHorizontal: 8, borderRadius: 8, backgroundColor: pickYear === y ? c.primary : c.surfaceAlt }}>
                         <Text style={{ color: pickYear === y ? c.textOnPrimary : c.textPrimary, fontSize: 13 * fs, fontFamily: fontBody }}>{y}</Text>
                       </Pressable>
                     ))}
@@ -461,7 +461,7 @@ const styles = StyleSheet.create({
     position: 'absolute', top: CELL_PAD_V, left: 0, right: 0,
     height: DAY_SIZE, borderRadius: DAY_SIZE / 2,
   },
-  legend: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 8 },
+  legend: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 4, marginTop: 8 },
   checkIn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 14, paddingVertical: 10, marginTop: 8 },
   legendText: { fontSize: 10, fontFamily: fontBody },
   legendBox: { width: 12, height: 12, borderRadius: 3 },

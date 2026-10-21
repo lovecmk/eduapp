@@ -83,6 +83,8 @@ try {
   await page.getByRole('button', { name: '2027', exact: true }).click();
   await page.getByRole('button', { name: '5월', exact: true }).click();
   await page.getByRole('button', { name: '적용', exact: true }).click();
+  await expect(page.getByRole('button', { name: '적용', exact: true })).toBeHidden();
+  await page.waitForTimeout(350);
   const substitute = page.getByRole('button', { name: /5월 3일 대체공휴일.*신규 학습 쉬는 날/ });
   await expect(substitute).toContainText('쉼');
   await substitute.scrollIntoViewIfNeeded();
