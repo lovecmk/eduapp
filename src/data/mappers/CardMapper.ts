@@ -86,7 +86,7 @@ function optional(value: string | null | undefined): string | undefined {
 function quizIsAnswerable(dto: CardDTO): boolean {
   const choices = dto.choices ?? [];
   const answer = dto.answer_index;
-  return (
+  const valid = (
     Array.isArray(choices) && choices.length >= 2 && choices.every((v) => typeof v === 'string' && !!v.trim()) &&
     (dto.card_type_cd !== 'OX' || (choices.length === 2 && choices[0] === 'O' && choices[1] === 'X')) &&
     typeof answer === 'number' &&
@@ -94,6 +94,16 @@ function quizIsAnswerable(dto: CardDTO): boolean {
     answer >= 0 &&
     answer < choices.length
   );
+  if (!valid) return false;
+  if (typeof dto.format_nm === 'string' && dto.format_nm.trim() === '빈칸형') {
+    // Never record a quiz grade when the canonical answer contradicts its index.
+    return dto.card_type_cd === 'CHOICE' && choices.length === 2 &&
+      choices[0].trim() !== choices[1].trim() &&
+      typeof dto.question_txt === 'string' &&
+      (dto.question_txt.match(/\[빈칸\]|\[\s*\]|_{2,}|[（(]\s*[)）]/g) ?? []).length === 1 &&
+      typeof dto.answer_txt === 'string' && dto.answer_txt.trim() === choices[answer!].trim();
+  }
+  return true;
 }
 
 export class CardMapper {
