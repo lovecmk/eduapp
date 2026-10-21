@@ -78,7 +78,7 @@ try {
   }
   await rest.click();
   await expect(page.getByText('주말 · 신규 학습 쉬는 날 · 복습 가능', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: '닫기', exact: true }).click();
+  await page.getByRole('button', { name: '닫기', exact: true }).last().click();
   await page.getByRole('button', { name: '2026년 10월', exact: true }).click();
   await page.getByRole('button', { name: '2027', exact: true }).click();
   await page.getByRole('button', { name: '5월', exact: true }).click();
