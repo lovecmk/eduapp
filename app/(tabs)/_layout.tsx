@@ -3,7 +3,6 @@ import { Text, View, Pressable } from 'react-native';
 import { Tabs, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { TabBarButton } from '../../src/components/ui/TabBarButton';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -25,33 +24,6 @@ import { useAuthStore } from '../../src/store/authStore';
 import { fontDisplay, shadowHeaderBottom } from '../../src/theme/tokens';
 import { ROUTES } from '../../src/constants/routes';
 import { APP_NAME } from '../../src/constants/brand';
-
-type IconName = keyof typeof Ionicons.glyphMap;
-
-// 탭 선택 시 아이콘이 아주 살짝 커졌다 제자리로 안착하는 절제된 마이크로 인터랙션.
-// (과한 바운스 없이 — simple & luxury. 눌렀다는 감만 은은하게 전한다.)
-function TabIcon({ icon, color, focused }: { icon: IconName; color: string; focused: boolean }) {
-  const scale = useSharedValue(focused ? 1 : 0.94);
-
-  useEffect(() => {
-    if (focused) {
-      scale.value = withSequence(
-        withTiming(1.06, { duration: 110 }),
-        withSpring(1, { damping: 18, stiffness: 170 }),
-      );
-    } else {
-      scale.value = withTiming(0.94, { duration: 180 });
-    }
-  }, [focused]);
-
-  const style = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
-
-  return (
-    <Animated.View style={style}>
-      <Ionicons name={icon} size={24} color={color} />
-    </Animated.View>
-  );
-}
 
 // 안 읽은 알림 배지 — 개수가 바뀔 때마다 '톡' 튀며 시선을 끈다.
 function NotificationBadge({ count }: { count: number }) {
@@ -137,15 +109,6 @@ const TITLES: Record<string, string> = {
   index: APP_NAME, cards: '학습', review: '복습', community: '커뮤니티', stats: '통계', mypage: 'MY',
 };
 
-const TAB_ICON: Record<string, { active: IconName; inactive: IconName }> = {
-  index: { active: 'home', inactive: 'home-outline' },
-  cards: { active: 'school', inactive: 'school-outline' },
-  review: { active: 'refresh-circle', inactive: 'refresh-outline' },
-  community: { active: 'people', inactive: 'people-outline' },
-  stats: { active: 'bar-chart', inactive: 'bar-chart-outline' },
-  mypage: { active: 'person-circle', inactive: 'person-circle-outline' },
-};
-
 export default function TabsLayout() {
   const { theme } = useTheme();
   const c = theme.colors;
@@ -168,6 +131,7 @@ export default function TabsLayout() {
       // 뒤로가기 시 '직전에 보던 탭'으로 되돌아가도록 한다(기본값은 항상 첫 탭=홈으로 튕김).
       // 예: MY → 학습 통계 진입 후 뒤로가기 → 다시 MY 로 자연스럽게 복귀.
       backBehavior="history"
+      tabBar={() => null}
       screenOptions={{
         header: ({ route }) => <MinimalHeader title={TITLES[route.name] ?? ''} />,
         // 각 탭 씬 배경을 투명으로 — 뒤의 전역 날씨 배경이 비쳐 보이게 한다.
@@ -178,20 +142,15 @@ export default function TabsLayout() {
         // 탭 전환 — 잔잔한 교차 페이드. 지속시간을 더 짧게 잡아 두 화면이 겹치는 구간을 줄인다.
         animation: 'fade',
         transitionSpec: { animation: 'timing', config: { duration: 130 } },
-        tabBarButton: (props) => <TabBarButton {...props} />,
-        tabBarActiveTintColor: c.primary,
-        tabBarInactiveTintColor: c.textSecondary,
-        tabBarStyle: { backgroundColor: c.surface, borderTopColor: c.border, height: 64, paddingBottom: 6 },
-        tabBarLabelStyle: { fontSize: 12, fontWeight: '600' },
       }}
     >
-      <Tabs.Screen name="index" options={{ title: '홈', tabBarIcon: ({ color, focused }) => <TabIcon icon={focused ? TAB_ICON.index.active : TAB_ICON.index.inactive} color={color} focused={focused} /> }} />
+      <Tabs.Screen name="index" options={{ title: '홈' }} />
       {/* 학습 탭은 카드(perspective/rotateY 변환 + 큰 콘텐츠)라 교차 페이드 시 잔상이 강하게 남는다.
           이 화면만 페이드를 끄고 즉시 전환해(잔상 원천 제거) 깔끔하게 넘긴다. */}
-      <Tabs.Screen name="cards" options={{ title: '학습', animation: 'none', tabBarIcon: ({ color, focused }) => <TabIcon icon={focused ? TAB_ICON.cards.active : TAB_ICON.cards.inactive} color={color} focused={focused} /> }} />
-      <Tabs.Screen name="review" options={{ title: '복습', tabBarIcon: ({ color, focused }) => <TabIcon icon={focused ? TAB_ICON.review.active : TAB_ICON.review.inactive} color={color} focused={focused} /> }} />
-      <Tabs.Screen name="community" options={{ title: '커뮤니티', tabBarIcon: ({ color, focused }) => <TabIcon icon={focused ? TAB_ICON.community.active : TAB_ICON.community.inactive} color={color} focused={focused} /> }} />
-      <Tabs.Screen name="mypage" options={{ title: 'MY', tabBarIcon: ({ color, focused }) => <TabIcon icon={focused ? TAB_ICON.mypage.active : TAB_ICON.mypage.inactive} color={color} focused={focused} /> }} />
+      <Tabs.Screen name="cards" options={{ title: '학습', animation: 'none' }} />
+      <Tabs.Screen name="review" options={{ title: '복습' }} />
+      <Tabs.Screen name="community" options={{ title: '커뮤니티' }} />
+      <Tabs.Screen name="mypage" options={{ title: 'MY' }} />
       {/* 통계는 하단 탭에서 숨기고 홈 '통계 보기'·MY·헤더 메뉴에서 push 로 진입.
           상세처럼 진입하므로 뒤로가기 버튼을 단 헤더로 교체해 온 곳으로 되돌아가게 한다. */}
       <Tabs.Screen name="stats" options={{ href: null, header: () => <MinimalHeader title={TITLES.stats} showBack /> }} />

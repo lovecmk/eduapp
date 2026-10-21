@@ -1,4 +1,5 @@
 import 'react-native-gesture-handler';
+import { AppTabBar } from '../src/components/ui/AppTabBar';
 import React, { useEffect } from 'react';
 import { View } from 'react-native';
 import { Stack } from 'expo-router';
@@ -177,6 +178,7 @@ function RootContent() {
         <Stack.Screen name="privacy" />
         <Stack.Screen name="legal" />
       </Stack>
+      <AppTabBar />
       <ToastHost />
       <UpdatePrompt
         visible={ready && updateAvailable}

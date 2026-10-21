@@ -8,7 +8,7 @@ export type CardDifficulty = 'easy' | 'medium' | 'hard';
  * 카드 형식.
  * - explanation: 텍스트+설명형(기본), 텍스트+사진 첨부형 포함
  * - ox: O/X 퀴즈 — 앞면에서 정답 체크
- * - choice: 객관식(1~4) 퀴즈 — 앞면에서 정답 체크
+ * - choice: 빈칸 2지선다 및 기존 객관식 퀴즈 — 앞면에서 정답 체크
  */
 export type CardType = 'explanation' | 'ox' | 'choice';
 
@@ -35,7 +35,7 @@ export interface SeedCard {
   industry?: string;
   /** 카드명(제목) */
   title: string;
-  /** 공식 형식 이름(기초용어형/상황형/OX형) */
+  /** 공식 형식 이름(기초용어형/상황형/OX형/빈칸형) */
   format?: string;
   difficulty: CardDifficulty;
   /** 카드별 권장 학습 시간(초) */

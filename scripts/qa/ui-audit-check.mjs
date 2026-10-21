@@ -66,11 +66,25 @@ async function go(path, width = 390) {
   assert(!await page.getByText('Unmatched Route', { exact: true }).count(), 'Unmatched route ' + path);
   assert((await page.locator('body').innerText()).trim(), 'Empty screen ' + path);
   assert(!await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), 'Overflow ' + path);
+  const bar = page.getByTestId('app-tab-bar');
+  if (mode === 'expired') assert.equal(await bar.count(), 0, 'Signed-out tab bar visible');
+  else {
+    assert.equal(await bar.count(), 1, 'Missing or duplicated tab bar on ' + path);
+    assert(await bar.isVisible(), 'Hidden tab bar on ' + path);
+    assert.equal(await bar.getByRole('tab').count(), 5);
+    const bounds = await bar.boundingBox();
+    assert(bounds && Math.abs(bounds.y + bounds.height - 844) < 2, 'Tab bar outside viewport on ' + path);
+  }
   checks.push({ path, width, mode });
 }
 try {
-  for (const path of ['/', '/cards', '/community', '/saved', '/notifications', '/settings', '/qna/not-found', '/support', '/admin']) await go(path);
-  for (const path of ['/cards', '/community', '/settings']) await go(path, 320);
+  for (const path of ['/', '/cards', '/community', '/saved', '/notifications', '/settings', '/contents', '/profile', '/legal', '/qna/not-found', '/support', '/admin']) await go(path);
+  for (const path of ['/cards', '/community', '/settings', '/contents']) await go(path, 320);
+  await go('/settings');
+  await page.getByTestId('app-tab-bar').getByRole('tab', { name: '학습', exact: true }).click();
+  await page.waitForURL('**/cards');
+  assert.equal(await page.getByTestId('app-tab-bar').count(), 1);
+  checks.push({ action: 'settings-to-learning-tab' });
   mode = 'loading'; await go('/cards');
   mode = 'error'; await go('/cards');
   assert(!await page.getByText('계약 점검', { exact: true }).count(), 'Failure fabricated cards');
