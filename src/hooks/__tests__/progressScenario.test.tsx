@@ -11,12 +11,32 @@ import { useProgressSync } from '../useProgressSync';
 import { useSrsStore } from '../../store/srsStore';
 import { useAttendanceStore } from '../../store/attendanceStore';
 import { initialState } from '../../domain/srs';
+import { advanceSessionEpoch } from '../../data/network/sessionEpoch';
 
 beforeEach(() => {
   useSrsStore.getState().reset();
   useAttendanceStore.setState({ stamps: {} });
   mockPull.mockReset(); mockGrade.mockReset(); mockAttendance.mockReset();
   mockGrade.mockResolvedValue(undefined); mockAttendance.mockResolvedValue(undefined);
+});
+it('discards a delayed snapshot as soon as the session epoch changes', async () => {
+  let resolve!: (value: unknown) => void;
+  mockPull.mockReturnValueOnce(new Promise(done => { resolve = done; }));
+  const hook = renderHook(() => useProgressSync());
+  advanceSessionEpoch();
+  await act(async () => { resolve({ cards: { old: initialState() }, history: {}, attendance: { old: 1000 } }); });
+  expect(useSrsStore.getState().cards).toEqual({});
+  expect(useAttendanceStore.getState().stamps).toEqual({});
+  hook.unmount();
+});
+it('does not send an attendance change through an expired subscription', async () => {
+  mockPull.mockResolvedValue({ cards: {}, history: {}, attendance: {} });
+  const hook = renderHook(() => useProgressSync());
+  await act(async () => {});
+  advanceSessionEpoch();
+  act(() => { useAttendanceStore.setState({ stamps: { '2026-9-22': 1000 } }); });
+  expect(mockAttendance).not.toHaveBeenCalled();
+  hook.unmount();
 });
 it('does not send restored history back as fresh learning and adopts server intervals', async () => {
   const restored = { ...initialState(), reps: 1, lastReviewedAt: 1000, lastGrade: 'again' as const, dueAt: 99999 };

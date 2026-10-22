@@ -61,10 +61,11 @@ export function useProgressSync(): void {
   useEffect(() => {
     if (!enabled) return;
     let cancelled = false;
+    const epoch = getSessionEpoch();
     void (async () => {
       try {
         const snap = await progressRepository.pull();
-        if (cancelled) return;
+        if (cancelled || epoch !== getSessionEpoch()) return;
         // 서버가 이미 아는 것은 다시 보내지 않는다. 이 표식이 없으면 복원 직후
         // 구독이 깨어나 스냅샷 전체를 되돌려 보내고, 오프라인 큐가 그것으로 찬다.
         for (const [id, st] of Object.entries(snap.cards)) {
@@ -145,7 +146,7 @@ export function useProgressSync(): void {
     const unsub = useAttendanceStore.subscribe((state) => {
       const next = state.stamps;
       if (next === prevStamps) return;
-      if (applyingServer.current) { prevStamps = next; return; }
+      if (applyingServer.current || epoch !== getSessionEpoch()) { prevStamps = next; return; }
       for (const day of Object.keys(next)) {
         if (prevStamps[day] || sentDays.current.has(day)) continue;
         sentDays.current.add(day);
