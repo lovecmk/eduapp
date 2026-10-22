@@ -33,8 +33,8 @@ it('카드를 바꾸면 그 카드의 저장된 난이도를 표시하고 없는
 });
 
 it.each([
-  ['again', 'good', '다음에 한번 더 볼게요', '안 볼게요'],
-  ['good', 'again', '안 볼게요', '다음에 한번 더 볼게요'],
+  ['again', 'good', '다음에 한번 더 볼게요', '이해했어요'],
+  ['good', 'again', '이해했어요', '다음에 한번 더 볼게요'],
 ] as const)('처음 선택 %s는 마지막 선택 %s와 달라도 난이도 카드 안에 변경 불가로 표시한다', (firstGrade, lastGrade, selected, other) => {
   poll.mockReturnValue({ mine: 'hard', counts: null, loaded: true });
   useSrsStore.setState({ cards: { a: { ...initialState(1), reps: 2, firstGrade, firstReviewedAt: 1, lastGrade, lastReviewedAt: 2 } } });
@@ -53,7 +53,7 @@ it('여러 번 학습한 카드의 최초 기록이 없으면 마지막 선택�
   useSrsStore.setState({ cards: { a: { ...initialState(1), reps: 2, lastGrade: 'good', lastReviewedAt: 2 } } });
   const view = render(<CardDifficultyPoll cardId="a" />);
   expect(view.getByText('이 카드의 최초 선택 기록을 확인할 수 없어요.')).toBeTruthy();
-  expect(view.getByLabelText('안 볼게요').props.accessibilityState).toEqual({ disabled: true, selected: false });
+  expect(view.getByLabelText('이해했어요').props.accessibilityState).toEqual({ disabled: true, selected: false });
   expect(view.getByLabelText('다음에 한번 더 볼게요').props.accessibilityState).toEqual({ disabled: true, selected: false });
 });
 

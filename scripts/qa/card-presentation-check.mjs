@@ -151,7 +151,7 @@ try {
   assert(await savedChoice.getByText('다음에 한번 더 볼게요', { exact: true }).count(), 'Initial choice restored');
   assert.equal(await savedChoice.getByRole('button').count(), 0, 'No self-check buttons in review');
   assert.equal(await difficulty.getByRole('button').count(), 0, 'No voting buttons in review');
-  const choiceSizes = await Promise.all(['다음에 한번 더 볼게요 · 처음 선택', '안 볼게요'].map(label => savedChoice.getByLabel(label, { exact: true }).boundingBox()));
+  const choiceSizes = await Promise.all(['다음에 한번 더 볼게요 · 처음 선택', '이해했어요'].map(label => savedChoice.getByLabel(label, { exact: true }).boundingBox()));
   assert(choiceSizes.every(box => box.height >= 40 && box.height <= 58), `Compact recorded choices: ${JSON.stringify(choiceSizes)}`);
   assert.equal(choiceSizes[0].height, choiceSizes[1].height, 'Both recorded choices have the same compact height');
   checks.push({ case: 'compact recorded choices', heights: choiceSizes.map(box => box.height) });
@@ -163,7 +163,7 @@ try {
   const writes = () => requests.filter(r => r.method === 'POST' && (r.path === '/progress/grade' || r.path.endsWith('/difficulty'))).length;
   const beforeWrites = writes();
   await difficulty.getByLabel('쉬웠어요', { exact: true }).click();
-  await savedChoice.getByLabel('안 볼게요', { exact: true }).click({ force: true });
+  await savedChoice.getByLabel('이해했어요', { exact: true }).click({ force: true });
   await savedChoice.getByLabel('다음에 한번 더 볼게요 · 처음 선택', { exact: true }).click({ force: true });
   await page.waitForTimeout(300);
   assert(await difficulty.getByLabel('어려웠어요 · 내 선택', { exact: true }).count(), 'Click cannot change difficulty');
@@ -188,7 +188,7 @@ try {
       await go('/content/qa-card', width);
       await page.getByTestId('recorded-review-choice').scrollIntoViewIfNeeded();
       const record = page.getByTestId('recorded-review-choice');
-      for (const label of ['다음에 한번 더 볼게요 · 처음 선택', '안 볼게요']) {
+      for (const label of ['다음에 한번 더 볼게요 · 처음 선택', '이해했어요']) {
         const option = record.getByLabel(label, { exact: true });
         const text = option.getByText(label.replace(' · 처음 선택', ''), { exact: true });
         const box = await option.boundingBox(), textBox = await text.boundingBox();

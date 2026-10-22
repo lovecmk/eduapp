@@ -11,7 +11,7 @@ import { SectionTitle } from '../ui/SectionTitle';
 
 const REVIEW_CHOICES = [
   { needsReview: true, label: '다음에 한번 더 볼게요', icon: 'refresh-circle' as const },
-  { needsReview: false, label: '안 볼게요', icon: 'checkmark-circle' as const },
+  { needsReview: false, label: '이해했어요', icon: 'checkmark-circle' as const },
 ];
 
 const OPTIONS: { key: DiffVote; label: string; icon: keyof typeof import('@expo/vector-icons').Ionicons.glyphMap; color: string }[] = [
