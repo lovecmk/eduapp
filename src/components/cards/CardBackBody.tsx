@@ -48,9 +48,11 @@ export function CardBackBody({ card }: { card: LearningCard }) {
 
       {/* 상세설명 */}
       {!!card.principle.trim() && (
-        <Text style={{ color: c.textPrimary, fontSize: 14.5 * fs, lineHeight: 22 * fs, fontFamily: fontBody }}>
-          {card.principle}
-        </Text>
+        <View style={{ backgroundColor: c.surfaceAlt, borderRadius: 12, padding: 12 }}>
+          <Text style={{ color: c.textPrimary, fontSize: 14.5 * fs, lineHeight: 22 * fs, fontFamily: fontBody }}>
+            {card.principle}
+          </Text>
+        </View>
       )}
 
       {/* 진행 프로세스 */}
