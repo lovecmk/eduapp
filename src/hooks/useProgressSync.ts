@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { AppState } from 'react-native';
 import { useSrsStore } from '../store/srsStore';
 import { useAttendanceStore } from '../store/attendanceStore';
+import { useProgressStatusStore } from '../store/progressStatusStore';
 import { useAuthStore } from '../store/authStore';
 import { progressRepository } from '../data/repositories';
 import { logger } from '../utils/logger';
@@ -61,6 +62,7 @@ export function useProgressSync(): void {
 
   // 1) 로그인·계정 변경 및 앱 복귀 시 서버 스냅샷을 받아 로컬에 합친다.
   useEffect(() => {
+    useProgressStatusStore.setState({ userId, settled: false });
     if (!enabled) return;
     let cancelled = false;
     const epoch = getSessionEpoch();
@@ -89,6 +91,8 @@ export function useProgressSync(): void {
         // 못 가져와도 로컬 기록으로 계속 쓴다 — 여기서 막으면 오프라인에서
         // 학습 화면이 아예 열리지 않는다.
         logger.warn('progress.pull_failed', { reason: String(e) });
+      } finally {
+        if (!cancelled && epoch === getSessionEpoch()) useProgressStatusStore.setState({ userId, settled: true });
       }
     };
     const pull = (): Promise<void> => {

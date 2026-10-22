@@ -26,6 +26,7 @@ try {
   await context.addInitScript(user => {
     localStorage.setItem('accessToken', 'isolated-completion'); localStorage.setItem('refreshToken', 'isolated-completion');
     localStorage.setItem('cachedUser', JSON.stringify(user)); localStorage.setItem('session-owner-id', user.id);
+    localStorage.setItem(`daily-learning-welcome:v1:${encodeURIComponent(user.id)}`, JSON.stringify({ days: ['2026-10-23', '2026-10-24'], day: '2026-10-24', quoteIndex: 0 }));
     localStorage.setItem('faction', JSON.stringify({ state: { faction: 'frost' }, version: 0 }));
   }, user);
   const ids = ['c0', 'c1', 'c2', 'c3', 'c4'];

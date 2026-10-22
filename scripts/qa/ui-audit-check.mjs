@@ -29,6 +29,7 @@ await context.addInitScript(user => {
   localStorage.setItem('refreshToken', 'isolated-ui-refresh');
   localStorage.setItem('cachedUser', JSON.stringify(user));
   localStorage.setItem('session-owner-id', user.id);
+  localStorage.setItem(`daily-learning-welcome:v1:${encodeURIComponent(user.id)}`, JSON.stringify({ day: new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10), quoteIndex: 0 }));
   localStorage.setItem('faction', JSON.stringify({ state: { faction: 'frost' }, version: 0 }));
 }, user);
 let mode = 'empty';

@@ -29,6 +29,7 @@ try {
     localStorage.setItem('refreshToken', 'isolated-calendar-refresh');
     localStorage.setItem('cachedUser', JSON.stringify(user));
     localStorage.setItem('session-owner-id', user.id);
+    localStorage.setItem(`daily-learning-welcome:v1:${encodeURIComponent(user.id)}`, JSON.stringify({ days: ['2026-10-23', '2026-10-24'], day: '2026-10-24', quoteIndex: 0 }));
     localStorage.setItem('faction', JSON.stringify({ state: { faction: 'frost' }, version: 0 }));
     localStorage.setItem('app-settings', JSON.stringify({ state: { themeMode: 'light', fontScale: 'medium' }, version: 2 }));
   }, user);

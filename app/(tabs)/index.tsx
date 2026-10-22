@@ -8,17 +8,13 @@ import { useAuthStore } from '../../src/store/authStore';
 import { useSettingsStore } from '../../src/store/settingsStore';
 import { useMomentStore } from '../../src/store/momentStore';
 import { Card } from '../../src/components/ui/Card';
-import { MomentModal } from '../../src/components/home/MomentModal';
-import { CenterModal } from '../../src/components/ui/CenterModal';
-import { useSrsStore } from '../../src/store/srsStore';
-import { dateKey } from '../../src/utils/dateKey';
 import { HomeSkeleton } from '../../src/components/skeletons';
 import { LivePresenceStrip } from '../../src/components/community/LivePresenceStrip';
 import { LearningCalendar } from '../../src/components/community/LearningCalendar';
 import { fontMono, fontDisplay, fontBody, fontCute } from '../../src/theme/tokens';
 import { calcEmblems, getAcquiredEmblems } from '../../src/utils/emblems';
 import { useFactionStore } from '../../src/store/factionStore';
-import { computeMoment, heroPlayfulCheer, type Moment } from '../../src/utils/moments';
+import { heroPlayfulCheer } from '../../src/utils/moments';
 import { ROUTES } from '../../src/constants/routes';
 import { displayName } from '../../src/domain/models/User';
 import { useAllCards } from '../../src/hooks/useCards';
@@ -39,17 +35,7 @@ const DIFFICULTY_LABEL: Record<string, string> = { easy: '쉬움', medium: '보�
 const HERO_TAGLINE_LINES = ['하루 3분이 모여', '국민의 안전한 내일을 지켜요!'];
 const HERO_TAGLINE = HERO_TAGLINE_LINES.join(' ');
 
-// 앱 실행(런치)당 1회만 실행 기록/축하 계산이 일어나도록 하는 모듈 가드.
-// (홈 탭을 오갈 때 컴포넌트가 재마운트돼도 중복 카운트/중복 팝업을 막는다.)
-//
-// **사람이 바뀌면 다시 연다.** 현장 태블릿은 여러 명이 돌려 쓰는데, 모듈 전역은
-// 프로세스가 살아 있는 한 남는다. 그대로 두면 앞사람 때 한 번 닫힌 가드 때문에
-// 뒷사람은 그 실행 내내 팝업을 한 번도 보지 못하고(이어서 학습·축하), 축하 계산의
-// 기준값도 앞사람의 것을 쓰게 된다. sessionScope 가 저장소의 주인을 강제하는 것과
-// 같은 이유이고, 훅의 ref 를 userId 로 다시 거는 것(useProgressSync)과 같은 손질이다.
 let sessionOwnerId: string | null | undefined;
-let sessionBaseline: { firstOpenAt: string | null; totalOpens: number; lastOpenAt: string | null; celebrated: string[] } | null = null;
-let sessionMomentHandled = false;
 
 function StatPill({ value, label, icon }: { value: string; label: string; icon?: keyof typeof Ionicons.glyphMap }) {
   const { theme, fontScale } = useTheme();
@@ -73,7 +59,6 @@ export default function HomeScreen() {
   const user = useAuthStore((s) => s.user);
   const profileImage = useSettingsStore((s) => s.profileImage);
   const [refreshing, setRefreshing] = useState(false);
-  const [moment, setMoment] = useState<Moment | null>(null);
 
   const { data: allCards = [], isLoading: cardsLoading, refetch: refetchAll } = useAllCards();
 
@@ -82,10 +67,8 @@ export default function HomeScreen() {
   const { dueTodayCount } = useReview();
   const quota = useDailyQuota();
   // 오늘 배정된 문제 — 장수는 그날 난이도가 정한다(쉬우면 5, 어려우면 3).
-  const { assignment, refetch: refetchToday, isSuccess: assignmentLoaded, isError: assignmentFailed } = useDailyAssignment();
+  const { assignment, refetch: refetchToday, isSuccess: assignmentLoaded } = useDailyAssignment();
   const todayProgress = completion.isRestDay ? '쉼' : completion.today.target > 0 ? `${completion.today.done}/${completion.today.target}` : assignmentLoaded ? '목표 없음' : '확인 중';
-  // 오늘 배정 중 아직 안 푼 문제 수 — '이어서 학습' 팝업과 CTA 가 같은 수를 본다.
-  const pendingToday = assignment.cards.filter((x) => !x.done).length;
 
   const masteredCount = completion.masteredCards;
   // 실제로 지금 배울 수 있는 '신규' 카드 수 — 하루 상한과 별개로 풀이 비었는지 확인용.
@@ -136,77 +119,13 @@ export default function HomeScreen() {
     [totalLearned, streakDays, dueTodayCount],
   );
 
-  // 런치당 1회: 실행 기록 + 이전 상태 스냅샷 확보(축하 순간 계산 기준).
+  // 실행 기록은 유지하고 시작 팝업은 전역 DailyLearningWelcome 한 곳에서 표시한다.
   useEffect(() => {
-    const uid = user?.id ?? null;
-    if (sessionOwnerId !== uid) {
-      sessionOwnerId = uid;
-      sessionBaseline = null;
-      sessionMomentHandled = false;
-    }
-    if (!sessionBaseline) {
-      const ms = useMomentStore.getState();
-      sessionBaseline = {
-        firstOpenAt: ms.firstOpenAt,
-        totalOpens: ms.totalOpens,
-        lastOpenAt: ms.lastOpenAt,
-        celebrated: [...ms.celebrated],
-      };
-      ms.recordOpen();
+    if (user?.id && sessionOwnerId !== user.id) {
+      sessionOwnerId = user.id;
+      useMomentStore.getState().recordOpen();
     }
   }, [user?.id]);
-
-  // 홈 첫 팝업 — '오늘(00:00~23:59) 학습 이력이 있을 때만' 이어서 학습할지 물어본다.
-  // (학습을 시작하지 않은 날에는 아무 팝업도 띄우지 않는다. 축하 순간 팝업도 이때만 노출.)
-  const [resumeOpen, setResumeOpen] = useState(false);
-  useEffect(() => {
-    if (sessionMomentHandled || !stats || !sessionBaseline) return;
-    // 진영 하이드레이트 전이거나 아직 진영을 안 골랐으면(=진영 선택 화면이 뜨는 상황)
-    // '이어서 학습' 팝업을 띄우지 않는다. 진영 선택은 가입/최초 진입 흐름이라
-    // 그 위에 학습 이어가기 팝업이 겹쳐 뜨면 안 된다.
-    if (!factionHydrated || faction === null) return;
-    // 오늘 배정을 받기 전에는 '이어서 할 것이 남았는가'를 모른다 — 받을 때까지 기다린다.
-    // (못 받았으면 기다리지 않는다. 그때는 오늘 학습 기록만으로 판단한다.)
-    if (!assignmentLoaded && !assignmentFailed) return;
-    sessionMomentHandled = true;
-
-    // 축하할 순간이 있으면 그것부터 — **오늘 학습 여부와는 다른 축의 사건이다.**
-    // (환영·기념일·오랜만의 복귀는 오늘 공부했는지와 무관하게 일어난다. 예전에는
-    //  computeMoment 를 부르는 곳이 아예 없어, 다 만들어 둔 이 팝업이 한 번도 뜨지
-    //  못했다 — 첫 실행 환영조차 보이지 않았다.)
-    // totalOpens 는 위에서 recordOpen 한 뒤의 값이라 스냅샷 + 1 이다.
-    const next = computeMoment({
-      totalLearned,
-      streakDays,
-      firstOpenAt: sessionBaseline.firstOpenAt,
-      totalOpens: sessionBaseline.totalOpens + 1,
-      lastOpenAt: sessionBaseline.lastOpenAt,
-      celebrated: sessionBaseline.celebrated,
-    });
-    if (next) {
-      setMoment(next);
-      return; // 두 팝업이 겹쳐 뜨지 않게 한다.
-    }
-
-    // 축하할 것이 없을 때만, 오늘 하던 학습을 이어갈지 물어본다.
-    const learnedToday = (useSrsStore.getState().history[dateKey(new Date())] ?? []).length;
-    if (learnedToday === 0) return; // 오늘 학습 이력이 없으면 팝업 없음.
-    // 오늘 몫을 다 푼 사람에게 "이어서 마저 학습할까요?"는 틀린 질문이다 — 눌러도
-    // 학습 화면은 '오늘 학습 완료'만 보여 준다. 남은 문제가 있을 때만 묻는다.
-    if (assignmentLoaded && pendingToday === 0) return;
-    setResumeOpen(true);
-  }, [stats, factionHydrated, faction, totalLearned, streakDays, assignmentLoaded, assignmentFailed, pendingToday]);
-
-  const dismissMoment = useCallback(() => {
-    if (moment) useMomentStore.getState().markCelebrated(moment.key);
-    setMoment(null);
-  }, [moment]);
-
-  const momentAction = useCallback(() => {
-    if (moment) useMomentStore.getState().markCelebrated(moment.key);
-    setMoment(null);
-    router.push(ROUTES.cards);
-  }, [moment, router]);
 
   const acquired = useMemo(() => {
     const cardMap = new Map<string, { total: number; mastered: number }>();
@@ -346,7 +265,6 @@ export default function HomeScreen() {
             // 실제로 화면에 뜨는 덱과 어긋나 "신규 3 · 복습 2" 라고 안내하고
             // 두 장만 나오는 일이 있었다. 세는 대상과 보여 주는 대상은 같아야 한다.
             const pending = assignment.cards.filter((x) => !x.done);
-            // (pendingToday 와 같은 목록을 센다)
             const newToStudy = pending.filter((x) => x.kind === 'new').length;
             const reviewToStudy = pending.filter((x) => x.kind === 'review').length;
             const sessionCount = pending.length;
@@ -400,28 +318,6 @@ export default function HomeScreen() {
         {/* 하루 목표 달성 기준 학습완료 캘린더 */}
         <LearningCalendar />
       </ScrollView>
-
-      {/* 앱을 켠 순간의 축하·격려 (알림 off 사용자도 인앱으로 챙김) */}
-      <MomentModal moment={moment} onClose={dismissMoment} onAction={momentAction} />
-
-      {/* 오늘 학습 이력이 있을 때만 뜨는 '이어서 학습/홈에 머물기' 팝업 */}
-      <CenterModal visible={resumeOpen} onClose={() => setResumeOpen(false)} title="오늘 학습을 이어갈까요?" icon="play-circle-outline">
-        <View style={{ alignItems: 'center' }}>
-          <Text style={{ color: c.textSecondary, fontSize: 13.5 * fs, textAlign: 'center', lineHeight: 20 * fs, marginBottom: 20, fontFamily: fontBody }}>
-            오늘 학습을 시작했어요.{'\n'}이어서 마저 학습할까요?
-          </Text>
-          <Pressable accessibilityRole="button"
-            onPress={() => { setResumeOpen(false); router.push(ROUTES.cards); }}
-            style={{ width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.primary, borderRadius: 14, paddingVertical: 14 }}
-          >
-            <Ionicons name="play" size={18} color="#fff" />
-            <Text style={{ color: '#fff', fontSize: 15 * fs, fontWeight: '800', fontFamily: fontCute }}>이어서 학습하기</Text>
-          </Pressable>
-          <Pressable accessibilityRole="button" onPress={() => setResumeOpen(false)} style={{ paddingVertical: 14 }}>
-            <Text style={{ color: c.textSecondary, fontSize: 14 * fs, fontFamily: fontDisplay }}>홈에 머물기</Text>
-          </Pressable>
-        </View>
-      </CenterModal>
     </View>
   );
 }

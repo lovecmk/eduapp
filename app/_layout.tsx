@@ -39,6 +39,7 @@ import { APP_FONTS } from '../src/theme/tokens';
 import { applyGlobalFont } from '../src/theme/applyGlobalFont';
 import { startQueryLifecycleBridge } from '../src/data/network/queryLifecycle';
 import { queryClient } from '../src/data/network/queryClient';
+import { DailyWelcomeGate } from '../src/components/home/DailyLearningWelcome';
 
 applyGlobalFont();
 
@@ -181,6 +182,7 @@ function RootContent() {
       </Stack>
       <AppTabBar />
       <ToastHost />
+      <DailyWelcomeGate enabled={ready && !updateAvailable} />
       <UpdatePrompt
         visible={ready && updateAvailable}
         remote={remote}
