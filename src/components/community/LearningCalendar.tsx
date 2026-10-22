@@ -11,7 +11,8 @@ import { Button } from '../ui/Button';
 import { AnimatedSheet } from '../ui/AnimatedSheet';
 import { getCategoryIcon, getCategoryColor } from '../../constants/categories';
 import { ROUTES } from '../../constants/routes';
-import { dateKey, dayDiff } from '../../utils/dateKey';
+import { dateKey } from '../../utils/dateKey';
+import { buildLearningCalendar, calendarDate } from '../../domain/learningCalendar';
 import { DAILY_MIN_CARDS } from '../../constants/learning';
 import { useAllCards } from '../../hooks/useCards';
 import { useSrsStore } from '../../store/srsStore';
@@ -50,7 +51,7 @@ function chunkWeeks(cells: (number | null)[]): (number | null)[][] {
 
 
 /**
- * 학습 히트맵 캘린더 — 날짜별 복습량을 강도로 시각화하고, 복습 예정일을 점으로 표시.
+ * 학습 캘린더 — 실제 기록과 오늘 이후의 복습 일정을 구분한다.
  * 날짜를 탭하면 그날 학습한 카드(이미지 포함)를 상세로 보여준다.
  */
 export function LearningCalendar() {
@@ -66,7 +67,7 @@ export function LearningCalendar() {
   const [selected, setSelected] = useState<string | null>(null);
   const calendarDays = useLearningCalendar(year, month);
 
-  const { data: allCards = [] } = useAllCards();
+  const { data: allCards = [], isLoading: cardsLoading, error: cardsError, refetch: refetchCards } = useAllCards();
   const history = useSrsStore((s) => s.history);
   const srsCards = useSrsStore((s) => s.cards);
   const stamps = useAttendanceStore((s) => s.stamps);
@@ -79,29 +80,24 @@ export function LearningCalendar() {
     return m;
   }, [allCards]);
 
-  /** 미래 복습 예정 카드 수 (dateKey → count). */
-  const dueByDate = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const card of allCards) {
-      const st = srsCards[card.id];
-      if (!st) continue;
-      const d = new Date(st.dueAt);
-      if (dayDiff(d, now) >= 0) m.set(dateKey(d), (m.get(dateKey(d)) ?? 0) + 1);
-    }
-    return m;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allCards, srsCards, today.date]);
+  const { historyByDate, dueByDate } = useMemo(
+    () => buildLearningCalendar(allCards, srsCards, history, now.getTime()),
+    [allCards, srsCards, history, today.date],
+  );
 
   const todayStr = dateKey(now);
   const cells = getMonthCells(year, month);
   const monthPrefix = `${year}-${month}-`;
   const learnedDays = useMemo(
-    () => Object.keys(history).filter((k) => k.startsWith(monthPrefix) && (history[k]?.length ?? 0) > 0).length,
-    [history, monthPrefix],
+    () => Object.keys(historyByDate).filter((k) => k.startsWith(monthPrefix) && historyByDate[k]!.length > 0).length,
+    [historyByDate, monthPrefix],
   );
   const attendedDays = useMemo(
-    () => Object.keys(stamps).filter((k) => k.startsWith(monthPrefix)).length,
-    [stamps, monthPrefix],
+    () => Object.keys(stamps).filter((key) => {
+      const date = calendarDate(key);
+      return key.startsWith(monthPrefix) && date && date.getTime() <= now.getTime();
+    }).length,
+    [stamps, monthPrefix, today.date],
   );
 
   const firstMonth = year === 2025 && month === 0;
@@ -119,15 +115,15 @@ export function LearningCalendar() {
     setJustStamped(dateKey(new Date()));
   };
 
-  /** 근무일인가 — 주말·공휴일은 애초에 학습일로 세지 않는다. */
-
+  // Use the server's extra holidays for both the cell and its connecting band.
+  const canLearnOn = (date: Date) => calendarDays[dateKey(date)]?.can_learn_new ?? isWorkday(date);
 
   /** 그 날에서 한 방향으로 걸어가 처음 만나는 **근무일**이 완료된 날인가. */
   const nearestWorkdayDone = (day: number, step: 1 | -1): boolean => {
     // 연휴가 길어야 열흘 남짓이다 — 그 안에서 근무일을 못 만나면 이어지지 않은 것으로 본다.
     for (let k = 1; k <= 10; k++) {
       const date = koreanDate(year, month, day + step * k);
-      if (isWorkday(date)) return (history[dateKey(date)]?.length ?? 0) >= DAILY_MIN_CARDS;
+      if (canLearnOn(date)) return (historyByDate[dateKey(date)]?.length ?? 0) >= DAILY_MIN_CARDS;
     }
     return false;
   };
@@ -143,16 +139,19 @@ export function LearningCalendar() {
    */
   const inStreak = (day: number): boolean => {
     const date = koreanDate(year, month, day);
-    if (isWorkday(date)) return (history[dateKey(date)]?.length ?? 0) >= DAILY_MIN_CARDS;
+    if (canLearnOn(date)) return (historyByDate[dateKey(date)]?.length ?? 0) >= DAILY_MIN_CARDS;
     return nearestWorkdayDone(day, -1) && nearestWorkdayDone(day, 1);
   };
 
   const selectedCards = useMemo(() => {
-    if (!selected) return { reviewed: [] as LearningCard[], due: [] as LearningCard[] };
-    const reviewed = (history[selected] ?? []).map((id) => cardById.get(id)).filter(Boolean) as LearningCard[];
-    const due = allCards.filter((card) => { const st = srsCards[card.id]; return st && dateKey(new Date(st.dueAt)) === selected; });
-    return { reviewed, due };
-  }, [selected, history, cardById, allCards, srsCards]);
+    const ids = selected ? historyByDate[selected] ?? [] : [];
+    const reviewed = ids.map((id) => cardById.get(id)).filter((card): card is LearningCard => !!card);
+    return { reviewed, recordedCount: ids.length, due: selected ? dueByDate[selected] ?? [] : [] };
+  }, [selected, historyByDate, cardById, dueByDate]);
+
+  const thisYear = Number(today.date.slice(0, 4));
+  const thisMonth = Number(today.date.slice(5, 7)) - 1;
+  const isCurrentMonth = year === thisYear && month === thisMonth;
 
   return (
     <View style={[styles.container, { backgroundColor: c.surface, borderColor: c.border }]}>
@@ -165,9 +164,13 @@ export function LearningCalendar() {
         <Pressable onPress={next} disabled={lastMonth} accessibilityState={{ disabled: lastMonth }} hitSlop={8} accessibilityRole="button" accessibilityLabel="다음 달" style={styles.arrow}><Ionicons name="chevron-forward" size={20} color={c.primary} /></Pressable>
       </View>
 
+      {!isCurrentMonth && <Pressable accessibilityRole="button" onPress={() => { setYear(thisYear); setMonth(thisMonth); }} style={{ alignSelf: 'center', padding: 6 }}>
+        <Text style={{ color: c.primary, fontSize: 12 * fs, fontFamily: fontDisplay }}>이번 달로 돌아가기</Text>
+      </Pressable>}
+
       {/* 월간 요약 — 학습일 / 출석일 / 연속 */}
       <View style={styles.summaryRow}>
-        <SummaryPill icon="school" color={c.primary} value={`${learnedDays}일`} label="학습" />
+        <SummaryPill icon="school" color={c.primary} value={`${learnedDays}일`} label="기록" />
         <SummaryPill icon="ribbon" color={c.success} value={`${attendedDays}일`} label="출석" />
         <SummaryPill icon="flame" color="#FF6B35" value={`${streak}일`} label="연속" />
       </View>
@@ -197,7 +200,8 @@ export function LearningCalendar() {
               const linkRight = dow < 6 && contRight;
               // 그날 학습한(신규+복습) 카드 수. 근무일 기준으로 완료/일부완료를 판정하고,
               // 미수행(0장)은 아무 표시도 하지 않는다.
-              const learned = history[key]?.length ?? 0;
+              const learned = historyByDate[key]?.length ?? 0;
+              const dueCount = dueByDate[key]?.length ?? 0;
               const calendarDay = calendarDays[key];
               const name = calendarDay?.holiday_name || holidayName(year, month, d);
               const holiday = !!name;
@@ -219,7 +223,7 @@ export function LearningCalendar() {
               // 사이의 날들은 띠 위에 숫자만 얹혀, 며칠이 하나로 이어진 하나의 덩어리로 읽힌다.
               const isCap = done && (!contLeft || !contRight);
               return (
-                <Pressable accessibilityRole="button" accessibilityLabel={`${month + 1}월 ${d}일${workday ? ' 신규 학습 가능' : ` ${name || (dow === 0 || dow === 6 ? '주말' : '휴무일')} 신규 학습 쉬는 날, 복습 가능`}`} key={`${w}-${dow}`} style={styles.cell} onPress={() => setSelected(key)}>
+                <Pressable accessibilityRole="button" accessibilityLabel={`${month + 1}월 ${d}일${workday ? ' 신규 학습 가능' : ` ${name || (dow === 0 || dow === 6 ? '주말' : '휴무일')} 신규 학습 쉬는 날, 복습 가능`}, 학습·복습 기록 ${learned}장, 복습 일정 ${dueCount}장`} key={`${w}-${dow}`} style={styles.cell} onPress={() => setSelected(key)}>
                   {/* 이어짐 띠 — 칸 **폭 전체**를 옅게 채워 옆 칸과 빈틈 없이 붙는다.
                       줄이 이어지는 쪽은 각지게, 끊기는 쪽은 둥글게 닫아 알약 모양이 된다.
                       날짜 동그라미 뒤에 깔리므로 시작/끝의 진한 마개가 띠 위에 얹혀 보인다. */}
@@ -255,7 +259,16 @@ export function LearningCalendar() {
                   <View style={styles.dotRow}>
                     {done || partial ? (
                       <Text style={{ color: done ? c.success : c.warning, fontSize: 9, fontFamily: fontMono, fontWeight: '800' }}>{learned}</Text>
-                    ) : !workday ? <Text style={{ color: c.textSecondary, fontSize: 9 }}>쉼</Text> : null}
+                    ) : !workday ? <>
+                      <Text style={{ color: c.textSecondary, fontSize: 9 }}>쉼</Text>
+                      {learned > 0 && <Text style={{ color: c.success, fontSize: 9, fontFamily: fontMono }}>{learned}</Text>}
+                    </> : null}
+                  </View>
+                  <View style={styles.dotRow}>
+                    {dueCount > 0 && <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                      <View style={[styles.dueDot, { backgroundColor: c.warning }]} />
+                      <Text style={{ color: c.warning, fontSize: 9, fontFamily: fontMono }}>{dueCount}</Text>
+                    </View>}
                   </View>
                 </Pressable>
               );
@@ -273,10 +286,13 @@ export function LearningCalendar() {
         <Text style={[styles.legendText, { color: c.textSecondary }]}>이어짐</Text>
         <View style={[styles.legendBox, { backgroundColor: c.warning + '26', borderWidth: 1.5, borderColor: c.warning }]} />
         <Text style={[styles.legendText, { color: c.textSecondary }]}>일부완료</Text>
+        <View style={[styles.dueDot, { backgroundColor: c.warning }]} />
+        <Text style={[styles.legendText, { color: c.textSecondary }]}>복습 일정</Text>
         <View style={{ flex: 1 }} />
         <Text style={[styles.legendText, { color: c.textSecondary }]}>쉼: 신규 휴무</Text>
       </View>
       <Text style={{ color: c.textSecondary, fontSize: 11 * fs, marginTop: 6 }}>한국 시간 기준 · 주말·공휴일에도 복습은 가능해요</Text>
+      <Text style={{ color: c.textSecondary, fontSize: 10 * fs, marginTop: 4 }}>기록: 학습·복습한 날 · 완료: {DAILY_MIN_CARDS}장 이상 · 연속: 현재 출석 기준</Text>
 
       {/* 오늘 출석 — 캘린더에 자연스럽게 통합(별도 카드 없이 바로 도장 찍기) */}
       {checkedToday ? (
@@ -338,7 +354,12 @@ export function LearningCalendar() {
         dateKey={selected}
         learningDay={selected ? calendarDays[selected] : undefined}
         reviewed={selectedCards.reviewed}
+        recordedCount={selectedCards.recordedCount}
         due={selectedCards.due}
+        todayKey={todayStr}
+        cardsLoading={cardsLoading}
+        cardsError={!!cardsError}
+        onRetry={() => { void refetchCards(); }}
         onClose={() => setSelected(null)}
       />
     </View>
@@ -358,14 +379,18 @@ function SummaryPill({ icon, color, value, label }: { icon: keyof typeof Ionicon
 }
 
 function DayDetailSheet({
-  visible, dateKey: key, reviewed, due, onClose, learningDay: calendarDay,
-}: { visible: boolean; dateKey: string | null; reviewed: LearningCard[]; due: LearningCard[]; onClose: () => void; learningDay?: import('../../utils/workday').LearningDay }) {
+  visible, dateKey: key, reviewed, recordedCount, due, todayKey, cardsLoading, cardsError, onRetry, onClose, learningDay: calendarDay,
+}: { visible: boolean; dateKey: string | null; reviewed: LearningCard[]; recordedCount: number; due: LearningCard[]; todayKey: string; cardsLoading: boolean; cardsError: boolean; onRetry: () => void; onClose: () => void; learningDay?: import('../../utils/workday').LearningDay }) {
   const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
   const router = useRouter();
   const [year, mo, d] = (key ?? '0-0-0').split('-').map(Number);
-  const title = `${mo + 1}월 ${d}일`;
+  const title = `${year}년 ${mo + 1}월 ${d}일`;
   const day = calendarDay ?? (key ? learningDay(koreanDate(year, mo, d)) : null);
+  const selectedDate = key ? calendarDate(key) : null;
+  const todayDate = calendarDate(todayKey);
+  const isFuture = !!selectedDate && !!todayDate && selectedDate > todayDate;
+  const isPast = !!selectedDate && !!todayDate && selectedDate < todayDate;
 
   // 카드를 누르면 시트를 닫고 '컨텐츠 상세'(앞·뒷면 모두 보기)로 이동한다.
   const openDetail = (id: string) => {
@@ -385,16 +410,23 @@ function DayDetailSheet({
 
           <ScrollView style={{ maxHeight: 420 }} showsVerticalScrollIndicator={false}>
             {day && !day.can_learn_new && <Text style={[styles.empty, { color: c.textSecondary }]}>{day.holiday_name || (day.reason === 'WEEKEND' ? '주말' : '휴무일')} · 신규 학습 쉬는 날 · 복습 가능</Text>}
-            <SectionTitle icon="checkmark-done" color={c.success} text={`학습한 카드 ${reviewed.length}`} />
-            {reviewed.length === 0 ? (
-              <Text style={[styles.empty, { color: c.textSecondary }]}>이 날은 학습 기록이 없어요</Text>
-            ) : reviewed.map((card) => <CardRow key={`r${card.id}`} card={card} onPress={() => openDetail(card.id)} />)}
+            {!isFuture && <>
+              <SectionTitle icon="checkmark-done" color={c.success} text={`학습·복습한 카드 ${recordedCount}`} />
+              {recordedCount === 0 ? (
+                <Text style={[styles.empty, { color: c.textSecondary }]}>이 날은 학습·복습 기록이 없어요</Text>
+              ) : reviewed.map((card) => <CardRow key={`r${card.id}`} card={card} onPress={() => openDetail(card.id)} />)}
+              {recordedCount > reviewed.length && !cardsLoading && !cardsError && <Text style={[styles.empty, { color: c.textSecondary }]}>현재 볼 수 없는 카드 {recordedCount - reviewed.length}장의 기록이 포함되어 있어요</Text>}
+            </>}
 
-            {due.length > 0 && (
+            {cardsLoading && <Text style={[styles.empty, { color: c.textSecondary }]}>카드 목록을 불러오는 중이에요</Text>}
+            {cardsError && <Pressable accessibilityRole="button" onPress={onRetry} style={{ paddingVertical: 10 }}><Text style={{ color: c.primary, fontSize: 12 * fs }}>카드 목록 다시 불러오기</Text></Pressable>}
+            {!isPast && !cardsLoading && (!cardsError || due.length > 0) && (
               <>
                 <View style={{ height: 12 }} />
-                <SectionTitle icon="alarm" color={c.warning} text={`복습 예정 ${due.length}`} />
+                <SectionTitle icon="alarm" color={c.warning} text={`${isFuture ? '복습 예정' : '오늘 복습 일정'} ${due.length}`} />
+                {due.length === 0 && <Text style={[styles.empty, { color: c.textSecondary }]}>예정된 복습 카드가 없어요</Text>}
                 {due.map((card) => <CardRow key={`d${card.id}`} card={card} onPress={() => openDetail(card.id)} />)}
+                <Text style={[styles.empty, { color: c.textSecondary }]}>복습 일정은 학습 결과에 따라 바뀔 수 있어요</Text>
               </>
             )}
           </ScrollView>
@@ -470,7 +502,7 @@ const styles = StyleSheet.create({
   /** 가운데 정렬만 맡는 층 — 어둡게 까는 일은 아래 modalScrim(형제 배경)이 한다. */
   modalOverlay: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   modalScrim: { backgroundColor: 'rgba(0,0,0,0.4)' },
-  modalCard: { borderRadius: 20, padding: 24, width: 320, borderWidth: 1 },
+  modalCard: { borderRadius: 20, padding: 24, width: '100%', maxWidth: 320, borderWidth: 1 },
   pickLbl: { fontSize: 12, marginBottom: 8, fontFamily: fontBody },
   sheetOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
   sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, borderWidth: 1, padding: 20, paddingBottom: 34 },
