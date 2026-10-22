@@ -1,4 +1,5 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { AppState } from 'react-native';
 import { useAuthStore } from '../store/authStore';
 import { useSettingsStore } from '../store/settingsStore';
 import { reconcileDailyReminder } from '../data/notifications/NotificationService';
@@ -19,12 +20,22 @@ export function useReminderSchedule(): void {
   const userId = useAuthStore((s) => s.user?.id ?? null);
   const enabled = useSettingsStore((s) => s.notifications.enabled);
   const time = useSettingsStore((s) => s.notifications.dailyReminderTime);
+  const [hydrated, setHydrated] = useState(useSettingsStore.persist.hasHydrated());
+  useEffect(() => {
+    if (useSettingsStore.persist.hasHydrated()) { setHydrated(true); return; }
+    return useSettingsStore.persist.onFinishHydration(() => setHydrated(true));
+  }, []);
 
   useEffect(() => {
-    if (!bootstrapped) return;
-    const target = userId && enabled ? time : null;
-    reconcileDailyReminder(target).catch((e) => {
-      logger.warn('reminder.reconcile_failed', { reason: String(e) });
-    });
-  }, [bootstrapped, userId, enabled, time]);
+    if (!bootstrapped || !hydrated) return;
+    const update = () => {
+      const target = userId && enabled ? time : null;
+      void reconcileDailyReminder(target).catch((e) => {
+        logger.warn('reminder.reconcile_failed', { reason: String(e) });
+      });
+    };
+    update();
+    const listener = AppState.addEventListener('change', state => { if (state === 'active') update(); });
+    return () => listener.remove();
+  }, [bootstrapped, hydrated, userId, enabled, time]);
 }

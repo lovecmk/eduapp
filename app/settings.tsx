@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { View, Text, ScrollView, Platform, Pressable, Modal, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, Platform, Pressable, Modal, StyleSheet, Linking } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useQueryClient } from '@tanstack/react-query';
@@ -33,7 +33,10 @@ import {
   requestNotificationPermission,
   cancelAllReminders,
   syncPushTokenWithServer,
+  openExactReminderSettings,
+  reconcileDailyReminder,
 } from '../src/data/notifications/NotificationService';
+import { useReminderStatusStore } from '../src/store/reminderStatusStore';
 import { APP_NAME } from '../src/constants/brand';
 import { contentColumn } from '../src/theme/layout';
 import { displayName } from '../src/domain/models/User';
@@ -104,6 +107,13 @@ function SettingsBody({ scrollRef }: { scrollRef: React.RefObject<ScrollView> })
   const [h, m] = notifications.dailyReminderTime.split(':').map(Number);
   const [editH, setEditH] = useState(h);
   const [editM, setEditM] = useState(m);
+  const reminder = useReminderStatusStore();
+  const reminderDescription = !notifications.enabled ? '알림을 켜면 적용돼요'
+    : Platform.OS === 'web' ? '모바일 앱에서 예약할 수 있어요'
+    : reminder.state === 'permission-denied' ? '기기 알림 권한을 허용해 주세요'
+    : reminder.state === 'failed' ? '예약에 실패했어요 · 아래에서 다시 예약해 주세요'
+    : reminder.state === 'scheduled' && reminder.nextAt ? `다음 알림 ${new Date(reminder.nextAt).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} · 기기 시간 기준`
+    : '알림 예약을 확인하고 있어요';
 
   const openTimePicker = useCallback(() => {
     const [ch, cm] = notifications.dailyReminderTime.split(':').map(Number);
@@ -377,10 +387,20 @@ function SettingsBody({ scrollRef }: { scrollRef: React.RefObject<ScrollView> })
                 anchorId="notify-time"
                 icon="alarm-outline"
                 label="알림 시간"
-                description={notifications.enabled ? '매일 이 시각에 알려드려요' : '알림을 켜면 적용돼요'}
+                description={reminderDescription}
                 value={notifications.dailyReminderTime}
                 onPress={openTimePicker}
               />
+              {notifications.enabled && reminder.state === 'permission-denied' && <SettingsItem
+                icon="notifications-off-outline" label="기기 알림 설정" description="알림 허용과 학습 알림 채널을 확인해 주세요"
+                onPress={() => { void Linking.openSettings().catch(() => toast('기기 설정을 열 수 없어요', 'warn')); }} />}
+              {notifications.enabled && Platform.OS === 'android' && reminder.exact !== null && <SettingsItem
+                icon="time-outline" label="정확한 알림" value={reminder.exact ? '허용됨' : '허용 필요'}
+                description={reminder.exact ? '설정한 시각에 울리도록 예약해요' : '기기 설정에서 알람 및 리마인더를 허용해 주세요'}
+                onPress={() => { void openExactReminderSettings().catch(() => toast('기기 설정을 열 수 없어요', 'warn')); }} />}
+              {notifications.enabled && reminder.state === 'failed' && <SettingsItem
+                icon="refresh" label="알림 다시 예약하기"
+                onPress={() => { void reconcileDailyReminder(notifications.dailyReminderTime).catch(() => toast('알림을 예약할 수 없어요. 기기 알림 설정을 확인해 주세요.', 'warn')); }} />}
               <SettingsItem
                 anchorId="notify-inbox"
                 icon="mail-outline"

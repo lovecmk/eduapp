@@ -1,18 +1,31 @@
 // 알림 (로컬 푸시 스케줄링) — PART 3.4
 // 웹에서는 expo-notifications 스케줄링이 동작하지 않으므로 Platform 가드로 감싼다.
-import { Platform, Vibration } from 'react-native';
+import { Platform, Vibration, NativeModules } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import Constants from 'expo-constants';
 import { env } from '../network/env';
 import { apiClient } from '../network/ApiClient';
 import { ROUTES } from '../../constants/routes';
 import { hapticSuccess } from '../../utils/haptics';
+import { useReminderStatusStore } from '../../store/reminderStatusStore';
 
 const isNative = Platform.OS !== 'web';
 
 // 안드로이드 알림 채널 — 진동/중요도를 이 채널에 고정해 알림 도착 시 확실히 진동한다.
 const CHANNEL_ID = 'study-reminders';
 const VIBRATION_PATTERN = [0, 250, 150, 250];
+const REMINDER_ID = 'haru-daily-study-reminder';
+let reminderRevision = 0;
+let reminderQueue: Promise<void> = Promise.resolve();
+
+interface AlarmAccess { exact: boolean | null; notificationsEnabled: boolean; channelEnabled: boolean }
+export async function reminderAlarmAccess(): Promise<AlarmAccess> {
+  if (Platform.OS !== 'android') return { exact: null, notificationsEnabled: true, channelEnabled: true };
+  return NativeModules.ReminderAlarm?.getStatus?.() ?? { exact: null, notificationsEnabled: true, channelEnabled: true };
+}
+export async function openExactReminderSettings(): Promise<void> {
+  if (Platform.OS === 'android' && NativeModules.ReminderAlarm) await NativeModules.ReminderAlarm.openExactSettings();
+}
 
 if (isNative) {
   Notifications.setNotificationHandler({
@@ -61,6 +74,7 @@ export async function requestNotificationPermission(): Promise<boolean> {
       return false;
     }
   }
+  await ensureAndroidChannel();
   const { status } = await Notifications.requestPermissionsAsync();
   return status === 'granted';
 }
@@ -74,26 +88,7 @@ export async function requestNotificationPermission(): Promise<boolean> {
  * "꼭 필요한 알림만 보내요"라고 약속하는데 기기는 하루 8번 울렸다. 약속한 대로 한 번만 건다.
  */
 export async function scheduleDailyReminder(time: string): Promise<void> {
-  if (!isNative) return; // 웹은 로컬 반복 스케줄 미지원 — no-op
-  await ensureAndroidChannel();
-  await Notifications.cancelAllScheduledNotificationsAsync(); // 중복 스케줄 방지(구버전의 3시간 반복도 여기서 걷힌다)
-  const [hour, minute] = time.split(':').map(Number);
-
-  await Notifications.scheduleNotificationAsync({
-    content: {
-      title: '오늘의 학습 카드가 도착했어요',
-      data: { route: ROUTES.cards },
-      body: '3분이면 충분해요. 오늘도 안전하게!',
-      sound: 'default',
-      ...(Platform.OS === 'android' ? { channelId: CHANNEL_ID, vibrationPattern: VIBRATION_PATTERN } : {}),
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DAILY,
-      hour,
-      minute,
-      ...(Platform.OS === 'android' ? { channelId: CHANNEL_ID } : {}),
-    },
-  });
+  await reconcileDailyReminder(time);
 }
 
 /**
@@ -107,19 +102,67 @@ export async function scheduleDailyReminder(time: string): Promise<void> {
  * `time` 이 null 이면 모두 걷는다. 권한이 없으면 걸지 않는다(물어보는 일은 설정 화면이 한다).
  */
 export async function reconcileDailyReminder(time: string | null): Promise<void> {
-  if (!isNative) return;
-  if (time === null) {
-    await Notifications.cancelAllScheduledNotificationsAsync();
-    return;
+  if (time !== null && !/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) throw new Error('알림 시각은 00:00~23:59 형식이어야 합니다');
+  useReminderStatusStore.setState({ state: 'checking', time, nextAt: null });
+  const revision = ++reminderRevision;
+  const task = reminderQueue.catch(() => {}).then(async () => {
+    if (revision !== reminderRevision) return;
+    if (!isNative) { useReminderStatusStore.setState({ state: 'unsupported', exact: null, time, nextAt: null }); return; }
+    const requests = await Notifications.getAllScheduledNotificationsAsync();
+    const ours = requests.filter(request => {
+      const trigger = request.trigger as { type?: string; seconds?: number } | null;
+      return request.identifier === REMINDER_ID || request.content.data?.reminder === 'daily-study' ||
+        (/학습|복습/.test(request.content.title ?? '') && (trigger?.type === 'daily' || trigger?.type === 'timeInterval' && trigger.seconds === 10_800));
+    });
+    const clear = async () => {
+      for (const request of ours) {
+        if (revision !== reminderRevision) return;
+        await Notifications.cancelScheduledNotificationAsync(request.identifier);
+      }
+    };
+    if (revision !== reminderRevision) return;
+    if (time === null) {
+      await clear();
+      if (revision === reminderRevision) useReminderStatusStore.setState({ state: 'disabled', time: null, nextAt: null, exact: null });
+      return;
+    }
+    await ensureAndroidChannel();
+    const { status } = await Notifications.getPermissionsAsync();
+    const access = await reminderAlarmAccess();
+    if (revision !== reminderRevision) return;
+    if (status !== 'granted' || !access.notificationsEnabled || !access.channelEnabled) {
+      await clear();
+      if (revision === reminderRevision) useReminderStatusStore.setState({ state: 'permission-denied', exact: access.exact, time, nextAt: null });
+      return;
+    }
+    const [hour, minute] = time.split(':').map(Number);
+    const trigger: Notifications.DailyTriggerInput = { type: Notifications.SchedulableTriggerInputTypes.DAILY, hour, minute, ...(Platform.OS === 'android' ? { channelId: CHANNEL_ID } : {}) };
+    const nextAt = await Notifications.getNextTriggerDateAsync(trigger);
+    if (nextAt === null || !Number.isFinite(nextAt)) throw new Error('다음 알림 시각을 계산할 수 없습니다');
+    if (revision !== reminderRevision) return;
+    const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const current = ours.length === 1 && ours[0]?.identifier === REMINDER_ID ? ours[0] : undefined;
+    const nativeTrigger = current?.trigger as { hour?: number; minute?: number } | undefined;
+    if (!current || current.content.data?.time !== time || nativeTrigger?.hour != null && nativeTrigger.hour !== hour || nativeTrigger?.minute != null && nativeTrigger.minute !== minute || current.content.data?.timezone !== zone || current.content.data?.exact !== access.exact) {
+      await clear();
+      if (revision !== reminderRevision) return;
+      await Notifications.scheduleNotificationAsync({
+        identifier: REMINDER_ID,
+        content: { title: '오늘의 학습 시간이에요', body: '하루 3분, 배운 카드를 복습해도 좋아요.', data: { route: ROUTES.cards, reminder: 'daily-study', time, timezone: zone, exact: access.exact }, sound: 'default', ...(Platform.OS === 'android' ? { vibrationPattern: VIBRATION_PATTERN } : {}) },
+        trigger,
+      });
+    }
+    if (revision === reminderRevision) useReminderStatusStore.setState({ state: 'scheduled', exact: access.exact, time, nextAt });
+  });
+  reminderQueue = task.catch(() => {});
+  try { await task; } catch (error) {
+    if (revision === reminderRevision) useReminderStatusStore.setState({ state: 'failed', time, nextAt: null });
+    throw error;
   }
-  const { status } = await Notifications.getPermissionsAsync();
-  if (status !== 'granted') return;
-  await scheduleDailyReminder(time);
 }
 
 export async function cancelAllReminders(): Promise<void> {
-  if (!isNative) return;
-  await Notifications.cancelAllScheduledNotificationsAsync();
+  await reconcileDailyReminder(null);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
