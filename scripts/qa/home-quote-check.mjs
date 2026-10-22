@@ -73,7 +73,14 @@ try {
       const first = await quote.innerText();
       assert(first.length > 10);
       await expect(hero).not.toContainText('미션 클리어');
-      assert(ctaBox.height >= 172);
+      assert(ctaBox.height >= 115);
+      if (fontScale === 'medium') assert(ctaBox.height <= 116, 'Compact study card height');
+      await expect(page.getByText(/하루 목표를 모두 채우면/)).toHaveCount(0);
+      const logo = page.getByTestId('appbar-logo-3');
+      await expect(logo).toBeVisible();
+      const logoImage = logo.locator('img');
+      await expect(logoImage).toHaveJSProperty('complete', true);
+      assert(await logoImage.evaluate(el => el.naturalWidth > 0), 'App bar logo decoded');
       const color = await cta.evaluate(el => getComputedStyle(el).backgroundColor);
       assert(theme === 'light' ? color === 'rgb(21, 128, 61)' : color === 'rgb(22, 101, 52)');
       assert(!await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1));

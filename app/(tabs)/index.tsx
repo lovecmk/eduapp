@@ -235,7 +235,7 @@ export default function HomeScreen() {
                 : { to: ROUTES.contents, bg: c.surfaceAlt, fg: c.textPrimary, sub: c.textSecondary, iconBg: c.surface, iconColor: c.primary, icon: 'sparkles' as const, bw: 1, border: c.border, chevron: true,
                     title: '새 카드를 다 배웠어요', desc: '지금은 학습할 카드가 없어요 · 곧 새 카드가 열려요' };
             return (
-              <Pressable testID="home-study-cta" accessibilityRole="button" onPress={() => router.push(cta.to as never)} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: cta.bg, borderRadius: 16, minHeight: 172, paddingVertical: 32, paddingHorizontal: 16, borderWidth: cta.bw, borderColor: cta.border }}>
+              <Pressable testID="home-study-cta" accessibilityRole="button" onPress={() => router.push(cta.to as never)} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: cta.bg, borderRadius: 16, minHeight: 115, paddingVertical: 20, paddingHorizontal: 16, borderWidth: cta.bw, borderColor: cta.border }}>
                 <View style={{ width: 46, height: 46, borderRadius: 14, backgroundColor: cta.iconBg, alignItems: 'center', justifyContent: 'center' }}>
                   <Ionicons name={cta.icon} size={24} color={cta.iconColor} />
                 </View>
@@ -264,8 +264,6 @@ export default function HomeScreen() {
                 <StatPill value={`${masteredCount}장`} label="이해한 카드" icon="book" />
                 <StatPill value={`${completion.streak}일`} label="연속 학습" icon="flame" />
               </View>
-              <Text style={{ color: c.textSecondary, fontSize: 11 * fs, lineHeight: 17 * fs, fontFamily: fontBody, marginTop: 8 }}>하루 목표를 모두 채우면 학습완료예요. 연속 학습은 주말·공휴일을 건너뛰어요.</Text>
-              <Text style={{ color: c.textSecondary, fontSize: 10 * fs, lineHeight: 16 * fs, fontFamily: fontBody, marginTop: 4 }}>이해한 카드는 ‘알고 있었어요/이해했어요’로 기록한 현재 카드 수예요.</Text>
             </View>
         </Card>
 

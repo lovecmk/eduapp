@@ -39,7 +39,7 @@ export function HomeSkeleton() {
         {/* 학습 시작 · 복습 */}
         <SkeletonCard>
           <Skeleton width="35%" height={16} style={{ marginBottom: 18 }} />
-          <Skeleton width="100%" height={172} radius={16} />
+          <Skeleton width="100%" height={115} radius={16} />
         </SkeletonCard>
 
         {/* 학습 현황 */}

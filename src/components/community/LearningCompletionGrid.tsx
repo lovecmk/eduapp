@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { G, Path } from 'react-native-svg';
 import { useTheme } from '../../theme/ThemeProvider';
 import { fontMono } from '../../theme/tokens';
 import { calendarDate } from '../../domain/learningCalendar';
@@ -8,6 +8,10 @@ import { learningDay, koreanDate, type LearningDay } from '../../utils/workday';
 import type { LearningCompletion } from '../../domain/learningCompletion';
 
 export const LEARNING_COMPLETE_COLOR = '#15803D';
+export const LEARNING_STREAK_COLORS = {
+  light: { fill: '#DFEEE4', border: '#A7CDB4' },
+  dark: { fill: '#264635', border: '#477858' },
+} as const;
 const SIZE = 30;
 const ROW_HEIGHT = 52;
 
@@ -23,21 +27,22 @@ export function completionPaths(year: number, month: number, connections: [strin
     return { day, row: Math.floor(index / 7), x: (((index % 7) + 7) % 7 + 0.5) * cell };
   };
   const paths: string[] = [];
+  const bands: string[] = [];
   for (const [from, to] of connections) {
     const a = position(from), b = position(to);
     const aVisible = a.day >= 0 && a.day < count, bVisible = b.day >= 0 && b.day < count;
     if (!aVisible && !bVisible) continue;
     const ay = a.row * ROW_HEIGHT + 16, by = b.row * ROW_HEIGHT + 16;
     if (a.row === b.row && aVisible && bVisible) {
-      paths.push(b.day - a.day === 1 ? `M ${a.x} ${ay} H ${b.x}`
-        : `M ${a.x} ${ay} H ${a.x + SIZE / 2} V ${ay + 23} H ${b.x - SIZE / 2} V ${by} H ${b.x}`);
+      if (b.day - a.day === 1) bands.push(`M ${a.x} ${ay} H ${b.x}`);
+      else paths.push(`M ${a.x} ${ay} H ${a.x + SIZE / 2} V ${ay + 23} H ${b.x - SIZE / 2} V ${by} H ${b.x}`);
     } else {
       // At a week/month wrap, matching continuation marks retain chronological direction.
       if (aVisible) paths.push(`M ${a.x} ${ay} H ${a.x + SIZE / 2} V ${ay + 23} H ${width - 7} V ${ay + 29} m -4 -4 l 4 4 l 4 -4`);
       if (bVisible) paths.push(`M 7 ${by + 21} H ${b.x - SIZE / 2} V ${by} H ${b.x} M 3 ${by + 17} l 4 4 l 4 -4`);
     }
   }
-  return { paths, rows };
+  return { paths, bands, rows };
 }
 
 export function LearningCompletionGrid({ year, month, todayKey, completion, learningDays, historyCounts, dueCounts, onSelect }: {
@@ -47,13 +52,18 @@ export function LearningCompletionGrid({ year, month, todayKey, completion, lear
 }) {
   const { theme } = useTheme();
   const c = theme.colors;
+  const streak = LEARNING_STREAK_COLORS[theme.mode === 'light' ? 'light' : 'dark'];
   const [width, setWidth] = useState(0);
   const first = new Date(Date.UTC(year, month, 1)).getUTCDay();
   const count = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
-  const { paths, rows } = completionPaths(year, month, completion.connections, width);
+  const { paths, bands, rows } = completionPaths(year, month, completion.connections, width);
   return <View testID="learning-completion-grid" onLayout={event => setWidth(event.nativeEvent.layout.width)} style={{ height: rows * ROW_HEIGHT }}>
     {width > 0 && <Svg pointerEvents="none" accessible={false} width={width} height={rows * ROW_HEIGHT} style={StyleSheet.absoluteFill}>
-      {paths.map((d, index) => <Path testID="learning-streak-connection" key={index} d={d} stroke={LEARNING_COMPLETE_COLOR} strokeWidth={7} strokeLinecap="round" strokeLinejoin="round" fill="none" />)}
+      {paths.map((d, index) => <Path testID="learning-streak-connection" key={`bridge-${index}`} d={d} stroke={streak.border} strokeWidth={5} strokeLinecap="round" strokeLinejoin="round" fill="none" />)}
+      {bands.map((d, index) => <G key={`band-${index}`}>
+        <Path testID="learning-streak-connection" d={d} stroke={streak.border} strokeWidth={SIZE} strokeLinecap="round" fill="none" />
+        <Path testID="learning-streak-band" d={d} stroke={streak.fill} strokeWidth={SIZE - 2} strokeLinecap="round" fill="none" />
+      </G>)}
     </Svg>}
     {Array.from({ length: rows }, (_, row) => <View key={row} style={{ flexDirection: 'row', height: ROW_HEIGHT }}>
       {Array.from({ length: 7 }, (_, column) => {

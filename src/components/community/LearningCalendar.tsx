@@ -19,7 +19,7 @@ import { koreanDate, learningDay } from '../../utils/workday';
 import { useLearningDay } from '../../hooks/useLearningDay';
 import { useLearningCalendar } from '../../hooks/useLearningCalendar';
 import { useLearningCompletion } from '../../hooks/useLearningCompletion';
-import { LearningCompletionGrid, LEARNING_COMPLETE_COLOR } from './LearningCompletionGrid';
+import { LearningCompletionGrid, LEARNING_COMPLETE_COLOR, LEARNING_STREAK_COLORS } from './LearningCompletionGrid';
 
 const DAYS = ['일', '월', '화', '수', '목', '금', '토'];
 const MONTHS = Array.from({ length: 12 }, (_, i) => `${i + 1}월`);
@@ -31,6 +31,7 @@ const MONTHS = Array.from({ length: 12 }, (_, i) => `${i + 1}월`);
 export function LearningCalendar() {
   const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
+  const streak = LEARNING_STREAK_COLORS[theme.mode === 'light' ? 'light' : 'dark'];
   const now = new Date();
   const today = useLearningDay();
   const [year, setYear] = useState(Number(today.date.slice(0, 4)));
@@ -105,7 +106,9 @@ export function LearningCalendar() {
       <View style={styles.legend}>
         <View style={[styles.legendCircle, { backgroundColor: LEARNING_COMPLETE_COLOR }]} />
         <Text style={[styles.legendText, { color: c.textSecondary }]}>학습완료</Text>
-        <View style={{ width: 16, height: 6, borderRadius: 3, backgroundColor: LEARNING_COMPLETE_COLOR, marginLeft: 5 }} />
+        <View testID="learning-streak-legend" style={{ width: 28, height: 12, borderRadius: 6, backgroundColor: streak.fill, borderWidth: 1, borderColor: streak.border, marginLeft: 5, alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: LEARNING_COMPLETE_COLOR }} />
+        </View>
         <Text style={[styles.legendText, { color: c.textSecondary }]}>이어짐</Text>
         <View style={[styles.legendCircle, { borderWidth: 2, borderColor: c.warning, marginLeft: 5 }]} />
         <Text style={[styles.legendText, { color: c.textSecondary }]}>일부완료</Text>
