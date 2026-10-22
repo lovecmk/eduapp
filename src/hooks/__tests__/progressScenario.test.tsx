@@ -1,7 +1,11 @@
 import { renderHook, act, waitFor } from '@testing-library/react-native';
+import { AppState } from 'react-native';
 const mockPull = jest.fn();
 const mockGrade = jest.fn();
 const mockAttendance = jest.fn();
+const mockFlush = jest.fn();
+let mockOnState: ((status: string) => void) | undefined;
+jest.mock('../../data/network/ApiClient', () => ({ apiClient: { flushPendingWrites: () => mockFlush() } }));
 jest.mock('../../data/repositories', () => ({ progressRepository: {
   pull: () => mockPull(), pushGrade: (...args: unknown[]) => mockGrade(...args), pushAttendance: (...args: unknown[]) => mockAttendance(...args),
 } }));
@@ -18,11 +22,68 @@ beforeEach(() => {
   useAttendanceStore.setState({ stamps: {} });
   mockPull.mockReset(); mockGrade.mockReset(); mockAttendance.mockReset();
   mockGrade.mockResolvedValue(undefined); mockAttendance.mockResolvedValue(undefined);
+  mockFlush.mockReset(); mockFlush.mockResolvedValue(0);
+  mockOnState = undefined;
+  jest.spyOn(AppState, 'addEventListener').mockImplementation(((_event: string, callback: (status: string) => void) => {
+    mockOnState = callback;
+    return { remove: jest.fn() };
+  }) as never);
+});
+afterEach(() => jest.restoreAllMocks());
+it('pulls progress learned on another device when the app returns to the foreground', async () => {
+  mockPull.mockResolvedValueOnce({ cards: {}, history: {}, attendance: {} });
+  const hook = renderHook(() => useProgressSync());
+  await act(async () => {});
+  mockPull.mockResolvedValue({ cards: { elsewhere: { ...initialState(), reps: 1, lastReviewedAt: 1000 } }, history: { today: ['elsewhere'] }, attendance: { today: 1000 } });
+  await act(async () => { mockOnState?.('active'); });
+  expect(mockPull).toHaveBeenCalledTimes(2);
+  expect(useSrsStore.getState().cards.elsewhere?.reps).toBe(1);
+  expect(useAttendanceStore.getState().stamps.today).toBe(1000);
+  expect(mockGrade).not.toHaveBeenCalled();
+  expect(mockAttendance).not.toHaveBeenCalled();
+  hook.unmount();
+});
+it('waits for queued writes and shares repeated foreground notifications', async () => {
+  mockPull.mockResolvedValue({ cards: {}, history: {}, attendance: {} });
+  const hook = renderHook(() => useProgressSync());
+  await act(async () => {});
+  mockFlush.mockClear();
+  let release!: () => void;
+  mockFlush.mockReturnValueOnce(new Promise<void>(done => { release = done; }));
+  act(() => { mockOnState?.('active'); mockOnState?.('active'); });
+  expect(mockFlush).toHaveBeenCalledTimes(1);
+  expect(mockPull).toHaveBeenCalledTimes(1);
+  await act(async () => { release(); });
+  expect(mockPull).toHaveBeenCalledTimes(2);
+  hook.unmount();
+});
+it('flushes restored offline writes before the first snapshot after login', async () => {
+  let release!: () => void;
+  mockFlush.mockReturnValueOnce(new Promise<void>(done => { release = done; }));
+  mockPull.mockResolvedValue({ cards: {}, history: {}, attendance: {} });
+  const hook = renderHook(() => useProgressSync());
+  expect(mockPull).not.toHaveBeenCalled();
+  await act(async () => { release(); });
+  expect(mockPull).toHaveBeenCalledTimes(1);
+  hook.unmount();
+});
+it('does not refresh a previous session after a delayed queue flush', async () => {
+  mockPull.mockResolvedValue({ cards: {}, history: {}, attendance: {} });
+  const hook = renderHook(() => useProgressSync());
+  await act(async () => {});
+  let release!: () => void;
+  mockFlush.mockReturnValueOnce(new Promise<void>(done => { release = done; }));
+  act(() => { mockOnState?.('active'); });
+  advanceSessionEpoch();
+  await act(async () => { release(); });
+  expect(mockPull).toHaveBeenCalledTimes(1);
+  hook.unmount();
 });
 it('discards a delayed snapshot as soon as the session epoch changes', async () => {
   let resolve!: (value: unknown) => void;
   mockPull.mockReturnValueOnce(new Promise(done => { resolve = done; }));
   const hook = renderHook(() => useProgressSync());
+  await act(async () => {});
   advanceSessionEpoch();
   await act(async () => { resolve({ cards: { old: initialState() }, history: {}, attendance: { old: 1000 } }); });
   expect(useSrsStore.getState().cards).toEqual({});

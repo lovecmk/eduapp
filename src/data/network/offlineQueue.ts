@@ -53,6 +53,19 @@ const STORAGE_KEY = 'offline-write-queue';
 const LEGACY_PATH_PREFIX = '/api/';
 const PATH_PREFIX = '/inner/api/v1/';
 
+function isQueuedWrite(value: unknown): value is QueuedWrite {
+  if (!value || typeof value !== 'object') return false;
+  const item = value as Partial<QueuedWrite>;
+  return typeof item.id === 'string' && item.id.length > 0
+    && typeof item.method === 'string' && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(item.method)
+    && typeof item.path === 'string' && item.path.startsWith('/') && !item.path.startsWith('//')
+    && typeof item.idempotencyKey === 'string' && item.idempotencyKey.length > 0
+    && typeof item.createdAt === 'number' && Number.isFinite(item.createdAt) && item.createdAt >= 0
+    && typeof item.attempts === 'number' && Number.isSafeInteger(item.attempts) && item.attempts >= 0
+    && (item.userId === undefined || typeof item.userId === 'string' && item.userId.length > 0)
+    && (item.sourceId === undefined || typeof item.sourceId === 'string' && item.sourceId.length > 0);
+}
+
 function migrateLegacyPath(item: QueuedWrite): QueuedWrite {
   if (typeof item?.path !== 'string' || !item.path.startsWith(LEGACY_PATH_PREFIX)) return item;
   return { ...item, path: PATH_PREFIX + item.path.slice(LEGACY_PATH_PREFIX.length) };
@@ -107,7 +120,8 @@ async function ensureLoaded(): Promise<void> {
       try {
         const raw = await AsyncStorage.getItem(STORAGE_KEY);
         const parsed: unknown = raw ? JSON.parse(raw) : [];
-        if (Array.isArray(parsed)) restored = (parsed as QueuedWrite[]).map(migrateLegacyPath);
+        // A damaged entry must not strand all the valid attendance/learning writes.
+        if (Array.isArray(parsed)) restored = parsed.filter(isQueuedWrite).map(migrateLegacyPath);
       } catch {
         // 손상된 큐는 버린다(앱 시작을 막지 않는다).
       }

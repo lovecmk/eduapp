@@ -24,6 +24,17 @@ beforeEach(async () => {
 });
 
 describe('오프라인 쓰기 큐', () => {
+  it('손상된 항목이 섞여도 복원한 정상 기록을 전송한다', async () => {
+    await enqueue('POST', '/inner/api/v1/progress/attendance', { day: '2026-9-22' }, 'valid-key');
+    const valid = JSON.parse((await AsyncStorage.getItem('offline-write-queue'))!)[0];
+    await AsyncStorage.setItem('offline-write-queue', JSON.stringify([null, {}, 42, valid]));
+    __resetQueueForTests();
+    const send = jest.fn(async () => {});
+    setQueueSender(send);
+    expect(await flushQueue()).toBe(1);
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(await pendingCount()).toBe(0);
+  });
   it('세션 변경으로 취소된 요청은 버리지 않고 다음 동기화까지 보존한다', async () => {
     setQueueSender(async () => { throw new ApiError(0, '세션 변경', 'cancelled'); });
     await enqueue('POST', '/inner/api/v1/a', {});

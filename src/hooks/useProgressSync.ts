@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { AppState } from 'react-native';
 import { useSrsStore } from '../store/srsStore';
 import { useAttendanceStore } from '../store/attendanceStore';
 import { useAuthStore } from '../store/authStore';
@@ -8,6 +9,7 @@ import { normalizeGrade, type SrsCardState } from '../domain/srs';
 import { queryClient } from '../data/network/queryClient';
 import type { LearningCard } from '../domain/models/LearningCard';
 import { getSessionEpoch } from '../data/network/sessionEpoch';
+import { apiClient } from '../data/network/ApiClient';
 
 /**
  * 학습 진행(SRS 일정·학습 이력·출석)을 서버와 맞춘다.
@@ -57,13 +59,16 @@ export function useProgressSync(): void {
   const sentDays = useRef<Set<string>>(new Set());
   const applyingServer = useRef(false);
 
-  // 1) 로그인·계정 변경 시 서버 스냅샷을 받아 로컬에 합친다.
+  // 1) 로그인·계정 변경 및 앱 복귀 시 서버 스냅샷을 받아 로컬에 합친다.
   useEffect(() => {
     if (!enabled) return;
     let cancelled = false;
     const epoch = getSessionEpoch();
-    void (async () => {
+    let flight: Promise<void> | undefined;
+    const fetchSnapshot = async () => {
       try {
+        await apiClient.flushPendingWrites();
+        if (cancelled || epoch !== getSessionEpoch()) return;
         const snap = await progressRepository.pull();
         if (cancelled || epoch !== getSessionEpoch()) return;
         // 서버가 이미 아는 것은 다시 보내지 않는다. 이 표식이 없으면 복원 직후
@@ -77,14 +82,27 @@ export function useProgressSync(): void {
           useSrsStore.getState().applyServer({ cards: snap.cards, history: snap.history });
           useAttendanceStore.getState().applyServer(snap.attendance);
         } finally { applyingServer.current = false; }
+        for (const key of ['cards', 'daily-assignment', 'learning-quota', 'stats']) {
+          void queryClient.invalidateQueries({ queryKey: [key] });
+        }
       } catch (e) {
         // 못 가져와도 로컬 기록으로 계속 쓴다 — 여기서 막으면 오프라인에서
         // 학습 화면이 아예 열리지 않는다.
         logger.warn('progress.pull_failed', { reason: String(e) });
       }
-    })();
+    };
+    const pull = (): Promise<void> => {
+      if (cancelled || epoch !== getSessionEpoch()) return Promise.resolve();
+      if (flight) return flight;
+      const shared = fetchSnapshot().finally(() => { if (flight === shared) flight = undefined; });
+      flight = shared;
+      return shared;
+    };
+    void pull();
+    const appSub = AppState.addEventListener('change', status => { if (status === 'active') void pull(); });
     return () => {
       cancelled = true;
+      appSub.remove();
     };
   }, [enabled, userId]);
 
