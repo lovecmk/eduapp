@@ -5,7 +5,6 @@ import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useTheme } from '../../src/theme/ThemeProvider';
 import { useSettingsStore } from '../../src/store/settingsStore';
-import { LivePresenceCard } from '../../src/components/community/LivePresenceCard';
 import { WeeklyChallengeCard } from '../../src/components/community/WeeklyChallengeCard';
 import { CommunityBuildCard } from '../../src/components/community/CommunityBuildCard';
 import { CommunityLeaderboardCard } from '../../src/components/community/CommunityLeaderboardCard';
@@ -14,7 +13,6 @@ import { CollectionTeaserCard } from '../../src/components/community/CollectionT
 import { QuestionComposeModal } from '../../src/components/community/QuestionComposeModal';
 import { HelpWantedCard, pickHelpWanted } from '../../src/components/community/HelpWantedCard';
 import { MyContributionLine } from '../../src/components/community/MyContributionLine';
-import { CommunitySkeleton } from '../../src/components/skeletons';
 import { useCommunity } from '../../src/hooks/useCommunity';
 import { fontDisplay, fontBody, fontMono } from '../../src/theme/tokens';
 import { getCategoryColor } from '../../src/constants/categories';
@@ -88,15 +86,7 @@ export default function CommunityScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: 'transparent' }}>
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 36, ...contentColumn }} showsVerticalScrollIndicator={false} onScroll={onScroll} scrollEventThrottle={16}>
-        {/* ── 섹션 순서 원칙: '지금 할 수 있는 일'을 먼저, '쌓인 성과'는 뒤에 ──
-            예전엔 보기만 하는 카드 4개(실시간·챌린지·랭킹·빌딩) 뒤에 질문&답변이 있었다.
-            커뮤니티에서 사용자가 실제로 참여할 수 있는 유일한 행동이 Q&A 인데
-            네 번 스크롤해야 닿으니 참여가 일어나기 어려웠다. 참여 영역을 위로 올린다. */}
-
-        {/* 1. 지금 함께 학습 중 — 혼자가 아니라는 신호(소셜 증거) */}
-        {liveLoading && !liveData ? <CommunitySkeleton /> : <LivePresenceCard />}
-
-        {/* 2. 참여 영역 — 질문 & 답변 */}
+        {/* 1. 참여 영역 — 질문 & 답변 */}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8, marginBottom: 12 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <Ionicons name="chatbox-ellipses" size={18} color={c.primary} />
@@ -133,7 +123,7 @@ export default function CommunityScreen() {
           ))
         )}
 
-        {/* 3. 이번 주 목표·성과 — 참여 영역 아래로 */}
+        {/* 2. 이번 주 목표·성과 — 참여 영역 아래로 */}
         <View style={{ marginTop: 20 }}>
           {(!liveLoading || liveData) && <>
             <WeeklyChallengeCard />
