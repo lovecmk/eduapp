@@ -1100,7 +1100,7 @@ export default function CardsScreen() {
                   {...quizBody.scrollProps}
                   onScroll={(e) => { quizBody.scrollProps.onScroll(e); markBodyScroll(); }}
                 >
-                 <Pressable tabIndex={-1} onPress={onCardPress} disabled={exiting} style={{ flexGrow: 1, justifyContent: 'center', paddingVertical: 6 }}>
+                 <Pressable tabIndex={-1} onPress={onCardPress} disabled={exiting} style={{ flexGrow: 1, paddingTop: 6, paddingBottom: 8 }}>
                   {/* 사진 칸은 **카드가 사진을 가졌다고 말하면** 그린다. 푸는 데
                       실패했더라도 자리는 남긴다 — 그림이 곧 문제인 카드에서
                       칸까지 사라지면 학습자는 '사진 없는 문제'로 읽고 넘긴다. */}
@@ -1124,7 +1124,7 @@ export default function CardsScreen() {
                     onPick={handleQuizPick}
                   />
                   {!quizRevealed && (
-                    <View style={{ marginTop: 18, alignItems: 'center' }}>
+                    <View style={{ marginTop: 'auto', paddingTop: 32, alignItems: 'center' }}>
                       <CardTimer seconds={card.studySeconds} resetKey={card.id} onExpire={haptic} />
                     </View>
                   )}
@@ -1133,8 +1133,8 @@ export default function CardsScreen() {
                 <ScrollFadeEdge color={frontTint} visible={quizBody.hasMore} />
               </View>
             ) : (
-              /* 설명형 앞면 — 문제/상황이 길면 카드 밖으로 잘리므로 스크롤 가능하게 두고,
-                 짧을 때는 flexGrow + center 로 지금처럼 가운데 정렬을 유지한다. */
+              /* 설명형 앞면 — 분류 아래에서 본문을 시작하고, 남는 공간은 질문과 타이머
+                 사이에 둔다. 긴 본문은 최소 간격을 유지한 채 카드 안에서 스크롤한다. */
               <View style={{ flex: 1 }}>
                 <ScrollView
                   showsVerticalScrollIndicator={frontBody.overflowing}
@@ -1143,7 +1143,7 @@ export default function CardsScreen() {
                   {...frontBody.scrollProps}
                   onScroll={(e) => { frontBody.scrollProps.onScroll(e); markBodyScroll(); }}
                 >
-                 <Pressable tabIndex={-1} onPress={onCardPress} disabled={exiting} style={{ flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 4 }}>
+                 <Pressable tabIndex={-1} onPress={onCardPress} disabled={exiting} style={{ flexGrow: 1, alignItems: 'center', paddingTop: 6, paddingBottom: 8 }}>
                   {hasCardImage(card.imageUrl) ? (
                     <View style={{ width: '100%', marginBottom: 18 }}>
                       <QuestionImage source={resolveCardImage(card.imageUrl)} height={200} alt={card.title} />
@@ -1162,7 +1162,7 @@ export default function CardsScreen() {
                   <Text style={{ alignSelf: 'stretch', color: c.primary, fontSize: 20 * fs, fontWeight: '800', lineHeight: 29 * fs, textAlign: 'left', fontFamily: fontCute }}>
                     <Text style={{ fontWeight: '900' }}>Q. </Text>{card.question}
                   </Text>
-                  <View style={{ marginTop: 20 }}>
+                  <View style={{ marginTop: 'auto', paddingTop: 32 }}>
                     <CardTimer seconds={card.studySeconds} resetKey={card.id} onExpire={haptic} />
                   </View>
                  </Pressable>
