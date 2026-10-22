@@ -1,5 +1,5 @@
 // 알림 도메인 모델 — 서버 연동(INotificationRepository)과 로컬 스토어가 공유한다.
-export type NotificationType = 'new' | 'remind' | 'achievement' | 'system';
+export type NotificationType = 'new' | 'remind' | 'achievement' | 'system' | 'community';
 
 export interface AppNotification {
   id: string;
@@ -10,4 +10,5 @@ export interface AppNotification {
   minutesAgo: number;
   read: boolean;
   category?: string;
+  route?: string;
 }

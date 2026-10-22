@@ -75,6 +75,14 @@ describe('SettingsRepository — pull', () => {
 });
 
 describe('SettingsRepository — push', () => {
+  it('round-trips an explicit community notification opt-out', async () => {
+    const settings = { ...DEFAULT_ACCOUNT_SETTINGS, notifications: { ...DEFAULT_ACCOUNT_SETTINGS.notifications, communityAlerts: false } };
+    await repo.push(settings, new Date('2026-10-23T00:00:00Z'));
+    expect(postDurable.mock.calls[0][1].notifications.community_alerts_yn).toBe(false);
+    get.mockResolvedValue({ notifications: { community_alerts_yn: false } });
+    const remote = await repo.pull();
+    expect(normalizeAccountSettings(remote.settings, DEFAULT_ACCOUNT_SETTINGS).notifications.communityAlerts).toBe(false);
+  });
   it.each(EXPERIENCE_OPTIONS)('경력 $value를 기존 서버 필드로 저장·복원한다', async ({ value }) => {
     postDurable.mockResolvedValue('queued');
     await repo.push({ ...DEFAULT_ACCOUNT_SETTINGS, experience: value }, new Date('2026-10-21T00:00:00Z'));

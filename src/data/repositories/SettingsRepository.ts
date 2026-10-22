@@ -9,6 +9,7 @@ import { apiClient } from '../network/ApiClient';
 interface SettingsDTO {
   notifications?: {
     enabled_yn?: boolean;
+    community_alerts_yn?: boolean;
     daily_reminder_time?: string;
     review_alerts_yn?: boolean;
     weekly_report_yn?: boolean;
@@ -48,6 +49,7 @@ function toPatch(dto: SettingsDTO): AccountSettingsPatch {
     const n = dto.notifications;
     out.notifications = {
       enabled: n.enabled_yn,
+      communityAlerts: n.community_alerts_yn,
       dailyReminderTime: n.daily_reminder_time,
       reviewAlerts: n.review_alerts_yn,
       weeklyReport: n.weekly_report_yn,
@@ -83,6 +85,7 @@ function toDTO(s: AccountSettings, updatedAt: Date): SettingsDTO {
   return {
     notifications: {
       enabled_yn: s.notifications.enabled,
+      community_alerts_yn: s.notifications.communityAlerts,
       daily_reminder_time: s.notifications.dailyReminderTime,
       review_alerts_yn: s.notifications.reviewAlerts,
       weekly_report_yn: s.notifications.weeklyReport,

@@ -18,6 +18,7 @@ import { contentColumn } from '../src/theme/layout';
 import { useSafeTimeout, useIsMounted } from '../src/hooks/useSafeTimeout';
 import { pullNotifications } from '../src/hooks/useNotificationSync';
 import { toast } from '../src/store/toastStore';
+import { notificationRoute } from '../src/navigation/notificationRoute';
 
 // 알림 종류별 연결 서비스 — 항목을 누르면 해당 화면으로 이동한다.
 const ROUTE_BY_TYPE: Record<NotificationType, string> = {
@@ -25,6 +26,7 @@ const ROUTE_BY_TYPE: Record<NotificationType, string> = {
   new: ROUTES.contents,        // 새 컨텐츠 → 전체 컨텐츠
   achievement: ROUTES.trophy,  // 성취·보상 → 트로피
   system: ROUTES.settings,     // 공지·시스템 → 설정(업데이트 내역)
+  community: ROUTES.community,
 };
 
 const FILTERS: { key: 'all' | NotificationType; label: string }[] = [
@@ -33,6 +35,7 @@ const FILTERS: { key: 'all' | NotificationType; label: string }[] = [
   { key: 'new', label: '새 컨텐츠' },
   { key: 'achievement', label: '성취' },
   { key: 'system', label: '공지' },
+  { key: 'community', label: '커뮤니티' },
 ];
 
 export default function NotificationsScreen() {
@@ -69,7 +72,7 @@ export default function NotificationsScreen() {
   // 알림 항목 탭 — 읽음 처리 후 종류에 맞는 서비스 화면으로 이동한다.
   const openNotification = (n: AppNotification) => {
     markRead(n.id);
-    const route = ROUTE_BY_TYPE[n.type];
+    const route = notificationRoute({ type: n.type, route: n.route }) ?? ROUTE_BY_TYPE[n.type];
     if (route === ROUTES.review) router.navigate(ROUTES.review);
     else if (route) router.push(route as never);
   };

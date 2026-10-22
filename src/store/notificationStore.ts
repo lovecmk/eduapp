@@ -6,6 +6,7 @@ import type { Ionicons } from '@expo/vector-icons';
 // 모델은 domain 으로 옮겨 서버 저장소(INotificationRepository)와 공유한다.
 export type { NotificationType, AppNotification } from '../domain/models/Notification';
 import type { NotificationType, AppNotification } from '../domain/models/Notification';
+import { useSettingsStore } from './settingsStore';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
@@ -18,6 +19,7 @@ export const NOTIFICATION_TYPE_META: Record<
   new: { label: '새 컨텐츠', icon: 'sparkles', color: '#7E57C2', desc: '새로 추가된 점검 학습 카드' },
   achievement: { label: '성취·보상', icon: 'trophy', color: '#F2B705', desc: '연속 학습·목표 달성 축하' },
   system: { label: '공지·시스템', icon: 'megaphone', color: '#26A69A', desc: '업데이트·점검 등 서비스 공지' },
+  community: { label: '커뮤니티', icon: 'chatbubbles', color: '#15803D', desc: '내 질문의 답글 · 질문과 답글의 좋아요' },
 };
 
 // 알림은 '꼭 필요한 것'만 — 성취(축하)와 공지(시스템)만 보낸다.
@@ -60,7 +62,7 @@ interface NotificationState {
 
 /** 지운 알림 기록은 최근 것만 남긴다 — 서버가 오래된 알림을 계속 돌려줄 리 없고, 끝없이 쌓이면 안 된다. */
 const DISMISSED_LIMIT = 300;
-const DEFAULT_MUTED: Record<NotificationType, boolean> = { new: true, remind: true, achievement: false, system: false };
+const DEFAULT_MUTED: Record<NotificationType, boolean> = { new: true, remind: true, achievement: false, system: false, community: false };
 function rememberDismissed(prev: string[], ids: string[]): string[] {
   if (ids.length === 0) return prev;
   const merged = [...prev.filter((id) => !ids.includes(id)), ...ids];
@@ -96,8 +98,11 @@ export const useNotificationStore = create<NotificationState>()(
           dismissedIds: rememberDismissed(s.dismissedIds, s.items.map((n) => n.id)),
         })),
       reset: () => set({ items: [], dismissedIds: [], mutedTypes: { ...DEFAULT_MUTED } }),
-      toggleMute: (type) => set((s) => ({ mutedTypes: { ...s.mutedTypes, [type]: !s.mutedTypes[type] } })),
-      setMute: (type, muted) => set((s) => ({ mutedTypes: { ...s.mutedTypes, [type]: muted } })),
+      toggleMute: (type) => get().setMute(type, !get().mutedTypes[type]),
+      setMute: (type, muted) => {
+        if (type === 'community') useSettingsStore.getState().updateNotificationSetting('communityAlerts', !muted);
+        set((s) => ({ mutedTypes: { ...s.mutedTypes, [type]: muted } }));
+      },
       // 지운 알림은 받아도 다시 보이지 않는다(dismissedIds 주석 참고).
       applyServer: (items) =>
         set((s) => {
@@ -109,7 +114,7 @@ export const useNotificationStore = create<NotificationState>()(
       name: 'notifications',
       // v4: 실서버 모드에서 시드 알림을 걷어낸다(위 items 주석 참고).
       // 예전 시드 목록은 복원하지 않고 사용자가 끄거나 지운 선택만 이관한다.
-      version: 4,
+      version: 5,
       migrate: persisted => {
         const p = (persisted ?? {}) as Partial<NotificationState>;
         return {

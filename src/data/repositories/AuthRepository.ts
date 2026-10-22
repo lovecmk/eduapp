@@ -7,6 +7,7 @@ import { secureStorage, StorageKeys } from '../storage/secureStorage';
 import { ApiError, toApiError } from '../network/errors';
 import { logger } from '../../utils/logger';
 import { getSessionEpoch, assertSessionEpoch } from '../network/sessionEpoch';
+import { unregisterPushTokenWithServer } from '../notifications/pushRegistration';
 
 export class AuthRepository implements IAuthRepository {
   /** 로그인 성공 결과(토큰 + 프로필 캐시)를 저장하고 세션으로 만든다. */
@@ -154,6 +155,7 @@ export class AuthRepository implements IAuthRepository {
 
   async logout(): Promise<void> {
     try {
+      await unregisterPushTokenWithServer(false);
       await apiClient.post('/inner/api/v1/auth/logout', {});
     } finally {
       await this.clearSession();

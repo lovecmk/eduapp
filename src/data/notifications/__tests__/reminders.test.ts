@@ -19,6 +19,7 @@ jest.mock('expo-notifications', () => ({
 jest.mock('expo-constants', () => ({ __esModule: true, default: {} }));
 jest.mock('../../network/env', () => ({ env: { apiBaseUrl: '' } }));
 jest.mock('../../network/ApiClient', () => ({ apiClient: {} }));
+jest.mock('../../storage/secureStorage', () => ({ secureStorage: { getItem: jest.fn().mockResolvedValue(null), setItem: jest.fn() }, StorageKeys: { pushToken: 'devicePushToken' } }));
 jest.mock('../../../utils/haptics', () => ({ hapticSuccess: jest.fn() }));
 import { reconcileDailyReminder, requestNotificationPermission } from '../NotificationService';
 import { useReminderStatusStore } from '../../../store/reminderStatusStore';

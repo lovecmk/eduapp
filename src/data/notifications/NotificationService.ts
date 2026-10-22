@@ -8,6 +8,9 @@ import { apiClient } from '../network/ApiClient';
 import { ROUTES } from '../../constants/routes';
 import { hapticSuccess } from '../../utils/haptics';
 import { useReminderStatusStore } from '../../store/reminderStatusStore';
+import { secureStorage, StorageKeys } from '../storage/secureStorage';
+import { getSessionEpoch } from '../network/sessionEpoch';
+import { unregisterPushTokenWithServer } from './pushRegistration';
 
 const isNative = Platform.OS !== 'web';
 
@@ -17,6 +20,11 @@ const VIBRATION_PATTERN = [0, 250, 150, 250];
 const REMINDER_ID = 'haru-daily-study-reminder';
 let reminderRevision = 0;
 let reminderQueue: Promise<void> = Promise.resolve();
+let communityPresentationAllowed: (data: Record<string, unknown>) => boolean = () => false;
+
+export function setCommunityNotificationPresentation(check: (data: Record<string, unknown>) => boolean): void {
+  communityPresentationAllowed = check;
+}
 
 interface AlarmAccess { exact: boolean | null; notificationsEnabled: boolean; channelEnabled: boolean }
 export async function reminderAlarmAccess(): Promise<AlarmAccess> {
@@ -29,14 +37,17 @@ export async function openExactReminderSettings(): Promise<void> {
 
 if (isNative) {
   Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowAlert: true,
-      shouldShowBanner: true,
-      shouldShowList: true,
-      // 앱이 켜져 있을 때에도 소리/진동으로 도착을 알린다.
-      shouldPlaySound: true,
-      shouldSetBadge: true,
-    }),
+    handleNotification: async notification => {
+      const data = notification.request.content.data;
+      const allowed = data.type !== 'community' || communityPresentationAllowed(data);
+      return {
+        shouldShowAlert: allowed,
+        shouldShowBanner: allowed,
+        shouldShowList: allowed,
+        shouldPlaySound: allowed,
+        shouldSetBadge: allowed,
+      };
+    },
   });
 }
 
@@ -48,6 +59,11 @@ async function ensureAndroidChannel(): Promise<void> {
     importance: Notifications.AndroidImportance.HIGH,
     vibrationPattern: VIBRATION_PATTERN,
     enableVibrate: true,
+    sound: 'default',
+  });
+  await Notifications.setNotificationChannelAsync('community', {
+    name: '커뮤니티 답글·좋아요',
+    importance: Notifications.AndroidImportance.DEFAULT,
     sound: 'default',
   });
 }
@@ -186,8 +202,8 @@ function resolveProjectId(): string | undefined {
 export async function getExpoPushToken(): Promise<string | null> {
   if (!isNative) return null;
   try {
-    const granted = await requestNotificationPermission();
-    if (!granted) return null;
+    const { status } = await Notifications.getPermissionsAsync();
+    if (status !== 'granted') return null;
     await ensureAndroidChannel();
     const projectId = resolveProjectId();
     const res = await Notifications.getExpoPushTokenAsync(projectId ? { projectId } : undefined);
@@ -216,16 +232,19 @@ export async function getExpoPushToken(): Promise<string | null> {
  *
  * @returns 서버에 등록됐거나 큐에 안전히 쌓였으면 true
  */
-export async function syncPushTokenWithServer(): Promise<boolean> {
+export async function syncPushTokenWithServer(stillAllowed: () => boolean = () => true): Promise<boolean> {
   if (!isNative || false || !env.apiBaseUrl) return false;
+  const epoch = getSessionEpoch();
   const token = await getExpoPushToken();
-  if (!token) return false;
+  if (epoch !== getSessionEpoch() || !stillAllowed()) return false;
+  if (!token) { await unregisterPushTokenWithServer(); return false; }
   try {
     await apiClient.postDurable(
       '/inner/api/v1/push/register',
       { token, platform: Platform.OS },
       `push:${token}`,
     );
+    if (epoch === getSessionEpoch()) await secureStorage.setItem(StorageKeys.pushToken, token);
     return true;
   } catch {
     // 미로그인(401) 등 큐로도 해결되지 않는 실패는 조용히 넘긴다.

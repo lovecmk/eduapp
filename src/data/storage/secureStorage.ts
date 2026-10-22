@@ -111,6 +111,7 @@ async function readItem(key: string): Promise<string | null> {
 }
 
 export const StorageKeys = {
+  pushToken: 'devicePushToken',
   accessToken: 'accessToken',
   refreshToken: 'refreshToken',
   /** 목업 세션 사용자(로그인한 이름을 재실행 후에도 유지) */

@@ -26,7 +26,7 @@ import { useNotificationRouting } from '../src/hooks/useNotificationRouting';
 import { useNotificationSync } from '../src/hooks/useNotificationSync';
 import { useAuthStore } from '../src/store/authStore';
 import { useSettingsStore } from '../src/store/settingsStore';
-import { syncPushTokenWithServer } from '../src/data/notifications/NotificationService';
+import { usePushTokenSync } from '../src/hooks/usePushTokenSync';
 import { ErrorBoundary } from '../src/components/ui/ErrorBoundary';
 import { UpdatePrompt } from '../src/components/ui/UpdatePrompt';
 import { useAppUpdate } from '../src/hooks/useAppUpdate';
@@ -59,7 +59,6 @@ function RootContent() {
   const restore = useAuthStore((s) => s.restore);
   const bootstrapped = useAuthStore((s) => s.bootstrapped);
   const user = useAuthStore((s) => s.user);
-  const notificationsEnabled = useSettingsStore((s) => s.notifications.enabled);
   // 앱 폰트와 함께 아이콘 폰트(Ionicons)도 미리 로드해, 첫 렌더에서 아이콘이
   // 비어 보이는(로딩 전 빈 글리프) 현상을 방지한다.
   const [fontsLoaded, fontError] = useFonts({ ...APP_FONTS, ...Ionicons.font });
@@ -82,11 +81,7 @@ function RootContent() {
 
   // 로그인 완료 + 알림 On 상태면 원격 푸시 토큰을 서버에 등록/갱신한다.
   // (목업/웹/API 미설정 시에는 내부 가드로 조용히 no-op 처리된다.)
-  useEffect(() => {
-    if (bootstrapped && user && notificationsEnabled) {
-      void syncPushTokenWithServer();
-    }
-  }, [bootstrapped, user, notificationsEnabled]);
+  usePushTokenSync();
 
   const ready = (fontsLoaded || !!fontError) && bootstrapped;
 

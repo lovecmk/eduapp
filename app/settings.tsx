@@ -374,14 +374,20 @@ function SettingsBody({ scrollRef }: { scrollRef: React.RefObject<ScrollView> })
             {/* ── 알림 ─────────────────────────────────────────────── */}
             <SettingsGroup
               title="알림"
-              caption="꼭 필요한 학습 리마인더 · 성취 · 공지만 보내요. 종류별로 끄려면 알림함에서 관리할 수 있어요."
+              caption="학습 리마인더 · 성취 · 공지와 내 글에 달린 답글·좋아요를 알려드려요."
             >
               <SettingsItem
                 anchorId="notify-enabled"
                 icon="notifications-outline"
                 label="알림 받기"
-                description="학습 리마인더 · 성취 · 공지"
+                description="기기 알림을 허용한 경우에만 받아요"
                 right={<Switch label="알림 받기" value={notifications.enabled} onValueChange={(v) => { void onToggleNotification(v); }} />}
+              />
+              <SettingsItem
+                icon="chatbubbles-outline"
+                label="커뮤니티 알림"
+                description="내 질문의 답글 · 질문과 답글의 좋아요"
+                right={<Switch label="커뮤니티 알림" value={notifications.communityAlerts} disabled={!notifications.enabled} onValueChange={v => updateNotificationSetting('communityAlerts', v)} />}
               />
               <SettingsItem
                 anchorId="notify-time"

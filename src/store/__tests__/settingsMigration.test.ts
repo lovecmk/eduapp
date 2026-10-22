@@ -31,6 +31,6 @@ it('migrates notification choices while discarding legacy demo notification cont
   } }));
   await useNotificationStore.persist.rehydrate();
   expect(useNotificationStore.getState().items).toEqual([]);
-  expect(useNotificationStore.getState().mutedTypes).toEqual({ new: true, remind: true, achievement: true, system: false });
+  expect(useNotificationStore.getState().mutedTypes).toEqual({ new: true, remind: true, achievement: true, system: false, community: false });
   expect(useNotificationStore.getState().dismissedIds).toEqual(['dismissed']);
 });

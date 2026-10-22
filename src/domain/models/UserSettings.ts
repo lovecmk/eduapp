@@ -22,6 +22,7 @@ import { DEFAULT_VISIBILITY, type ProfileVisibility } from './PublicProfile';
 
 export interface AccountNotificationSettings {
   enabled: boolean;
+  communityAlerts: boolean;
   /** 'HH:MM' 24시간 표기 */
   dailyReminderTime: string;
   reviewAlerts: boolean;
@@ -97,6 +98,7 @@ export function normalizeAccountSettings(
   return {
     notifications: {
       enabled: bool(n.enabled, base.notifications.enabled),
+      communityAlerts: bool(n.communityAlerts, base.notifications.communityAlerts),
       dailyReminderTime:
         typeof n.dailyReminderTime === 'string' && TIME_RE.test(n.dailyReminderTime)
           ? n.dailyReminderTime
@@ -132,6 +134,7 @@ export function normalizeAccountSettings(
 export const DEFAULT_ACCOUNT_SETTINGS: AccountSettings = {
   notifications: {
     enabled: true,
+    communityAlerts: true,
     dailyReminderTime: '09:00',
     reviewAlerts: true,
     weeklyReport: true,

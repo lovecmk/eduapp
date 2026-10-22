@@ -7,6 +7,7 @@ import { logger } from '../utils/logger';
 import { getSessionEpoch } from '../data/network/sessionEpoch';
 import { waitForHydration } from '../data/storage/hydration';
 import { restoring, restored, useAccountRestoreStore } from '../store/accountRestoreStore';
+import { useSettingsStore } from '../store/settingsStore';
 
 /**
  * 서버 알림(관리 콘솔이 보낸 공지)을 받아오고 읽음 상태를 되돌려준다.
@@ -60,6 +61,11 @@ export async function pullNotifications(): Promise<boolean> {
 }
 
 export function useNotificationSync(): void {
+  const communityAlerts = useSettingsStore(s => s.notifications.communityAlerts);
+  useEffect(() => {
+    const muted = useNotificationStore.getState().mutedTypes;
+    useNotificationStore.setState({ mutedTypes: { ...muted, community: !communityAlerts } });
+  }, [communityAlerts]);
   const userId = useAuthStore((s) => s.user?.id ?? null);
   const enabled = !!userId;
   const retry = useAccountRestoreStore(s => s.retry);

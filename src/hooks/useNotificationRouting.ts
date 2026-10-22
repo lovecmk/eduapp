@@ -16,11 +16,13 @@ export function useNotificationRouting() {
     const open = (response: Notifications.NotificationResponse | null) => {
       if (!active || !response || response.actionIdentifier !== Notifications.DEFAULT_ACTION_IDENTIFIER) return;
       const id = response.notification.request.identifier;
+      const data = response.notification.request.content.data;
+      if (data.user_id && data.user_id !== userId) return;
       if (handled.current.has(id)) return;
-      const target = notificationRoute(response.notification.request.content.data);
+      const target = notificationRoute(data);
       if (!target) return;
       handled.current.add(id);
-      router.navigate(target);
+      router.navigate(target as never);
     };
     const sub = Notifications.addNotificationResponseReceivedListener(open);
     void Notifications.getLastNotificationResponseAsync().then(open).catch(() => {});

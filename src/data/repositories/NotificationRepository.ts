@@ -12,6 +12,7 @@ interface NotificationDTO {
   created_at?: string;
   read_yn?: boolean;
   category_nm?: string;
+  route_txt?: string;
 }
 
 const TYPE_MAP: Record<string, NotificationType> = {
@@ -19,6 +20,7 @@ const TYPE_MAP: Record<string, NotificationType> = {
   REMIND: 'remind',
   ACHIEVEMENT: 'achievement',
   SYSTEM: 'system',
+  COMMUNITY: 'community',
 };
 
 /** 생성 시각(ISO) → '몇 분 전' — 앱은 상대 시간으로 표시한다. */
@@ -49,6 +51,7 @@ export class NotificationRepository implements INotificationRepository {
       minutesAgo: minutesSince(d.created_at, now),
       read: d.read_yn === true,
       category: d.category_nm?.trim() || undefined,
+      route: d.route_txt,
     }));
   }
 

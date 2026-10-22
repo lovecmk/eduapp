@@ -20,6 +20,7 @@ interface SettingsState {
   highContrast: boolean;
   notifications: {
     enabled: boolean;
+    communityAlerts: boolean;
     dailyReminderTime: string;
     reviewAlerts: boolean;
     weeklyReport: boolean;

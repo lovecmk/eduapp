@@ -71,6 +71,8 @@ export function Switch({
       accessibilityLabel={label}
       accessibilityHint={hint}
       accessibilityState={{ checked: value, disabled }}
+      aria-checked={value}
+      aria-disabled={disabled}
       hitSlop={8}
       style={{ opacity: disabled ? 0.5 : 1 }}
     >
