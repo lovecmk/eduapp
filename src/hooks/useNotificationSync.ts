@@ -5,6 +5,8 @@ import { useAuthStore } from '../store/authStore';
 import { notificationRepository } from '../data/repositories';
 import { logger } from '../utils/logger';
 import { getSessionEpoch } from '../data/network/sessionEpoch';
+import { waitForHydration } from '../data/storage/hydration';
+import { restoring, restored, useAccountRestoreStore } from '../store/accountRestoreStore';
 
 /**
  * 서버 알림(관리 콘솔이 보낸 공지)을 받아오고 읽음 상태를 되돌려준다.
@@ -21,6 +23,7 @@ import { getSessionEpoch } from '../data/network/sessionEpoch';
 
 /** 화면에 들어와 있는 동안 이 간격으로 다시 확인한다. */
 const POLL_MS = 60_000;
+let applyingNotifications = false;
 
 /**
  * 알림 목록을 한 번 받아 와 스토어에 반영한다 — 주기 동기화와 알림함의 '당겨서 새로고침'이
@@ -36,12 +39,19 @@ export async function pullNotifications(): Promise<boolean> {
   const epoch = getSessionEpoch();
   const userId = useAuthStore.getState().user?.id;
   if (!userId) return false;
+  restoring('notifications', userId, epoch);
   try {
+    await waitForHydration(useNotificationStore);
+    if (epoch !== getSessionEpoch() || useAuthStore.getState().user?.id !== userId) return false;
     const items = await notificationRepository.list();
     if (epoch !== getSessionEpoch() || useAuthStore.getState().user?.id !== userId) return false;
-    useNotificationStore.getState().applyServer(items);
+    applyingNotifications = true;
+    try { useNotificationStore.getState().applyServer(items); }
+    finally { applyingNotifications = false; }
+    restored('notifications', userId, epoch, 'ready');
     return true;
   } catch (e) {
+    restored('notifications', userId, epoch, 'error');
     // 못 가져와도 화면은 그대로 둔다 — 지금 보고 있는 목록을 지우면
     // 연결이 끊긴 순간 알림함이 텅 빈 것처럼 보인다.
     logger.warn('notification.list_failed', { reason: String(e) });
@@ -52,6 +62,7 @@ export async function pullNotifications(): Promise<boolean> {
 export function useNotificationSync(): void {
   const userId = useAuthStore((s) => s.user?.id ?? null);
   const enabled = !!userId;
+  const retry = useAccountRestoreStore(s => s.retry);
 
   /**
    * 이미 서버에 보낸 '읽음' — 같은 알림을 두 번 보내지 않기 위한 표식.
@@ -93,16 +104,20 @@ export function useNotificationSync(): void {
       clearInterval(timer);
       appSub.remove();
     };
-  }, [enabled, userId]);
+  }, [enabled, userId, retry]);
 
   // 2) 읽음 되돌려주기.
   useEffect(() => {
     if (!enabled) return;
     const readSent = new Set<string>();
+    const epoch = getSessionEpoch();
     let prev = useNotificationStore.getState().items;
 
     let prevDismissed = useNotificationStore.getState().dismissedIds;
     const unsub = useNotificationStore.subscribe((s) => {
+      if (applyingNotifications || !useNotificationStore.persist.hasHydrated() || epoch !== getSessionEpoch()) {
+        prev = s.items; prevDismissed = s.dismissedIds; return;
+      }
       // 지운 알림 — 서버에도 알려 다른 기기에서도 사라지게 한다(라우트가 없으면 기기에서만).
       if (s.dismissedIds !== prevDismissed) {
         const had = new Set(prevDismissed);

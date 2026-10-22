@@ -53,6 +53,8 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import CardsScreen from '../../../app/(tabs)/cards';
 import { ThemeProvider } from '../../theme/ThemeProvider';
 import { useAuthStore } from '../../store/authStore';
+import { useAccountRestoreStore } from '../../store/accountRestoreStore';
+import { getSessionEpoch } from '../../data/network/sessionEpoch';
 import { useSrsStore } from '../../store/srsStore';
 import { useSettingsStore } from '../../store/settingsStore';
 import { nestedButtonLabels, type TreeNode } from '../../test-utils/nestedButtons';
@@ -99,8 +101,9 @@ const userNamed = (name: string): User => ({
 });
 
 /** 트랙은 로그인 이름으로 갈린다(uxTrack) — 스와이프 트랙은 '원진섭'. */
-const wrap = (name: string) => {
+const wrap = (name: string, recovered = true) => {
   useAuthStore.setState({ user: userNamed(name) } as never);
+  useAccountRestoreStore.setState({ entries: { progress: { userId: 'u-1', epoch: getSessionEpoch(), status: recovered ? 'ready' : 'loading' } } });
   return render(
     <SafeAreaProvider initialMetrics={metrics}>
       <ThemeProvider>
@@ -111,6 +114,14 @@ const wrap = (name: string) => {
 };
 
 const nested = () => nestedButtonLabels(screen.UNSAFE_root as unknown as TreeNode);
+
+it('재설치 직후 학습 기록 복원이 끝나기 전에는 빈 SRS로 학습을 시작하지 않는다', () => {
+  useSrsStore.getState().reset();
+  wrap('이용재', false);
+  expect(screen.getByTestId('learning-recovery-gate')).toBeTruthy();
+  expect(screen.queryAllByText(mockCard.question, { exact: false })).toHaveLength(0);
+  expect(useSrsStore.getState().cards).toEqual({});
+});
 
 it('주말에 단일 신규 카드로 직접 진입해도 문제를 열거나 학습 기록을 만들지 않는다', () => {
   mockRestDay = true; mockParams = { focusId: mockCard.id }; mockAvailableCards = [mockCard];

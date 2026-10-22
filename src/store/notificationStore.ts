@@ -60,6 +60,7 @@ interface NotificationState {
 
 /** 지운 알림 기록은 최근 것만 남긴다 — 서버가 오래된 알림을 계속 돌려줄 리 없고, 끝없이 쌓이면 안 된다. */
 const DISMISSED_LIMIT = 300;
+const DEFAULT_MUTED: Record<NotificationType, boolean> = { new: true, remind: true, achievement: false, system: false };
 function rememberDismissed(prev: string[], ids: string[]): string[] {
   if (ids.length === 0) return prev;
   const merged = [...prev.filter((id) => !ids.includes(id)), ...ids];
@@ -78,7 +79,7 @@ export const useNotificationStore = create<NotificationState>()(
       // 그 경로가 없는 동안 화면은 계속 지어낸 값을 보여 주고 있었다.
       items: [],
       // 복습 주기(remind)·새 콘텐츠(new)는 기본적으로 보내지 않는다(사용자 설정에서도 노출 안 함).
-      mutedTypes: { new: true, remind: true, achievement: false, system: false },
+      mutedTypes: { ...DEFAULT_MUTED },
       dismissedIds: [],
 
       unreadCount: () => get().items.filter((n) => !n.read && !get().mutedTypes[n.type]).length,
@@ -94,7 +95,7 @@ export const useNotificationStore = create<NotificationState>()(
           items: [],
           dismissedIds: rememberDismissed(s.dismissedIds, s.items.map((n) => n.id)),
         })),
-      reset: () => set({ items: [], dismissedIds: [] }),
+      reset: () => set({ items: [], dismissedIds: [], mutedTypes: { ...DEFAULT_MUTED } }),
       toggleMute: (type) => set((s) => ({ mutedTypes: { ...s.mutedTypes, [type]: !s.mutedTypes[type] } })),
       setMute: (type, muted) => set((s) => ({ mutedTypes: { ...s.mutedTypes, [type]: muted } })),
       // 지운 알림은 받아도 다시 보이지 않는다(dismissedIds 주석 참고).
@@ -107,10 +108,16 @@ export const useNotificationStore = create<NotificationState>()(
     {
       name: 'notifications',
       // v4: 실서버 모드에서 시드 알림을 걷어낸다(위 items 주석 참고).
-      // dismissedIds 는 필드 추가라 버전을 올리지 않는다 — 이 스토어에는 migrate 가 없어서
-      // 버전을 올리는 순간 저장된 값(알림 끄기 선택)이 통째로 버려진다. 없는 필드는
-      // persist 의 병합이 초기값([])으로 채운다.
+      // 예전 시드 목록은 복원하지 않고 사용자가 끄거나 지운 선택만 이관한다.
       version: 4,
+      migrate: persisted => {
+        const p = (persisted ?? {}) as Partial<NotificationState>;
+        return {
+          mutedTypes: Object.fromEntries(Object.keys(NOTIFICATION_TYPE_META).map(key => [key, typeof p.mutedTypes?.[key as NotificationType] === 'boolean' ? p.mutedTypes[key as NotificationType] : DEFAULT_MUTED[key as NotificationType]])),
+          dismissedIds: Array.isArray(p.dismissedIds) ? [...new Set(p.dismissedIds.filter((id): id is string => typeof id === 'string' && !!id))].slice(-DISMISSED_LIMIT) : [],
+          items: [],
+        } as unknown as NotificationState;
+      },
       storage: createJSONStorage(() => AsyncStorage),
       // 목록은 서버가 원천이라 남기지 않는다. 사용자의 선택(끄기·지우기)만 남긴다.
       partialize: (s) => ({ mutedTypes: s.mutedTypes, dismissedIds: s.dismissedIds }),

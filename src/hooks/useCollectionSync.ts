@@ -4,6 +4,8 @@ import { collectionRepository } from '../data/repositories';
 import { useAuthStore } from '../store/authStore';
 import { logger } from '../utils/logger';
 import { getSessionEpoch } from '../data/network/sessionEpoch';
+import { waitForHydration } from '../data/storage/hydration';
+import { isRestored, restoring, restored, useAccountRestoreStore } from '../store/accountRestoreStore';
 
 /**
  * 도감을 서버와 맞춘다.
@@ -29,6 +31,7 @@ export function useCollectionSync(): void {
   const userId = useAuthStore((s) => s.user?.id ?? null);
   // 로그인하지 않았으면 보낼 곳이 없다(내 도감이라는 개념 자체가 없다).
   const enabled = !!userId;
+  const retry = useAccountRestoreStore(s => s.retry);
 
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -37,18 +40,25 @@ export function useCollectionSync(): void {
     if (!enabled) return;
     let cancelled = false;
     const epoch = getSessionEpoch();
+    restoring('collection', userId, epoch);
     void (async () => {
       try {
+        await waitForHydration(useCollectionStore);
+        if (cancelled || epoch !== getSessionEpoch()) return;
         const remote = await collectionRepository.pull();
-        if (!cancelled && epoch === getSessionEpoch()) useCollectionStore.getState().applyServer(remote);
+        if (!cancelled && epoch === getSessionEpoch()) {
+          useCollectionStore.getState().applyServer(remote);
+          restored('collection', userId, epoch, 'ready');
+        }
       } catch (e) {
+        if (!cancelled) restored('collection', userId, epoch, 'error');
         // 못 가져와도 로컬 도감으로 계속 쓴다 — 여기서 막으면 오프라인에서
         // 도감이 아예 안 열린다.
         logger.warn('collection.pull_failed', { reason: String(e) });
       }
     })();
     return () => { cancelled = true; };
-  }, [enabled, userId]);
+  }, [enabled, userId, retry]);
 
   // 2) 값이 바뀌면 잠깐 기다렸다가 보낸다.
   useEffect(() => {
@@ -59,7 +69,7 @@ export function useCollectionSync(): void {
     const epoch = getSessionEpoch();
 
     const push = async () => {
-      if (inFlight || cancelled || epoch !== getSessionEpoch()) return;
+      if (inFlight || cancelled || epoch !== getSessionEpoch() || !isRestored(useAccountRestoreStore.getState().entries.collection, userId)) return;
       const snap = useCollectionStore.getState().snapshot();
       // 같은 내용을 반복해서 보내지 않는다(화면 재진입마다 요청이 나가면
       // 오프라인 큐가 의미 없는 항목으로 찬다).

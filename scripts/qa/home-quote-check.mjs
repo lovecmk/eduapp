@@ -42,6 +42,7 @@ try {
       if (route.request().method() !== 'GET') writes.push(path);
       let body = {};
       if (path === '/auth/me') body = user;
+      else if (path === '/me/faction') body = { faction_cd: 'frost' };
       else if (path === '/cards') body = cards;
       else if (path === '/learning/today') body = { day: '2026-9-22', target_count: 5, done_count: 0, difficulty_cd: 'EASY', cards: cards.map(card => ({ ...card, kind: 'NEW', done: false })) };
       else if (path === '/learning/quota') body = { limit: 5, used: 0 };

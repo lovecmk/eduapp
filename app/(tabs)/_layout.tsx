@@ -79,7 +79,7 @@ function MinimalHeader({ title, showBack }: { title: string; showBack?: boolean 
         ) : (
           <Pressable onPress={() => router.push(ROUTES.home as never)} hitSlop={6}
             accessibilityRole="button" accessibilityLabel="홈으로">
-            <AppLogo size={30} />
+            <AppLogo size={30} testID="appbar-logo-3" />
           </Pressable>
         )}
         <Text style={{ color: c.textPrimary, fontSize: 16, marginLeft: 8, flex: 1, fontFamily: fontDisplay }}>{title}</Text>

@@ -11,6 +11,8 @@ import { queryClient } from '../data/network/queryClient';
 import type { LearningCard } from '../domain/models/LearningCard';
 import { getSessionEpoch } from '../data/network/sessionEpoch';
 import { apiClient } from '../data/network/ApiClient';
+import { waitForHydration } from '../data/storage/hydration';
+import { restoring, restored, useAccountRestoreStore } from '../store/accountRestoreStore';
 
 /**
  * 학습 진행(SRS 일정·학습 이력·출석)을 서버와 맞춘다.
@@ -48,6 +50,7 @@ function wasGraded(prev: SrsCardState | undefined, next: SrsCardState): boolean 
 export function useProgressSync(): void {
   const userId = useAuthStore((s) => s.user?.id ?? null);
   const enabled = !!userId;
+  const retry = useAccountRestoreStore(s => s.retry);
 
   // 이미 보낸 채점을 다시 보내지 않기 위한 표식(카드 id → 마지막으로 보낸 복습 시각).
   //
@@ -68,7 +71,12 @@ export function useProgressSync(): void {
     const epoch = getSessionEpoch();
     let flight: Promise<void> | undefined;
     const fetchSnapshot = async () => {
+      let success = false;
+      restoring('progress', userId, epoch);
+      useProgressStatusStore.setState({ userId, settled: false });
       try {
+        await waitForHydration(useSrsStore, useAttendanceStore);
+        if (cancelled || epoch !== getSessionEpoch()) return;
         await apiClient.flushPendingWrites();
         if (cancelled || epoch !== getSessionEpoch()) return;
         const snap = await progressRepository.pull();
@@ -87,12 +95,15 @@ export function useProgressSync(): void {
         for (const key of ['cards', 'daily-assignment', 'learning-quota', 'stats']) {
           void queryClient.invalidateQueries({ queryKey: [key] });
         }
+        success = true;
+        restored('progress', userId, epoch, 'ready');
       } catch (e) {
+        if (!cancelled) restored('progress', userId, epoch, 'error');
         // 못 가져와도 로컬 기록으로 계속 쓴다 — 여기서 막으면 오프라인에서
         // 학습 화면이 아예 열리지 않는다.
         logger.warn('progress.pull_failed', { reason: String(e) });
       } finally {
-        if (!cancelled && epoch === getSessionEpoch()) useProgressStatusStore.setState({ userId, settled: true });
+        if (!cancelled && epoch === getSessionEpoch()) useProgressStatusStore.setState({ userId, settled: success });
       }
     };
     const pull = (): Promise<void> => {
@@ -108,7 +119,7 @@ export function useProgressSync(): void {
       cancelled = true;
       appSub.remove();
     };
-  }, [enabled, userId]);
+  }, [enabled, userId, retry]);
 
   // 2) 채점이 생기면 그 카드만 보낸다.
   useEffect(() => {
@@ -121,7 +132,7 @@ export function useProgressSync(): void {
     const unsub = useSrsStore.subscribe((state) => {
       const next = state.cards;
       if (next === prevCards) return;
-      if (applyingServer.current || epoch !== getSessionEpoch()) { prevCards = next; return; }
+      if (applyingServer.current || !useSrsStore.persist.hasHydrated() || epoch !== getSessionEpoch()) { prevCards = next; return; }
       for (const [cardId, st] of Object.entries(next)) {
         if (!wasGraded(prevCards[cardId], st)) continue;
         const stamp = st.lastReviewedAt ?? 0;
@@ -168,7 +179,7 @@ export function useProgressSync(): void {
     const unsub = useAttendanceStore.subscribe((state) => {
       const next = state.stamps;
       if (next === prevStamps) return;
-      if (applyingServer.current || epoch !== getSessionEpoch()) { prevStamps = next; return; }
+      if (applyingServer.current || !useAttendanceStore.persist.hasHydrated() || epoch !== getSessionEpoch()) { prevStamps = next; return; }
       for (const day of Object.keys(next)) {
         if (prevStamps[day] || sentDays.current.has(day)) continue;
         sentDays.current.add(day);

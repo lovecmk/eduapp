@@ -11,6 +11,8 @@ import {
 import { parseDate } from '../data/mappers/_date';
 import { logger } from '../utils/logger';
 import { getSessionEpoch } from '../data/network/sessionEpoch';
+import { waitForHydration } from '../data/storage/hydration';
+import { restoring, restored, useAccountRestoreStore } from '../store/accountRestoreStore';
 
 /**
  * 계정 설정을 서버와 맞춘다.
@@ -48,6 +50,7 @@ const fingerprint = (s: AccountSettings) => JSON.stringify(s);
 
 export function useSettingsSync(): void {
   const userId = useAuthStore((s) => s.user?.id ?? null);
+  const retry = useAccountRestoreStore(s => s.retry);
 
   useEffect(() => {
     // 로그인 전에는 보낼 곳도, 주인도 없다.
@@ -59,6 +62,9 @@ export function useSettingsSync(): void {
     let synced = '';
     let timer: ReturnType<typeof setTimeout> | null = null;
     let inFlight = false;
+    let hydrated = false;
+    let initialReadFinished = false;
+    restoring('settings', userId, epoch);
 
     /** 스토어 변경이 '사용자의 손'이 아님을 표시하고 실행한다. */
     const withoutMarking = (fn: () => void) => {
@@ -73,7 +79,7 @@ export function useSettingsSync(): void {
     const currentSettings = () => selectAccountSettings(useSettingsStore.getState());
 
     const push = async (reason: string) => {
-      if (inFlight || cancelled || epoch !== getSessionEpoch()) return;
+      if (inFlight || cancelled || !initialReadFinished || epoch !== getSessionEpoch()) return;
       const store = useSettingsStore.getState();
       const settings = selectAccountSettings(store);
       const print = fingerprint(settings);
@@ -105,17 +111,22 @@ export function useSettingsSync(): void {
 
     // 1) 로그인 직후 한 번 맞춘다.
     void (async () => {
-      const before = useSettingsStore.getState();
-      if (before.accountOwnerId && before.accountOwnerId !== userId) {
-        // 앞사람이 쓰던 기기다 — 계정 설정만 비운다(기기 취향은 그대로 둔다).
-        logger.warn('settings.owner_changed_reset', {});
-        withoutMarking(() => before.resetAccountSettings(userId));
-        synced = '';
-      }
-
       try {
+        await waitForHydration(useSettingsStore);
+        if (cancelled || epoch !== getSessionEpoch()) return;
+        hydrated = true;
+        const before = useSettingsStore.getState();
+        if (before.accountOwnerId && before.accountOwnerId !== userId) {
+          // 앞사람이 쓰던 기기다 — 계정 설정만 비운다(기기 취향은 그대로 둔다).
+          logger.warn('settings.owner_changed_reset', {});
+          withoutMarking(() => before.resetAccountSettings(userId));
+          synced = '';
+        }
+
         const snap = await settingsRepository.pull();
         if (cancelled || epoch !== getSessionEpoch()) return;
+        initialReadFinished = true;
+        restored('settings', userId, epoch, 'ready');
         const store = useSettingsStore.getState();
         const local = currentSettings();
         const serverAt = parseDate(snap.updatedAt)?.getTime() ?? 0;
@@ -144,6 +155,8 @@ export function useSettingsSync(): void {
         }
         await push('initial');
       } catch (e) {
+        initialReadFinished = true;
+        if (!cancelled) restored('settings', userId, epoch, 'error');
         // 못 읽었으면 **아무것도 보내지 않는다.**
         //
         // 여기서 기기 값을 올리고 싶은 유혹이 있지만, 서버 상태를 모르는 채로 쓰면
@@ -163,7 +176,7 @@ export function useSettingsSync(): void {
 
     const unsub = useSettingsStore.subscribe((state, prev) => {
       // 우리가 서버 값을 반영하는 중이면 '사용자의 변경'이 아니다.
-      if (applying) return;
+      if (applying || !hydrated) return;
       const next = selectAccountSettings(state);
       // 기기 전용 설정(테마·글자 크기 등)이 바뀐 것은 서버와 무관하다.
       if (sameAccountSettings(next, selectAccountSettings(prev))) return;
@@ -176,5 +189,5 @@ export function useSettingsSync(): void {
       unsub();
       if (timer) clearTimeout(timer);
     };
-  }, [userId]);
+  }, [userId, retry]);
 }

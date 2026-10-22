@@ -51,6 +51,7 @@ it('waits for queued writes and shares repeated foreground notifications', async
   let release!: () => void;
   mockFlush.mockReturnValueOnce(new Promise<void>(done => { release = done; }));
   act(() => { mockOnState?.('active'); mockOnState?.('active'); });
+  await act(async () => {});
   expect(mockFlush).toHaveBeenCalledTimes(1);
   expect(mockPull).toHaveBeenCalledTimes(1);
   await act(async () => { release(); });

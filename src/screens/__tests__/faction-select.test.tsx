@@ -11,6 +11,7 @@
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: jest.fn(), replace: jest.fn(), back: jest.fn(), canGoBack: () => false }),
 }));
+jest.mock('../../store/authStore', () => ({ useAuthStore: (selector: (state: unknown) => unknown) => selector({ user: { id: 'onboarding-user' } }) }));
 
 import React from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
@@ -20,6 +21,9 @@ import { ThemeProvider } from '../../theme/ThemeProvider';
 import { useSettingsStore, FONT_SCALE_FACTOR, type FontScale } from '../../store/settingsStore';
 import { FACTION_LIST } from '../../constants/factions';
 import { EXPERIENCE_OPTIONS } from '../../constants/experience';
+import { useFactionStore } from '../../store/factionStore';
+import { useAccountRestoreStore } from '../../store/accountRestoreStore';
+import { getSessionEpoch } from '../../data/network/sessionEpoch';
 
 const metrics = {
   frame: { x: 0, y: 0, width: 390, height: 844 },
@@ -39,6 +43,8 @@ function fontSizeOf(text: string): number | undefined {
 }
 
 function renderAt(scale: FontScale, showFaction = true) {
+  useFactionStore.setState({ faction: null });
+  useAccountRestoreStore.setState({ entries: { faction: { userId: 'onboarding-user', epoch: getSessionEpoch(), status: 'ready' } } });
   useSettingsStore.setState({ fontScale: scale } as never);
   const result = render(
     <SafeAreaProvider initialMetrics={metrics}>

@@ -23,6 +23,8 @@ import { useDailyAssignment } from '../../src/hooks/useDailyAssignment';
 import { useLearningCompletion } from '../../src/hooks/useLearningCompletion';
 import { useLearningDay } from '../../src/hooks/useLearningDay';
 import { contentColumn } from '../../src/theme/layout';
+import { isRestored, useAccountRestoreStore } from '../../src/store/accountRestoreStore';
+import { AccountRestoreNotice } from '../../src/components/home/AccountRestoreNotice';
 
 // 오늘의 난이도를 사람이 읽는 말로. 코드를 그대로 보이면 학습 화면이
 // 개발자 화면처럼 읽힌다.
@@ -89,6 +91,7 @@ export default function HomeScreen() {
   // ⚠️ persist 는 비동기로 하이드레이트되므로, 하이드레이트 완료 전에는 faction 이 잠깐 null 이다.
   //    이때 트리거하면 이미 진영을 고른 사용자도 매번 선택화면으로 튕기므로, 하이드레이트 후에만 판단한다.
   const faction = useFactionStore((s) => s.faction);
+  const factionRestore = useAccountRestoreStore(s => s.entries.faction);
   const factionPromptedRef = useRef(false);
   const [factionHydrated, setFactionHydrated] = useState(() => useFactionStore.persist.hasHydrated());
   useEffect(() => {
@@ -97,11 +100,11 @@ export default function HomeScreen() {
     return unsub;
   }, []);
   useEffect(() => {
-    if (factionHydrated && user && faction === null && !factionPromptedRef.current) {
+    if (factionHydrated && user && isRestored(factionRestore, user.id) && faction === null && !factionPromptedRef.current) {
       factionPromptedRef.current = true;
       router.push(ROUTES.factionSelect as never);
     }
-  }, [factionHydrated, user, faction, router]);
+  }, [factionHydrated, factionRestore, user, faction, router]);
 
   // 실행 기록은 유지하고 시작 팝업은 전역 DailyLearningWelcome 한 곳에서 표시한다.
   useEffect(() => {
@@ -153,6 +156,7 @@ export default function HomeScreen() {
         contentContainerStyle={{ padding: 20, ...contentColumn }}
         showsVerticalScrollIndicator={false}
       >
+        <AccountRestoreNotice />
         {/* 인사와 오늘의 명언은 간결하게, 학습 시작에 더 많은 공간을 둔다. */}
         <View testID="home-hero" style={{ borderRadius: rs(22), backgroundColor: c.primary, paddingVertical: 12, paddingHorizontal: 16, marginBottom: 14, boxShadow: `0 8px 24px ${c.primary}44` }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>

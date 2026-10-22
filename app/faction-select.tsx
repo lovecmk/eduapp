@@ -6,11 +6,14 @@ import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-na
 import { Button } from '../src/components/ui/Button';
 import { useTheme } from '../src/theme/ThemeProvider';
 import { useFactionStore } from '../src/store/factionStore';
-import { FACTION_LIST, type FactionId, type Faction } from '../src/constants/factions';
+import { FACTION_LIST, getFaction, type FactionId, type Faction } from '../src/constants/factions';
 import { fontBody, fontDisplay } from '../src/theme/tokens';
 import { hapticTap, hapticSuccess } from '../src/utils/haptics';
 import { useGoBack } from '../src/hooks/useGoBack';
 import { ExperienceStep } from '../src/components/settings/ExperienceStep';
+import { useAuthStore } from '../src/store/authStore';
+import { isRestored, useAccountRestoreStore } from '../src/store/accountRestoreStore';
+import { confirmFaction } from '../src/data/sync/faction';
 
 // 진영 선택 카드 — 선택되면 진영 색으로 물들며 살짝 떠오른다.
 function FactionCard({
@@ -104,7 +107,10 @@ export default function FactionSelectScreen() {
   const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
   const goBack = useGoBack();
-  const chooseFaction = useFactionStore((s) => s.chooseFaction);
+  const faction = useFactionStore(s => s.faction);
+  const userId = useAuthStore(s => s.user?.id);
+  const { entries, retryFailed } = useAccountRestoreStore();
+  const ready = isRestored(entries.faction, userId);
   const [picked, setPicked] = useState<FactionId | null>(null);
   const [step, setStep] = useState<'experience' | 'faction'>('experience');
 
@@ -115,16 +121,27 @@ export default function FactionSelectScreen() {
     setPicked(id);
   };
 
-  const onConfirm = () => {
-    if (!picked) return;
+  const onConfirm = async () => {
+    if (!picked || !userId || !ready) return;
+    const saved = await confirmFaction(userId, picked);
+    if (!saved) return;
     hapticSuccess();
-    chooseFaction(picked);
     // 이 화면은 홈이 push 로 연다(홈이 faction===null 을 보고 안내한다).
     // 그 위에 replace 로 홈을 또 얹으면 스택에 홈이 두 번 쌓인다 — 뒤로가기가
     // 같은 화면으로 되돌아가고, 홈 화면 인스턴스도 둘이 남는다.
     // 열린 것을 닫고 원래 홈으로 돌아간다(딥링크로 곧장 들어왔으면 홈으로).
     goBack();
   };
+
+  if (!ready || faction) {
+    const failed = entries.faction?.status === 'error';
+    return <SafeAreaView style={{ flex: 1, backgroundColor: c.bg, padding: 24, justifyContent: 'center' }}>
+      <Text style={{ color: c.textPrimary, fontSize: 20 * fs, fontFamily: fontDisplay }}>{faction && ready ? `${getFaction(faction)?.name} 진영을 복원했어요` : failed ? '기존 진영을 확인하지 못했어요' : '저장된 진영을 확인하고 있어요'}</Text>
+      <Text style={{ color: c.textSecondary, fontSize: 13 * fs, lineHeight: 20 * fs, fontFamily: fontBody, marginVertical: 16 }}>{faction && ready ? '기존에 선택한 진영으로 계속할 수 있어요.' : '기존 선택이 있는지 확인한 뒤 진행합니다. 연결 실패를 새 가입으로 처리하지 않아요.'}</Text>
+      {failed && <Button label="진영 다시 불러오기" onPress={retryFailed} />}
+      {(faction || failed) && <Button label="홈으로 돌아가기" onPress={goBack} variant="outline" />}
+    </SafeAreaView>;
+  }
 
   if (step === 'experience') return <ExperienceStep onContinue={() => setStep('faction')} />;
 

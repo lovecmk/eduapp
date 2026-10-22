@@ -4,6 +4,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { FactionId } from '../constants/factions';
+import { toFactionId } from '../constants/factions';
 
 interface FactionState {
   faction: FactionId | null;
@@ -22,6 +23,7 @@ export const useFactionStore = create<FactionState>()(
       name: 'faction',
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (s) => ({ faction: s.faction }),
+      merge: (persisted, current) => ({ ...current, faction: toFactionId((persisted as { faction?: string } | null)?.faction) }),
     },
   ),
 );

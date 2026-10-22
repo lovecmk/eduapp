@@ -45,6 +45,7 @@ await context.route('**/*', async route => {
   if (path === '/settings' && route.request().method() === 'POST') settingsWrites.push(route.request().postDataJSON());
   let status = 200, body = {};
   if (path === '/auth/me') { status = mode === 'expired' ? 401 : 200; body = user; }
+  else if (path === '/me/faction') body = { faction_cd: mode === 'onboarding' ? null : 'frost' };
   else if (path === '/auth/refresh') { status = 401; body = { message: 'expired' }; }
   else if (path === '/cards') { status = mode === 'error' ? 503 : 200; body = mode === 'review' ? [{ ...card, status_cd: 'LEARNING' }] : mode === 'one' ? [card] : []; }
   else if (path === '/learning/today') body = { cards: [], target_count: 0, done_count: 0, difficulty_cd: 'EASY' };
@@ -166,6 +167,7 @@ try {
   assert.equal(unexpectedWrites.length, 0, JSON.stringify(unexpectedWrites));
   // A new learner confirms their experience before seeing faction choices.
   // Exercise the actual persisted store and debounced settings repository too.
+  mode = 'onboarding';
   await page.addInitScript(() => localStorage.setItem('faction', JSON.stringify({ state: { faction: null }, version: 0 })));
   await page.setViewportSize({ width: 320, height: 844 });
   await page.goto(origin + '/eduapp/faction-select');

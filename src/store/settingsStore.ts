@@ -220,6 +220,7 @@ export const useSettingsStore = create<SettingsState>()(
     {
       name: 'app-settings',
       version: 2,
+      migrate: persisted => (persisted ?? {}) as SettingsState,
       storage: createJSONStorage(() => AsyncStorage),
       // 구버전 저장소에 새 필드가 없어도 병합해 안전하게 복원한다.
       merge: (persisted, current) => {

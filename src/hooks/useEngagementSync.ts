@@ -1,9 +1,14 @@
 import { useEffect, useRef } from 'react';
+import { AppState } from 'react-native';
 import { useLikeStore } from '../store/likeStore';
 import { useBookmarkStore } from '../store/bookmarkStore';
 import { useAuthStore } from '../store/authStore';
 import { engagementRepository } from '../data/repositories';
 import { logger } from '../utils/logger';
+import { getSessionEpoch } from '../data/network/sessionEpoch';
+import { apiClient } from '../data/network/ApiClient';
+import { waitForHydration } from '../data/storage/hydration';
+import { restoring, restored, useAccountRestoreStore } from '../store/accountRestoreStore';
 
 /**
  * 카드 반응(추천·저장)을 서버와 맞춘다.
@@ -20,28 +25,45 @@ import { logger } from '../utils/logger';
 export function useEngagementSync(): void {
   const userId = useAuthStore((s) => s.user?.id ?? null);
   const enabled = !!userId;
+  const retry = useAccountRestoreStore(s => s.retry);
+  const epoch = getSessionEpoch();
 
   // 서버가 이미 아는 상태. 여기 있는 것과 같으면 보내지 않는다.
   const knownLiked = useRef<Set<string>>(new Set());
   const knownMarked = useRef<Set<string>>(new Set());
+  const initialized = useRef(false);
+  const applyingServer = useRef(false);
 
   useEffect(() => {
     if (!enabled) return;
-    let cancelled = false;
-    void (async () => {
+    let cancelled = false, running = false;
+    initialized.current = false;
+    knownLiked.current = new Set(); knownMarked.current = new Set();
+    const pull = async () => {
+      if (cancelled || running || epoch !== getSessionEpoch()) return;
+      running = true;
+      restoring('engagement', userId, epoch);
       try {
+        await waitForHydration(useLikeStore, useBookmarkStore);
+        if (cancelled || epoch !== getSessionEpoch()) return;
+        await apiClient.flushPendingWrites();
+        if (cancelled || epoch !== getSessionEpoch()) return;
         const snap = await engagementRepository.pull();
-        if (cancelled) return;
+        if (cancelled || epoch !== getSessionEpoch()) return;
 
         // 합집합으로 합친다 — 오프라인에서 누른 것이 서버에 아직 없을 수 있고,
         // 서버 값으로 덮어쓰면 그 반응이 사라진다.
-        const like = useLikeStore.getState();
-        for (const id of snap.likedIds) if (!like.has(id)) like.toggle(id);
-        const mark = useBookmarkStore.getState();
-        for (const id of snap.bookmarkedIds) if (!mark.has(id)) mark.toggle(id);
-
         knownLiked.current = new Set(snap.likedIds);
         knownMarked.current = new Set(snap.bookmarkedIds);
+        applyingServer.current = true;
+        try {
+          const like = useLikeStore.getState();
+          for (const id of snap.likedIds) if (!like.has(id)) like.toggle(id);
+          const mark = useBookmarkStore.getState();
+          for (const id of snap.bookmarkedIds) if (!mark.has(id)) mark.toggle(id);
+        } finally { applyingServer.current = false; }
+        initialized.current = true;
+        restored('engagement', userId, epoch, 'ready');
 
         // 서버가 모르는 로컬 반응은 지금 올려 보낸다(그동안 기기에만 있던 것).
         for (const id of useLikeStore.getState().ids) {
@@ -51,16 +73,21 @@ export function useEngagementSync(): void {
           if (!knownMarked.current.has(id)) void push('bookmark', id, true);
         }
       } catch (e) {
+        if (!cancelled) restored('engagement', userId, epoch, 'error');
         logger.warn('engagement.pull_failed', { reason: String(e) });
-      }
-    })();
+      } finally { running = false; }
+    };
+    void pull();
+    const appSub = AppState.addEventListener('change', state => { if (state === 'active') void pull(); });
     return () => {
       cancelled = true;
+      appSub.remove();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, userId]);
+  }, [enabled, userId, retry]);
 
   async function push(kind: 'like' | 'bookmark', cardId: string, on: boolean): Promise<void> {
+    if (epoch !== getSessionEpoch()) return;
     const known = kind === 'like' ? knownLiked.current : knownMarked.current;
     if (on) known.add(cardId);
     else known.delete(cardId);
@@ -68,6 +95,7 @@ export function useEngagementSync(): void {
       if (kind === 'like') await engagementRepository.setLiked(cardId, on);
       else await engagementRepository.setBookmarked(cardId, on);
     } catch (e) {
+      if (epoch !== getSessionEpoch()) return;
       // 되돌려 둔다 — 다음 변경 때 다시 시도된다.
       if (on) known.delete(cardId);
       else known.add(cardId);
@@ -81,6 +109,7 @@ export function useEngagementSync(): void {
     let prevMarked = useBookmarkStore.getState().ids;
 
     const diff = (before: string[], after: string[], kind: 'like' | 'bookmark') => {
+      if (applyingServer.current || !initialized.current || epoch !== getSessionEpoch()) return;
       const b = new Set(before);
       const a = new Set(after);
       for (const id of a) if (!b.has(id)) void push(kind, id, true);
@@ -103,5 +132,5 @@ export function useEngagementSync(): void {
       unsubMark();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled]);
+  }, [enabled, userId]);
 }

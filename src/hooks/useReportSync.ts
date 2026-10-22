@@ -3,6 +3,8 @@ import { useReportStore } from '../store/reportStore';
 import { useAuthStore } from '../store/authStore';
 import { reportRepository } from '../data/repositories';
 import { logger } from '../utils/logger';
+import { waitForHydration } from '../data/storage/hydration';
+import { getSessionEpoch } from '../data/network/sessionEpoch';
 
 /**
  * 카드 신고를 서버로 올린다.
@@ -30,12 +32,15 @@ export function useReportSync(): void {
   useEffect(() => {
     if (!enabled) return;
     let cancelled = false;
+    const epoch = getSessionEpoch();
     sent.current = new Set();
 
     void (async () => {
       try {
+        await waitForHydration(useReportStore);
+        if (cancelled || epoch !== getSessionEpoch()) return;
         const mine = await reportRepository.listMine();
-        if (cancelled) return;
+        if (cancelled || epoch !== getSessionEpoch()) return;
         sent.current = new Set(mine);
       } catch (e) {
         // 목록을 못 받아도 올리는 것은 계속한다 — 중복은 서버가 막는다.
@@ -43,9 +48,9 @@ export function useReportSync(): void {
       }
 
       // 그동안 기기에만 쌓여 있던 신고를 흘려보낸다.
-      if (cancelled || useAuthStore.getState().user?.id !== userId) return;
+      if (cancelled || epoch !== getSessionEpoch() || useAuthStore.getState().user?.id !== userId) return;
       for (const r of useReportStore.getState().reports) {
-        if (cancelled || useAuthStore.getState().user?.id !== userId) return;
+        if (cancelled || epoch !== getSessionEpoch() || useAuthStore.getState().user?.id !== userId) return;
         if (sent.current.has(r.cardId)) continue;
         sent.current.add(r.cardId);
         try {

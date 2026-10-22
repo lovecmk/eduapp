@@ -29,6 +29,7 @@ await context.addInitScript(user => {
   localStorage.setItem('refreshToken', 'isolated-ui-refresh');
   localStorage.setItem('cachedUser', JSON.stringify(user));
   localStorage.setItem('session-owner-id', user.id);
+  localStorage.setItem(`daily-learning-welcome:v1:${encodeURIComponent(user.id)}`, JSON.stringify({ day: new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10), quoteIndex: 0 }));
   localStorage.setItem('faction', JSON.stringify({ state: { faction: 'frost' }, version: 0 }));
 }, user);
 let mode = 'one';
@@ -44,6 +45,7 @@ await context.route('**/*', async route => {
   requests.push({ method: route.request().method(), path });
   let status = 200, body = {};
   if (path === '/auth/me') { status = mode === 'expired' ? 401 : 200; body = user; }
+  else if (path === '/me/faction') body = { faction_cd: 'frost' };
   else if (path === '/auth/refresh') { status = 401; body = { message: 'expired' }; }
   else if (path === '/cards') { status = mode === 'error' ? 503 : 200; body = mode === 'one' ? deck : []; }
   else if (/^\/cards\/qa-card(?:-\d)?\/edit$/.test(path)) body = { ...deck.find(card => path.includes(card.id + '/edit')), status_cd: route.request().postDataJSON().status_cd };

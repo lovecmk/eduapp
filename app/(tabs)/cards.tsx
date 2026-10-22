@@ -48,6 +48,8 @@ import { personalReviewHint } from '../../src/data/network/personalReviewPolicy'
 import { safeInternalPath } from '../../src/utils/safeRoute';
 import { getSessionEpoch } from '../../src/data/network/sessionEpoch';
 import { useIsMounted } from '../../src/hooks/useSafeTimeout';
+import { isRestored, useAccountRestoreStore } from '../../src/store/accountRestoreStore';
+import { AccountRestoreNotice } from '../../src/components/home/AccountRestoreNotice';
 
 // 하루 학습 정책(운영 지속가능성 · '하루 3분'):
 //  · '오늘의 학습'은 신규 카드만, 하루 상한(DAILY_MIN_CARDS)까지만 진행할 수 있다.
@@ -87,6 +89,22 @@ function notify(ok: boolean) {
 }
 
 export default function CardsScreen() {
+  const userId = useAuthStore(s => s.user?.id);
+  const localCards = useSrsStore(s => s.cards);
+  const progress = useAccountRestoreStore(s => s.entries.progress);
+  const router = useRouter();
+  const { theme, fontScale: fs } = useTheme();
+  if (userId && !isRestored(progress, userId) && Object.keys(localCards).length === 0) {
+    return <View testID="learning-recovery-gate" style={{ flex: 1, padding: 20, justifyContent: 'center', backgroundColor: theme.colors.bg }}>
+      <Text style={{ color: theme.colors.textPrimary, fontFamily: fontCute, fontSize: 19 * fs, marginBottom: 16 }}>기존 학습 기록을 먼저 확인할게요</Text>
+      <AccountRestoreNotice />
+      <Button label="홈으로 돌아가기" variant="outline" onPress={() => router.push(ROUTES.home as never)} />
+    </View>;
+  }
+  return <CardsContent />;
+}
+
+function CardsContent() {
   const { theme, fontScale } = useTheme();
   const c = theme.colors;
   const fs = fontScale;
