@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { dailyAssignmentRepository } from '../data/repositories';
 import { emptyAssignment, type DailyAssignment } from '../domain/models/DailyAssignment';
 import { dateKey } from '../utils/dateKey';
@@ -28,6 +29,11 @@ export function useDailyAssignment() {
     staleTime: 60_000,
     retry: 1,
   });
+  useEffect(() => {
+    const value = query.data;
+    if (!value || value.day !== day) return;
+    useSrsStore.getState().recordGoal(day, { targetCount: value.targetCount, cardIds: value.cards.map(item => item.card.id) }, value.cards.filter(item => item.done).map(item => item.card.id));
+  }, [query.data, day]);
 
   // 화면이 `data?.` 를 반복하지 않도록 항상 값이 있는 형태로 준다.
   let assignment: DailyAssignment = query.data ?? emptyAssignment(day);

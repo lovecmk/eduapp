@@ -79,7 +79,7 @@ export function useProgressSync(): void {
         for (const day of Object.keys(snap.attendance)) sentDays.current.add(day);
         applyingServer.current = true;
         try {
-          useSrsStore.getState().applyServer({ cards: snap.cards, history: snap.history });
+          useSrsStore.getState().applyServer({ cards: snap.cards, history: snap.history, dailyGoals: snap.dailyGoals });
           useAttendanceStore.getState().applyServer(snap.attendance);
         } finally { applyingServer.current = false; }
         for (const key of ['cards', 'daily-assignment', 'learning-quota', 'stats']) {
@@ -136,7 +136,7 @@ export function useProgressSync(): void {
               const snap = await progressRepository.pull();
               if (epoch !== getSessionEpoch()) return;
               applyingServer.current = true;
-              try { useSrsStore.getState().applyServer({ cards: snap.cards, history: snap.history }); }
+              try { useSrsStore.getState().applyServer({ cards: snap.cards, history: snap.history, dailyGoals: snap.dailyGoals }); }
               finally { applyingServer.current = false; }
             } catch { /* The queued/local schedule remains available during an outage. */ }
             for (const key of ['cards', 'daily-assignment', 'stats']) void queryClient.invalidateQueries({ queryKey: [key] });

@@ -81,7 +81,7 @@ try {
   if (await page.getByText('나중에 할게요', { exact: true }).isVisible()) await page.getByText('나중에 할게요', { exact: true }).click();
   await expect(page.getByText('신규 학습 쉬는 날', { exact: true })).toBeVisible();
   const rest = page.getByRole('button', { name: /10월 24일 주말 신규 학습 쉬는 날, 복습 가능/ });
-  await expect(rest).toContainText('쉼');
+  await expect(rest.getByTestId('learning-completed-day')).toHaveCount(0);
   for (const width of [390, 320]) {
     await page.setViewportSize({ width, height: 844 });
     await rest.scrollIntoViewIfNeeded();
@@ -95,7 +95,7 @@ try {
   await page.getByRole('button', { name: '닫기', exact: true }).last().click();
   await page.waitForTimeout(300);
   const sunday = page.getByRole('button', { name: /^10월 25일 .*복습 일정 1장/ });
-  await expect(sunday).toContainText('쉼');
+  await expect(sunday.getByTestId('learning-completed-day')).toHaveCount(0);
   await sunday.click();
   await expect(page.getByText('복습 예정 1', { exact: true })).toBeVisible();
   await expect(page.getByText(futureReview.question_txt, { exact: true })).toBeVisible();
@@ -129,7 +129,7 @@ try {
   await expect(page.getByRole('button', { name: '적용', exact: true })).toBeHidden();
   await page.waitForTimeout(350);
   const substitute = page.getByRole('button', { name: /5월 3일 대체공휴일.*신규 학습 쉬는 날/ });
-  await expect(substitute).toContainText('쉼');
+  await expect(substitute.getByTestId('learning-completed-day')).toHaveCount(0);
   await substitute.scrollIntoViewIfNeeded();
   await page.screenshot({ path: resolve(out, 'calendar-2027-05-320.png') });
   await page.getByRole('button', { name: '이번 달로 돌아가기', exact: true }).click();

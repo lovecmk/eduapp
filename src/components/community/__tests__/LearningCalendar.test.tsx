@@ -14,6 +14,7 @@ const mockCalendar = jest.fn();
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }) }));
 jest.mock('../../../hooks/useCards', () => ({ useAllCards: () => mockCards() }));
 jest.mock('../../../hooks/useLearningCalendar', () => ({ useLearningCalendar: () => mockCalendar() }));
+jest.mock('../../../hooks/useDailyAssignment', () => ({ useDailyAssignment: () => ({ assignment: { day: '2026-9-24', cards: [], targetCount: 0, doneCount: 0 } }) }));
 jest.mock('../../../hooks/useLearningDay', () => ({ useLearningDay: () => require('../../../utils/workday').learningDay() }));
 jest.mock('../../ui/AnimatedSheet', () => ({ AnimatedSheet: ({ visible, children }: { visible: boolean; children: React.ReactNode }) => visible ? children : null }));
 

@@ -2,9 +2,12 @@ import type { IProgressRepository, ProgressSnapshot } from '../../domain/reposit
 import type { Grade, SrsCardState } from '../../domain/srs';
 import { apiClient } from '../network/ApiClient';
 import { parseDate } from '../mappers/_date';
+import { learningGoal, type LearningGoals } from '../../domain/learningCompletion';
+import { calendarDate } from '../../domain/learningCalendar';
 
 /** 서버 응답(snake_case) — 계약서 참조. */
 interface ProgressDTO {
+  daily_goals?: Record<string, { target_count: number; card_ids: string[] }>;
   cards?: Record<string, {
     box?: number; ease?: number; due_at?: string | null; reps?: number;
     lapses?: number; last_grade?: Grade | null; last_reviewed_at?: string | null;
@@ -52,7 +55,13 @@ export class ProgressRepository implements IProgressRepository {
       attendance[day] = toEpoch(iso, now);
     }
 
+    const dailyGoals: LearningGoals = {};
+    for (const [key, value] of Object.entries(dto.daily_goals ?? {})) {
+      const goal = learningGoal({ targetCount: value?.target_count, cardIds: value?.card_ids });
+      if (calendarDate(key) && goal) dailyGoals[key] = goal;
+    }
     return {
+      dailyGoals,
       cards,
       history: dto.history ?? {},
       attendance,

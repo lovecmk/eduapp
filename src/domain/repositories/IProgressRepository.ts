@@ -1,4 +1,5 @@
 import type { Grade, SrsCardState } from '../srs';
+import type { LearningGoals } from '../learningCompletion';
 
 /**
  * 학습 진행 동기화 — 이 앱에서 가장 중요한 사용자 데이터.
@@ -15,6 +16,7 @@ import type { Grade, SrsCardState } from '../srs';
 
 /** 서버가 보관하는 학습 진행 스냅샷. */
 export interface ProgressSnapshot {
+  dailyGoals?: LearningGoals;
   /** 카드 id → SRS 상태 */
   cards: Record<string, SrsCardState>;
   /** 날짜 키(YYYY-M-D) → 그날 학습한 카드 id 목록 */

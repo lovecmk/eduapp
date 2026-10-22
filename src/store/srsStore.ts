@@ -4,8 +4,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { initialState, normalizeGrade, schedule, MAX_BOX, type Grade, type SrsCardState } from '../domain/srs';
 import { dateKey } from '../utils/dateKey';
 import { applyPersonalReviewPolicy } from '../data/network/personalReviewPolicy';
+import { learningGoal, type LearningGoal, type LearningGoals } from '../domain/learningCompletion';
+import { calendarDate } from '../domain/learningCalendar';
 
 interface SrsState {
+  dailyGoals: LearningGoals;
+  restDays: Record<string, string>;
+  recordGoal: (day: string, goal: LearningGoal, completedIds?: string[]) => void;
+  applyCalendar: (year: number, month: number, restDays: Record<string, string>) => void;
   cards: Record<string, SrsCardState>;
   /** 날짜별 복습한 카드 id 목록 — 캘린더 히트맵/상세용 */
   history: Record<string, string[]>;
@@ -24,7 +30,7 @@ interface SrsState {
    * 카드별로는 **더 나중에 복습한 쪽**이 이긴다 — 같은 카드를 두 기기에서
    * 풀었다면 마지막에 푼 것이 그 카드의 현재 상태다.
    */
-  applyServer: (snapshot: { cards: Record<string, SrsCardState>; history: Record<string, string[]> }) => void;
+  applyServer: (snapshot: { cards: Record<string, SrsCardState>; history: Record<string, string[]>; dailyGoals?: LearningGoals }) => void;
   reset: () => void;
 }
 
@@ -53,6 +59,20 @@ function newerSrs(a: SrsCardState, b: SrsCardState): SrsCardState {
 export const useSrsStore = create<SrsState>()(
   persist(
     (set, get) => ({
+      dailyGoals: {},
+      restDays: {},
+      recordGoal: (day, raw, completedIds = []) => {
+        const goal = learningGoal(raw);
+        if (!calendarDate(day) || !goal) return;
+        const history = [...new Set([...(get().history[day] ?? []), ...completedIds.filter(id => goal.cardIds.includes(id))])];
+        if (JSON.stringify(get().dailyGoals[day]) === JSON.stringify(goal) && history.length === (get().history[day]?.length ?? 0)) return;
+        set(s => ({ dailyGoals: { ...s.dailyGoals, [day]: goal }, history: { ...s.history, [day]: history } }));
+      },
+      applyCalendar: (year, month, restDays) => {
+        const prefix = `${year}-${month}-`;
+        const merged = { ...Object.fromEntries(Object.entries(get().restDays).filter(([key]) => !key.startsWith(prefix))), ...restDays };
+        if (JSON.stringify(merged) !== JSON.stringify(get().restDays)) set({ restDays: merged });
+      },
       cards: {},
       history: {},
       seeded: false,
@@ -87,7 +107,7 @@ export const useSrsStore = create<SrsState>()(
 
       getState: (cardId) => get().cards[cardId],
 
-      applyServer: ({ cards, history }) => {
+      applyServer: ({ cards, history, dailyGoals }) => {
         const localCards = get().cards;
         const mergedCards: Record<string, SrsCardState> = { ...localCards };
         for (const [id, raw] of Object.entries(cards)) {
@@ -104,10 +124,15 @@ export const useSrsStore = create<SrsState>()(
         for (const [day, ids] of Object.entries(history)) {
           mergedHistory[day] = Array.from(new Set([...(mergedHistory[day] ?? []), ...ids]));
         }
-        set({ cards: mergedCards, history: mergedHistory });
+        const goals = { ...get().dailyGoals };
+        for (const [key, raw] of Object.entries(dailyGoals ?? {})) {
+          const goal = learningGoal(raw);
+          if (calendarDate(key) && goal) goals[key] = goal;
+        }
+        set({ cards: mergedCards, history: mergedHistory, dailyGoals: goals });
       },
 
-      reset: () => set({ cards: {}, history: {}, seeded: false }),
+      reset: () => set({ cards: {}, history: {}, dailyGoals: {}, restDays: {}, seeded: false }),
     }),
     {
       name: 'srs-scheduler',

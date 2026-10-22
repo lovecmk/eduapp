@@ -98,7 +98,7 @@ async function openImage(alt) {
 }
 try {
   await go('/');
-  assert(await page.getByText('학습 완료 카드', { exact: true }).count(), 'Home label');
+  assert(await page.getByText('이해한 카드', { exact: true }).count(), 'Home distinguishes mastered cards from completed daily goals');
   if (await page.getByText('나중에 할게요', { exact: true }).isVisible()) await page.getByText('나중에 할게요', { exact: true }).click();
   await page.getByRole('tab').filter({ hasText: '학습' }).click();
   await front.waitFor(); await face(false);

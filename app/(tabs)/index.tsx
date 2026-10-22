@@ -8,7 +8,6 @@ import { useAuthStore } from '../../src/store/authStore';
 import { useSettingsStore } from '../../src/store/settingsStore';
 import { useMomentStore } from '../../src/store/momentStore';
 import { Card } from '../../src/components/ui/Card';
-import { ErrorState } from '../../src/components/ui/ErrorState';
 import { MomentModal } from '../../src/components/home/MomentModal';
 import { CenterModal } from '../../src/components/ui/CenterModal';
 import { useSrsStore } from '../../src/store/srsStore';
@@ -27,6 +26,7 @@ import { useStudyStats } from '../../src/hooks/useStats';
 import { useReview } from '../../src/hooks/useReview';
 import { useDailyQuota } from '../../src/hooks/useDailyQuota';
 import { useDailyAssignment } from '../../src/hooks/useDailyAssignment';
+import { useLearningCompletion } from '../../src/hooks/useLearningCompletion';
 import { contentColumn } from '../../src/theme/layout';
 
 // 오늘의 난이도를 사람이 읽는 말로. 코드를 그대로 보이면 학습 화면이
@@ -77,15 +77,17 @@ export default function HomeScreen() {
 
   const { data: allCards = [], isLoading: cardsLoading, refetch: refetchAll } = useAllCards();
 
-  const { data: stats, isLoading: statsLoading, error: statsError, refetch: refetchStats } = useStudyStats();
+  const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useStudyStats();
+  const completion = useLearningCompletion();
   const { dueTodayCount } = useReview();
   const quota = useDailyQuota();
   // 오늘 배정된 문제 — 장수는 그날 난이도가 정한다(쉬우면 5, 어려우면 3).
   const { assignment, refetch: refetchToday, isSuccess: assignmentLoaded, isError: assignmentFailed } = useDailyAssignment();
+  const todayProgress = completion.isRestDay ? '쉼' : completion.today.target > 0 ? `${completion.today.done}/${completion.today.target}` : assignmentLoaded ? '목표 없음' : '확인 중';
   // 오늘 배정 중 아직 안 푼 문제 수 — '이어서 학습' 팝업과 CTA 가 같은 수를 본다.
   const pendingToday = assignment.cards.filter((x) => !x.done).length;
 
-  const masteredCount = useMemo(() => allCards.filter((x) => x.status === 'mastered').length, [allCards]);
+  const masteredCount = completion.masteredCards;
   // 실제로 지금 배울 수 있는 '신규' 카드 수 — 하루 상한과 별개로 풀이 비었는지 확인용.
   // (상한은 남았지만 새 카드가 없으면 '학습 시작' 버튼이 빈 화면으로 이어지던 어긋남 방지.)
 
@@ -127,8 +129,8 @@ export default function HomeScreen() {
       router.push(ROUTES.factionSelect as never);
     }
   }, [factionHydrated, user, faction, router]);
-  const totalLearned = stats?.totalLearned ?? masteredCount;
-  const streakDays = stats?.streakDays ?? 0;
+  const totalLearned = masteredCount;
+  const streakDays = completion.streak;
   const cheer = useMemo(
     () => heroPlayfulCheer({ totalLearned, streakDays, todayDone: 0, dueToday: dueTodayCount }),
     [totalLearned, streakDays, dueTodayCount],
@@ -321,19 +323,19 @@ export default function HomeScreen() {
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.surfaceAlt, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 4 }}>
               <Ionicons name="hourglass-outline" size={11} color={c.textSecondary} />
-              <Text style={{ color: c.textSecondary, fontSize: 11 * fs, fontFamily: fontCute, fontWeight: '700' }}>{quota.isRestDay ? `${quota.restDayName} · 복습 가능` : `${DIFFICULTY_LABEL[assignment.difficulty]} ${quota.limit}문제 · 3분`}</Text>
+              <Text style={{ color: c.textSecondary, fontSize: 11 * fs, fontFamily: fontCute, fontWeight: '700' }}>{completion.isRestDay ? `${quota.restDayName} · 복습 가능` : `${DIFFICULTY_LABEL[assignment.difficulty]} ${completion.today.target}문제 · 3분`}</Text>
             </View>
           </View>
 
           {/* 5칸 진행 도트 — 채워진 칸 = 오늘 마친 학습. '끝이 보이는' 하루 목표를 시각화. */}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 12, paddingHorizontal: 2 }}>
-            {Array.from({ length: quota.limit }).map((_, i) => {
-              const done = i < quota.used;
+            {Array.from({ length: completion.isRestDay ? 0 : completion.today.target }).map((_, i) => {
+              const done = i < completion.today.done;
               return (
                 <View key={i} style={{ flex: 1, height: 8, borderRadius: 4, backgroundColor: done ? c.primary : c.surfaceAlt, borderWidth: done ? 0 : 1, borderColor: c.border }} />
               );
             })}
-            <Text style={{ color: quota.canLearn ? c.primary : c.success, fontSize: 12.5 * fs, fontFamily: fontMono, fontWeight: '900', marginLeft: 4, minWidth: 34, textAlign: 'right' }}>{quota.isRestDay ? '신규 학습 쉬는 날' : `${quota.used}/${quota.limit}`}</Text>
+            <Text style={{ color: completion.today.complete ? c.success : c.primary, fontSize: 12.5 * fs, fontFamily: fontMono, fontWeight: '900', marginLeft: 4, minWidth: 34, textAlign: 'right' }}>{completion.isRestDay ? '신규 학습 쉬는 날' : todayProgress}</Text>
           </View>
 
           {/* 오늘의 학습 CTA — 신규(≤남은 상한) + 복습(도래)을 한 번에 이어서 진행.
@@ -355,7 +357,7 @@ export default function HomeScreen() {
               : quota.isRestDay
                 ? { to: ROUTES.review, bg: c.primary, fg: '#fff', sub: 'rgba(255,255,255,0.85)', iconBg: 'rgba(255,255,255,0.2)', iconColor: '#fff', icon: 'refresh' as const, bw: 0, border: 'transparent', chevron: true,
                     title: '오늘은 신규 학습 쉬는 날', desc: `${quota.restDayName} · 배운 카드는 복습할 수 있어요` }
-              : quota.remaining === 0 && quota.used > 0
+              : completion.today.complete
                 ? { to: ROUTES.stats, bg: c.success + '18', fg: c.success, sub: c.textSecondary, iconBg: c.success + '22', iconColor: c.success, icon: 'checkmark-done' as const, bw: 1, border: c.success + '55', chevron: false,
                     title: '오늘 학습 완료! 🎉', desc: '내일 자정에 새 학습이 열려요' }
                 : { to: ROUTES.contents, bg: c.surfaceAlt, fg: c.textPrimary, sub: c.textSecondary, iconBg: c.surface, iconColor: c.primary, icon: 'sparkles' as const, bw: 1, border: c.border, chevron: true,
@@ -384,21 +386,18 @@ export default function HomeScreen() {
               <Ionicons name="chevron-forward" size={14} color={c.primary} />
             </Pressable>
           </View>
-          {statsError ? (
-            <ErrorState message="통계를 불러올 수 없습니다" onRetry={refetchStats} />
-          ) : (
-            <View>
+            <View testID="home-learning-summary">
               <View style={{ flexDirection: 'row', gap: 8 }}>
-                <StatPill value={quota.isRestDay ? '쉼' : `${quota.used}/${quota.limit}`} label="오늘 학습" icon="today" />
-                <StatPill value={`${stats?.totalLearned ?? masteredCount}장`} label="학습 완료 카드" icon="book" />
-                <StatPill value={`${stats?.streakDays ?? '-'}일`} label="연속 학습" icon="flame" />
+                <StatPill value={todayProgress} label="오늘 학습" icon="today" />
+                <StatPill value={`${masteredCount}장`} label="이해한 카드" icon="book" />
+                <StatPill value={`${completion.streak}일`} label="연속 학습" icon="flame" />
               </View>
-              <Text style={{ color: c.textSecondary, fontSize: 11 * fs, lineHeight: 17 * fs, fontFamily: fontBody, marginTop: 8 }}>'알고 있었어요/이해했어요'로 기록한 카드 수예요. 같은 카드는 한 번만 세며, 다시 복습이 필요해지면 줄어들 수 있어요.</Text>
+              <Text style={{ color: c.textSecondary, fontSize: 11 * fs, lineHeight: 17 * fs, fontFamily: fontBody, marginTop: 8 }}>하루 목표를 모두 채우면 학습완료예요. 연속 학습은 주말·공휴일을 건너뛰어요.</Text>
+              <Text style={{ color: c.textSecondary, fontSize: 10 * fs, lineHeight: 16 * fs, fontFamily: fontBody, marginTop: 4 }}>이해한 카드는 ‘알고 있었어요/이해했어요’로 기록한 현재 카드 수예요.</Text>
             </View>
-          )}
         </Card>
 
-        {/* 학습 히트맵 캘린더 — 출석 도장 체크인을 캘린더에 통합 */}
+        {/* 하루 목표 달성 기준 학습완료 캘린더 */}
         <LearningCalendar />
       </ScrollView>
 
