@@ -3,7 +3,8 @@ const mockGet = jest.fn();
 const mockSet = jest.fn();
 jest.mock('@react-native-async-storage/async-storage', () => ({ getItem: (...args: unknown[]) => mockGet(...args), setItem: (...args: unknown[]) => mockSet(...args) }));
 import { claimDailyWelcome, dailyWelcomeKey } from '../dailyWelcome';
-import { DAILY_QUOTES } from '../../constants/dailyQuotes';
+import { DAILY_QUOTES, dailyQuoteForDate } from '../../constants/dailyQuotes';
+import { learningDay } from '../../utils/workday';
 
 beforeEach(() => {
   mockValues.clear();
@@ -14,6 +15,14 @@ it('contains exactly the 100 supplied, unique category-labelled quotes', () => {
   expect(DAILY_QUOTES).toHaveLength(100);
   expect(new Set(DAILY_QUOTES).size).toBe(100);
   expect(DAILY_QUOTES.every(line => /^\[[^\]]+\] .+\.$/.test(line))).toBe(true);
+});
+it('rotates all 100 home quotes by Korean date and keeps the same quote within a day', () => {
+  const before = learningDay(new Date('2026-10-22T14:59:59Z')).date;
+  const after = learningDay(new Date('2026-10-22T15:00:00Z')).date;
+  expect(dailyQuoteForDate(before)).toEqual(dailyQuoteForDate('2026-10-22'));
+  expect(dailyQuoteForDate(before)).not.toEqual(dailyQuoteForDate(after));
+  const quotes = Array.from({ length: 100 }, (_, i) => dailyQuoteForDate(new Date(Date.UTC(2026, 9, 22 + i)).toISOString().slice(0, 10)).text);
+  expect(new Set(quotes).size).toBe(100);
 });
 it('persists before returning and shows only once for the same user/day', async () => {
   const random = jest.fn(() => 0);

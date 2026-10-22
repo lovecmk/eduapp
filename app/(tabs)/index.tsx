@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, ScrollView, Pressable, RefreshControl, Image, Animated, Easing, BackHandler, Platform, ToastAndroid } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,28 +12,23 @@ import { HomeSkeleton } from '../../src/components/skeletons';
 import { LivePresenceStrip } from '../../src/components/community/LivePresenceStrip';
 import { LearningCalendar } from '../../src/components/community/LearningCalendar';
 import { fontMono, fontDisplay, fontBody, fontCute } from '../../src/theme/tokens';
-import { calcEmblems, getAcquiredEmblems } from '../../src/utils/emblems';
 import { useFactionStore } from '../../src/store/factionStore';
-import { heroPlayfulCheer } from '../../src/utils/moments';
+import { dailyQuoteForDate } from '../../src/constants/dailyQuotes';
 import { ROUTES } from '../../src/constants/routes';
 import { displayName } from '../../src/domain/models/User';
 import { useAllCards } from '../../src/hooks/useCards';
 import { useStudyStats } from '../../src/hooks/useStats';
-import { useReview } from '../../src/hooks/useReview';
 import { useDailyQuota } from '../../src/hooks/useDailyQuota';
 import { useDailyAssignment } from '../../src/hooks/useDailyAssignment';
 import { useLearningCompletion } from '../../src/hooks/useLearningCompletion';
+import { useLearningDay } from '../../src/hooks/useLearningDay';
 import { contentColumn } from '../../src/theme/layout';
 
 // 오늘의 난이도를 사람이 읽는 말로. 코드를 그대로 보이면 학습 화면이
 // 개발자 화면처럼 읽힌다.
 const DIFFICULTY_LABEL: Record<string, string> = { easy: '쉬움', medium: '보통', hard: '어려움' };
 
-// 홈 히어로 고정 문구 — 앱의 미션을 한 줄로.
-// 히어로 텍스트 열은 오른쪽 실드 아이콘 때문에 폭이 좁아, 한 문장으로 두면
-// '지켜/요!' 처럼 단어 중간에서 잘린다. 의미 단위로 끊어 2줄 락업으로 고정한다.
-const HERO_TAGLINE_LINES = ['하루 3분이 모여', '국민의 안전한 내일을 지켜요!'];
-const HERO_TAGLINE = HERO_TAGLINE_LINES.join(' ');
+const HERO_TAGLINE = '하루 3분이 모여 국민의 안전한 내일을 지켜요!';
 
 let sessionOwnerId: string | null | undefined;
 
@@ -64,20 +59,15 @@ export default function HomeScreen() {
 
   const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useStudyStats();
   const completion = useLearningCompletion();
-  const { dueTodayCount } = useReview();
   const quota = useDailyQuota();
+  const day = useLearningDay();
+  const quote = dailyQuoteForDate(day.date);
+  const studyGreen = theme.mode === 'light' ? '#15803D' : '#166534';
   // 오늘 배정된 문제 — 장수는 그날 난이도가 정한다(쉬우면 5, 어려우면 3).
   const { assignment, refetch: refetchToday, isSuccess: assignmentLoaded } = useDailyAssignment();
   const todayProgress = completion.isRestDay ? '쉼' : completion.today.target > 0 ? `${completion.today.done}/${completion.today.target}` : assignmentLoaded ? '목표 없음' : '확인 중';
 
   const masteredCount = completion.masteredCards;
-  // 실제로 지금 배울 수 있는 '신규' 카드 수 — 하루 상한과 별개로 풀이 비었는지 확인용.
-  // (상한은 남았지만 새 카드가 없으면 '학습 시작' 버튼이 빈 화면으로 이어지던 어긋남 방지.)
-
-  // 앱을 켠 시각에 맞춰 인사·이모지·톤이 바뀐다(히어로 적극 활용).
-  // 시간대(아침/저녁)를 '의도적으로 문구로 띄우지 않는다'. 인사·문구는 시간 중립으로 두고,
-  // 지금이 언제쯤인지는 아래 해/달 아이콘으로만 은은하게 전한다.
-  const greeting = HERO_TAGLINE;
   // 시간대·날씨는 이제 앱 '전역 배경(WeatherBackground)'이 대신 표현한다.
   // 히어로에는 시간과 무관한 고정 안전 아이콘(방패)을 둔다.
   // 아주 미세한 효과 — 히어로 안전 아이콘이 천천히 숨쉬듯 은은하게 빛난다(느린 루프).
@@ -112,12 +102,6 @@ export default function HomeScreen() {
       router.push(ROUTES.factionSelect as never);
     }
   }, [factionHydrated, user, faction, router]);
-  const totalLearned = masteredCount;
-  const streakDays = completion.streak;
-  const cheer = useMemo(
-    () => heroPlayfulCheer({ totalLearned, streakDays, todayDone: 0, dueToday: dueTodayCount }),
-    [totalLearned, streakDays, dueTodayCount],
-  );
 
   // 실행 기록은 유지하고 시작 팝업은 전역 DailyLearningWelcome 한 곳에서 표시한다.
   useEffect(() => {
@@ -126,17 +110,6 @@ export default function HomeScreen() {
       useMomentStore.getState().recordOpen();
     }
   }, [user?.id]);
-
-  const acquired = useMemo(() => {
-    const cardMap = new Map<string, { total: number; mastered: number }>();
-    for (const card of allCards) {
-      const prev = cardMap.get(card.category) ?? { total: 0, mastered: 0 };
-      prev.total++;
-      if (card.status === 'mastered') prev.mastered++;
-      cardMap.set(card.category, prev);
-    }
-    return getAcquiredEmblems(calcEmblems(cardMap));
-  }, [allCards]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -180,53 +153,30 @@ export default function HomeScreen() {
         contentContainerStyle={{ padding: 20, ...contentColumn }}
         showsVerticalScrollIndicator={false}
       >
-        {/* 오늘의 학습 히어로 — 앱을 켠 시각에 따라 인사·이모지·톤이 달라진다 */}
-        <View style={{ borderRadius: rs(22), backgroundColor: c.primary, paddingVertical: rs(20), paddingHorizontal: rs(18), marginBottom: 14, minHeight: rs(160), justifyContent: 'center', boxShadow: `0 8px 24px ${c.primary}44` }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            {/* 프로필 · 인사 */}
-            <View style={{ flex: 1, paddingRight: 8 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                {profileImage ? (
-                  <Image source={{ uri: profileImage }} style={{ width: rs(48), height: rs(48), borderRadius: rs(24), borderWidth: 2, borderColor: 'rgba(255,255,255,0.9)' }} />
-                ) : (
-                  <View style={{ width: rs(48), height: rs(48), borderRadius: rs(24), backgroundColor: 'rgba(255,255,255,0.22)', borderWidth: 2, borderColor: 'rgba(255,255,255,0.5)', alignItems: 'center', justifyContent: 'center' }}>
-                    <Text style={{ color: '#fff', fontSize: rs(20), fontFamily: fontDisplay }}>{displayName(user).charAt(0)}</Text>
-                  </View>
-                )}
-                <View style={{ flex: 1 }}>
-                  <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: rs(12.5) * fs, fontFamily: fontBody }} numberOfLines={1}>오늘도 반가워요</Text>
-                  <Text style={{ color: '#fff', fontSize: rs(18) * fs, marginTop: 1, fontFamily: fontDisplay }} numberOfLines={1}>{displayName(user)} 님</Text>
-                </View>
+        {/* 인사와 오늘의 명언은 간결하게, 학습 시작에 더 많은 공간을 둔다. */}
+        <View testID="home-hero" style={{ borderRadius: rs(22), backgroundColor: c.primary, paddingVertical: 12, paddingHorizontal: 16, marginBottom: 14, boxShadow: `0 8px 24px ${c.primary}44` }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            {profileImage ? (
+              <Image source={{ uri: profileImage }} style={{ width: rs(36), height: rs(36), borderRadius: rs(18), borderWidth: 2, borderColor: 'rgba(255,255,255,0.9)' }} />
+            ) : (
+              <View style={{ width: rs(36), height: rs(36), borderRadius: rs(18), backgroundColor: 'rgba(255,255,255,0.22)', borderWidth: 2, borderColor: 'rgba(255,255,255,0.5)', alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ color: '#fff', fontSize: rs(16), fontFamily: fontDisplay }}>{displayName(user).charAt(0)}</Text>
               </View>
-              <View style={{ marginTop: 14 }} accessible accessibilityLabel={greeting}>
-                {HERO_TAGLINE_LINES.map((line) => (
-                  <Text key={line} numberOfLines={1} style={{ color: 'rgba(255,255,255,0.92)', fontSize: rs(13) * fs, lineHeight: rs(19) * fs, fontFamily: fontBody }}>{line}</Text>
-                ))}
-              </View>
-              {/* 플레이풀 응원 스티커 — 격언(명언) 톤 대신, 이모지 '스티커 배지 + 짤막한 한 줄'로
-                  가볍고 재밌게. 태그라인과 컨셉이 겹치지 않도록 게임형 진행 응원을 돌린다. */}
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 10, backgroundColor: 'rgba(255,255,255,0.15)', alignSelf: 'flex-start', maxWidth: '100%', borderRadius: 12, paddingLeft: 5, paddingRight: 11, paddingVertical: 5 }}>
-                <View style={{ width: rs(24), height: rs(24), borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.28)', alignItems: 'center', justifyContent: 'center' }}>
-                  <Text style={{ fontSize: rs(13) }}>{cheer.emoji}</Text>
-                </View>
-                <Text style={{ color: '#fff', fontSize: rs(11.5) * fs, lineHeight: rs(16) * fs, fontFamily: fontBody, flexShrink: 1 }} numberOfLines={2}>{cheer.text}</Text>
-              </View>
-              {acquired.length > 0 && (
-                <View style={{ flexDirection: 'row', gap: 3, marginTop: 10 }}>
-                  {acquired.slice(0, 3).map((em) => <Text key={em.category} style={{ fontSize: rs(16) }}>{em.emoji}</Text>)}
-                </View>
-              )}
+            )}
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: rs(11) * fs, fontFamily: fontBody }} numberOfLines={1}>오늘도 반가워요</Text>
+              <Text style={{ color: '#fff', fontSize: rs(16) * fs, marginTop: 1, fontFamily: fontDisplay }} numberOfLines={1}>{displayName(user)} 님</Text>
             </View>
-
-            {/* 히어로 상징 — 시간과 무관한 고정 '안전(방패)' 아이콘.
-                시간대·날씨는 화면 배경(AmbientSky)이 대신 전한다.
-                아주 미세하게 숨쉬듯 은은한 글로우 효과만 준다. */}
-            <View style={{ width: rs(84), height: rs(84), marginLeft: 8, alignSelf: 'flex-start', marginTop: rs(24), alignItems: 'center', justifyContent: 'center' }}>
-              <Animated.View style={{ position: 'absolute', width: rs(84), height: rs(84), borderRadius: rs(42), backgroundColor: 'rgba(255,255,255,0.9)', opacity: glowAnim.interpolate({ inputRange: [0, 1], outputRange: [0.12, 0.22] }), transform: [{ scale: glowScale }] }} />
-              <Animated.View style={{ width: rs(70), height: rs(70), borderRadius: rs(35), backgroundColor: 'rgba(255,255,255,0.16)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.30)', alignItems: 'center', justifyContent: 'center', opacity: glowOpacity, transform: [{ scale: glowScale }] }}>
-                <Ionicons name="shield-checkmark" size={rs(38)} color="#fff" />
+            <View style={{ width: rs(44), height: rs(44), alignItems: 'center', justifyContent: 'center' }}>
+              <Animated.View style={{ position: 'absolute', width: rs(44), height: rs(44), borderRadius: rs(22), backgroundColor: '#fff', opacity: glowAnim.interpolate({ inputRange: [0, 1], outputRange: [0.12, 0.22] }), transform: [{ scale: glowScale }] }} />
+              <Animated.View style={{ width: rs(36), height: rs(36), borderRadius: rs(18), backgroundColor: 'rgba(255,255,255,0.16)', alignItems: 'center', justifyContent: 'center', opacity: glowOpacity, transform: [{ scale: glowScale }] }}>
+                <Ionicons name="shield-checkmark" size={rs(23)} color="#fff" />
               </Animated.View>
             </View>
+          </View>
+          <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: rs(11.5) * fs, lineHeight: rs(16) * fs, fontFamily: fontBody, marginTop: 6 }}>{HERO_TAGLINE}</Text>
+          <View style={{ marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.2)' }}>
+            <Text testID="home-daily-quote" accessibilityLabel={`오늘의 명언. ${quote.text}`} style={{ color: '#fff', fontSize: rs(13) * fs, lineHeight: rs(19) * fs, fontFamily: fontDisplay }}>{quote.text}</Text>
           </View>
         </View>
 
@@ -234,8 +184,8 @@ export default function HomeScreen() {
 
         {/* 오늘의 학습 리추얼 — '하루 딱 5장, 3분'을 눈으로 체감하게: 5칸 진행 + 명확한 학습/복습 구분.
             학습은 하루 상한이 있는 '오늘의 목표'(끝이 있는 리추얼), 복습은 언제든 '자유'임을 대비시켜 보여준다. */}
-        <Card>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+        <Card style={{ paddingVertical: 22 }}>
+          <View testID="home-study-heading" style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Ionicons name="school" size={16} color={c.primary} />
               <Text style={{ color: c.textPrimary, fontSize: 14.5 * fs, fontFamily: fontDisplay }}>오늘의 학습</Text>
@@ -270,10 +220,10 @@ export default function HomeScreen() {
             const sessionCount = pending.length;
             const countLine = `신규 ${newToStudy} · 복습 ${reviewToStudy} · 3분이면 충분`;
             const cta = sessionCount > 0
-              ? { to: ROUTES.cards, bg: c.primary, fg: '#fff', sub: 'rgba(255,255,255,0.85)', iconBg: 'rgba(255,255,255,0.2)', iconColor: '#fff', icon: 'play' as const, bw: 0, border: 'transparent', chevron: true,
-                  title: quota.isRestDay ? '오늘 복습하기' : quota.used > 0 ? '이어서 학습하기' : '오늘 학습 시작', desc: countLine }
+              ? { to: ROUTES.cards, bg: studyGreen, fg: '#fff', sub: 'rgba(255,255,255,0.85)', iconBg: 'rgba(255,255,255,0.2)', iconColor: '#fff', icon: 'play' as const, bw: 0, border: 'transparent', chevron: true,
+                  title: quota.isRestDay ? '오늘 복습하기' : quota.used > 0 ? '이어서 학습하기' : '학습하러 가기', desc: countLine }
               : quota.isRestDay
-                ? { to: ROUTES.review, bg: c.primary, fg: '#fff', sub: 'rgba(255,255,255,0.85)', iconBg: 'rgba(255,255,255,0.2)', iconColor: '#fff', icon: 'refresh' as const, bw: 0, border: 'transparent', chevron: true,
+                ? { to: ROUTES.review, bg: studyGreen, fg: '#fff', sub: 'rgba(255,255,255,0.85)', iconBg: 'rgba(255,255,255,0.2)', iconColor: '#fff', icon: 'refresh' as const, bw: 0, border: 'transparent', chevron: true,
                     title: '오늘은 신규 학습 쉬는 날', desc: `${quota.restDayName} · 배운 카드는 복습할 수 있어요` }
               : completion.today.complete
                 ? { to: ROUTES.stats, bg: c.success + '18', fg: c.success, sub: c.textSecondary, iconBg: c.success + '22', iconColor: c.success, icon: 'checkmark-done' as const, bw: 1, border: c.success + '55', chevron: false,
@@ -281,13 +231,13 @@ export default function HomeScreen() {
                 : { to: ROUTES.contents, bg: c.surfaceAlt, fg: c.textPrimary, sub: c.textSecondary, iconBg: c.surface, iconColor: c.primary, icon: 'sparkles' as const, bw: 1, border: c.border, chevron: true,
                     title: '새 카드를 다 배웠어요', desc: '지금은 학습할 카드가 없어요 · 곧 새 카드가 열려요' };
             return (
-              <Pressable accessibilityRole="button" onPress={() => router.push(cta.to as never)} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: cta.bg, borderRadius: 14, paddingVertical: 22, paddingHorizontal: 16, borderWidth: cta.bw, borderColor: cta.border }}>
-                <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: cta.iconBg, alignItems: 'center', justifyContent: 'center' }}>
-                  <Ionicons name={cta.icon} size={20} color={cta.iconColor} />
+              <Pressable testID="home-study-cta" accessibilityRole="button" onPress={() => router.push(cta.to as never)} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: cta.bg, borderRadius: 16, minHeight: 172, paddingVertical: 32, paddingHorizontal: 16, borderWidth: cta.bw, borderColor: cta.border }}>
+                <View style={{ width: 46, height: 46, borderRadius: 14, backgroundColor: cta.iconBg, alignItems: 'center', justifyContent: 'center' }}>
+                  <Ionicons name={cta.icon} size={24} color={cta.iconColor} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: cta.fg, fontSize: 15 * fs, fontFamily: fontDisplay }}>{cta.title}</Text>
-                  <Text style={{ color: cta.sub, fontSize: 11.5 * fs, marginTop: 2, fontFamily: fontCute }}>{cta.desc}</Text>
+                  <Text style={{ color: cta.fg, fontSize: 17 * fs, fontFamily: fontDisplay }}>{cta.title}</Text>
+                  <Text style={{ color: cta.sub, fontSize: 12 * fs, lineHeight: 18 * fs, marginTop: 6, fontFamily: fontCute }}>{cta.desc}</Text>
                 </View>
                 {cta.chevron && <Ionicons name="chevron-forward" size={20} color={cta.fg} />}
               </Pressable>

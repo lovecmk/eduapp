@@ -107,3 +107,9 @@ export function dailyQuote(index: number) {
   const split = line.indexOf('] ');
   return { category: line.slice(1, split), text: line.slice(split + 2) };
 }
+
+/** The supplied Korean calendar date keeps the home quote stable across reloads and timezones. */
+export function dailyQuoteForDate(date: string) {
+  const day = Math.floor(Date.parse(`${date}T00:00:00Z`) / 86_400_000);
+  return dailyQuote(Number.isFinite(day) ? ((day % DAILY_QUOTES.length) + DAILY_QUOTES.length) % DAILY_QUOTES.length : 0);
+}

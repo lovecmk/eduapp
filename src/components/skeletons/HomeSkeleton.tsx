@@ -17,13 +17,13 @@ export function HomeSkeleton() {
             backgroundColor: c.surfaceAlt,
             borderWidth: 1,
             borderColor: c.border,
-            padding: 18,
-            minHeight: 160,
+            padding: 12,
+            minHeight: 140,
             marginBottom: 14,
           }}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <SkeletonCircle size={48} />
+            <SkeletonCircle size={36} />
             <View style={{ flex: 1 }}>
               <Skeleton width="45%" height={11} />
               <Skeleton width="65%" height={16} style={{ marginTop: 8 }} />
@@ -38,10 +38,8 @@ export function HomeSkeleton() {
 
         {/* 학습 시작 · 복습 */}
         <SkeletonCard>
-          <View style={{ flexDirection: 'row', gap: 10 }}>
-            <Skeleton width="48%" height={72} radius={14} />
-            <Skeleton width="48%" height={72} radius={14} />
-          </View>
+          <Skeleton width="35%" height={16} style={{ marginBottom: 18 }} />
+          <Skeleton width="100%" height={172} radius={16} />
         </SkeletonCard>
 
         {/* 학습 현황 */}
