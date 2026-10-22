@@ -8,7 +8,9 @@ import { SegmentedControl } from '../src/components/ui/SegmentedControl';
 import { Button } from '../src/components/ui/Button';
 import { Badge } from '../src/components/ui/Badge';
 import { ALL_CATEGORIES } from '../src/constants/categories';
-import { validateCardDraft, type CardDraft } from '../src/domain/models/CardDraft';
+import { draftType, validateCardDraft, type CardDraft } from '../src/domain/models/CardDraft';
+import { useAuthorCardFormats } from '../src/hooks/useAuthorCardFormats';
+import { choiceCount } from '../src/constants/choiceQuestion';
 import type { CardCategory, CardType, CardDifficulty } from '../src/domain/models/LearningCard';
 import { useCreateCards } from '../src/hooks/useCards';
 import { errorMessage } from '../src/data/network/errors';
@@ -17,8 +19,6 @@ import { useGoBack } from '../src/hooks/useGoBack';
 import { useAuthStore } from '../src/store/authStore';
 import { fontCute, fontBody, fontMono, fontDisplay } from '../src/theme/tokens';
 
-const TYPES: CardType[] = ['explanation', 'ox', 'choice'];
-const TYPE_LABEL = ['설명형', 'OX', '객관식'];
 const DIFFS: CardDifficulty[] = ['easy', 'medium', 'hard'];
 const DIFF_LABEL = ['쉬움', '보통', '어려움'];
 
@@ -84,13 +84,14 @@ function FormAuthor({ createCards, onDone }: { createCards: ReturnType<typeof us
 
   const [catIdx, setCatIdx] = useState(0);
   const [typeIdx, setTypeIdx] = useState(0);
+  const formats = useAuthorCardFormats();
   const [diffIdx, setDiffIdx] = useState(1);
   const [subCategory, setSubCategory] = useState('');
   const [topic, setTopic] = useState('');
   const [title, setTitle] = useState('');
   const [situation, setSituation] = useState('');
   const [question, setQuestion] = useState('');
-  const [choicesText, setChoicesText] = useState('O, X');
+  const [choicesText, setChoicesText] = useState('');
   const [answerIndex, setAnswerIndex] = useState(0);
   const [principle, setPrinciple] = useState('');
   const [conclusion, setConclusion] = useState('');
@@ -106,15 +107,16 @@ function FormAuthor({ createCards, onDone }: { createCards: ReturnType<typeof us
   const [sendError, setSendError] = useState<string | null>(null);
   const { run } = useSafeTimeout();
 
-  const type = TYPES[typeIdx];
+  const format = formats[typeIdx] ?? formats[0];
+  const type = draftType({ format });
   const choices = useMemo(
-    () => (type === 'ox' ? ['O', 'X'] : choicesText.split(',').map((s) => s.trim()).filter(Boolean)),
+    () => (type === 'ox' ? ['O', 'X'] : choicesText.replace(/\r\n/g, '\n').split('\n').map((s) => s.trim())),
     [type, choicesText],
   );
 
   const draft: Partial<CardDraft> = {
     category: ALL_CATEGORIES[catIdx] as CardCategory,
-    subCategory, topic, title, difficulty: DIFFS[diffIdx], type,
+    subCategory, topic, title, difficulty: DIFFS[diffIdx], type, format,
     situation, question,
     choices: type === 'explanation' ? undefined : choices,
     answerIndex: type === 'explanation' ? undefined : answerIndex,
@@ -154,7 +156,13 @@ function FormAuthor({ createCards, onDone }: { createCards: ReturnType<typeof us
       <TextField label="카드명" value={title} onChangeText={setTitle} placeholder="예: 누전차단기의 목적" status={errFor('title') ? 'error' : 'default'} helperText={errFor('title') || undefined} />
 
       <Text style={{ color: c.textPrimary, fontSize: 13 * fs, fontFamily: fontDisplay, marginTop: 6, marginBottom: 8 }}>형식</Text>
-      <SegmentedControl options={TYPE_LABEL} selectedIndex={typeIdx} onChange={(i) => { setTypeIdx(i); setAnswerIndex(0); }} />
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+        {formats.map((option, i) => <Pressable key={option} accessibilityRole="button" accessibilityState={{ selected: format === option }}
+          onPress={() => { setTypeIdx(i); setAnswerIndex(0); setChoicesText(''); }}
+          style={{ minHeight: 44, justifyContent: 'center', paddingHorizontal: 12, borderRadius: 12, backgroundColor: format === option ? c.primary : c.surfaceAlt }}>
+          <Text style={{ color: format === option ? c.textOnPrimary : c.textPrimary, fontSize: 13 * fs, fontFamily: fontBody }}>{option}</Text>
+        </Pressable>)}
+      </View>
 
       <View style={{ marginTop: 14 }}>
         <TextField label="상황 설명(선택)" value={situation} onChangeText={setSituation} placeholder="현장 상황 묘사" multiline />
@@ -164,7 +172,7 @@ function FormAuthor({ createCards, onDone }: { createCards: ReturnType<typeof us
       {type !== 'explanation' && (
         <>
           {type === 'choice' && (
-            <TextField label="보기(쉼표로 구분)" value={choicesText} onChangeText={setChoicesText} placeholder="보기1, 보기2, 보기3" status={errFor('choices') ? 'error' : 'default'} helperText={errFor('choices') || undefined} />
+            <TextField label={`보기(${choiceCount(format)}개, 한 줄에 하나씩)`} value={choicesText} onChangeText={setChoicesText} placeholder={format === '현장판단형' ? '보기1\n보기2\n보기3' : '보기1\n보기2'} multiline status={errFor('choices') ? 'error' : 'default'} helperText={errFor('choices') || (format === '빈칸형' ? '문제에 [빈칸]을 한 개 넣어 주세요' : undefined)} />
           )}
           <Text style={{ color: c.textPrimary, fontSize: 13 * fs, fontFamily: fontDisplay, marginTop: 6, marginBottom: 8 }}>정답</Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
@@ -211,7 +219,7 @@ function FormAuthor({ createCards, onDone }: { createCards: ReturnType<typeof us
         {done ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: c.success + '18', borderRadius: 16, height: 52 }}>
             <Ionicons name="checkmark-circle" size={20} color={c.success} />
-            <Text style={{ color: c.success, fontSize: 15 * fs, fontFamily: fontCute, fontWeight: '800' }}>등록 완료! 학습 목록에 추가됐어요</Text>
+            <Text style={{ color: c.success, fontSize: 15 * fs, fontFamily: fontCute, fontWeight: '800' }}>등록 완료! 검수 후 학습에 반영돼요</Text>
           </View>
         ) : (
           <Button label="문제 등록하기" variant="filled" loading={createCards.isPending} onPress={submit} />
@@ -302,7 +310,7 @@ function PreviewCard({ draft, choices, type }: { draft: Partial<CardDraft>; choi
         {type !== 'explanation' && (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: c.warning + '18', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 }}>
             <Ionicons name="help-circle" size={12} color={c.warning} />
-            <Text style={{ color: c.warning, fontSize: 10.5, fontFamily: fontCute }}>{type === 'ox' ? 'OX 퀴즈' : '객관식'}</Text>
+            <Text style={{ color: c.warning, fontSize: 10.5, fontFamily: fontCute }}>{draft.format}</Text>
           </View>
         )}
       </View>

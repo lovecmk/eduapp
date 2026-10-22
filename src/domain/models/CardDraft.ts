@@ -2,6 +2,16 @@
 // 서버 이관 후에도 이 형태(JSON)를 그대로 POST /inner/api/v1/cards 로 보내면 되도록 단일화한다.
 import { ALL_CATEGORIES } from '../../constants/categories';
 import type { CardCategory, CardDifficulty, CardType, SeedCard } from './LearningCard';
+import { BASE_CARD_FORMATS, SINGLE_CHOICE_FORMATS, choiceQuestionError, isSingleChoiceFormat } from '../../constants/choiceQuestion';
+
+export const AUTHOR_CARD_FORMATS = [...BASE_CARD_FORMATS, ...SINGLE_CHOICE_FORMATS];
+export function draftFormat(d: Partial<CardDraft>): string {
+  return d.format?.trim() || (d.type === 'ox' ? 'OX형' : d.type === 'choice' ? '' : d.situation?.trim() ? '상황형' : '기초용어형');
+}
+export function draftType(d: Partial<CardDraft>): CardType {
+  const format = draftFormat(d);
+  return format === 'OX형' ? 'ox' : format === '빈칸형' || isSingleChoiceFormat(format) ? 'choice' : d.type ?? 'explanation';
+}
 
 export interface CardDraft {
   // ── 분류 메타데이터 ──
@@ -79,7 +89,14 @@ export function validateCardDraft(input: unknown): DraftError[] {
   if (d.difficulty && !DIFFICULTIES.includes(d.difficulty)) errs.push({ field: 'difficulty', message: '난이도는 easy/medium/hard 여야 합니다' });
   if (d.type && !TYPES.includes(d.type)) errs.push({ field: 'type', message: '형식은 explanation/ox/choice 여야 합니다' });
 
-  const type = d.type ?? 'explanation';
+  // Validate only after field types are checked; malformed JSON must not throw.
+  if (errs.some(e => textFields.includes(e.field as keyof CardDraft))) return errs;
+  const format = draftFormat(d);
+  const type = draftType(d);
+  if (!AUTHOR_CARD_FORMATS.includes(format as typeof AUTHOR_CARD_FORMATS[number])) errs.push({ field: 'format', message: '형식은 기초용어형·상황형·OX형·빈칸형·현장판단형·선택비교형 중 선택해 주세요' });
+  const expectedType = format === 'OX형' ? 'ox' : format === '빈칸형' || isSingleChoiceFormat(format) ? 'choice' : 'explanation';
+  if (d.type && d.type !== expectedType) errs.push({ field: 'type', message: '형식 이름과 형식 코드가 일치해야 합니다' });
+  req(d.principle, 'principle', '상세설명');
   if (type === 'ox' || type === 'choice') {
     const rawChoices = type === 'ox' ? d.choices ?? ['O', 'X'] : d.choices;
     const choices = Array.isArray(rawChoices) ? rawChoices : [];
@@ -92,10 +109,16 @@ export function validateCardDraft(input: unknown): DraftError[] {
     if (typeof d.answerIndex !== 'number' || !Number.isInteger(d.answerIndex) || d.answerIndex < 0 || d.answerIndex >= choices.length) {
       errs.push({ field: 'answerIndex', message: '정답 보기 인덱스가 보기 범위를 벗어났습니다' });
     }
-  } else {
-    // 설명형은 해설(원리·결론) 중 하나라도 있어야 카드가 성립.
-    if (!((typeof d.principle === 'string' && d.principle.trim()) || (typeof d.conclusion === 'string' && d.conclusion.trim()))) {
-      errs.push({ field: 'principle', message: '설명형은 핵심 원리 또는 결론 중 하나는 필요합니다' });
+    if (choices.every(v => typeof v === 'string')) {
+      const selected = choices[d.answerIndex ?? -1]?.trim() ?? '';
+      if (d.answer !== undefined && d.answer.trim() !== selected) errs.push({ field: 'answer', message: '정답 원문과 선택한 보기가 일치해야 합니다' });
+      if (type === 'ox' && (choices[0] !== 'O' || choices[1] !== 'X')) errs.push({ field: 'choices', message: 'OX 보기는 O, X 순서여야 합니다' });
+      if (format === '빈칸형') {
+        if ((typeof d.question === 'string' ? d.question.match(/\[빈칸\]|\[\s*\]|_{2,}|[（(]\s*[)）]/g) ?? [] : []).length !== 1) errs.push({ field: 'question', message: '문제에 [빈칸]을 한 개 넣어 주세요' });
+        if (choices.length !== 2 || new Set(choices.map(v => v.trim())).size !== 2) errs.push({ field: 'choices', message: '빈칸형 보기는 서로 다른 두 개여야 합니다' });
+      }
+      const reason = choiceQuestionError(format, choices, selected, d.situation ?? '');
+      if (reason) errs.push({ field: 'choices', message: reason });
     }
   }
 
@@ -105,7 +128,7 @@ export function validateCardDraft(input: unknown): DraftError[] {
 let seq = 0;
 /** 초안 → 런타임 시드카드. id 미지정 시 고유 id 를 생성한다. */
 export function draftToSeedCard(d: CardDraft, id?: string): SeedCard {
-  const type = d.type ?? 'explanation';
+  const type = draftType(d);
   const choices = type === 'ox' ? d.choices ?? ['O', 'X'] : d.choices;
   return {
     id: id ?? `usr-${Date.now().toString(36)}-${(seq++).toString(36)}`,
@@ -117,6 +140,11 @@ export function draftToSeedCard(d: CardDraft, id?: string): SeedCard {
     difficulty: d.difficulty ?? 'medium',
     studySeconds: d.studySeconds ?? 40,
     type,
+    format: draftFormat(d),
+    answer: d.answer ?? (type !== 'explanation' ? choices?.[d.answerIndex ?? -1] : d.conclusion) ?? '',
+    improvement: d.improvement,
+    note: d.note,
+    industry: d.industry,
     situation: d.situation ?? '',
     question: d.question,
     imageUrl: d.imageUrl,
@@ -134,11 +162,12 @@ export function draftToSeedCard(d: CardDraft, id?: string): SeedCard {
 
 /** 서버 전송용 DTO(snake_case) 매핑 — 실서버 POST /inner/api/v1/cards body. */
 export function draftToDTO(d: CardDraft) {
-  const type = d.type ?? 'explanation';
-  const format = d.format ?? (type === 'ox' ? 'OX형' : type === 'choice' ? '객관식' : d.situation?.trim() ? '상황형' : '기초용어형');
+  const type = draftType(d);
+  const format = draftFormat(d);
+  const choices = type === 'ox' ? ['O', 'X'] : d.choices;
   return {
     format_nm: format,
-    answer_txt: d.answer ?? (type === 'ox' ? (d.answerIndex === 1 ? 'X' : 'O') : d.conclusion ?? ''),
+    answer_txt: d.answer ?? (type !== 'explanation' ? choices?.[d.answerIndex ?? -1] ?? '' : d.conclusion ?? ''),
     improvement_txt: d.improvement ?? '',
     note_txt: d.note ?? '',
     industry_nm: d.industry ?? '',
@@ -153,7 +182,7 @@ export function draftToDTO(d: CardDraft) {
     situation_txt: d.situation ?? '',
     question_txt: d.question,
     image_url: d.imageUrl,
-    choices: type === 'ox' ? d.choices ?? ['O', 'X'] : d.choices,
+    choices,
     answer_index: d.answerIndex,
     principle_txt: d.principle ?? '',
     process_txt: d.process,
