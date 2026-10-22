@@ -161,7 +161,7 @@ try {
   await expect(page.getByTestId('learning-card-front')).toContainText(card.question_txt);
   checks.push({ action: 'review-only-collections-and-categories-six-collection-links-category-link-error-state' });
   mode = 'one'; await go('/content/qa-card');
-  assert((await page.locator('body').innerText()).includes('조건을 확인했습니까?'), 'Live card missing');
+  await expect(page.getByText('조건을 확인했습니까?', { exact: false })).toBeVisible({ timeout: 15000 });
   const unexpectedWrites = requests.filter(r => r.method !== 'GET' && !['/collection/sync', '/progress/attendance', '/notifications/device', '/auth/logout', '/settings', '/me/faction'].includes(r.path));
   assert.equal(unexpectedWrites.length, 0, JSON.stringify(unexpectedWrites));
   // A new learner confirms their experience before seeing faction choices.
