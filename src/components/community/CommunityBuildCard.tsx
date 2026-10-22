@@ -75,7 +75,7 @@ export function CommunityBuildCard() {
   const [showHistory, setShowHistory] = useState(false);
   if (!data) return (
     <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.border }]}>
-      <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontFamily: fontDisplay }}>함께 짓는 안전 빌딩</Text>
+      <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontFamily: fontDisplay }}>함께 짓는 안전한 "특수건물"</Text>
       <Text style={{ color: c.textSecondary, fontSize: 12 * fs, fontFamily: fontBody, marginTop: 8 }}>
         {isLoading ? '진영 현황을 불러오는 중이에요' : isError ? '진영 현황을 불러오지 못했어요. 연결 상태를 확인해주세요.' : '아직 진영 현황이 없어요'}
       </Text>
@@ -111,7 +111,7 @@ export function CommunityBuildCard() {
     <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.border }]}>
       <View style={styles.header}>
         <Ionicons name="business" size={16} color={buildColor} />
-        <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontFamily: fontDisplay }}>함께 짓는 안전 빌딩</Text>
+        <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontFamily: fontDisplay, flex: 1 }}>함께 짓는 안전한 "특수건물"</Text>
         <View style={{ backgroundColor: buildColor + '18', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2, marginLeft: 4 }}>
           <Text style={{ color: buildColor, fontSize: 10.5 * fs, fontFamily: fontDisplay }}>{current.label}</Text>
         </View>
@@ -214,7 +214,7 @@ export function CommunityBuildCard() {
           );
         })}
         <Text style={{ color: c.textSecondary, fontSize: 10.5 * fs, fontFamily: fontBody, marginTop: 8, textAlign: 'center' }}>
-          모든 진영의 안전 빌딩 현황 · 한 층 = {floorSize.toLocaleString()}문제
+          모든 진영의 특수건물 현황 · 한 층 = {floorSize.toLocaleString()}문제
         </Text>
       </View>
 

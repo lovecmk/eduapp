@@ -158,7 +158,7 @@ export default function FactionSelectScreen() {
           </Pressable>
           <Text style={{ color: c.textPrimary, fontSize: 22 * fs, marginTop: 10, fontFamily: fontDisplay }}>진영을 선택하세요</Text>
           <Text style={{ color: c.textSecondary, fontSize: 13 * fs, marginTop: 8, lineHeight: 20 * fs, textAlign: 'center', fontFamily: fontBody }}>
-            세 진영이 커뮤니티에서 '안전 빌딩'을 함께 짓고 대항해요.{'\n'}한 번 고른 진영으로 함께 층을 쌓아 올려요.
+            세 진영이 커뮤니티에서 '특수건물'을 함께 짓고 대항해요.{'\n'}한 번 고른 진영으로 함께 층을 쌓아 올려요.
           </Text>
         </View>
 
