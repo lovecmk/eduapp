@@ -1,4 +1,5 @@
 import { act, renderHook, waitFor } from '@testing-library/react-native';
+import { AppState, type AppStateStatus } from 'react-native';
 import { useCollectionSync } from '../useCollectionSync';
 import { useSettingsSync } from '../useSettingsSync';
 import { useEngagementSync } from '../useEngagementSync';
@@ -92,6 +93,114 @@ it('keeps an error distinct from empty data and retries all requested resources'
   act(() => { useAccountRestoreStore.getState().retryFailed(); });
   await waitFor(() => expect(useLikeStore.getState().ids).toEqual(['restored']));
   expect(useAccountRestoreStore.getState().entries.engagement?.status).toBe('ready');
+  expect(mockLike).not.toHaveBeenCalled();
+  hook.unmount();
+});
+
+it('preserves removals and additions made while the first engagement lookup is pending', async () => {
+  useLikeStore.setState({ ids: ['remove-like', 'legacy-like'] });
+  useBookmarkStore.setState({ ids: ['remove-bookmark'] });
+  let finish!: (value: unknown) => void;
+  mockEngagementPull.mockReturnValue(new Promise(done => { finish = done; }));
+  const hook = renderHook(() => useEngagementSync());
+  await waitFor(() => expect(mockEngagementPull).toHaveBeenCalledTimes(1));
+  act(() => {
+    useLikeStore.getState().toggle('remove-like');
+    useLikeStore.getState().toggle('new-like');
+    useBookmarkStore.getState().toggle('remove-bookmark');
+    useBookmarkStore.getState().toggle('new-bookmark');
+  });
+  await act(async () => { finish({ likedIds: ['remove-like', 'remote-like'], bookmarkedIds: ['remove-bookmark'] }); });
+  expect(new Set(useLikeStore.getState().ids)).toEqual(new Set(['legacy-like', 'new-like', 'remote-like']));
+  expect(useBookmarkStore.getState().ids).toEqual(['new-bookmark']);
+  expect(mockLike).toHaveBeenCalledWith('remove-like', false);
+  expect(mockLike).toHaveBeenCalledWith('new-like', true);
+  expect(mockLike).toHaveBeenCalledWith('legacy-like', true);
+  expect(mockBookmark).toHaveBeenCalledWith('remove-bookmark', false);
+  expect(mockBookmark).toHaveBeenCalledWith('new-bookmark', true);
+  hook.unmount();
+});
+
+it('applies removals from another device on foreground refresh without sending new reactions', async () => {
+  let foreground!: (state: AppStateStatus) => void;
+  jest.spyOn(AppState, 'addEventListener').mockImplementation((_type, listener) => {
+    foreground = listener;
+    return { remove: jest.fn() };
+  });
+  mockEngagementPull.mockResolvedValue({ likedIds: ['old-like'], bookmarkedIds: ['old-bookmark'] });
+  const hook = renderHook(() => useEngagementSync());
+  await waitFor(() => expect(useAccountRestoreStore.getState().entries.engagement?.status).toBe('ready'));
+  mockEngagementPull.mockResolvedValue({ likedIds: [], bookmarkedIds: [] });
+  await act(async () => { foreground('active'); });
+  expect(useLikeStore.getState().ids).toEqual([]);
+  expect(useBookmarkStore.getState().ids).toEqual([]);
+  expect(mockLike).not.toHaveBeenCalled();
+  expect(mockBookmark).not.toHaveBeenCalled();
+  hook.unmount();
+});
+
+it('keeps local removals when a foreground response was captured before those changes', async () => {
+  let foreground!: (state: AppStateStatus) => void;
+  jest.spyOn(AppState, 'addEventListener').mockImplementation((_type, listener) => {
+    foreground = listener;
+    return { remove: jest.fn() };
+  });
+  mockEngagementPull.mockResolvedValue({ likedIds: ['old-like'], bookmarkedIds: ['old-bookmark'] });
+  const hook = renderHook(() => useEngagementSync());
+  await waitFor(() => expect(useAccountRestoreStore.getState().entries.engagement?.status).toBe('ready'));
+  let finish!: (value: unknown) => void;
+  mockEngagementPull.mockReturnValue(new Promise(done => { finish = done; }));
+  await act(async () => { foreground('active'); });
+  act(() => {
+    useLikeStore.getState().toggle('old-like');
+    useBookmarkStore.getState().toggle('old-bookmark');
+  });
+  await act(async () => { finish({ likedIds: ['old-like'], bookmarkedIds: ['old-bookmark'] }); });
+  expect(useLikeStore.getState().ids).toEqual([]);
+  expect(useBookmarkStore.getState().ids).toEqual([]);
+  expect(mockLike).toHaveBeenCalledWith('old-like', false);
+  expect(mockBookmark).toHaveBeenCalledWith('old-bookmark', false);
+  hook.unmount();
+});
+
+it('preserves the final choice after toggling off and on during a delayed refresh', async () => {
+  let foreground!: (state: AppStateStatus) => void;
+  jest.spyOn(AppState, 'addEventListener').mockImplementation((_type, listener) => {
+    foreground = listener;
+    return { remove: jest.fn() };
+  });
+  mockEngagementPull.mockResolvedValue({ likedIds: ['kept'], bookmarkedIds: [] });
+  const hook = renderHook(() => useEngagementSync());
+  await waitFor(() => expect(useAccountRestoreStore.getState().entries.engagement?.status).toBe('ready'));
+  let finish!: (value: unknown) => void;
+  mockEngagementPull.mockReturnValue(new Promise(done => { finish = done; }));
+  await act(async () => { foreground('active'); });
+  act(() => {
+    useLikeStore.getState().toggle('kept');
+    useLikeStore.getState().toggle('kept');
+  });
+  await act(async () => { finish({ likedIds: [], bookmarkedIds: [] }); });
+  expect(useLikeStore.getState().ids).toEqual(['kept']);
+  expect(mockLike).toHaveBeenLastCalledWith('kept', true);
+  mockEngagementPull.mockResolvedValue({ likedIds: [], bookmarkedIds: [] });
+  await act(async () => { useAccountRestoreStore.getState().retryFailed(); });
+  expect(useLikeStore.getState().ids).toEqual([]);
+  hook.unmount();
+});
+
+it('does not replay an acknowledged local choice over a later removal on another device', async () => {
+  let foreground!: (state: AppStateStatus) => void;
+  jest.spyOn(AppState, 'addEventListener').mockImplementation((_type, listener) => {
+    foreground = listener;
+    return { remove: jest.fn() };
+  });
+  mockEngagementPull.mockResolvedValue({ likedIds: [], bookmarkedIds: [] });
+  const hook = renderHook(() => useEngagementSync());
+  await waitFor(() => expect(useAccountRestoreStore.getState().entries.engagement?.status).toBe('ready'));
+  await act(async () => { useLikeStore.getState().toggle('removed-elsewhere'); });
+  mockLike.mockClear();
+  await act(async () => { foreground('active'); });
+  expect(useLikeStore.getState().ids).toEqual([]);
   expect(mockLike).not.toHaveBeenCalled();
   hook.unmount();
 });

@@ -10,6 +10,8 @@ import { apiClient } from '../data/network/ApiClient';
 import { waitForHydration } from '../data/storage/hydration';
 import { restoring, restored, useAccountRestoreStore } from '../store/accountRestoreStore';
 
+interface LocalChoice { on: boolean; confirmed: boolean }
+
 /**
  * 카드 반응(추천·저장)을 서버와 맞춘다.
  *
@@ -33,12 +35,19 @@ export function useEngagementSync(): void {
   const knownMarked = useRef<Set<string>>(new Set());
   const initialized = useRef(false);
   const applyingServer = useRef(false);
+  const syncScope = useRef('');
+  const changes = useRef({ like: new Map<string, LocalChoice>(), bookmark: new Map<string, LocalChoice>() });
 
   useEffect(() => {
     if (!enabled) return;
     let cancelled = false, running = false;
-    initialized.current = false;
-    knownLiked.current = new Set(); knownMarked.current = new Set();
+    const scope = `${epoch}:${userId}`;
+    if (syncScope.current !== scope) {
+      syncScope.current = scope;
+      initialized.current = false;
+      knownLiked.current = new Set(); knownMarked.current = new Set();
+      changes.current = { like: new Map(), bookmark: new Map() };
+    }
     const pull = async () => {
       if (cancelled || running || epoch !== getSessionEpoch()) return;
       running = true;
@@ -48,29 +57,49 @@ export function useEngagementSync(): void {
         if (cancelled || epoch !== getSessionEpoch()) return;
         await apiClient.flushPendingWrites();
         if (cancelled || epoch !== getSessionEpoch()) return;
+        // Choices already saved before this lookup must not override newer changes
+        // from another device. Keep unconfirmed writes and choices made during GET.
+        for (const pending of [changes.current.like, changes.current.bookmark]) {
+          for (const [id, choice] of pending) if (choice.confirmed) pending.delete(id);
+        }
         const snap = await engagementRepository.pull();
         if (cancelled || epoch !== getSessionEpoch()) return;
 
-        // 합집합으로 합친다 — 오프라인에서 누른 것이 서버에 아직 없을 수 있고,
-        // 서버 값으로 덮어쓰면 그 반응이 사라진다.
+        // 최초 조회는 기존 기기 반응을 이관한다. 이후 조회는 다른 기기의 해제도
+        // 반영하되, 조회 중 사용자가 누른 최신 선택이 늦은 응답보다 우선한다.
+        const merge = (remote: string[], local: string[], kind: 'like' | 'bookmark') => {
+          const ids = new Set(initialized.current ? remote : [...remote, ...local]);
+          for (const [id, choice] of changes.current[kind]) {
+            if (choice.on) ids.add(id);
+            else ids.delete(id);
+          }
+          return [...ids];
+        };
+        const liked = merge(snap.likedIds, useLikeStore.getState().ids, 'like');
+        const marked = merge(snap.bookmarkedIds, useBookmarkStore.getState().ids, 'bookmark');
         knownLiked.current = new Set(snap.likedIds);
         knownMarked.current = new Set(snap.bookmarkedIds);
         applyingServer.current = true;
         try {
-          const like = useLikeStore.getState();
-          for (const id of snap.likedIds) if (!like.has(id)) like.toggle(id);
-          const mark = useBookmarkStore.getState();
-          for (const id of snap.bookmarkedIds) if (!mark.has(id)) mark.toggle(id);
+          useLikeStore.setState({ ids: liked });
+          useBookmarkStore.setState({ ids: marked });
         } finally { applyingServer.current = false; }
+        changes.current.like.clear(); changes.current.bookmark.clear();
         initialized.current = true;
         restored('engagement', userId, epoch, 'ready');
 
-        // 서버가 모르는 로컬 반응은 지금 올려 보낸다(그동안 기기에만 있던 것).
-        for (const id of useLikeStore.getState().ids) {
+        // 실제 차이만 보낸다. 조회 도중 해제한 반응은 false로도 전송한다.
+        for (const id of liked) {
           if (!knownLiked.current.has(id)) void push('like', id, true);
         }
-        for (const id of useBookmarkStore.getState().ids) {
+        for (const id of snap.likedIds) {
+          if (!liked.includes(id)) void push('like', id, false);
+        }
+        for (const id of marked) {
           if (!knownMarked.current.has(id)) void push('bookmark', id, true);
+        }
+        for (const id of snap.bookmarkedIds) {
+          if (!marked.includes(id)) void push('bookmark', id, false);
         }
       } catch (e) {
         if (!cancelled) restored('engagement', userId, epoch, 'error');
@@ -88,12 +117,15 @@ export function useEngagementSync(): void {
 
   async function push(kind: 'like' | 'bookmark', cardId: string, on: boolean): Promise<void> {
     if (epoch !== getSessionEpoch()) return;
+    const choice = { on, confirmed: false };
+    changes.current[kind].set(cardId, choice);
     const known = kind === 'like' ? knownLiked.current : knownMarked.current;
     if (on) known.add(cardId);
     else known.delete(cardId);
     try {
       if (kind === 'like') await engagementRepository.setLiked(cardId, on);
       else await engagementRepository.setBookmarked(cardId, on);
+      if (epoch === getSessionEpoch() && changes.current[kind].get(cardId) === choice) choice.confirmed = true;
     } catch (e) {
       if (epoch !== getSessionEpoch()) return;
       // 되돌려 둔다 — 다음 변경 때 다시 시도된다.
@@ -109,11 +141,19 @@ export function useEngagementSync(): void {
     let prevMarked = useBookmarkStore.getState().ids;
 
     const diff = (before: string[], after: string[], kind: 'like' | 'bookmark') => {
-      if (applyingServer.current || !initialized.current || epoch !== getSessionEpoch()) return;
+      if (applyingServer.current || epoch !== getSessionEpoch()) return;
+      const store = kind === 'like' ? useLikeStore : useBookmarkStore;
+      if (!store.persist.hasHydrated()) return;
       const b = new Set(before);
       const a = new Set(after);
-      for (const id of a) if (!b.has(id)) void push(kind, id, true);
-      for (const id of b) if (!a.has(id)) void push(kind, id, false);
+      for (const id of a) if (!b.has(id)) {
+        changes.current[kind].set(id, { on: true, confirmed: false });
+        if (initialized.current) void push(kind, id, true);
+      }
+      for (const id of b) if (!a.has(id)) {
+        changes.current[kind].set(id, { on: false, confirmed: false });
+        if (initialized.current) void push(kind, id, false);
+      }
     };
 
     const unsubLike = useLikeStore.subscribe((s) => {
