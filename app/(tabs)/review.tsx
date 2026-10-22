@@ -14,9 +14,6 @@ import { useAllCards } from '../../src/hooks/useCards';
 import { useBookmarkStore } from '../../src/store/bookmarkStore';
 import { useLikeStore } from '../../src/store/likeStore';
 import { useReportStore } from '../../src/store/reportStore';
-import { buildReviewPlan } from '../../src/domain/reviewPlan';
-import { ReviewPlanCard } from '../../src/components/review/ReviewPlanCard';
-import { UpcomingStrip } from '../../src/components/review/UpcomingStrip';
 import { useSrsStore } from '../../src/store/srsStore';
 import { dateKey } from '../../src/utils/dateKey';
 import { contentColumn } from '../../src/theme/layout';
@@ -74,18 +71,6 @@ export default function ReviewScreen() {
 
   const masteredCount = useMemo(() => allCards.filter((x) => x.status === 'mastered').length, [allCards]);
   const learningCount = useMemo(() => allCards.filter((x) => x.status === 'learning').length, [allCards]);
-  // 복습 계획 — 무엇을 시킬지는 화면이 아니라 도메인이 정한다.
-  const srsCards = useSrsStore((st) => st.cards);
-  const plan = useMemo(() => buildReviewPlan(allCards, srsCards), [allCards, srsCards]);
-
-  // 복습 큐 세션으로 들어간다. 계획이 정한 순서 그대로 푼다.
-  const startReview = useCallback(() => {
-    router.push({ pathname: ROUTES.cards, params: { mode: 'due' } });
-  }, [router]);
-
-  // 복습 진행률(마스터/전체) — 요약 게이지.
-  const overallPct = allCards.length > 0 ? Math.round((masteredCount / allCards.length) * 100) : 0;
-
   const collections = [
     { type: 'today', label: '오늘 학습한 카드', icon: 'today' as const, color: c.success, count: todayCount },
     { type: 'mastered', label: '학습 완료 카드', icon: 'checkmark-done' as const, color: c.primary, count: masteredCount },
@@ -115,44 +100,7 @@ export default function ReviewScreen() {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.primary} colors={[c.primary]} />
       }
     >
-      {/* ── 오늘의 복습 — 고르게 하는 화면이 아니라 '먼저 권하는' 화면 ──────────
-          간격반복 엔진은 어떤 카드를 지금 봐야 하는지 이미 알고 있다. 그런데 예전에는
-          그 답을 쓰지 않고 '오늘 배운 것/약점 분야'처럼 고를 거리만 늘어놓았다.
-          앱이 아는 답을 두고 사용자에게 매번 결정을 떠넘긴 셈이라 복습에 의도가 없었다.
-          이제는 계획(reviewPlan)이 정한 한 가지를 크게 제시한다.
-
-          다만 제시일 뿐 강제가 아니다. 복습을 할지 말지는 사용자가 정한다.
-          그래서 이 카드는 화면을 가로막지 않고, 바로 아래에 '직접 골라 보기'가
-          그대로 남아 있다. 권하는 길과 고르는 길이 나란히 있어야 선택이 된다. */}
-      <View style={{ marginBottom: 22 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-          <Ionicons name="flash" size={16} color={c.primary} />
-          <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontFamily: fontDisplay }}>오늘의 복습</Text>
-        </View>
-
-        <ReviewPlanCard plan={plan} onStart={startReview} />
-
-        {/* 앞으로 7일 — 오늘 보지 않아도 '내일 또 올 이유'가 보여야 한다. */}
-        <UpcomingStrip days={plan.upcoming} />
-
-        {/* 마스터 진행 게이지 — 전체 여정에서 지금 어디쯤인지. */}
-        <View style={{ marginTop: 16 }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
-            <Text style={{ color: c.textSecondary, fontSize: 11.5 * fs, fontFamily: fontBody }}>전체 진행</Text>
-            <Text style={{ color: c.textSecondary, fontSize: 11.5 * fs, fontFamily: fontMono }}>
-              마스터 {masteredCount}/{allCards.length} ({overallPct}%)
-            </Text>
-          </View>
-          <View style={{ height: 6, backgroundColor: c.surfaceAlt, borderRadius: 3, overflow: 'hidden' }}>
-            <View style={{ width: `${overallPct}%`, height: '100%', backgroundColor: c.success, borderRadius: 3 }} />
-          </View>
-        </View>
-      </View>
-
-      {/* 직접 골라 보기 — 계획 밖에서 스스로 찾아볼 때만 쓴다.
-          제목을 '모아 보기'에서 바꾼 이유: 위가 '해야 할 것', 아래가 '보고 싶은 것'임을
-          이름만으로도 구분되게 하기 위해서다. */}
-
+      {/* 직접 골라 보기 */}
       <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontFamily: fontDisplay, marginBottom: 12 }}>직접 골라 보기</Text>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
         {collections.map((col) => (

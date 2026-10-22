@@ -45,7 +45,7 @@ await context.route('**/*', async route => {
   let status = 200, body = {};
   if (path === '/auth/me') { status = mode === 'expired' ? 401 : 200; body = user; }
   else if (path === '/auth/refresh') { status = 401; body = { message: 'expired' }; }
-  else if (path === '/cards') { status = mode === 'error' ? 503 : 200; body = mode === 'one' ? [card] : []; }
+  else if (path === '/cards') { status = mode === 'error' ? 503 : 200; body = mode === 'review' ? [{ ...card, status_cd: 'LEARNING' }] : mode === 'one' ? [card] : []; }
   else if (path === '/learning/today') body = { cards: [], target_count: 0, done_count: 0, difficulty_cd: 'EASY' };
   else if (path === '/stats') body = { streak_days: 0, best_streak: 0, total_learned: 0, total_cards: 0, accuracy_rate: 0, due_today: 0, weekly: [], category_breakdown: [], rankings: [] };
   else if (path === '/community/live') body = { online_now: 0, studied_today: 0, total_minutes_today: 0, daily_goal_minutes: 3, companions: [], activities: [], leaderboard: [], building: { floor_size: 20000, current: { month: '2026-10', label: '10월', problems: 0, floors: 0, winner: '' }, history: [] } };
@@ -67,6 +67,13 @@ async function go(path, width = 390) {
   assert(!await page.getByText('Unmatched Route', { exact: true }).count(), 'Unmatched route ' + path);
   assert((await page.locator('body').innerText()).trim(), 'Empty screen ' + path);
   assert(!await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1), 'Overflow ' + path);
+  if (path === '/review' && !['error', 'loading', 'expired'].includes(mode)) {
+    await expect(page.getByText('직접 골라 보기', { exact: true })).toBeVisible();
+    await expect(page.getByText('분야별 보기', { exact: true })).toBeVisible();
+    for (const label of ['오늘의 복습', '앞으로 7일간 볼 카드', '전체 진행']) await expect(page.getByText(label, { exact: true })).toHaveCount(0);
+    const firstSection = await page.getByText('직접 골라 보기', { exact: true }).boundingBox();
+    assert(firstSection && firstSection.y < 180, 'Removed review sections must not leave blank space');
+  }
   const bar = page.getByTestId('app-tab-bar');
   if (mode === 'expired') await expect(bar).toHaveCount(0);
   else {
@@ -79,8 +86,8 @@ async function go(path, width = 390) {
   checks.push({ path, width, mode });
 }
 try {
-  for (const path of ['/', '/cards', '/community', '/saved', '/notifications', '/settings', '/contents', '/profile', '/legal', '/qna/not-found', '/support', '/admin', '/quiz-examples']) await go(path);
-  for (const path of ['/cards', '/community', '/settings', '/contents', '/quiz-examples']) await go(path, 320);
+  for (const path of ['/', '/cards', '/review', '/community', '/saved', '/notifications', '/settings', '/contents', '/profile', '/legal', '/qna/not-found', '/support', '/admin', '/quiz-examples']) await go(path);
+  for (const path of ['/cards', '/review', '/community', '/settings', '/contents', '/quiz-examples']) await go(path, 320);
   await go('/settings');
   await page.getByText('문제 유형 예시', { exact: true }).click();
   await page.waitForURL(/\/quiz-examples(?:\?|$)/);
@@ -137,6 +144,21 @@ try {
   mode = 'loading'; await go('/cards');
   mode = 'error'; await go('/cards');
   assert(!await page.getByText('계약 점검', { exact: true }).count(), 'Failure fabricated cards');
+  await go('/review');
+  await expect(page.getByText('복습 카드를 불러올 수 없어요', { exact: true })).toBeVisible();
+  mode = 'review';
+  for (const [type, label] of [['today', '오늘 학습한 카드'], ['mastered', '학습 완료 카드'], ['learning', '한번 더 학습'], ['saved', '저장 카드'], ['liked', '좋아요한 카드'], ['reported', '신고한 카드']]) {
+    await go('/review', 320);
+    await page.getByRole('button', { name: new RegExp(label) }).click();
+    await page.waitForURL(new RegExp(`/collection/${type}(?:\\?|$)`));
+  }
+  await go('/review', 390);
+  await page.getByText('분야별 보기', { exact: true }).scrollIntoViewIfNeeded();
+  await page.screenshot({ path: resolve(out, 'review-collections-and-categories.png'), fullPage: true });
+  await page.getByRole('button', { name: /현장 점검.*학습 1/ }).click();
+  await page.waitForURL(url => url.pathname.endsWith('/cards') && url.searchParams.get('category') === '현장 점검');
+  await expect(page.getByTestId('learning-card-front')).toContainText(card.question_txt);
+  checks.push({ action: 'review-only-collections-and-categories-six-collection-links-category-link-error-state' });
   mode = 'one'; await go('/content/qa-card');
   assert((await page.locator('body').innerText()).includes('조건을 확인했습니까?'), 'Live card missing');
   const unexpectedWrites = requests.filter(r => r.method !== 'GET' && !['/collection/sync', '/progress/attendance', '/notifications/device', '/auth/logout', '/settings', '/me/faction'].includes(r.path));

@@ -3,17 +3,23 @@ import { View } from 'react-native';
 import { useTheme } from '../../theme/ThemeProvider';
 import { Skeleton } from '../ui/Skeleton';
 
-/** 복습 화면 첫 로딩 스켈레톤 — 제목 + 카테고리 카드 목록 + 모아 보기 그리드 자리. */
+/** 복습 화면 첫 로딩 — 직접 골라 보기 6개, 분야별 목록 순서에 맞춘다. */
 export function ReviewSkeleton() {
   const { theme } = useTheme();
   const c = theme.colors;
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <View style={{ padding: 20 }}>
-        <Skeleton width={80} height={22} />
-        <Skeleton width="60%" height={13} style={{ marginTop: 8, marginBottom: 18 }} />
+        {/* 직접 골라 보기 */}
+        <Skeleton width={90} height={15} style={{ marginBottom: 12 }} />
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} width="47%" height={110} radius={16} style={{ flexGrow: 1 }} />
+          ))}
+        </View>
 
         {/* 학습한 카테고리 목록 */}
+        <Skeleton width={90} height={15} style={{ marginTop: 26, marginBottom: 12 }} />
         <View style={{ gap: 10 }}>
           {Array.from({ length: 3 }).map((_, i) => (
             <View
@@ -38,14 +44,6 @@ export function ReviewSkeleton() {
                 <Skeleton width="100%" height={6} radius={3} />
               </View>
             </View>
-          ))}
-        </View>
-
-        {/* 모아 보기 */}
-        <Skeleton width={90} height={15} style={{ marginTop: 26, marginBottom: 12 }} />
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} width="47%" height={96} radius={16} style={{ flexGrow: 1 }} />
           ))}
         </View>
       </View>
