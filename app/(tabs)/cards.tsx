@@ -26,6 +26,7 @@ import { CardReportModal } from '../../src/components/cards/CardReportModal';
 import { CardDifficultyAsk } from '../../src/components/cards/CardDifficultyAsk';
 import { fontCute } from '../../src/theme/tokens';
 import { canStudyCard, hasStudiedCard } from '../../src/utils/workday';
+import { useLearningDay } from '../../src/hooks/useLearningDay';
 import { getCategoryIcon } from '../../src/constants/categories';
 import { ROUTES } from '../../src/constants/routes';
 import { endFlow } from '../../src/navigation/flow';
@@ -251,6 +252,7 @@ export default function CardsScreen() {
   const srsGrade = useSrsStore((s) => s.grade);
   // 오늘 남은 신규 학습 수(하루 상한). 복습·단일카드 모드는 상한과 무관.
   const quota = useDailyQuota();
+  const learningDay = useLearningDay();
   // 오늘 복습 예정(간격반복 도래) 카드 — '복습' 모드가 쓴다.
   const { dueCards } = useReview();
   // 오늘의 학습 — **서버가 편성한 목록**. 앱이 직접 고르지 않는다.
@@ -291,7 +293,7 @@ export default function CardsScreen() {
     //
     // 지금은 사람·날짜별 편성을 서버가 정하고(오프라인이면 같은 규칙으로 로컬에서),
     // 화면은 받은 것을 보여 주기만 한다. 이미 푼 문제는 빼서 이어서 하게 한다.
-    return assignment.cards.filter((c) => !c.done).map((c) => c.card);
+    return assignment.cards.filter((c) => !c.done).map((c) => c.card).filter(eligible);
   }, [isFocusMode, focusId, isDueMode, isCategoryMode, category, allQuery.data, prioritizeWeakSpots, shuffleCards, srsCards, dueCards, assignment, quota.isRestDay]);
 
   // 덱은 세션 시작 시 한 번만 확정한다.
@@ -300,7 +302,7 @@ export default function CardsScreen() {
   // (2) 'learning' 으로 바뀐 신규 카드는 복습 구간에 다시 편입되어 같은 문제가 두 번 나온다.
   // 진행 중인 세션의 덱은 데이터 갱신과 무관하게 고정되어야 한다.
   const [sessionDeck, setSessionDeck] = useState<LearningCard[] | null>(null);
-  const sessionKey = `${user?.id ?? 'guest'}:${isFocusMode ? `focus:${focusId}` : isDueMode ? 'due' : isCategoryMode ? `category:${category}` : 'today'}`;
+  const sessionKey = `${user?.id ?? 'guest'}:${learningDay.date}:${quota.isRestDay ? 'rest' : 'open'}:${isFocusMode ? `focus:${focusId}` : isDueMode ? 'due' : isCategoryMode ? `category:${category}` : 'today'}`;
   const activeSession = useRef(sessionKey);
   activeSession.current = sessionKey;
   const { progress: flipAnim, flipped, backControls, animating: flipAnimating, target: flipTarget, toggle: toggleFlip, reset: resetFlip } = useCardFlip(`${sessionKey}:${index}`);

@@ -76,7 +76,7 @@ export const useSrsStore = create<SrsState>()(
         if (first) { next.firstGrade = first.grade; next.firstReviewedAt = first.at; }
         else if (prev.reps === 0) { next.firstGrade = g; next.firstReviewedAt = next.lastReviewedAt ?? Date.now(); }
         next.perceivedDifficulty = perceivedDifficulty ?? '';
-        const key = dateKey(new Date());
+        const key = dateKey(new Date(next.lastReviewedAt ?? Date.now()));
         const today = get().history[key] ?? [];
         set({
           cards: { ...get().cards, [cardId]: next },

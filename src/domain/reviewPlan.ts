@@ -184,8 +184,8 @@ export function formatDueLabel(at: number, now: number = Date.now()): string {
   if (days <= 0) return '오늘';
   if (days === 1) return '내일';
   if (days === 2) return '모레';
-  const d = new Date(at);
-  return `${d.getMonth() + 1}월 ${d.getDate()}일`;
+  const d = new Date(at + 9 * 3_600_000);
+  return `${d.getUTCMonth() + 1}월 ${d.getUTCDate()}일`;
 }
 
 function findNextDue(

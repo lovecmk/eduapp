@@ -4,6 +4,7 @@ import { useSrsStore } from '../store/srsStore';
 import { type Grade } from '../domain/srs';
 import { buildReviewPlan, REVIEW_SESSION_CAP, type UpcomingDay } from '../domain/reviewPlan';
 import type { LearningCard } from '../domain/models/LearningCard';
+import { useLearningDay } from './useLearningDay';
 
 /**
  * 한 번의 복습 세션 최대 카드 수 — 마이크로러닝 부담 최소화.
@@ -15,6 +16,7 @@ export const SESSION_CAP = REVIEW_SESSION_CAP;
 export type { UpcomingDay };
 
 export function useReview() {
+  useLearningDay(); // Recompute due cards after Korean midnight/foreground return.
   const { data: allCards = [], isLoading, error, refetch } = useAllCards();
   const cardsState = useSrsStore((s) => s.cards);
   const ensureSeeded = useSrsStore((s) => s.ensureSeeded);
@@ -35,8 +37,7 @@ export function useReview() {
    */
   const plan = useMemo(
     () => buildReviewPlan(allCards, cardsState, now),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [allCards, cardsState],
+    [allCards, cardsState, now],
   );
 
   const dueCards = plan.queue;

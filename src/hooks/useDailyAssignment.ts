@@ -2,7 +2,8 @@ import { useQuery } from '@tanstack/react-query';
 import { dailyAssignmentRepository } from '../data/repositories';
 import { emptyAssignment, type DailyAssignment } from '../domain/models/DailyAssignment';
 import { dateKey } from '../utils/dateKey';
-import { useLearningDay } from './useLearningDay';
+import { useCurrentLearningDay } from './useCurrentLearningDay';
+import { useSrsStore } from '../store/srsStore';
 
 export const DAILY_ASSIGNMENT_KEY = 'daily-assignment';
 
@@ -18,8 +19,9 @@ export const DAILY_ASSIGNMENT_KEY = 'daily-assignment';
  * 오르는데, 오래 캐시하면 화면의 "2/4" 가 멈춰 보인다.
  */
 export function useDailyAssignment() {
-  const learningDay = useLearningDay();
+  const learningDay = useCurrentLearningDay();
   const day = dateKey(new Date());
+  const studiedToday = useSrsStore(state => state.history[day]);
   const query = useQuery({
     queryKey: [DAILY_ASSIGNMENT_KEY, day],
     queryFn: () => dailyAssignmentRepository.get(),
@@ -29,6 +31,11 @@ export function useDailyAssignment() {
 
   // 화면이 `data?.` 를 반복하지 않도록 항상 값이 있는 형태로 준다.
   let assignment: DailyAssignment = query.data ?? emptyAssignment(day);
+  if (assignment.day === day && studiedToday?.length) {
+    const studied = new Set(studiedToday);
+    const cards = assignment.cards.map(card => ({ ...card, done: card.done || studied.has(card.card.id) }));
+    assignment = { ...assignment, cards, doneCount: cards.filter(card => card.done).length };
+  }
   const serverDay = assignment.learningDay?.date === learningDay.date ? assignment.learningDay : undefined;
   if (!learningDay.can_learn_new || serverDay?.can_learn_new === false) {
     const cards = assignment.cards.filter(card => card.kind === 'review');

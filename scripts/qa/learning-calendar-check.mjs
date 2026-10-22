@@ -89,7 +89,17 @@ try {
   await expect(substitute).toContainText('쉼');
   await substitute.scrollIntoViewIfNeeded();
   await page.screenshot({ path: resolve(out, 'calendar-2027-05-320.png') });
+  const midnight = await context.newPage();
+  midnight.on('pageerror', error => errors.push(error.message));
+  await midnight.clock.install({ time: new Date('2026-10-23T14:59:00Z') });
+  await midnight.goto(origin + '/eduapp/cards');
+  await expect(midnight.getByTestId('learning-card-front')).toContainText(fresh.question_txt);
+  await midnight.clock.pauseAt(new Date('2026-10-23T14:59:59Z'));
+  await midnight.clock.runFor(1000);
+  await expect(midnight.getByTestId('learning-card-front')).toContainText(review.question_txt);
+  await expect(midnight.getByTestId('learning-card-front')).not.toContainText(fresh.question_txt);
+  await midnight.close();
   assert(!writes.some(item => item.path === '/progress/grade'), 'reading a rest day must not create learning');
   assert.deepEqual(errors, []);
-  console.log('PASS mobile calendar: Korean Saturday in foreign timezone, old-server fallback, NEW focus blocked, reviews available, 390/320px');
+  console.log('PASS mobile calendar: Korean Saturday and live midnight in foreign timezone, old-server fallback, NEW focus blocked, frozen NEW deck replaced with reviews, 390/320px');
 } finally { await browser?.close(); await new Promise(done => server.close(done)); }

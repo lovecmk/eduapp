@@ -11,7 +11,7 @@ import type { LearningCard } from '../models/LearningCard';
 // 무엇을 먼저 시킬지·왜 지금인지가 옳은지는 이 표로 검증한다.
 
 const DAY = 86_400_000;
-const NOW = new Date(2026, 6, 27, 14, 0, 0).getTime(); // 2026-07-27 14:00
+const NOW = Date.parse('2026-07-27T14:00:00+09:00');
 
 function card(id: string, over: Partial<LearningCard> = {}): LearningCard {
   return {
@@ -187,7 +187,7 @@ describe('describePlan — 권하되 재촉하지 않는다', () => {
     // 예전에는 describePlan 이 Date.now() 를 따로 읽었다. 그래서 주입한 시계로
     // '모레'라고 세운 계획이 실제 날짜에 따라 '내일'로 읽혔고, 자정을 넘기는
     // 순간 테스트가 스스로 깨졌다. 계획과 문구는 같은 시계를 봐야 한다.
-    const past = new Date(2020, 0, 1, 9, 0).getTime();
+    const past = Date.parse('2020-01-01T09:00:00+09:00');
     const plan = buildReviewPlan([card('c1')], { c1: state({ dueAt: past + 2 * DAY }) }, past);
     expect(plan.now).toBe(past);
     expect(describePlan(plan).detail).toContain('모레');
@@ -228,11 +228,21 @@ describe('formatDueLabel', () => {
   });
 
   it('먼 날은 날짜로 읽는다', () => {
-    expect(formatDueLabel(new Date(2026, 7, 3, 9, 0).getTime(), NOW)).toBe('8월 3일');
+    expect(formatDueLabel(Date.parse('2026-08-03T09:00:00+09:00'), NOW)).toBe('8월 3일');
   });
 
   it('시각이 달라도 같은 날이면 오늘이다', () => {
     // 밤 11시에 예정된 카드를 아침에 보면 '오늘'이어야 한다.
-    expect(formatDueLabel(new Date(2026, 6, 27, 23, 0).getTime(), NOW)).toBe('오늘');
+    expect(formatDueLabel(Date.parse('2026-07-27T23:00:00+09:00'), NOW)).toBe('오늘');
+  });
+
+  it('한국 자정을 기준으로 문구와 복습 달력 칸을 함께 바꾼다', () => {
+    const before = Date.parse('2026-10-23T14:59:59Z');
+    const after = Date.parse('2026-10-23T15:00:00Z');
+    expect(formatDueLabel(after, before)).toBe('내일');
+    const plan = buildReviewPlan([card('review')], { review: state({ dueAt: after, reps: 1 }) }, before);
+    expect(plan.upcoming[0].count).toBe(0);
+    expect(plan.upcoming[1].count).toBe(1);
+    expect(plan.upcoming[1].date.toISOString()).toBe('2026-10-23T15:00:00.000Z');
   });
 });

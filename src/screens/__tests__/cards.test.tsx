@@ -17,6 +17,7 @@ const mockMark = jest.fn(() => Promise.resolve());
 let mockRestDay = false;
 let mockParams: { category?: string; focusId?: string } = {};
 let mockAvailableCards: LearningCard[] = [];
+let mockAssignedCards: LearningCard[] | null = null;
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush, replace: jest.fn(), back: jest.fn() }),
   useNavigation: () => undefined,
@@ -41,7 +42,7 @@ jest.mock('../../hooks/useDailyQuota', () => ({
 }));
 jest.mock('../../hooks/useDailyAssignment', () => ({
   DAILY_ASSIGNMENT_KEY: 'daily-assignment',
-  useDailyAssignment: () => ({ assignment: { cards: [{ card: mockCard, done: false }] } }),
+  useDailyAssignment: () => ({ assignment: { cards: (mockAssignedCards ?? [mockCard]).map(card => ({ card, done: false })) } }),
 }));
 
 import React from 'react';
@@ -53,6 +54,7 @@ import CardsScreen from '../../../app/(tabs)/cards';
 import { ThemeProvider } from '../../theme/ThemeProvider';
 import { useAuthStore } from '../../store/authStore';
 import { useSrsStore } from '../../store/srsStore';
+import { useSettingsStore } from '../../store/settingsStore';
 import { nestedButtonLabels, type TreeNode } from '../../test-utils/nestedButtons';
 import type { LearningCard } from '../../domain/models/LearningCard';
 import type { User } from '../../domain/models/User';
@@ -131,6 +133,43 @@ it('주말 카테고리 복습에서 기존 카드는 열고 신규 카드는 �
     expect(screen.getAllByText(review.question, { exact: false }).length).toBeGreaterThan(0);
     expect(screen.queryAllByText(mockCard.question, { exact: false })).toHaveLength(0);
   } finally { mockRestDay = false; mockParams = {}; mockAvailableCards = []; }
+});
+
+it('평일에 고정한 덱도 휴무로 바뀌면 신규 카드 대신 기존 복습을 연다', () => {
+  const settings = useSettingsStore.getState();
+  useSettingsStore.setState({ shuffleCards: false, prioritizeWeakSpots: false });
+  mockParams = { category: mockCard.category };
+  const review: LearningCard = { ...mockCard, id: 'midnight-review', status: 'learning', question: '자정 이후 복습 문제' };
+  mockAvailableCards = [mockCard, review];
+  useSrsStore.getState().reset();
+  try {
+    const view = wrap('이용재');
+    expect(screen.getAllByText(mockCard.question, { exact: false }).length).toBeGreaterThan(0);
+    mockRestDay = true;
+    view.rerender(<SafeAreaProvider initialMetrics={metrics}><ThemeProvider><CardsScreen /></ThemeProvider></SafeAreaProvider>);
+    expect(screen.getAllByText(review.question, { exact: false }).length).toBeGreaterThan(0);
+    expect(screen.queryAllByText(mockCard.question, { exact: false })).toHaveLength(0);
+    expect(useSrsStore.getState().cards).toEqual({});
+    view.unmount();
+  } finally {
+    mockRestDay = false; mockParams = {}; mockAvailableCards = [];
+    useSettingsStore.setState({ shuffleCards: settings.shuffleCards, prioritizeWeakSpots: settings.prioritizeWeakSpots });
+  }
+});
+
+it('할당 목록의 날짜 갱신이 늦어도 휴무로 바뀐 오늘 학습에서 복습을 연다', () => {
+  const review: LearningCard = { ...mockCard, id: 'today-midnight-review', status: 'learning', question: '자정 이후 오늘 복습 문제' };
+  mockAssignedCards = [mockCard, review];
+  useSrsStore.getState().reset();
+  try {
+    const view = wrap('이용재');
+    expect(screen.getAllByText(mockCard.question, { exact: false }).length).toBeGreaterThan(0);
+    mockRestDay = true;
+    view.rerender(<SafeAreaProvider initialMetrics={metrics}><ThemeProvider><CardsScreen /></ThemeProvider></SafeAreaProvider>);
+    expect(screen.getAllByText(review.question, { exact: false }).length).toBeGreaterThan(0);
+    expect(screen.queryAllByText(mockCard.question, { exact: false })).toHaveLength(0);
+    view.unmount();
+  } finally { mockRestDay = false; mockAssignedCards = null; }
 });
 
 it('같은 렌더에서 두 번 탭해도 앞면으로 돌아오고 뒷면 빈 공간도 탭할 수 있다', () => {

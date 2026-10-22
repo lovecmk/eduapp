@@ -5,7 +5,8 @@ export function dateKey(d: Date): string {
 }
 
 export function startOfDay(d: Date): Date {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const offset = 9 * 3_600_000;
+  return new Date(Math.floor((d.getTime() + offset) / 86_400_000) * 86_400_000 - offset);
 }
 
 /** 두 날짜의 자정 기준 일수 차이(a - b). */

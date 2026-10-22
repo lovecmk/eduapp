@@ -6,7 +6,9 @@ import { dateKey } from '../utils/dateKey';
 import { learningQuotaRepository } from '../data/repositories';
 import { resolveDailyQuota } from '../domain/models/LearningQuota';
 import { DAILY_ASSIGNMENT_KEY } from './useDailyAssignment';
-import { useLearningDay } from './useLearningDay';
+import { useCurrentLearningDay } from './useCurrentLearningDay';
+import { logger } from '../utils/logger';
+import { getSessionEpoch } from '../data/network/sessionEpoch';
 
 /** 오늘의 진행 캐시 키 — 무효화할 곳이 흩어지지 않게 한 곳에 둔다. */
 export const DAILY_QUOTA_KEY = 'learning-quota';
@@ -30,7 +32,7 @@ export interface DailyQuota {
  * 일어나지 않았다.** 이 훅이 그 두 쪽을 잇는 유일한 지점이다.
  */
 export function useDailyQuota(): DailyQuota {
-  const localDay = useLearningDay();
+  const localDay = useCurrentLearningDay();
   const today = dateKey(new Date());
   const dayKey = useDailyLearningStore((s) => s.dayKey);
   const count = useDailyLearningStore((s) => s.newLearnedToday);
@@ -56,7 +58,7 @@ export function useDailyQuota(): DailyQuota {
   const isRestDay = !localDay.can_learn_new || serverDay?.can_learn_new === false;
   const quota = resolveDailyQuota(localUsed, data, DAILY_MIN_CARDS);
   return { ...quota, ...(isRestDay ? { limit: 0, remaining: 0, canLearn: false } : {}),
-    isRestDay, restDayName: serverDay?.holiday_name || localDay.holiday_name || '주말' };
+    isRestDay, restDayName: serverDay?.holiday_name || localDay.holiday_name || (localDay.reason === 'WEEKEND' ? '주말' : '휴무일') };
 }
 
 /**
@@ -68,7 +70,12 @@ export function useDailyQuota(): DailyQuota {
  */
 export function recordNewLearned(count = 1): void {
   // 저장소를 통해 기록 — 목업은 로컬 스토어, 실서버는 로컬 반영 후 POST.
-  void learningQuotaRepository.recordCompletion(count);
-  void queryClient.invalidateQueries({ queryKey: [DAILY_QUOTA_KEY] });
-  void queryClient.invalidateQueries({ queryKey: [DAILY_ASSIGNMENT_KEY] });
+  const epoch = getSessionEpoch();
+  void learningQuotaRepository.recordCompletion(count).then(() => {
+    if (epoch !== getSessionEpoch()) return;
+    void queryClient.invalidateQueries({ queryKey: [DAILY_QUOTA_KEY] });
+    void queryClient.invalidateQueries({ queryKey: [DAILY_ASSIGNMENT_KEY] });
+  }).catch(() => {
+    if (epoch === getSessionEpoch()) logger.warn('learning.completion_failed');
+  });
 }

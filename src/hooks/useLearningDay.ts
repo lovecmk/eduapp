@@ -6,10 +6,16 @@ import { learningDay } from '../utils/workday';
 export function useLearningDay() {
   const [day, setDay] = useState(() => learningDay());
   useEffect(() => {
-    const refresh = () => setDay(learningDay());
-    const timer = setInterval(refresh, 30_000);
+    let timer: ReturnType<typeof setTimeout>;
+    const schedule = () => {
+      const now = Date.now();
+      const untilMidnight = 86_400_000 - (now + 9 * 3_600_000) % 86_400_000;
+      timer = setTimeout(refresh, Math.min(30_000, untilMidnight));
+    };
+    const refresh = () => { clearTimeout(timer); setDay(learningDay()); schedule(); };
+    schedule();
     const listener = AppState.addEventListener('change', refresh);
-    return () => { clearInterval(timer); listener.remove(); };
+    return () => { clearTimeout(timer); listener.remove(); };
   }, []);
   return day;
 }

@@ -90,7 +90,7 @@ export function LearningCalendar() {
     }
     return m;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allCards, srsCards]);
+  }, [allCards, srsCards, today.date]);
 
   const todayStr = dateKey(now);
   const cells = getMonthCells(year, month);
@@ -104,8 +104,10 @@ export function LearningCalendar() {
     [stamps, monthPrefix],
   );
 
-  const prev = () => { if (month === 0) { setYear((y) => y - 1); setMonth(11); } else setMonth((m) => m - 1); };
-  const next = () => { if (month === 11) { setYear((y) => y + 1); setMonth(0); } else setMonth((m) => m + 1); };
+  const firstMonth = year === 2025 && month === 0;
+  const lastMonth = year === 2035 && month === 11;
+  const prev = () => { if (firstMonth) return; if (month === 0) { setYear((y) => y - 1); setMonth(11); } else setMonth((m) => m - 1); };
+  const next = () => { if (lastMonth) return; if (month === 11) { setYear((y) => y + 1); setMonth(0); } else setMonth((m) => m + 1); };
 
   // 오늘 출석 여부 · 캘린더에서 바로 도장 찍기(별도 카드 없이 통합).
   const checkedToday = !!stamps[todayStr];
@@ -156,11 +158,11 @@ export function LearningCalendar() {
     <View style={[styles.container, { backgroundColor: c.surface, borderColor: c.border }]}>
       {/* 월 네비게이션 */}
       <View style={styles.header}>
-        <Pressable onPress={prev} hitSlop={8} accessibilityRole="button" accessibilityLabel="이전 달" style={styles.arrow}><Ionicons name="chevron-back" size={20} color={c.primary} /></Pressable>
+        <Pressable onPress={prev} disabled={firstMonth} accessibilityState={{ disabled: firstMonth }} hitSlop={8} accessibilityRole="button" accessibilityLabel="이전 달" style={styles.arrow}><Ionicons name="chevron-back" size={20} color={c.primary} /></Pressable>
         <Pressable accessibilityRole="button" onPress={() => { setPickYear(year); setPickMonth(month); setPickerOpen(true); }}>
           <Text style={{ color: c.textPrimary, fontSize: 16 * fs, fontFamily: fontDisplay }}>{year}년 {month + 1}월</Text>
         </Pressable>
-        <Pressable onPress={next} hitSlop={8} accessibilityRole="button" accessibilityLabel="다음 달" style={styles.arrow}><Ionicons name="chevron-forward" size={20} color={c.primary} /></Pressable>
+        <Pressable onPress={next} disabled={lastMonth} accessibilityState={{ disabled: lastMonth }} hitSlop={8} accessibilityRole="button" accessibilityLabel="다음 달" style={styles.arrow}><Ionicons name="chevron-forward" size={20} color={c.primary} /></Pressable>
       </View>
 
       {/* 월간 요약 — 학습일 / 출석일 / 연속 */}
@@ -217,7 +219,7 @@ export function LearningCalendar() {
               // 사이의 날들은 띠 위에 숫자만 얹혀, 며칠이 하나로 이어진 하나의 덩어리로 읽힌다.
               const isCap = done && (!contLeft || !contRight);
               return (
-                <Pressable accessibilityRole="button" accessibilityLabel={`${month + 1}월 ${d}일${workday ? ' 신규 학습 가능' : ` ${name || '주말'} 신규 학습 쉬는 날, 복습 가능`}`} key={`${w}-${dow}`} style={styles.cell} onPress={() => setSelected(key)}>
+                <Pressable accessibilityRole="button" accessibilityLabel={`${month + 1}월 ${d}일${workday ? ' 신규 학습 가능' : ` ${name || (dow === 0 || dow === 6 ? '주말' : '휴무일')} 신규 학습 쉬는 날, 복습 가능`}`} key={`${w}-${dow}`} style={styles.cell} onPress={() => setSelected(key)}>
                   {/* 이어짐 띠 — 칸 **폭 전체**를 옅게 채워 옆 칸과 빈틈 없이 붙는다.
                       줄이 이어지는 쪽은 각지게, 끊기는 쪽은 둥글게 닫아 알약 모양이 된다.
                       날짜 동그라미 뒤에 깔리므로 시작/끝의 진한 마개가 띠 위에 얹혀 보인다. */}
@@ -382,7 +384,7 @@ function DayDetailSheet({
           </View>
 
           <ScrollView style={{ maxHeight: 420 }} showsVerticalScrollIndicator={false}>
-            {day && !day.can_learn_new && <Text style={[styles.empty, { color: c.textSecondary }]}>{day.holiday_name || '주말'} · 신규 학습 쉬는 날 · 복습 가능</Text>}
+            {day && !day.can_learn_new && <Text style={[styles.empty, { color: c.textSecondary }]}>{day.holiday_name || (day.reason === 'WEEKEND' ? '주말' : '휴무일')} · 신규 학습 쉬는 날 · 복습 가능</Text>}
             <SectionTitle icon="checkmark-done" color={c.success} text={`학습한 카드 ${reviewed.length}`} />
             {reviewed.length === 0 ? (
               <Text style={[styles.empty, { color: c.textSecondary }]}>이 날은 학습 기록이 없어요</Text>

@@ -3,8 +3,9 @@ import type { LearningQuota } from '../../domain/models/LearningQuota';
 import { DAILY_MIN_CARDS } from '../../constants/learning';
 import { apiClient } from '../network/ApiClient';
 import { useDailyLearningStore } from '../../store/dailyLearningStore';
-import { dateKey } from '../../utils/dateKey';
+import { dateKey, startOfDay } from '../../utils/dateKey';
 import type { LearningDay } from '../../utils/workday';
+import { assertSessionEpoch, getSessionEpoch } from '../network/sessionEpoch';
 
 interface QuotaDTO {
   learning_day?: LearningDay;
@@ -31,14 +32,18 @@ export class LearningQuotaRepository implements ILearningQuotaRepository {
       limit,
       used,
       remaining: Math.max(0, limit - used),
-      resetsAt: dto.resets_at ?? new Date(new Date().setHours(24, 0, 0, 0)).toISOString(),
+      resetsAt: dto.resets_at ?? new Date(startOfDay(new Date()).getTime() + 86_400_000).toISOString(),
     };
   }
 
   async recordCompletion(count: number): Promise<void> {
     // Temporary failures are durably queued; missing routes and invalid inputs remain errors.
-    const key = `learning-complete:${dateKey(new Date())}:${Date.now()}:${count}`;
-    await apiClient.postDurable('/inner/api/v1/learning/complete', { count }, key);
-    useDailyLearningStore.getState().recordNewLearned(count);
+    const epoch = getSessionEpoch();
+    const completedAt = new Date();
+    const key = `learning-complete:${dateKey(completedAt)}:${completedAt.getTime()}:${count}`;
+    await apiClient.postDurable('/inner/api/v1/learning/complete', { count, completed_at: completedAt.toISOString() }, key);
+    assertSessionEpoch(epoch);
+    // A slow/queued write can finish after midnight. Never consume the new day's quota.
+    if (dateKey(completedAt) === dateKey(new Date())) useDailyLearningStore.getState().recordNewLearned(count);
   }
 }
