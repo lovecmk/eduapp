@@ -1,8 +1,5 @@
-import type { CardCategory } from './LearningCard';
-
-// 학습 목표(과정) — 여러 카드를 하나의 "목표"로 묶는 커리큘럼 레이어.
-// 카드 분류(대>중>소)에 깊이를 더하지 않고, 카테고리를 묶는 얕은 그룹으로 설계.
-// 예: [소방·피난 기초] 과정 → 난이도(초/중/고)별 문제. 향후 [소방기술사] 등 자격 과정으로 확장.
+// 학습 목표(과정) — API의 배포 카드 정본 분류별로 구성한다.
+// 명시적인 과정 정보가 없는 분류에는 자격 수준을 추정하지 않는다.
 export type TrackLevel = 'foundation' | 'certificate' | 'expert';
 
 export interface LearningTrack {
@@ -11,11 +8,9 @@ export interface LearningTrack {
   subtitle: string;
   /** 이 과정의 학습 목표 한 줄 설명 */
   goal: string;
-  level: TrackLevel;
+  level?: TrackLevel;
   icon: string;
   color: string;
-  /** 이 과정에 포함되는 대분류(카드 소속 결정) */
-  categories: CardCategory[];
   /** 준비 중(향후 확장) — 잠금 표시 */
   locked?: boolean;
 }

@@ -53,7 +53,8 @@ export default function ContentsScreen() {
       x.question.toLowerCase().includes(q) || x.title.toLowerCase().includes(q) ||
       x.conclusion.toLowerCase().includes(q) || x.keywords.some((k) => k.toLowerCase().includes(q)) ||
       x.topic.toLowerCase().includes(q) || x.subCategory.toLowerCase().includes(q) ||
-      x.category.toLowerCase().includes(q));
+      x.category.toLowerCase().includes(q) || x.taxonomyCategory?.toLowerCase().includes(q) ||
+      x.taxonomyCategoryCode?.toLowerCase().includes(q));
   }, [allCards, search]);
 
   const goCard = useCallback((id: string) => router.push(ROUTES.content(id) as never), [router]);
@@ -228,6 +229,7 @@ function TrackDetail({ progress, onBack, onCard }: {
 }
 
 function LevelBadge({ level }: { level: TrackProgress['track']['level'] }) {
+  if (!level) return null;
   const meta = TRACK_LEVEL_META[level];
   return (
     <View style={{ backgroundColor: meta.color + '22', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 }}>
@@ -242,7 +244,7 @@ function TrackCard({ progress, onPress }: { progress: TrackProgress; onPress: ()
   const { track, total, mastered, pct } = progress;
   const locked = track.locked;
   return (
-    <Pressable accessibilityRole="button" onPress={onPress} style={[styles.trackCard, { backgroundColor: c.surface, borderColor: c.border, opacity: locked ? 0.85 : 1 }]}>
+    <Pressable accessibilityRole="button" accessibilityLabel={`${track.title} 과정, ${total}문제`} onPress={onPress} style={[styles.trackCard, { backgroundColor: c.surface, borderColor: c.border, opacity: locked ? 0.85 : 1 }]}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <View style={[styles.trackIcon, { backgroundColor: track.color + (locked ? '14' : '1A') }]}>
           <Ionicons name={(locked ? 'lock-closed' : track.icon) as never} size={20} color={track.color} />
