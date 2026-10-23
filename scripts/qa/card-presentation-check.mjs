@@ -6,7 +6,8 @@ import { tmpdir } from 'node:os';
 import assert from 'node:assert/strict';
 
 // Exercise production repositories through isolated HTTP transport, without demo mode.
-const bundle = resolve(process.argv[2] ?? 'dist');
+const devOrigin = /^https?:\/\//.test(process.argv[2] ?? '') ? new URL(process.argv[2]).origin : null;
+const bundle = resolve(devOrigin ? 'dist' : process.argv[2] ?? 'dist');
 const out = resolve(tmpdir(), 'd3m-card-presentation');
 mkdirSync(out, { recursive: true });
 const types = { '.html': 'text/html', '.js': 'application/javascript', '.json': 'application/json', '.css': 'text/css', '.png': 'image/png', '.ttf': 'font/ttf', '.woff': 'font/woff' };
@@ -18,8 +19,9 @@ const server = createServer((request, response) => {
   response.setHeader('Content-Type', types[extname(file)] ?? 'application/octet-stream');
   response.end(readFileSync(file));
 });
-await new Promise(done => server.listen(0, '127.0.0.1', done));
-const origin = 'http://127.0.0.1:' + server.address().port;
+if (!devOrigin) await new Promise(done => server.listen(0, '127.0.0.1', done));
+const origin = devOrigin ?? 'http://127.0.0.1:' + server.address().port;
+const basePath = devOrigin ? '' : '/eduapp';
 const browser = await chromium.launch(process.platform === 'win32' ? { channel: 'msedge' } : {});
 const errors = [], checks = [], requests = [];
 const user = { id: 'qa-isolated-ui', user_nm: '점검 사용자', nickname: 'QA', email_addr: 'qa@example.test', membership_cd: 'BASIC', role_cd: 'USER', status_cd: 'A', created_at: '2026-10-01T00:00:00Z' };
@@ -77,7 +79,7 @@ const page = await context.newPage();
 page.on('pageerror', error => errors.push(error.message));
 async function go(path, width = 390) {
   await page.setViewportSize({ width, height: 844 });
-  await page.goto(origin + '/eduapp' + path);
+  await page.goto(origin + basePath + path);
   await page.waitForTimeout(1300);
   assert(!await page.getByText('Unmatched Route', { exact: true }).count(), 'Unmatched route ' + path);
   assert((await page.locator('body').innerText()).trim(), 'Empty screen ' + path);
@@ -106,14 +108,23 @@ try {
   const typography = await front.evaluate(el => {
     const texts = [...el.querySelectorAll('div')];
     const situation = texts.find(e => e.textContent.startsWith('현장에서 긴 상황') && !e.children.length);
-    const question = texts.find(e => e.textContent === 'Q. 조건을 확인했습니까?');
+    const question = texts.find(e => e.textContent === '조건을 확인했습니까?');
     return [situation, question].map(e => { const s = getComputedStyle(e); return { size: s.fontSize, line: s.lineHeight, weight: s.fontWeight }; });
   });
   assert.deepEqual(typography[0], typography[1], 'Situation and question typography');
+  assert.equal(typography[0].size, '13px', 'Body uses the ready timer font size');
+  assert.equal(await front.getByText('상황설명', { exact: true }).count(), 1);
+  assert.equal(await front.getByText('질문', { exact: true }).count(), 1);
+  assert(!/Q\.|OX 퀴즈|준비되면|\d+\/\d+/.test(await front.innerText()), 'Removed front labels stay hidden');
   await page.getByLabel('카드 뒤집기', { exact: true }).click(); await face(true);
   const body = await back.innerText();
   const positions = ['해설은 위험', '상세설명은 원인', '발열', '가연물'].map(text => body.indexOf(text));
   assert(positions.every((p, i) => p >= 0 && (i === 0 || p > positions[i-1])), 'Back section order');
+  for (const label of ['해설', '상세설명', '화재 3요소', '위험개선권고사항']) {
+    assert.equal(await back.getByText(label, { exact: true }).count(), 1, label + ' chip');
+  }
+  const bodyColumns = await Promise.all(['해설은 위험을 먼저 확인합니다.', '상세설명은 원인을 설명합니다.', '가연물 · 산소 · 열', '계약 조건을 확인하세요'].map(text => back.getByText(text, { exact: true }).evaluate(el => ({ x: el.getBoundingClientRect().x, size: getComputedStyle(el).fontSize }))));
+  assert(bodyColumns.every(item => item.x === bodyColumns[0].x && item.size === '13px'), 'Back bodies share a left edge and font size');
   await back.getByLabel('좋아요', { exact: true }).click();
   await face(true); // Clicking an action must not flip the card.
   await back.getByLabel('저장', { exact: true }).click();
@@ -122,7 +133,7 @@ try {
   await page.getByText('신고 보내기', { exact: true }).click();
   await page.getByText('신고가 접수되었어요', { exact: true }).waitFor();
   await page.getByText('확인', { exact: true }).click();
-  await page.getByText('다시 보면 좋겠어요', { exact: true }).click();
+  await page.getByText('다음에 한번더', { exact: true }).click();
   await page.getByText('이 문제, 얼마나 어려웠나요?', { exact: true }).waitFor();
   const modal = page.getByText('이 문제, 얼마나 어려웠나요?', { exact: true }).locator('..').locator('..');
   assert.equal(await modal.getByTestId('card-reactions').count(), 0, 'No reactions in difficulty modal');
@@ -214,4 +225,4 @@ try {
   assert.equal(errors.length, 0, errors.join('\n'));
   writeFileSync(resolve(out, 'result.json'), JSON.stringify({ checks, errors, requests }, null, 2));
   console.log(JSON.stringify({ checks: checks.length, errors, out }));
-} finally { await browser.close(); await new Promise(done => server.close(done)); }
+} finally { await browser.close(); if (!devOrigin) await new Promise(done => server.close(done)); }

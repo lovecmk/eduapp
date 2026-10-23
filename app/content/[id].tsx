@@ -12,6 +12,7 @@ import { resolveCardImage, hasCardImage } from '../../src/data/cardImages';
 import { CardReportModal } from '../../src/components/cards/CardReportModal';
 import { CardDifficultyPoll } from '../../src/components/cards/CardDifficultyPoll';
 import { CardBackBody } from '../../src/components/cards/CardBackBody';
+import { CardFrontBody } from '../../src/components/cards/CardFrontBody';
 import { CardTips } from '../../src/components/community/CardTips';
 import { fontCute } from '../../src/theme/tokens';
 import { getCategoryIcon } from '../../src/constants/categories';
@@ -24,9 +25,8 @@ import { errorMessage } from '../../src/data/network/errors';
 const statusLabel: Record<string, string> = { new: '새 카드', learning: '학습 중', mastered: '마스터' };
 
 export default function ContentDetailScreen() {
-  const { theme, fontScale } = useTheme();
+  const { theme } = useTheme();
   const c = theme.colors;
-  const fs = fontScale;
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: allCards = [], isLoading, error, refetch } = useAllCards();
   const card = allCards.find((c) => c.id === id);
@@ -80,16 +80,7 @@ export default function ContentDetailScreen() {
         ) : null}
 
         <Animated.View entering={FadeInDown.delay(120).duration(360)} style={{ backgroundColor: questionTint, borderRadius: 18, padding: 18, borderWidth: 1, borderColor: questionBorder, marginBottom: 14, boxShadow: cardShadow }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 8 }}>
-            <Ionicons name="help-circle" size={16} color={c.primary} />
-            <Text style={{ color: c.primary, fontSize: 12, fontWeight: '700', fontFamily: fontCute }}>앞면 · 질문</Text>
-          </View>
-          {!!card.situation && (
-            <Text style={{ color: c.textPrimary, fontSize: 17 * fs, fontWeight: '800', lineHeight: 25 * fs, fontFamily: fontCute, marginBottom: 10 }}>{card.situation}</Text>
-          )}
-          <Text style={{ color: c.primary, fontSize: 17 * fs, fontWeight: '800', lineHeight: 25 * fs, fontFamily: fontCute }}>
-            <Text style={{ fontWeight: '900' }}>Q. </Text>{card.question}
-          </Text>
+          <CardFrontBody card={card} />
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(180).duration(360)} style={{ backgroundColor: answerTint, borderRadius: 18, padding: 18, borderWidth: 1, borderColor: answerBorder, marginBottom: 14, boxShadow: cardShadow }}>

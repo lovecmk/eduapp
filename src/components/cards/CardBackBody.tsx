@@ -2,8 +2,10 @@ import React from 'react';
 import { View, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/ThemeProvider';
-import { fontDisplay, fontBody, fontMono } from '../../theme/tokens';
+import { fontBody } from '../../theme/tokens';
 import { QuestionImage } from '../ui/QuestionImage';
+import { CardSectionChip } from './CardSectionChip';
+import { CARD_TEXT_SIZE, CARD_TEXT_LINE_HEIGHT } from './cardPresentation';
 import { resolveCardImage, hasCardImage } from '../../data/cardImages';
 import type { LearningCard } from '../../domain/models/LearningCard';
 
@@ -24,13 +26,14 @@ export function CardBackBody({ card }: { card: LearningCard }) {
   const { theme, fontScale } = useTheme();
   const c = theme.colors;
   const fs = fontScale;
+  const bodyStyle = { color: c.textPrimary, fontSize: CARD_TEXT_SIZE * fs, lineHeight: CARD_TEXT_LINE_HEIGHT * fs, fontFamily: fontBody };
   const steps = card.process ? splitSteps(card.process) : [];
   // 키워드는 React key 로 쓰인다 — 같은 값이 두 번 들어오면 key 가 겹쳐 경고가 뜨고
   // 목록이 어긋난다. 원본(엑셀)에서 같은 태그를 두 번 적는 일은 드물지 않다.
   const keywords = [...new Set(card.keywords)];
 
   return (
-    <View style={{ gap: 12 }}>
+    <View style={{ gap: 16 }}>
       {/* 뒷면 미디어(해설 도해/사진) */}
       {hasCardImage(card.answerImageUrl) && (
         <QuestionImage source={resolveCardImage(card.answerImageUrl)} height={170} alt={`${card.title} 해설 사진`} />
@@ -38,58 +41,41 @@ export function CardBackBody({ card }: { card: LearningCard }) {
 
       {/* 해설(핵심 결론) */}
       {!!card.conclusion.trim() && (
-        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: c.warning + '12', borderRadius: 12, padding: 12 }}>
-          <Ionicons name="bulb" size={20} color={c.warning} style={{ marginTop: 1 }} />
-          <Text style={{ color: c.textPrimary, fontSize: 15.5 * fs, lineHeight: 24 * fs, fontFamily: fontDisplay, flex: 1 }}>
-            {card.conclusion}
-          </Text>
+        <View style={{ gap: 8 }}>
+          <CardSectionChip label="해설" icon="bulb-outline" color={c.warning} />
+          <Text style={bodyStyle}>{card.conclusion}</Text>
         </View>
       )}
 
       {/* 상세설명 */}
       {!!card.principle.trim() && (
-        <View style={{ backgroundColor: c.surfaceAlt, borderRadius: 12, padding: 12 }}>
-          <Text style={{ color: c.textPrimary, fontSize: 14.5 * fs, lineHeight: 22 * fs, fontFamily: fontBody }}>
-            {card.principle}
-          </Text>
+        <View style={{ gap: 8 }}>
+          <CardSectionChip label="상세설명" icon="bulb-outline" color={c.primary} />
+          <Text style={bodyStyle}>{card.principle}</Text>
         </View>
       )}
 
       {/* 진행 프로세스 */}
       {steps.length > 0 && (
-        <View style={{ backgroundColor: c.warning + '12', borderRadius: 14, padding: 14 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 10 }}>
-            <Ionicons name="flame" size={13} color={c.warning} />
-            <Text style={{ color: c.warning, fontSize: 11.5, fontFamily: fontDisplay }}>화재·폭발 진행 프로세스</Text>
-          </View>
-          {steps.map((s, i) => (
-            <View key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: i === steps.length - 1 ? 0 : 8 }}>
-              <View style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: c.warning, alignItems: 'center', justifyContent: 'center', marginTop: 1 }}>
-                <Text style={{ color: '#fff', fontSize: 10, fontFamily: fontMono, fontWeight: '800' }}>{i + 1}</Text>
-              </View>
-              <Text style={{ color: c.textPrimary, fontSize: 12.5 * fs, lineHeight: 18 * fs, fontFamily: fontBody, flex: 1 }}>{s}</Text>
-            </View>
-          ))}
+        <View style={{ gap: 8 }}>
+          <CardSectionChip label="화재·폭발 진행 프로세스" icon="flame-outline" color={c.warning} />
+          {steps.map((s, i) => <Text key={i} style={bodyStyle}>{i + 1}. {s}</Text>)}
         </View>
       )}
 
       {/* 화재의 3요소 */}
-      {!!card.fireTriangle && (
-        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: c.surfaceAlt, borderRadius: 12, padding: 12 }}>
-          <Text style={{ fontSize: 15 }}>🔺</Text>
-          <Text style={{ color: c.textPrimary, fontSize: 12.5 * fs, lineHeight: 19 * fs, fontFamily: fontBody, flex: 1 }}>
-            {card.fireTriangle}
-          </Text>
+      {!!card.fireTriangle?.trim() && (
+        <View style={{ gap: 8 }}>
+          <CardSectionChip label="화재 3요소" icon="warning-outline" color={c.primary} />
+          <Text style={bodyStyle}>{card.fireTriangle}</Text>
         </View>
       )}
 
       {/* 위험개선 권고사항 — Windows 검수/문제 수정 화면의 뒷면5와 같은 값 */}
-      {!!card.improvement && (
-        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: c.success + '12', borderRadius: 12, padding: 12 }}>
-          <Ionicons name="shield-checkmark-outline" size={16} color={c.success} style={{ marginTop: 1 }} />
-          <Text style={{ color: c.textPrimary, fontSize: 12.5 * fs, lineHeight: 19 * fs, fontFamily: fontBody, flex: 1 }}>
-            {card.improvement}
-          </Text>
+      {!!card.improvement?.trim() && (
+        <View style={{ gap: 8 }}>
+          <CardSectionChip label="위험개선권고사항" icon="shield-checkmark-outline" color={c.success} />
+          <Text style={bodyStyle}>{card.improvement}</Text>
         </View>
       )}
 

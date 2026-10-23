@@ -101,7 +101,7 @@ try {
     await page.screenshot({ path: resolve(out, i + '-320.png') });
     await page.setViewportSize({ width: 390, height: 844 });
     await page.getByRole('button', { name: '카드 뒤집기', exact: true }).click(); await face(true);
-    await page.getByText('알고 있었어요', { exact: true }).click();
+    await page.getByText('알고 있어요', { exact: true }).click();
     await page.getByLabel('난이도 쉬움 — 바로 알았어요').click();
     await page.waitForTimeout(500);
     checks.push({ format, grade: i === 0 ? 'incorrect' : 'correct', locked: true });

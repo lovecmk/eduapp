@@ -4,13 +4,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/ThemeProvider';
 import { fontCute, fontDisplay, fontBody } from '../../theme/tokens';
 import type { LearningCard } from '../../domain/models/LearningCard';
+import { CARD_TEXT_SIZE, CARD_TEXT_LINE_HEIGHT } from './cardPresentation';
 
 const CIRCLED = ['①', '②', '③', '④', '⑤'];
 
 /**
  * 퀴즈형 카드의 앞면 정답 선택 UI — OX / 객관식.
  * 앞면에서 보기를 선택하면 즉시 정답 여부를 표시하고(정답=통통 튀는 강조, 오답=좌우 흔들림),
- * 잠시 후 카드가 자동으로 뒤집혀 해설을 보여준다.
+ * 피드백을 확인한 뒤 사용자가 카드를 탭하면 해설로 뒤집는다.
  */
 export function CardQuiz({
   card,
@@ -83,25 +84,27 @@ export function CardQuiz({
     <Animated.View style={{ width: '100%', transform: [{ translateX: shakeX }] }}>
       {isOX ? (
         <View style={{ flexDirection: 'row', gap: 12 }}>
-          {choices.map((label, i) => (
+          {choices.map((_, i) => (
             <Pressable accessibilityRole="button"
+              accessibilityLabel={i === 0 ? 'O' : 'X'}
+              accessibilityState={{ disabled: revealed, selected: pick === i }}
               key={i}
               disabled={revealed}
               // 카드 앞면 전체가 '탭하여 뒤집기' Pressable 이라, 웹에서는 보기 선택 클릭이
               // 부모로 전파돼 "문제를 먼저 풀어주세요" 안내와 겹친다. 전파를 차단한다.
               onPress={(e) => { (e as unknown as { stopPropagation?: () => void })?.stopPropagation?.(); onPick(i); }}
               style={{
-                flex: 1, aspectRatio: 1.4, borderRadius: 18, borderWidth: 2,
+                // 기존 높이(너비 / 1.4)의 절반. 좁은 화면에서도 최소 터치 높이는 유지한다.
+                flex: 1, aspectRatio: 2.8, minHeight: 44, borderRadius: 14, borderWidth: 1.5,
                 borderColor: borderFor(i), backgroundColor: bgFor(i),
-                alignItems: 'center', justifyContent: 'center', gap: 4,
+                alignItems: 'center', justifyContent: 'center',
               }}
             >
               <Ionicons
                 name={i === 0 ? 'ellipse-outline' : 'close'}
-                size={44 * fs}
+                size={30 * fs}
                 color={revealed ? (i === answer ? c.success : i === pick ? c.error : c.textSecondary) : c.textPrimary}
               />
-              <Text style={{ color: c.textSecondary, fontSize: 13 * fs, fontFamily: fontDisplay }}>{label}</Text>
             </Pressable>
           ))}
         </View>
@@ -121,7 +124,7 @@ export function CardQuiz({
                 }}
               >
                 <Text style={{ color: revealed && i === answer ? c.success : c.primary, fontSize: 16 * fs, fontFamily: fontDisplay }}>{labelFor(i)}</Text>
-                <Text style={{ color: c.textPrimary, fontSize: 14.5 * fs, lineHeight: 20, flex: 1, fontFamily: fontCute }}>{label}</Text>
+                <Text style={{ color: c.textPrimary, fontSize: CARD_TEXT_SIZE * fs, lineHeight: CARD_TEXT_LINE_HEIGHT * fs, flex: 1, fontFamily: fontCute }}>{label}</Text>
                 {mark && <Ionicons name={mark} size={20} color={markColor(i)} />}
               </Pressable>
             );

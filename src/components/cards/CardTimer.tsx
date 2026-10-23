@@ -3,7 +3,8 @@ import { View, Text, StyleSheet, AppState } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing, cancelAnimation } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/ThemeProvider';
-import { fontMono, fontBody } from '../../theme/tokens';
+import { fontMono } from '../../theme/tokens';
+import { CARD_TEXT_SIZE, CARD_TEXT_LINE_HEIGHT } from './cardPresentation';
 import type { CardDifficulty } from '../../domain/models/LearningCard';
 
 /** 난이도별 목표 시간(초) — 마이크로러닝 3분 흐름. */
@@ -26,7 +27,7 @@ const TRACK_W = 120;
  * 호출해 매 프레임 리렌더가 났다.)
  */
 export function CardTimer({ seconds, resetKey, onExpire }: { seconds: number; resetKey: string; onExpire?: () => void }) {
-  const { theme } = useTheme();
+  const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
   const [displaySec, setDisplaySec] = useState(() => Math.ceil(seconds));
   const [expired, setExpired] = useState(false);
@@ -104,14 +105,11 @@ export function CardTimer({ seconds, resetKey, onExpire }: { seconds: number; re
     <View style={styles.wrap}>
       <View style={[styles.pill, { backgroundColor: color + '14', borderColor: color + '33' }]}>
         <Ionicons name={expired ? 'checkmark-circle' : low ? 'alarm' : 'timer-outline'} size={14} color={color} />
-        <Text style={[styles.time, { color }]}>{expired ? '준비 완료' : `${displaySec}초`}</Text>
+        <Text style={[styles.time, { color, fontSize: CARD_TEXT_SIZE * fs, lineHeight: CARD_TEXT_LINE_HEIGHT * fs }]}>{expired ? '준비 완료' : `${displaySec}초`}</Text>
       </View>
       <View style={[styles.track, { backgroundColor: c.surfaceAlt }]}>
         <Animated.View style={[styles.fill, { backgroundColor: color }, fillStyle]} />
       </View>
-      <Text style={[styles.hint, { color: c.textSecondary }]}>
-        {expired ? '준비되면 탭해서 확인하세요' : low ? '시간 안에 답을 떠올려보세요!' : '탭하면 바로 정답 확인'}
-      </Text>
     </View>
   );
 }
@@ -119,9 +117,8 @@ export function CardTimer({ seconds, resetKey, onExpire }: { seconds: number; re
 const styles = StyleSheet.create({
   wrap: { alignItems: 'center', gap: 7 },
   pill: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 5, borderRadius: 999, borderWidth: 1 },
-  time: { fontSize: 13, fontFamily: fontMono, fontWeight: '800' },
+  time: { fontFamily: fontMono, fontWeight: '800' },
   track: { width: TRACK_W, height: 5, borderRadius: 3, overflow: 'hidden' },
   // 바닥 트랙 전체를 채운 뒤 scaleX(왼쪽 고정)로 줄인다 — 퍼센트 width 애니메이션보다 UI 스레드에 친화적.
   fill: { width: TRACK_W, height: '100%', borderRadius: 3, transformOrigin: 'left' },
-  hint: { fontSize: 11, fontFamily: fontBody },
 });

@@ -9,7 +9,6 @@ import { useAuthStore } from '../../src/store/authStore';
 import { useSettingsStore } from '../../src/store/settingsStore';
 import { getUxTrack } from '../../src/utils/uxTrack';
 import { Button } from '../../src/components/ui/Button';
-import { Badge } from '../../src/components/ui/Badge';
 import { CardStudySkeleton } from '../../src/components/skeletons';
 import { ErrorState } from '../../src/components/ui/ErrorState';
 import { QuestionImage } from '../../src/components/ui/QuestionImage';
@@ -17,6 +16,8 @@ import { CategoryTrail } from '../../src/components/ui/CategoryTrail';
 import { CardTimer } from '../../src/components/cards/CardTimer';
 import { CardReactionBar } from '../../src/components/cards/CardReactionBar';
 import { CardBackBody } from '../../src/components/cards/CardBackBody';
+import { CardFrontBody } from '../../src/components/cards/CardFrontBody';
+import { CARD_TIMER_GAP } from '../../src/components/cards/cardPresentation';
 import { ScrollFadeEdge } from '../../src/components/ui/ScrollFadeEdge';
 import { CuteScrollRail, ScrollMoreHint, ScrollEndStamp } from '../../src/components/ui/CuteScrollRail';
 import { useCardFlip } from '../../src/hooks/useCardFlip';
@@ -1086,39 +1087,26 @@ function CardsContent() {
             }}
           >
             {/* 머리말도 톡 치면 뒤집힌다 — 본문(스크롤 영역) 밖이라 탭 판을 따로 얹는다. */}
-            <Pressable tabIndex={-1} onPress={onCardPress} disabled={exiting} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
-              <View style={{ flex: 1, paddingRight: 8 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Badge label={card.category} />
-                  {isQuiz && (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: c.warning + '18', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 }}>
-                      <Ionicons name="help-circle" size={12} color={c.warning} />
-                      <Text style={{ color: c.warning, fontSize: 10.5, fontFamily: fontCute }}>{card.type === 'ox' ? 'OX 퀴즈' : (card.format || '객관식')}</Text>
-                    </View>
-                  )}
-                </View>
-                <View style={{ marginTop: 8 }}>
-                  <CategoryTrail category={card.taxonomyCategory || card.category} subCategory={card.subCategory} topic={card.topic} size="sm" />
-                </View>
-              </View>
-              <Text style={{ color: c.textSecondary, fontSize: 11, fontFamily: fontCute }}>{index + 1}/{deck.length}</Text>
+            <Pressable tabIndex={-1} onPress={onCardPress} disabled={exiting} style={{ marginBottom: 12 }}>
+              <CategoryTrail category={card.taxonomyCategory || card.category} subCategory={card.subCategory} topic={card.topic} size="sm" />
             </Pressable>
             {isQuiz ? (
               /* 퀴즈형: 상황·문제 + 앞면 정답 선택 UI.
                  답을 고르면 아래에 '정답/오답' 피드백이 새로 붙어 내용이 길어진다 —
                  카드 경계에서 반으로 잘리지 않도록 스크롤 영역으로 감싸고 가림막을 얹는다. */
-              <View style={{ flex: 1 }}>
+              <View style={{ flex: 1, minHeight: 0 }}>
                 <ScrollView
                   ref={quizScrollRef}
+                  style={{ flex: 1 }}
                   // 스크롤은 늘 켜 둔다. overflowing 으로 껐다 켜면 경계에서
                   // 진행 중이던 제스처가 끊긴다 — 막대만 넘칠 때 보이면 된다.
                   showsVerticalScrollIndicator={quizBody.overflowing}
                   nestedScrollEnabled
-                  contentContainerStyle={{ flexGrow: 1 }}
+                  contentContainerStyle={{ flexGrow: 1, paddingRight: 6 }}
                   {...quizBody.scrollProps}
                   onScroll={(e) => { quizBody.scrollProps.onScroll(e); markBodyScroll(); }}
                 >
-                 <Pressable tabIndex={-1} onPress={onCardPress} disabled={exiting} style={{ flexGrow: 1, paddingTop: 6, paddingBottom: 8 }}>
+                 <Pressable tabIndex={-1} onPress={onCardPress} disabled={exiting} style={{ flexGrow: 1, paddingTop: 6, paddingBottom: 16 }}>
                   {/* 사진 칸은 **카드가 사진을 가졌다고 말하면** 그린다. 푸는 데
                       실패했더라도 자리는 남긴다 — 그림이 곧 문제인 카드에서
                       칸까지 사라지면 학습자는 '사진 없는 문제'로 읽고 넘긴다. */}
@@ -1127,22 +1115,17 @@ function CardsContent() {
                       <QuestionImage source={resolveCardImage(card.imageUrl)} height={172} alt={card.title} />
                     </View>
                   )}
-                  {!!card.situation && (
-                    <Text style={{ color: c.textPrimary, fontSize: 18 * fs, fontWeight: '800', lineHeight: 26 * fs, textAlign: 'left', fontFamily: fontCute, marginBottom: 8 }}>
-                      {card.situation}
-                    </Text>
-                  )}
-                  <Text style={{ color: c.primary, fontSize: 18 * fs, fontWeight: '800', lineHeight: 26 * fs, textAlign: 'left', fontFamily: fontCute, marginBottom: 18 }}>
-                    <Text style={{ fontWeight: '900' }}>Q. </Text>{card.question}
-                  </Text>
-                  <CardQuiz
-                    card={card}
-                    pick={quizPick}
-                    revealed={quizRevealed}
-                    onPick={handleQuizPick}
-                  />
+                  <CardFrontBody card={card} />
+                  <View style={{ marginTop: 18 }}>
+                    <CardQuiz
+                      card={card}
+                      pick={quizPick}
+                      revealed={quizRevealed}
+                      onPick={handleQuizPick}
+                    />
+                  </View>
                   {!quizRevealed && (
-                    <View style={{ marginTop: 'auto', paddingTop: 32, alignItems: 'center' }}>
+                    <View style={{ marginTop: 'auto', paddingTop: CARD_TIMER_GAP, alignItems: 'center' }}>
                       <CardTimer seconds={card.studySeconds} resetKey={card.id} onExpire={haptic} />
                     </View>
                   )}
@@ -1153,15 +1136,16 @@ function CardsContent() {
             ) : (
               /* 설명형 앞면 — 분류 아래에서 본문을 시작하고, 남는 공간은 질문과 타이머
                  사이에 둔다. 긴 본문은 최소 간격을 유지한 채 카드 안에서 스크롤한다. */
-              <View style={{ flex: 1 }}>
+              <View style={{ flex: 1, minHeight: 0 }}>
                 <ScrollView
+                  style={{ flex: 1 }}
                   showsVerticalScrollIndicator={frontBody.overflowing}
                   nestedScrollEnabled
-                  contentContainerStyle={{ flexGrow: 1 }}
+                  contentContainerStyle={{ flexGrow: 1, paddingRight: 6 }}
                   {...frontBody.scrollProps}
                   onScroll={(e) => { frontBody.scrollProps.onScroll(e); markBodyScroll(); }}
                 >
-                 <Pressable tabIndex={-1} onPress={onCardPress} disabled={exiting} style={{ flexGrow: 1, alignItems: 'center', paddingTop: 6, paddingBottom: 8 }}>
+                 <Pressable tabIndex={-1} onPress={onCardPress} disabled={exiting} style={{ flexGrow: 1, alignItems: 'center', paddingTop: 6, paddingBottom: 16 }}>
                   {hasCardImage(card.imageUrl) ? (
                     <View style={{ width: '100%', marginBottom: 18 }}>
                       <QuestionImage source={resolveCardImage(card.imageUrl)} height={200} alt={card.title} />
@@ -1169,18 +1153,8 @@ function CardsContent() {
                   ) : (
                     <Ionicons name={getCategoryIcon(card.category)} size={40 * fs} color={c.primary} style={{ marginBottom: 12, opacity: 0.6 }} />
                   )}
-                  {/* 글은 카드 폭을 꽉 채워 왼쪽으로 정렬한다. 감싼 스크롤이 alignItems: 'center'
-                      라(아이콘·이미지를 가운데 두려고) 그냥 두면 짧은 문장만 가운데로 몰려,
-                      길이에 따라 정렬이 오락가락한다. */}
-                  {!!card.situation && (
-                    <Text style={{ alignSelf: 'stretch', color: c.textPrimary, fontSize: 20 * fs, fontWeight: '800', lineHeight: 29 * fs, textAlign: 'left', fontFamily: fontCute, marginBottom: 14 }}>
-                      {card.situation}
-                    </Text>
-                  )}
-                  <Text style={{ alignSelf: 'stretch', color: c.primary, fontSize: 20 * fs, fontWeight: '800', lineHeight: 29 * fs, textAlign: 'left', fontFamily: fontCute }}>
-                    <Text style={{ fontWeight: '900' }}>Q. </Text>{card.question}
-                  </Text>
-                  <View style={{ marginTop: 'auto', paddingTop: 32 }}>
+                  <CardFrontBody card={card} />
+                  <View style={{ marginTop: 'auto', paddingTop: CARD_TIMER_GAP }}>
                     <CardTimer seconds={card.studySeconds} resetKey={card.id} onExpire={haptic} />
                   </View>
                  </Pressable>
@@ -1228,7 +1202,7 @@ function CardsContent() {
                 directionalLockEnabled
                 keyboardShouldPersistTaps="handled"
                 // 마지막 줄이 카드 밑동에 딱 붙지 않도록 넉넉히 띄운다.
-                contentContainerStyle={{ flexGrow: 1, paddingBottom: 20 }}
+                contentContainerStyle={{ flexGrow: 1, paddingRight: 10, paddingBottom: 20 }}
                 {...backBody.scrollProps}
                 // 가림막 계산(backBody)과 탭 가드를 **같은 신호**로 처리한다.
                 // 끌기 신호(BeginDrag/EndDrag)는 휠·스크롤 막대에서 오지 않아
@@ -1322,12 +1296,12 @@ function CardsContent() {
               <Pressable accessibilityRole="button" onPress={againUp} disabled={exiting}
                 style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.warning, borderRadius: 14, height: 52, boxShadow: `0 3px 8px ${c.warning}3D` }}>
                 <Ionicons name="refresh-circle" size={19} color="#fff" />
-                <Text style={{ color: '#fff', fontSize: 14.5 * fs, fontWeight: '700', fontFamily: fontCute }}>다시 보면 좋겠어요</Text>
+                <Text style={{ color: '#fff', fontSize: 14.5 * fs, fontWeight: '700', fontFamily: fontCute }}>다음에 한번더</Text>
               </Pressable>
               <Pressable accessibilityRole="button" onPress={completeLeft} disabled={exiting}
                 style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.success, borderRadius: 14, height: 52, boxShadow: `0 3px 8px ${c.success}3D` }}>
                 <Ionicons name="checkmark-circle" size={19} color="#fff" />
-                <Text style={{ color: '#fff', fontSize: 14.5 * fs, fontWeight: '700', fontFamily: fontCute }}>알고 있었어요</Text>
+                <Text style={{ color: '#fff', fontSize: 14.5 * fs, fontWeight: '700', fontFamily: fontCute }}>알고 있어요</Text>
               </Pressable>
             </View>
           )
@@ -1363,12 +1337,12 @@ function CardsContent() {
               <Pressable accessibilityRole="button" onPress={completeLeft} disabled={exiting}
                 style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.success, borderRadius: 14, height: 52, boxShadow: `0 3px 8px ${c.success}3D` }}>
                 <Ionicons name="checkmark-circle" size={19} color="#fff" />
-                <Text style={{ color: '#fff', fontSize: 14.5 * fs, fontWeight: '700', fontFamily: fontCute }}>알고 있었어요</Text>
+                <Text style={{ color: '#fff', fontSize: 14.5 * fs, fontWeight: '700', fontFamily: fontCute }}>알고 있어요</Text>
               </Pressable>
               <Pressable accessibilityRole="button" onPress={againUp} disabled={exiting}
                 style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.warning, borderRadius: 14, height: 52, boxShadow: `0 3px 8px ${c.warning}3D` }}>
                 <Ionicons name="arrow-up-circle" size={19} color="#fff" />
-                <Text style={{ color: '#fff', fontSize: 14.5 * fs, fontWeight: '700', fontFamily: fontCute }}>다시 보면 좋겠어요</Text>
+                <Text style={{ color: '#fff', fontSize: 14.5 * fs, fontWeight: '700', fontFamily: fontCute }}>다음에 한번더</Text>
               </Pressable>
             </View>
           )

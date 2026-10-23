@@ -137,7 +137,7 @@ try {
     await face(false);
     await page.getByRole('button', { name: '카드 뒤집기', exact: true }).click();
     await page.waitForTimeout(450);
-    await page.getByText('알고 있었어요', { exact: true }).click();
+    await page.getByText('알고 있어요', { exact: true }).click();
     await page.getByLabel('난이도 쉬움 — 바로 알았어요').click();
     await page.waitForTimeout(450);
   }
