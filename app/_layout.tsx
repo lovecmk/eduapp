@@ -43,7 +43,7 @@ import { DailyWelcomeGate } from '../src/components/home/DailyLearningWelcome';
 
 applyGlobalFont();
 
-// 인트로는 '네이티브 스플래시(흰 배경 + KFPA 로고) 하나'만 쓴다.
+// 인트로는 OS 밝기 모드에 맞는 숫자 3 로고의 네이티브 스플래시 하나만 쓴다.
 // - preventAutoHide: 앱이 준비될 때까지(폰트+세션복구) 네이티브 스플래시를 유지했다가
 //   직접 걷는다. 별도 JS 부팅 스플래시를 두지 않아 '인트로 2개'로 보이지 않는다.
 // - fade:true: 준비되면 부드럽게 페이드아웃되며 앱으로 넘어간다.
@@ -85,7 +85,7 @@ function RootContent() {
 
   const ready = (fontsLoaded || !!fontError) && bootstrapped;
 
-  // 인트로는 '네이티브 스플래시(흰 배경 + KFPA 로고) 하나'만 사용한다.
+  // 인트로는 모드별 숫자 3 로고의 네이티브 스플래시 하나만 사용한다.
   // 폰트 로드 + 세션 복구가 끝나면(ready) 네이티브 스플래시를 걷어 곧장 앱으로 넘어간다.
   // (기존의 JS 부팅 스플래시 오버레이는 네이티브 스플래시와 겹쳐 '인트로 2개'로 보였고,
   //  로고 크기 점프·글자 잘림 문제가 있어 제거했다.)

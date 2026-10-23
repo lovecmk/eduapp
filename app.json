@@ -24,12 +24,17 @@
       "resizeMode": "contain",
       "backgroundColor": "#FFFFFF",
       "dark": {
-        "image": "./assets/splash-icon.png",
+        "image": "./assets/icon-dark.png",
         "resizeMode": "contain",
-        "backgroundColor": "#FFFFFF"
+        "backgroundColor": "#0F1118"
       }
     },
     "ios": {
+      "icon": {
+        "light": "./assets/icon.png",
+        "dark": "./assets/icon-dark.png",
+        "tinted": "./assets/icon-tinted.png"
+      },
       "supportsTablet": true,
       "infoPlist": {
         "NSFaceIDUsageDescription": "생체인증으로 빠르게 로그인합니다",
@@ -40,7 +45,9 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#FFFFFF"
+        "backgroundImage": "./assets/adaptive-background.png",
+        "monochromeImage": "./assets/adaptive-monochrome.png",
+        "backgroundColor": "#008DFF"
       },
       "permissions": [
         "android.permission.USE_BIOMETRIC",
@@ -67,10 +74,10 @@
           "resizeMode": "contain",
           "backgroundColor": "#FFFFFF",
           "dark": {
-            "image": "./assets/splash-icon.png",
+            "image": "./assets/icon-dark.png",
             "imageWidth": 300,
             "resizeMode": "contain",
-            "backgroundColor": "#FFFFFF"
+            "backgroundColor": "#0F1118"
           }
         }
       ],
