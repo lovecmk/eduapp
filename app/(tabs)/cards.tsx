@@ -109,6 +109,7 @@ function CardsContent() {
   const { theme, fontScale } = useTheme();
   const c = theme.colors;
   const fs = fontScale;
+  const controlsHeight = Math.ceil(48 * Math.max(1, fs));
   const router = useRouter();
   const tabs = useNavigation();
   const finishFlow = useCallback((target: string) => endFlow(router, target, tabs), [router, tabs]);
@@ -1261,10 +1262,10 @@ function CardsContent() {
 
       {/* 하단 컨트롤 — 학습자가 조작하는 버튼(화면 중간 아래). 버튼 전환은 카드 회전 중간(backControls)에 맞춘다.
 
-          **높이는 어떤 상태에서도 52 로 고정한다.** 이 블록이 비었다 찼다 하면 위의 카드 영역
+          **앞면 안내와 뒷면 버튼은 같은 높이를 쓴다(기본 48, 큰 글자는 확장).** 이 블록이 비었다 찼다 하면 위의 카드 영역
           (flex: 1)이 그만큼 늘었다 줄어, 뒤집을 때마다 카드 높이가 달라진다. 안내 줄이든
           두 개짜리 액션 행이든 같은 높이를 차지하게 두어 학습카드 높이를 항상 같게 유지한다. */}
-      <View style={{ paddingHorizontal: 20, paddingBottom: 24, paddingTop: 12, borderTopWidth: 1, borderTopColor: c.border, width: '100%', maxWidth: COLUMN_MAX, alignSelf: 'center' }}>
+      <View style={{ paddingHorizontal: 20, paddingBottom: 16, paddingTop: 8, borderTopWidth: 1, borderTopColor: c.border, width: '100%', maxWidth: COLUMN_MAX, alignSelf: 'center' }}>
         {isSwipeTrack ? (
           // 스와이프 트랙(원진섭) — 뒤집기 버튼 없이 탭/스와이프로 조작.
           !backControls ? (
@@ -1280,7 +1281,7 @@ function CardsContent() {
               accessibilityLabel="카드 뒤집기"
               onPress={onCardPress}
               disabled={exiting}
-              style={{ height: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingHorizontal: 12 }}
+              style={{ height: controlsHeight, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingHorizontal: 12 }}
             >
               <Ionicons
                 name={nextReviewHint ? 'alarm-outline' : solveHint ? 'alert-circle' : 'swap-horizontal-outline'}
@@ -1295,14 +1296,14 @@ function CardsContent() {
             </Pressable>
           ) : (
             // 버튼 위치 교체 — 왼쪽: 다음에 한번 더 볼게요 / 오른쪽: 이해했어요
-            <View style={{ flexDirection: 'row', gap: 10, height: 52 }}>
+            <View style={{ flexDirection: 'row', gap: 10, height: controlsHeight }}>
               <Pressable accessibilityRole="button" onPress={againUp} disabled={exiting}
-                style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.warning, borderRadius: 14, height: 52, boxShadow: `0 3px 8px ${c.warning}3D` }}>
+                style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.warning, borderRadius: 14, height: controlsHeight, boxShadow: `0 3px 8px ${c.warning}3D` }}>
                 <Ionicons name="refresh-circle" size={19} color="#fff" />
                 <Text style={{ color: '#fff', fontSize: 14.5 * fs, fontWeight: '700', fontFamily: fontCute }}>다음에 한번더</Text>
               </Pressable>
               <Pressable accessibilityRole="button" onPress={completeLeft} disabled={exiting}
-                style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.success, borderRadius: 14, height: 52, boxShadow: `0 3px 8px ${c.success}3D` }}>
+                style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.success, borderRadius: 14, height: controlsHeight, boxShadow: `0 3px 8px ${c.success}3D` }}>
                 <Ionicons name="checkmark-circle" size={19} color="#fff" />
                 <Text style={{ color: '#fff', fontSize: 14.5 * fs, fontWeight: '700', fontFamily: fontCute }}>알고 있어요</Text>
               </Pressable>
@@ -1322,7 +1323,7 @@ function CardsContent() {
               accessibilityLabel="카드 뒤집기"
               onPress={onCardPress}
               disabled={exiting}
-              style={{ height: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingHorizontal: 12 }}
+              style={{ height: controlsHeight, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, paddingHorizontal: 12 }}
             >
               <Ionicons
                 name={nextReviewHint ? 'alarm-outline' : solveHint ? 'alert-circle' : 'sync-outline'}
@@ -1336,14 +1337,14 @@ function CardsContent() {
               </Text>
             </Pressable>
           ) : (
-            <View style={{ flexDirection: 'row', gap: 10, height: 52 }}>
+            <View style={{ flexDirection: 'row', gap: 10, height: controlsHeight }}>
               <Pressable accessibilityRole="button" onPress={completeLeft} disabled={exiting}
-                style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.success, borderRadius: 14, height: 52, boxShadow: `0 3px 8px ${c.success}3D` }}>
+                style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.success, borderRadius: 14, height: controlsHeight, boxShadow: `0 3px 8px ${c.success}3D` }}>
                 <Ionicons name="checkmark-circle" size={19} color="#fff" />
                 <Text style={{ color: '#fff', fontSize: 14.5 * fs, fontWeight: '700', fontFamily: fontCute }}>알고 있어요</Text>
               </Pressable>
               <Pressable accessibilityRole="button" onPress={againUp} disabled={exiting}
-                style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.warning, borderRadius: 14, height: 52, boxShadow: `0 3px 8px ${c.warning}3D` }}>
+                style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: c.warning, borderRadius: 14, height: controlsHeight, boxShadow: `0 3px 8px ${c.warning}3D` }}>
                 <Ionicons name="arrow-up-circle" size={19} color="#fff" />
                 <Text style={{ color: '#fff', fontSize: 14.5 * fs, fontWeight: '700', fontFamily: fontCute }}>다음에 한번더</Text>
               </Pressable>
