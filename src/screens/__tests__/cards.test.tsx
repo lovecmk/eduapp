@@ -14,10 +14,13 @@
 
 const mockPush = jest.fn();
 const mockMark = jest.fn(() => Promise.resolve());
+const mockDifficultyVote = jest.fn();
 let mockRestDay = false;
-let mockParams: { category?: string; focusId?: string } = {};
+let mockParams: { category?: string; focusId?: string; mode?: string } = {};
 let mockAvailableCards: LearningCard[] = [];
 let mockAssignedCards: LearningCard[] | null = null;
+let mockAssignedReview = false;
+let mockDueCards: LearningCard[] = [];
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush, replace: jest.fn(), back: jest.fn() }),
   useNavigation: () => undefined,
@@ -31,9 +34,9 @@ jest.mock('../../hooks/useCards', () => ({
   useAllCards: () => ({ data: mockAvailableCards, isLoading: false, error: null, refetch: jest.fn() }),
   useMarkCard: () => ({ mutate: mockMark, mutateAsync: mockMark }),
 }));
-jest.mock('../../hooks/useReview', () => ({ useReview: () => ({ dueCards: [] }) }));
+jest.mock('../../hooks/useReview', () => ({ useReview: () => ({ dueCards: mockDueCards }) }));
 jest.mock('../../hooks/useDifficultyPoll', () => ({
-  useDifficultyVote: () => jest.fn(),
+  useDifficultyVote: () => mockDifficultyVote,
   useDifficultyPoll: () => ({ counts: null, mine: null, loaded: true }),
 }));
 jest.mock('../../hooks/useDailyQuota', () => ({
@@ -42,7 +45,7 @@ jest.mock('../../hooks/useDailyQuota', () => ({
 }));
 jest.mock('../../hooks/useDailyAssignment', () => ({
   DAILY_ASSIGNMENT_KEY: 'daily-assignment',
-  useDailyAssignment: () => ({ assignment: { cards: (mockAssignedCards ?? [mockCard]).map(card => ({ card, done: false })) } }),
+  useDailyAssignment: () => ({ assignment: { cards: (mockAssignedCards ?? [mockCard]).map(card => ({ card, kind: mockAssignedReview ? 'review' : 'new', done: false })) } }),
 }));
 
 import React from 'react';
@@ -56,6 +59,7 @@ import { useAuthStore } from '../../store/authStore';
 import { useAccountRestoreStore } from '../../store/accountRestoreStore';
 import { getSessionEpoch } from '../../data/network/sessionEpoch';
 import { useSrsStore } from '../../store/srsStore';
+import { initialState } from '../../domain/srs';
 import { useSettingsStore } from '../../store/settingsStore';
 import { nestedButtonLabels, type TreeNode } from '../../test-utils/nestedButtons';
 import type { LearningCard } from '../../domain/models/LearningCard';
@@ -205,6 +209,52 @@ it('같은 렌더에서 두 번 탭해도 앞면으로 돌아오고 뒷면 빈 �
 // 진행시킬 이유가 없다 — 타이머를 세워 둔 채로 첫 프레임만 본다.
 beforeAll(() => jest.useFakeTimers());
 afterAll(() => jest.useRealTimers());
+
+describe.each(['이용재', '원진섭'])('복습 난이도 팝업 생략 (%s)', name => {
+  it.each([
+    { mode: 'category', status: 'learning', seeded: true, again: false },
+    { mode: 'category', status: 'learning', seeded: true, again: true },
+    { mode: 'due', status: 'learning', seeded: true, again: false },
+    { mode: 'due', status: 'learning', seeded: true, again: true },
+    { mode: 'assignment-review', status: 'new', seeded: false, again: false },
+    { mode: 'focus', status: 'mastered', seeded: true, again: true },
+    { mode: 'today', status: 'learning', seeded: false, again: false },
+    { mode: 'focus', status: 'new', seeded: true, again: true },
+    { mode: 'category', status: 'new', seeded: false, again: false },
+  ] as const)('$mode / $status / seeded=$seeded / again=$again', ({ mode, status, seeded, again }) => {
+    const review: LearningCard = { ...mockCard, id: 'review-no-prompt', type: 'explanation', status };
+    mockAvailableCards = [review]; mockAssignedCards = [review]; mockDueCards = [review];
+    mockAssignedReview = mode === 'assignment-review';
+    mockParams = mode === 'category' ? { category: review.category } : mode === 'due' ? { mode: 'due' } : mode === 'focus' ? { focusId: review.id } : {};
+    const previous = { ...initialState(), reps: 1, lastGrade: 'again' as const, firstGrade: 'again' as const, firstReviewedAt: Date.now() - 86400000 };
+    useSrsStore.getState().reset();
+    if (seeded) useSrsStore.setState({ cards: { [review.id]: previous } });
+    useDiffPollStore.setState({ myVotes: { [review.id]: 'hard' } });
+    let finish!: (result: { finished: boolean }) => void;
+    const parallel = jest.spyOn(Animated, 'parallel').mockReturnValue({ start: cb => { finish = cb!; }, stop: jest.fn(), reset: jest.fn() });
+    const view = wrap(name);
+    try {
+      fireEvent.press(screen.getByLabelText('카드 뒤집기'));
+      act(() => jest.advanceTimersByTime(400));
+      const choice = screen.getByText(again ? '다음에 한번더' : '알고 있어요');
+      act(() => { fireEvent.press(choice); fireEvent.press(choice); });
+      expect(screen.queryByText('이 문제, 얼마나 어려웠나요?')).toBeNull();
+      expect(parallel).toHaveBeenCalledTimes(1);
+      expect(mockDifficultyVote).not.toHaveBeenCalled();
+      act(() => finish({ finished: true }));
+      const result = useSrsStore.getState().cards[review.id];
+      expect(result.reps).toBe((seeded ? 1 : 0) + 1);
+      expect(result.lastGrade).toBe(again ? 'again' : 'good');
+      expect(result.firstGrade).toBe(seeded ? 'again' : again ? 'again' : 'good');
+      expect(result.perceivedDifficulty).toBe('');
+      expect(useDiffPollStore.getState().myVotes[review.id]).toBe('hard');
+    } finally {
+      view.unmount(); parallel.mockRestore();
+      mockParams = {}; mockAvailableCards = []; mockAssignedCards = null; mockDueCards = []; mockAssignedReview = false;
+      useSrsStore.getState().reset();
+    }
+  });
+});
 
 it('완료 버튼 연타와 화면 이탈 후 애니메이션 완료가 중복/늦은 판정을 만들지 않는다', () => {
   const type = mockCard.type;

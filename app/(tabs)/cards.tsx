@@ -197,13 +197,13 @@ function CardsContent() {
   // 뒤로가기 시 "어디로 이동할지" 묻는 확인 모달.
   const [exitConfirm, setExitConfirm] = useState(false);
   /**
-   * 한 문제를 마치고 넘어가기 직전에 묻는 체감 난이도(쉬움/중간/어려움).
+   * 신규 문제를 마치고 넘어가기 직전에 묻는 체감 난이도(쉬움/중간/어려움).
    *
    * 카드를 날려보내기 전에 묻는다 — 방금 본 문제가 아직 화면에 있어야
    * "이 문제"가 무엇인지 헷갈리지 않는다. 답(또는 건너뛰기)을 받고 나서야
    * 미뤄 둔 넘김 동작을 실행한다.
    *
-   * 답은 이 기기에 먼저 남고(다시 묻지 않게) 서버로는 뒤에서 보낸다(useDifficultyVote).
+   * 복습은 팝업 없이 넘긴다. 신규 응답은 기기에 먼저 남고 서버로 뒤에서 보낸다(useDifficultyVote).
    */
   const [askVisible, setAskVisible] = useState(false);
   const pendingAdvanceRef = useRef<(() => void) | null>(null);
@@ -379,6 +379,9 @@ function CardsContent() {
   const deck = sessionDeck ?? computedDeck;
   const card = deck[index];
   const todayCard = assignment.cards.find(item => item.card.id === card?.id);
+  // 카테고리·예정 복습뿐 아니라 오늘 편성된 복습과 이미 배운 단일 카드도 포함한다.
+  const isReviewCard = isCategoryMode || isDueMode || todayCard?.kind === 'review'
+    || hasStudiedCard(card?.status ?? 'new', card ? srsCards[card.id]?.reps : 0);
 
   const keepScreenOn = useSettingsStore((s) => s.keepScreenOn);
   const toggleKeepScreenOn = useSettingsStore((s) => s.toggleKeepScreenOn);
@@ -510,17 +513,17 @@ function CardsContent() {
 
   /**
    * 넘김 동작을 잠시 붙잡고 "이 문제 얼마나 어려웠나요?"를 먼저 묻는다.
-   * 이미 답한 카드는 다시 묻지 않고 곧바로 넘긴다.
+   * 복습에서는 선택 결과만 기록하고 곧바로 넘긴다.
    */
   const askDifficulty = useCallback((run: () => void) => {
-    if (!card) { run(); return; }
-    // Every learning event has its own perceived difficulty, including repeated reviews.
+    pendingPerception.current = '';
+    if (!card || isReviewCard) { run(); return; }
     pendingAdvanceRef.current = run;
     // 스와이프로 밀려 있던 카드는 제자리로 되돌려 놓고 묻는다.
     Animated.spring(translateX, { toValue: 0, useNativeDriver: true, friction: 6 }).start();
     raiseCardShadow(140);
     setAskVisible(true);
-  }, [card, translateX, raiseCardShadow]);
+  }, [card, isReviewCard, translateX, raiseCardShadow]);
 
   /** 난이도를 고르거나 건너뛰면 — 미뤄 둔 넘김 동작을 그때 실행한다. */
   const resolveAsk = useCallback((choice: DiffVote | null) => {

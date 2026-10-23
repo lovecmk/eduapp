@@ -52,7 +52,7 @@ function NotificationBadge({ count }: { count: number }) {
 
 // 하단 탭 버튼 — Android 기본 '원형 리플'(과하게 퍼지는 물결)을 걷어내고,
 // 눌린 순간에만 아이콘이 은은하게 흐려졌다 돌아오는 차분한 피드백으로 바꾼다.
-function MinimalHeader({ title, showBack }: { title: string; showBack?: boolean }) {
+function MinimalHeader({ title, showBack, showSettings = false }: { title: string; showBack?: boolean; showSettings?: boolean }) {
   const { theme } = useTheme();
   const c = theme.colors;
   const router = useRouter();
@@ -93,14 +93,16 @@ function MinimalHeader({ title, showBack }: { title: string; showBack?: boolean 
           {unreadCount > 0 && <NotificationBadge count={unreadCount} />}
         </PressableScale>
 
-        {/* 메뉴(아바타) */}
-        <PressableScale haptic onPress={() => setMenuOpen(true)} hitSlop={4} style={{ marginLeft: 4 }}
-          accessibilityRole="button" accessibilityLabel="내 메뉴 열기">
-          <Avatar uri={profileImage} size={30} ring={1.5} ringColor={c.border} />
+        {/* MY는 설정으로 바로 이동하고, 나머지 탭은 프로필 메뉴를 연다. */}
+        <PressableScale haptic onPress={() => showSettings ? router.push(ROUTES.settings) : setMenuOpen(true)} hitSlop={4} style={{ marginLeft: 4, width: 30, height: 30, alignItems: 'center', justifyContent: 'center' }}
+          accessibilityRole="button" accessibilityLabel={showSettings ? '설정 열기' : '내 메뉴 열기'}>
+          {showSettings
+            ? <Ionicons name="settings-outline" size={25} color={c.textPrimary} />
+            : <Avatar uri={profileImage} size={30} ring={1.5} ringColor={c.border} />}
         </PressableScale>
       </View>
 
-      <HeaderMenuSheet visible={menuOpen} onClose={() => setMenuOpen(false)} />
+      <HeaderMenuSheet visible={menuOpen && !showSettings} onClose={() => setMenuOpen(false)} />
     </>
   );
 }
@@ -133,7 +135,7 @@ export default function TabsLayout() {
       backBehavior="history"
       tabBar={() => null}
       screenOptions={{
-        header: ({ route }) => <MinimalHeader title={TITLES[route.name] ?? ''} />,
+        header: ({ route }) => <MinimalHeader title={TITLES[route.name] ?? ''} showSettings={route.name === 'mypage'} />,
         // 각 탭 씬 배경을 투명으로 — 뒤의 전역 날씨 배경이 비쳐 보이게 한다.
         sceneStyle: { backgroundColor: 'transparent' },
         // 비활성 탭은 얼려(freeze) 렌더를 멈춘다 — 전환 중 이전 화면이 계속 그려지며

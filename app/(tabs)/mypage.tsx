@@ -157,8 +157,7 @@ export default function MyPageScreen() {
       {/* 배경 테마는 '설정 > 화면'에 인라인 선택기로 있다(테마·글자 크기와 같은 성격).
           여기와 설정 두 곳에 두면 어디서 바꿔야 할지 매번 헷갈리므로 한 곳으로 모았다. */}
 
-      {/* 계정·알림·화면·지원은 전부 설정 한 곳에서 관리한다. */}
-      <MyRow icon="settings-outline" title="설정" desc="계정 · 알림 · 화면 · 문의" onPress={() => router.push(ROUTES.settings)} />
+      {/* 계정·알림·화면·지원은 우측 상단 설정 버튼에서 관리한다. */}
       </ScrollView>
 
       {/* 보상 3종 안내 — 첫 진입 자동 1회 + [안내] 버튼 */}

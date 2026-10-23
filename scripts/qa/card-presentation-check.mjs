@@ -199,14 +199,18 @@ try {
       await page.evaluate(theme => localStorage.setItem('app-settings', JSON.stringify({ state: { themeMode: theme, fontScale: 'xlarge' }, version: 2 })), theme);
       await go('/content/qa-card', width);
       await page.getByTestId('recorded-review-choice').scrollIntoViewIfNeeded();
+      // 데이터가 늦게 도착하면 진입 애니메이션도 늦게 시작한다. 같은 위치에서 크기를 비교한다.
+      await page.waitForTimeout(600);
       const record = page.getByTestId('recorded-review-choice');
       for (const label of ['다음에 한번 더 볼게요 · 처음 선택', '이해했어요']) {
         const option = record.getByLabel(label, { exact: true });
         const text = option.getByText(label.replace(' · 처음 선택', ''), { exact: true });
         const box = await option.boundingBox(), textBox = await text.boundingBox();
-        assert(textBox.y >= box.y && textBox.y + textBox.height <= box.y + box.height, 'Large text fits the compact record without clipping');
+        if (textBox.y < box.y || textBox.y + textBox.height > box.y + box.height) {
+          await page.screenshot({ path: resolve(out, `review-clipping-${theme}-${width}.png`), fullPage: true });
+        }
+        assert(textBox.y >= box.y && textBox.y + textBox.height <= box.y + box.height, `Large text fits the compact record without clipping: ${JSON.stringify({ theme, width, label, box, textBox })}`);
       }
-      await page.waitForTimeout(600);
       await page.screenshot({ path: resolve(out, `review-${theme}-${width}.png`), fullPage: true });
       checks.push({ case: 'review responsive/theme/xlarge', theme, width });
       await go('/cards', width); await front.waitFor(); await face(false);
