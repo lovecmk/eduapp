@@ -237,7 +237,12 @@ export async function syncPushTokenWithServer(stillAllowed: () => boolean = () =
   const epoch = getSessionEpoch();
   const token = await getExpoPushToken();
   if (epoch !== getSessionEpoch() || !stillAllowed()) return false;
-  if (!token) { await unregisterPushTokenWithServer(); return false; }
+  if (!token) {
+    const permission = await Notifications.getPermissionsAsync().catch(() => null);
+    if (epoch !== getSessionEpoch() || !stillAllowed()) return false;
+    if (permission && permission.status !== 'granted') await unregisterPushTokenWithServer();
+    return false;
+  }
   try {
     await apiClient.postDurable(
       '/inner/api/v1/push/register',

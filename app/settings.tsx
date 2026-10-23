@@ -32,7 +32,6 @@ import type { SettingsEntry } from '../src/constants/settingsIndex';
 import {
   requestNotificationPermission,
   cancelAllReminders,
-  syncPushTokenWithServer,
   openExactReminderSettings,
   reconcileDailyReminder,
 } from '../src/data/notifications/NotificationService';
@@ -141,10 +140,8 @@ function SettingsBody({ scrollRef }: { scrollRef: React.RefObject<ScrollView> })
         toast('알림 권한이 꺼져 있어요. 기기 설정에서 알림을 허용해 주세요.', 'warn', 3200);
         return;
       }
-      // 실서버 사용 시 원격 푸시 토큰도 함께 등록(서버·텔레그램 알림 수신용).
-      void syncPushTokenWithServer();
     }
-    // 예약·해제는 루트의 useReminderSchedule 이 이 값을 보고 한다.
+    // 예약·해제와 푸시 등록은 루트의 동기화 훅이 확정된 설정을 보고 한다.
     updateNotificationSetting('enabled', enabled);
   };
 

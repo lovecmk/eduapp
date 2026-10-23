@@ -49,6 +49,13 @@ it('does not register a token resolved after the login session changes', async (
   expect(mockDurable).not.toHaveBeenCalled();
 });
 
+it('keeps a permitted registration when Expo token lookup has a temporary failure', async () => {
+  mockRead.mockResolvedValue('ExpoPushToken[device]');
+  mockToken.mockRejectedValue(new Error('temporary token lookup failure'));
+  expect(await syncPushTokenWithServer()).toBe(false);
+  expect(mockDurable).not.toHaveBeenCalled();
+});
+
 it('does not register after notification consent changes during token lookup', async () => {
   expect(await syncPushTokenWithServer(() => false)).toBe(false);
   expect(mockDurable).not.toHaveBeenCalled();
