@@ -29,6 +29,7 @@ await context.addInitScript(user => {
   localStorage.setItem('refreshToken', 'isolated-ui-refresh');
   localStorage.setItem('cachedUser', JSON.stringify(user));
   localStorage.setItem('session-owner-id', user.id);
+  localStorage.setItem(`daily-learning-welcome:v1:${encodeURIComponent(user.id)}`, JSON.stringify({ day: new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10), quoteIndex: 0 }));
   localStorage.setItem('faction', JSON.stringify({ state: { faction: 'frost' }, version: 0 }));
 }, user);
 let mode = 'one';
@@ -89,7 +90,8 @@ try {
   await page.getByRole('tab').filter({ hasText: '학습' }).click();
   for (const [i, format] of ['현장판단형', '선택비교형'].entries()) {
     await front.waitFor(); await face(false);
-    await expect(front).toContainText(format);
+    await expect(front).toContainText(card.question_txt);
+    await expect(front).toContainText('질문');
     const option = i === 0 ? '첫 보기' : '정답 보기';
     await front.getByText(option, { exact: true }).click();
     await expect(front).toContainText(i === 0 ? '아쉬워요 — 정답은 ②' : '정답이에요!');
@@ -107,7 +109,7 @@ try {
     checks.push({ format, grade: i === 0 ? 'incorrect' : 'correct', locked: true });
   }
   await face(false);
-  await expect(front).toContainText('3/3');
+  await expect(page.getByText('3 / 3', { exact: true })).toBeVisible();
   await expect(front.getByText('정답 보기', { exact: true })).toHaveCount(0);
   assert.equal(errors.length, 0, JSON.stringify(errors));
   writeFileSync(resolve(out, 'results.json'), JSON.stringify({ checks, errors, requests, environment: 'isolated HTTP; no production writes' }, null, 2));
