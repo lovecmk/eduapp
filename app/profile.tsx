@@ -14,7 +14,6 @@ import { fontCute, fontMono, fontBody, fontDisplay } from '../src/theme/tokens';
 import { membershipMeta, displayName } from '../src/domain/models/User';
 import { RARITY_RANK, type RarityTier } from '../src/utils/rarity';
 import { COLLECTIBLE_BY_ID, JEWEL_META } from '../src/data/collectibles';
-import { useAllCards } from '../src/hooks/useCards';
 import { ROUTES } from '../src/constants/routes';
 import { contentColumn } from '../src/theme/layout';
 // 상한은 서버(domain.BioMaxLen)·저장소 매퍼와 같은 값을 쓴다.
@@ -37,7 +36,6 @@ export default function ProfileScreen() {
   }, [user?.jobTitle, learningProfile.job, learningProfile.experience, learningProfile.setLearnerProfile]);
   const { profileImage, setProfileImage, bio, setBio } = useSettingsStore();
   const owned = useCollectionStore((s) => s.owned);
-  const { data: allCards = [] } = useAllCards();
   // 카드 수집은 베타 — 꺼져 있으면 '수집 카드' 칸이 없는 화면(도감)으로 데려간다.
   const collectionEnabled = useSettingsStore((s) => s.collectionEnabled);
 
@@ -45,7 +43,6 @@ export default function ProfileScreen() {
   const [editing, setEditing] = useState(false);
 
   const uniqueOwned = useMemo(() => Object.values(owned).filter(Boolean).length, [owned]);
-  const masteredCount = useMemo(() => allCards.filter((k) => k.status === 'mastered').length, [allCards]);
   // 보유한 최고 등급 카드(자랑거리) — 있으면 소개 아래 배지로 노출.
   //
   // 뱃지 등급(topTier)과 **따로 계산한다.** 뱃지는 이제 '수집률'을 뜻하므로
@@ -179,19 +176,12 @@ export default function ProfileScreen() {
           )}
         </View>
 
-        {/* 성취 요약 */}
-        <View style={{ flexDirection: 'row', gap: 10, marginBottom: 14 }}>
-          {[
-            ...(collectionEnabled ? [{ value: `${uniqueOwned}`, label: '수집 카드', route: ROUTES.collectionBook }] : []),
-            { value: `${masteredCount}`, label: '마스터', route: ROUTES.stats },
-            { value: `${allCards.length}`, label: '전체 카드', route: ROUTES.stats },
-          ].map((s) => (
-            <Pressable accessibilityRole="button" key={s.label} onPress={() => router.push(s.route as never)} style={{ flex: 1, backgroundColor: c.surfaceAlt, borderRadius: 12, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: c.border }}>
-              <Text style={{ color: c.primary, fontSize: 20 * fs, fontWeight: '900', fontFamily: fontMono }}>{s.value}</Text>
-              <Text style={{ color: c.textSecondary, fontSize: 11, marginTop: 4, fontFamily: fontCute }}>{s.label}</Text>
-            </Pressable>
-          ))}
-        </View>
+        {collectionEnabled && (
+          <Pressable accessibilityRole="button" onPress={() => router.push(ROUTES.collectionBook as never)} style={{ backgroundColor: c.surfaceAlt, borderRadius: 12, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: c.border, marginBottom: 14 }}>
+            <Text style={{ color: c.primary, fontSize: 20 * fs, fontWeight: '900', fontFamily: fontMono }}>{uniqueOwned}</Text>
+            <Text style={{ color: c.textSecondary, fontSize: 11, marginTop: 4, fontFamily: fontCute }}>수집 카드</Text>
+          </Pressable>
+        )}
 
         {/* 바로가기 */}
         <Pressable accessibilityRole="button" onPress={() => router.push(ROUTES.trophy as never)} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: c.surface, borderRadius: 14, padding: 16, borderWidth: 1, borderColor: c.border, marginBottom: 8 }}>

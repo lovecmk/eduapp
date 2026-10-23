@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { View, Text, ScrollView, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,7 +10,6 @@ import { AchievementBadge } from '../../src/components/ui/AchievementBadge';
 import { RewardsGuideSheet } from '../../src/components/rewards/RewardsGuideSheet';
 import { fontMono, fontCute, fontDisplay, fontBody } from '../../src/theme/tokens';
 import { ROUTES } from '../../src/constants/routes';
-import { useAllCards } from '../../src/hooks/useCards';
 import { useBookmarkStore } from '../../src/store/bookmarkStore';
 import { useCollectionStore, selectPacks } from '../../src/store/collectionStore';
 import { useFactionStore } from '../../src/store/factionStore';
@@ -24,7 +23,6 @@ export default function MyPageScreen() {
   const c = theme.colors;
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
-  const { data: allCards = [] } = useAllCards();
   const profileImage = useSettingsStore((s) => s.profileImage);
   const bookmarkCount = useBookmarkStore((s) => s.ids.length);
   const ownedCollectibles = useCollectionStore((s) => s.owned);
@@ -34,7 +32,6 @@ export default function MyPageScreen() {
   // 예전에는 여기서만 이 기준을 빠뜨려, 꺼진 기능의 도감·쿠폰 입구가 늘 떠 있었다.
   const collectionEnabled = useSettingsStore((s) => s.collectionEnabled);
 
-  const masteredCount = useMemo(() => allCards.filter((c) => c.status === 'mastered').length, [allCards]);
   const collectedCount = Object.keys(ownedCollectibles).length;
   const collectibleTotal = COLLECTIBLES.length;
 
@@ -77,20 +74,6 @@ export default function MyPageScreen() {
           </View>
         </View>
         <Ionicons name="chevron-forward" size={18} color={c.primary} />
-      </Pressable>
-
-      {/* 요약 통계 — 탭하면 전체 통계로 이동(발견성) */}
-      <Pressable accessibilityRole="button" onPress={() => router.push(ROUTES.stats)} style={{ flexDirection: 'row', gap: 10, marginVertical: 16 }}>
-        {[
-          { value: `${allCards.length}`, label: '전체 카드' },
-          { value: `${masteredCount}`, label: '마스터' },
-          { value: `${Math.round((masteredCount / Math.max(allCards.length, 1)) * 100)}%`, label: '완료율' },
-        ].map((s) => (
-          <View key={s.label} style={{ flex: 1, backgroundColor: c.surfaceAlt, borderRadius: 12, padding: 12, alignItems: 'center', borderWidth: 1, borderColor: c.border }}>
-            <Text style={{ color: c.primary, fontSize: 22 * fs, fontWeight: '900', fontFamily: fontMono }}>{s.value}</Text>
-            <Text style={{ color: c.textSecondary, fontSize: 11, marginTop: 4, fontFamily: fontCute }}>{s.label}</Text>
-          </View>
-        ))}
       </Pressable>
 
       {/* '학습 통계'·'저장한 카드'는 각각 통계 탭(홈 학습현황 더보기)·컬렉션에서 접근되므로

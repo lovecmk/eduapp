@@ -8,7 +8,7 @@ import { AchievementBadge } from './AchievementBadge';
 import { useTheme } from '../../theme/ThemeProvider';
 import { fontDisplay, fontBody, fontMono } from '../../theme/tokens';
 import { useAuthStore } from '../../store/authStore';
-import { useSettingsStore, type ThemeMode } from '../../store/settingsStore';
+import { useSettingsStore } from '../../store/settingsStore';
 import { useNotificationStore } from '../../store/notificationStore';
 import { membershipMeta, displayName } from '../../domain/models/User';
 import { ROUTES } from '../../constants/routes';
@@ -23,14 +23,7 @@ const SHORTCUTS: { label: string; icon: IconName; route: string; key: string }[]
   { label: '설정', icon: 'settings-sharp', route: ROUTES.settings, key: 'settings' },
 ];
 
-const THEMES: { key: ThemeMode; label: string; icon: IconName }[] = [
-  { key: 'light', label: '라이트', icon: 'sunny' },
-  { key: 'dark', label: '다크', icon: 'moon' },
-  { key: 'dim', label: '딤', icon: 'contrast' },
-  { key: 'system', label: '시스템', icon: 'phone-portrait' },
-];
-
-/** 헤더 메뉴 바텀시트 — 프로필 + 보조 바로가기 + 빠른 테마 전환. */
+/** 헤더 메뉴 바텀시트 — 프로필 + 보조 바로가기 + 로그아웃. */
 export function HeaderMenuSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
@@ -38,8 +31,6 @@ export function HeaderMenuSheet({ visible, onClose }: { visible: boolean; onClos
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const profileImage = useSettingsStore((s) => s.profileImage);
-  const themeMode = useSettingsStore((s) => s.themeMode);
-  const setThemeMode = useSettingsStore((s) => s.setThemeMode);
   const unread = useNotificationStore((s) => s.unreadCount());
   const meta = user ? membershipMeta(user.membership) : null;
 
@@ -126,21 +117,6 @@ export function HeaderMenuSheet({ visible, onClose }: { visible: boolean; onClos
             ))}
           </View>
 
-          {/* 빠른 테마 */}
-          <Text style={[styles.sectionLabel, { color: c.textSecondary }]}>화면 테마</Text>
-          <View style={styles.themeRow}>
-            {THEMES.map((t) => {
-              const active = themeMode === t.key;
-              return (
-                <Pressable accessibilityRole="button" key={t.key} onPress={() => setThemeMode(t.key)}
-                  style={[styles.themeChip, { backgroundColor: active ? c.primary : c.surface, borderColor: active ? c.primary : c.border }]}>
-                  <Ionicons name={t.icon} size={14} color={active ? '#fff' : c.textSecondary} />
-                  <Text style={{ color: active ? '#fff' : c.textSecondary, fontSize: 11.5 * fs, fontFamily: fontDisplay }}>{t.label}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
-
           {/* 로그아웃 */}
           {user && (
             <Pressable accessibilityRole="button"
@@ -161,13 +137,10 @@ const styles = StyleSheet.create({
   avatar: { width: 46, height: 46, borderRadius: 23, borderWidth: 2 },
   avatarFallback: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
   avatarLetter: { color: '#fff', fontSize: 19, fontFamily: fontDisplay },
-  grid: { flexDirection: 'row', gap: 10, marginBottom: 18 },
+  grid: { flexDirection: 'row', gap: 10 },
   tile: { flex: 1, borderRadius: 16, borderWidth: 1, paddingVertical: 16, alignItems: 'center' },
   tileIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   badge: { position: 'absolute', top: -4, right: -6, minWidth: 16, height: 16, borderRadius: 8, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center' },
   badgeText: { color: '#fff', fontSize: 9.5, fontFamily: fontMono, fontWeight: '800' },
-  sectionLabel: { fontSize: 11.5, fontFamily: fontDisplay, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10, marginLeft: 2 },
-  themeRow: { flexDirection: 'row', gap: 8 },
-  themeChip: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, paddingVertical: 9, borderRadius: 12, borderWidth: 1 },
   logout: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 18, paddingVertical: 14, borderRadius: 14, borderWidth: 1 },
 });
