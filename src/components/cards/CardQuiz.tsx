@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/ThemeProvider';
 import { fontCute, fontDisplay, fontBody } from '../../theme/tokens';
 import type { LearningCard } from '../../domain/models/LearningCard';
-import { CARD_TEXT_SIZE, CARD_TEXT_LINE_HEIGHT } from './cardPresentation';
+import { CARD_CHOICE_TEXT_SIZE, CARD_CHOICE_LINE_HEIGHT } from './cardPresentation';
 
 const CIRCLED = ['①', '②', '③', '④', '⑤'];
 
@@ -124,7 +124,7 @@ export function CardQuiz({
                 }}
               >
                 <Text style={{ color: revealed && i === answer ? c.success : c.primary, fontSize: 16 * fs, fontFamily: fontDisplay }}>{labelFor(i)}</Text>
-                <Text style={{ color: c.textPrimary, fontSize: CARD_TEXT_SIZE * fs, lineHeight: CARD_TEXT_LINE_HEIGHT * fs, flex: 1, fontFamily: fontCute }}>{label}</Text>
+                <Text style={{ color: c.textPrimary, fontSize: CARD_CHOICE_TEXT_SIZE * fs, lineHeight: CARD_CHOICE_LINE_HEIGHT * fs, flex: 1, fontFamily: fontCute }}>{label}</Text>
                 {mark && <Ionicons name={mark} size={20} color={markColor(i)} />}
               </Pressable>
             );

@@ -121,6 +121,8 @@ function CardsContent() {
   const [index, setIndex] = useState(0);
   const [doneCount, setDoneCount] = useState(0);
   const [finished, setFinished] = useState(false);
+  const completedReviewCards = useRef(new Set<string>());
+  const reviewPageIndex = useRef(0);
   const [reportOpen, setReportOpen] = useState(false);
   /**
    * 세 스크롤 영역이 각각 '아래에 더 있는가' — 끝이 아니면 아래쪽을 옅게 가려 알린다.
@@ -151,6 +153,7 @@ function CardsContent() {
    * 올려야 한다 — 정답을 확인하는 것은 이 화면에서 가장 중요한 순간인데도.
    */
   const quizScrollRef = useRef<ScrollView>(null);
+  const frontScrollRef = useRef<ScrollView>(null);
   /**
    * 카드 본문을 방금 스크롤했는가 — 스크롤과 '탭하여 뒤집기'를 가르는 판정.
    *
@@ -229,6 +232,7 @@ function CardsContent() {
   const shadowAnim = useRef(new Animated.Value(0)).current;
   // 퀴즈 정답 선택 후 자동으로 뒤집기까지의 타이머.
   const autoFlipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const solveHintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 복습 탭에서 카테고리를 눌러 진입하면 category 파라미터로 해당 카테고리만 학습한다.
   // content 상세의 "이 카드 학습하기"로 진입하면 focusId(그 카드 1장)만 학습하고,
@@ -242,6 +246,7 @@ function CardsContent() {
   // 복습 큐 모드 — 간격반복이 "지금 봐야 한다"고 판단한 카드만, 그 순서 그대로 푼다.
   // 오늘의 학습(신규 위주)과 목적이 다르다: 새로 배우는 게 아니라 무너지려는 기억을 붙잡는다.
   const isDueMode = mode === 'due';
+  const isReviewSession = isCategoryMode || isDueMode;
 
   // 모든 모드가 전체 카드 풀(allQuery)에서 덱을 구성한다.
   //  · 카테고리/단일카드: 해당 조건으로 필터
@@ -336,6 +341,8 @@ function CardsContent() {
     setFinished(false);
     setIndex(0);
     setDoneCount(0);
+    completedReviewCards.current.clear();
+    reviewPageIndex.current = 0;
     setQuizPick(null);
     setQuizRevealed(false);
     setExiting(false);
@@ -381,7 +388,7 @@ function CardsContent() {
   const card = deck[index];
   const todayCard = assignment.cards.find(item => item.card.id === card?.id);
   // 카테고리·예정 복습뿐 아니라 오늘 편성된 복습과 이미 배운 단일 카드도 포함한다.
-  const isReviewCard = isCategoryMode || isDueMode || todayCard?.kind === 'review'
+  const isReviewCard = isReviewSession || todayCard?.kind === 'review'
     || hasStudiedCard(card?.status ?? 'new', card ? srsCards[card.id]?.reps : 0);
 
   const keepScreenOn = useSettingsStore((s) => s.keepScreenOn);
@@ -425,12 +432,12 @@ function CardsContent() {
   // 퀴즈(OX/객관식) 보기 선택 → 정답/오답 이펙트(햅틱)만 주고, 뒤집기는 하지 않는다.
   // 자동으로 넘어가면 정답을 곱씹을 새가 없어, 사용자가 카드를 직접 탭해 해설로 넘어가도록 둔다.
   const handleQuizPick = useCallback((i: number) => {
-    if (quizRevealed || !card) return;
+    if (reviewPageIndex.current !== index || quizRevealed || !card) return;
     const correct = i === (card.answerIndex ?? 0);
     setQuizPick(i);
     setQuizRevealed(true);
     notify(correct);
-  }, [quizRevealed, card]);
+  }, [quizRevealed, card, index]);
 
   /**
    * 채점 직후 — 새로 붙은 피드백이 보이는 자리까지 스크롤한다.
@@ -453,14 +460,16 @@ function CardsContent() {
   // 다음 카드로 넘어가면 앞면은 맨 위에서 시작해야 한다. 스크롤 위치는 카드가
   // 바뀌어도 남으므로, 그냥 두면 새 문제가 중간부터 보인다.
   useEffect(() => {
+    reviewPageIndex.current = index;
     quizScrollRef.current?.scrollTo({ y: 0, animated: false });
+    frontScrollRef.current?.scrollTo({ y: 0, animated: false });
     // 뒷면도 함께 맨 위로 되돌린다(스크롤 판정도 그때 함께 지워진다).
     //
     // 스크롤 위치는 카드가 바뀌어도 남는다. 그냥 두면 앞 카드에서 해설을 끝까지
     // 내려 읽은 사람은 **다음 카드의 해설을 중간부터** 보게 된다 — 첫 문장이
     // 대개 '무엇이 문제인가'라, 그 한 줄을 건너뛰면 카드가 통째로 읽히지 않는다.
     resetBackScroll();
-  }, [card?.id, resetBackScroll]);
+  }, [card?.id, index, resetBackScroll]);
 
   // 화면 이탈/카드 전환 시 예약된 타이머 정리.
   useEffect(() => () => {
@@ -479,7 +488,8 @@ function CardsContent() {
       return;
     }
     if (autoFlipTimer.current) clearTimeout(autoFlipTimer.current);
-    {
+    // Paging back to a completed review must not add another SRS/collection receipt.
+    if (!isReviewSession || !completedReviewCards.current.has(card.id)) {
       // 오늘의 학습(신규+복습)은 모두 SRS 일정에 반영하고 그날 학습 기록(history)에 남긴다.
       // (알았음=good → 다음 복습 간격이 늘고, 몰랐음=again → 곧 다시 복습). 이렇게 하면
       // 신규 카드도 첫 복습 일정이 잡히고, 달력의 '완료/일부완료·카드수'가 정확해진다.
@@ -491,16 +501,12 @@ function CardsContent() {
       srsGrade(card.id, g, pendingPerception.current);
       pendingPerception.current = '';
       // 신규 카드 한 장을 마치면 하루 상한 사용량에도 집계(복습은 상한과 무관).
-      if (!isCategoryMode && !isFocusMode && card.status === 'new') recordNewLearned(1);
+      if (!isReviewSession && !isFocusMode && card.status === 'new') recordNewLearned(1);
+      if (isReviewSession) completedReviewCards.current.add(card.id);
+      setDoneCount((n) => n + 1);
+      // 중간에 나가도 적립되도록 한 장을 처음 완료한 순간에 기록한다.
+      useCollectionStore.getState().addStudyProgress(1);
     }
-    setDoneCount((n) => n + 1);
-    // 도감 적립도 여기서 한 장씩 한다 — **세션을 마쳐야 주면 안 된다.**
-    // 예전에는 완료 화면(finished)에서 doneCount 를 한꺼번에 넣었는데, 배정이
-    // 5장인 날 3장만 하고 화면을 떠난 사람은 한 장도 인정받지 못했다. 그런
-    // 사람이 도감에서 보는 문구는 "오늘 3장을 학습하면 열려요 (0/3)" 다 —
-    // 방금 세 장을 풀고 나온 사람에게 0/3 은 앱이 고장 난 것으로 읽힌다.
-    // 한 장을 마친 그 순간이 적립의 단위이자 시점이다.
-    useCollectionStore.getState().addStudyProgress(1);
     setQuizPick(null);
     setQuizRevealed(false);
     resetCardAnims();
@@ -508,9 +514,41 @@ function CardsContent() {
     setExiting(false);
     actionLocked.current = false;
     const nextIdx = index + 1;
-    if (nextIdx >= deck.length) setFinished(true);
-    else setIndex(nextIdx);
-  }, [card, index, deck.length, srsGrade, resetCardAnims, enterAnim, isCategoryMode, isFocusMode, quota.isRestDay]);
+    if (isReviewSession) {
+      const firstPending = deck.findIndex(item => !completedReviewCards.current.has(item.id));
+      if (firstPending < 0) setFinished(true);
+      else {
+        reviewPageIndex.current = nextIdx < deck.length ? nextIdx : firstPending;
+        setIndex(reviewPageIndex.current);
+      }
+    } else if (nextIdx >= deck.length) setFinished(true);
+    else {
+      reviewPageIndex.current = nextIdx;
+      setIndex(nextIdx);
+    }
+  }, [card, index, deck, srsGrade, resetCardAnims, enterAnim, isReviewSession, isFocusMode, quota.isRestDay]);
+
+  const pageReview = useCallback((direction: -1 | 1) => {
+    if (!isReviewSession || !card || exiting || actionLocked.current || askVisible || reportOpen || exitConfirm || !focused.current) return;
+    const nextIndex = Math.max(0, Math.min(deck.length - 1, reviewPageIndex.current + direction));
+    if (nextIndex === reviewPageIndex.current) return;
+    reviewPageIndex.current = nextIndex;
+    if (autoFlipTimer.current) clearTimeout(autoFlipTimer.current);
+    if (solveHintTimer.current) clearTimeout(solveHintTimer.current);
+    if (hintTimer.current) clearTimeout(hintTimer.current);
+    pendingAdvanceRef.current = null;
+    pendingPerception.current = '';
+    setNextReviewHint(null);
+    setSolveHint(false);
+    setQuizPick(null);
+    setQuizRevealed(false);
+    resetCardAnims();
+    raiseCardShadow();
+    quizScrollRef.current?.scrollTo({ y: 0, animated: false });
+    frontScrollRef.current?.scrollTo({ y: 0, animated: false });
+    // Mirror the target immediately so rapid presses cannot grade the previous page.
+    setIndex(nextIndex);
+  }, [isReviewSession, card, exiting, askVisible, reportOpen, exitConfirm, resetCardAnims, raiseCardShadow, deck.length]);
 
   /**
    * 넘김 동작을 잠시 붙잡고 "이 문제 얼마나 어려웠나요?"를 먼저 묻는다.
@@ -555,7 +593,7 @@ function CardsContent() {
 
   // "학습 완료" → 왼쪽으로 넘김.
   const completeLeft = useCallback(() => {
-    if (exiting || actionLocked.current) return;
+    if (exiting || actionLocked.current || reviewPageIndex.current !== index) return;
     actionLocked.current = true;
     const epoch = getSessionEpoch();
     askDifficulty(() => {
@@ -569,11 +607,11 @@ function CardsContent() {
         if (finished && alive() && focused.current && epoch === getSessionEpoch() && activeSession.current === sessionKey) advance('mastered');
       });
     });
-  }, [exiting, translateX, cardOpacity, advance, askDifficulty, hideCardShadow, alive, sessionKey]);
+  }, [exiting, index, translateX, cardOpacity, advance, askDifficulty, hideCardShadow, alive, sessionKey]);
 
   // "다음에 한번 더"(모를 때 = 빨간 버튼) → 위로 올림. 최소 햅틱을 준다.
   const againUp = useCallback(() => {
-    if (exiting || actionLocked.current) return;
+    if (exiting || actionLocked.current || reviewPageIndex.current !== index) return;
     actionLocked.current = true;
     const epoch = getSessionEpoch();
     askDifficulty(() => {
@@ -587,10 +625,9 @@ function CardsContent() {
         if (finished && alive() && focused.current && epoch === getSessionEpoch() && activeSession.current === sessionKey) advance('learning');
       });
     });
-  }, [exiting, translateY, cardOpacity, advance, dnkHaptic, askDifficulty, hideCardShadow, alive, sessionKey]);
+  }, [exiting, index, translateY, cardOpacity, advance, dnkHaptic, askDifficulty, hideCardShadow, alive, sessionKey]);
 
   // ── 스와이프 트랙(원진섭) 전용 동작 ───────────────────────────────
-  const solveHintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 퀴즈를 풀지 않고 넘기려 할 때 — 카드를 좌우로 살짝 흔들고 안내를 띄운다.
   const shakeMustSolve = useCallback(() => {
@@ -613,7 +650,7 @@ function CardsContent() {
 
   // 좌/우로 카드를 날려보내며 분류한다. (오른쪽=아는 것=학습 완료, 왼쪽=모르는 것=다시)
   const swipeAway = useCallback((dir: 'left' | 'right', status: 'mastered' | 'learning') => {
-    if (exiting || actionLocked.current) return;
+    if (exiting || actionLocked.current || reviewPageIndex.current !== index) return;
     actionLocked.current = true;
     const epoch = getSessionEpoch();
     askDifficulty(() => {
@@ -628,7 +665,7 @@ function CardsContent() {
         if (finished && alive() && focused.current && epoch === getSessionEpoch() && activeSession.current === sessionKey) advance(status);
       });
     });
-  }, [exiting, translateX, cardOpacity, advance, dnkHaptic, askDifficulty, hideCardShadow, alive, sessionKey]);
+  }, [exiting, index, translateX, cardOpacity, advance, dnkHaptic, askDifficulty, hideCardShadow, alive, sessionKey]);
 
   // 스와이프 시도 — 퀴즈 미풀이면 막고, 아니면 방향에 맞게 분류.
   const trySwipe = useCallback((dir: 'left' | 'right') => {
@@ -645,7 +682,7 @@ function CardsContent() {
 
   // 카드 탭 — 앞면이면 뒤집고(퀴즈 미풀이면 막음), 뒷면이면 다시 앞으로.
   const onCardPress = useCallback(() => {
-    if (exiting) return;
+    if (exiting || reviewPageIndex.current !== index) return;
     // 방금 본문을 움직였다면 이 탭은 스크롤의 꼬리다 — 뒤집지 않는다.
     if (Date.now() - bodyScrolledAtRef.current < BODY_SCROLL_TAP_GUARD_MS) return;
     if (!flipTarget.current) {
@@ -653,7 +690,7 @@ function CardsContent() {
       if (isQuizCard && !quizRevealed) { shakeMustSolve(); return; }
     }
     doFlip();
-  }, [exiting, flipTarget, card, quizRevealed, shakeMustSolve, doFlip]);
+  }, [exiting, index, flipTarget, card, quizRevealed, shakeMustSolve, doFlip]);
 
   const onBackPress = useCallback((event?: GestureResponderEvent) => {
     event?.stopPropagation();
@@ -733,6 +770,8 @@ function CardsContent() {
     setSessionDeck(null);
     setIndex(0);
     setDoneCount(0);
+    completedReviewCards.current.clear();
+    reviewPageIndex.current = 0;
     setFinished(false);
     setExiting(false);
     setQuizPick(null);
@@ -998,21 +1037,35 @@ function CardsContent() {
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
-      {/* 화면 켜짐 유지 중 표시 — 눌러서 바로 끌 수 있다. 자물쇠 모양은 '잠겨 있다'로
-          읽혀 뜻이 거꾸로 전해졌다. 켜 둔 화면을 뜻하는 해 모양을 쓴다. */}
-      {keepScreenOn && (
-        <Pressable onPress={toggleKeepScreenOn} accessibilityRole="button" accessibilityLabel="화면 켜짐 유지 끄기" hitSlop={8} style={{ position: 'absolute', top: 10, right: 20, zIndex: 20, padding: 4 }}>
-          <Ionicons name="sunny" size={16} color={c.textSecondary} />
-        </Pressable>
-      )}
-
       <View style={{ paddingHorizontal: 20, paddingTop: 12, width: '100%', maxWidth: COLUMN_MAX, alignSelf: 'center' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Ionicons name={isCategoryMode ? 'refresh-outline' : 'school-outline'} size={16} color={c.primary} />
-            <Text style={{ color: c.textPrimary, fontSize: 14 * fs, fontFamily: fontCute }}>{isCategoryMode ? `${category} 복습` : '오늘의 학습'}</Text>
+          <View style={{ flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Ionicons name={isReviewSession ? 'refresh-outline' : 'school-outline'} size={16} color={c.primary} />
+            <Text numberOfLines={2} style={{ flexShrink: 1, color: c.textPrimary, fontSize: 14 * fs, fontFamily: fontCute }}>{isCategoryMode ? `${category} 복습` : isDueMode ? '복습' : '오늘의 학습'}</Text>
           </View>
-          <Text style={{ color: c.textSecondary, fontSize: 12, fontFamily: 'monospace' }}>{index + 1} / {deck.length}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', flexShrink: 0 }}>
+            {isReviewSession && (
+              <Pressable accessibilityRole="button" accessibilityLabel="이전 복습 카드"
+                disabled={index === 0 || exiting || askVisible || reportOpen || exitConfirm}
+                onPress={() => pageReview(-1)} style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="chevron-back" size={18} color={index === 0 || exiting ? c.disabled : c.primary} />
+              </Pressable>
+            )}
+            <Text accessibilityLiveRegion="polite" style={{ minWidth: 52, textAlign: 'center', color: c.textSecondary, fontSize: 12, fontFamily: 'monospace' }}>{index + 1} / {deck.length}</Text>
+            {isReviewSession && (
+              <Pressable accessibilityRole="button" accessibilityLabel="다음 복습 카드"
+                disabled={index === deck.length - 1 || exiting || askVisible || reportOpen || exitConfirm}
+                onPress={() => pageReview(1)} style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="chevron-forward" size={18} color={index === deck.length - 1 || exiting ? c.disabled : c.primary} />
+              </Pressable>
+            )}
+            {keepScreenOn && (
+              <Pressable onPress={toggleKeepScreenOn} accessibilityRole="button" accessibilityLabel="화면 켜짐 유지 끄기"
+                style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="sunny" size={16} color={c.textSecondary} />
+              </Pressable>
+            )}
+          </View>
         </View>
         {todayCard && <Text style={{ color: c.primary, marginBottom: 8, fontSize: 12 * fs }}>{todayCard.kind === 'review' ? '복습 카드' : '신규 카드'}{todayCard.recommendReason ? ` · ${{ JOB: '직무 핵심', WEAKNESS: '취약분야', EXPLORE: '확장·탐색', REVIEW_DUE: '복습예정일 도래', OPERATOR: '필수·우선 학습' }[todayCard.recommendReason] ?? '맞춤 추천'}` : ''}</Text>}
         <View style={{ height: 6, backgroundColor: c.surfaceAlt, borderRadius: 3, overflow: 'hidden' }}>
@@ -1100,6 +1153,7 @@ function CardsContent() {
                  카드 경계에서 반으로 잘리지 않도록 스크롤 영역으로 감싸고 가림막을 얹는다. */
               <View style={{ flex: 1, minHeight: 0 }}>
                 <ScrollView
+                  testID="learning-card-quiz-scroll"
                   ref={quizScrollRef}
                   style={{ flex: 1 }}
                   // 스크롤은 늘 켜 둔다. overflowing 으로 껐다 켜면 경계에서
@@ -1129,19 +1183,22 @@ function CardsContent() {
                     />
                   </View>
                   {!quizRevealed && (
-                    <View style={{ marginTop: 'auto', paddingTop: CARD_TIMER_GAP, alignItems: 'center' }}>
+                    <View style={{ paddingTop: CARD_TIMER_GAP, alignItems: 'center' }}>
                       <CardTimer seconds={card.studySeconds} resetKey={card.id} onExpire={haptic} />
                     </View>
                   )}
                  </Pressable>
                 </ScrollView>
                 <ScrollFadeEdge color={frontTint} visible={quizBody.hasMore} />
+                <ScrollMoreHint visible={quizBody.hasMore} color={c.primary} />
               </View>
             ) : (
-              /* 설명형 앞면 — 분류 아래에서 본문을 시작하고, 남는 공간은 질문과 타이머
-                 사이에 둔다. 긴 본문은 최소 간격을 유지한 채 카드 안에서 스크롤한다. */
+              /* 설명형 앞면 — 질문과 타이머 사이에 고정 간격을 두고,
+                 긴 본문은 카드 안에서 스크롤한다. */
               <View style={{ flex: 1, minHeight: 0 }}>
                 <ScrollView
+                  testID="learning-card-front-scroll"
+                  ref={frontScrollRef}
                   style={{ flex: 1 }}
                   showsVerticalScrollIndicator={frontBody.overflowing}
                   nestedScrollEnabled
@@ -1158,12 +1215,13 @@ function CardsContent() {
                     <Ionicons name={getCategoryIcon(card.category)} size={40 * fs} color={c.primary} style={{ marginBottom: 12, opacity: 0.6 }} />
                   )}
                   <CardFrontBody card={card} />
-                  <View style={{ marginTop: 'auto', paddingTop: CARD_TIMER_GAP }}>
+                  <View style={{ paddingTop: CARD_TIMER_GAP }}>
                     <CardTimer seconds={card.studySeconds} resetKey={card.id} onExpire={haptic} />
                   </View>
                  </Pressable>
                 </ScrollView>
                 <ScrollFadeEdge color={frontTint} visible={frontBody.hasMore} />
+                <ScrollMoreHint visible={frontBody.hasMore} color={c.primary} />
               </View>
             )}
           </Animated.View>

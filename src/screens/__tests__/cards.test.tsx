@@ -49,7 +49,7 @@ jest.mock('../../hooks/useDailyAssignment', () => ({
 }));
 
 import React from 'react';
-import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, within } from '@testing-library/react-native';
 import { Animated } from 'react-native';
 import { useDiffPollStore } from '../../store/diffPollStore';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -61,6 +61,7 @@ import { getSessionEpoch } from '../../data/network/sessionEpoch';
 import { useSrsStore } from '../../store/srsStore';
 import { initialState } from '../../domain/srs';
 import { useSettingsStore } from '../../store/settingsStore';
+import { useCollectionStore } from '../../store/collectionStore';
 import { nestedButtonLabels, type TreeNode } from '../../test-utils/nestedButtons';
 import type { LearningCard } from '../../domain/models/LearningCard';
 import type { User } from '../../domain/models/User';
@@ -306,4 +307,155 @@ describe.each([
       screen.queryAllByText('카드 뒤집기').length + screen.queryAllByLabelText('카드 뒤집기').length;
     expect(byName).toBeGreaterThan(0);
   });
+});
+
+describe.each(['category', 'due'] as const)('복습 페이지 이동 (%s)', mode => {
+  function prepare(count: number, type: LearningCard['type'] = 'explanation') {
+    const cards = Array.from({ length: count }, (_, index): LearningCard => ({
+      ...mockCard, id: `review-page-${index + 1}`, question: `복습 문제 ${index + 1}`,
+      type, status: 'learning', imageUrl: undefined, hasImage: false,
+    }));
+    mockAvailableCards = cards;
+    mockDueCards = cards;
+    mockParams = mode === 'category' ? { category: mockCard.category } : { mode: 'due' };
+    useSrsStore.getState().reset();
+    const previous = useSettingsStore.getState();
+    useSettingsStore.setState({ shuffleCards: false, prioritizeWeakSpots: false });
+    const view = wrap('이용재');
+    return { cards, view, clean: () => {
+      view.unmount();
+      mockAvailableCards = []; mockDueCards = []; mockParams = {};
+      useSettingsStore.setState({ shuffleCards: previous.shuffleCards, prioritizeWeakSpots: previous.prioritizeWeakSpots });
+      useSrsStore.getState().reset();
+    } };
+  }
+
+  it('36장 중 7번째에서 이전·다음으로 이동해도 채점하거나 목록 순서를 바꾸지 않는다', () => {
+    const { clean } = prepare(36);
+    const studyBefore = useCollectionStore.getState().studyTotal;
+    try {
+      expect(screen.getByText('1 / 36')).toBeTruthy();
+      fireEvent.press(screen.getByLabelText('이전 복습 카드'));
+      expect(screen.getByText('1 / 36')).toBeTruthy();
+      act(() => { for (let i = 0; i < 6; i++) fireEvent.press(screen.getByLabelText('다음 복습 카드')); });
+      expect(screen.getByText('7 / 36')).toBeTruthy();
+      expect(screen.getByText('복습 문제 7')).toBeTruthy();
+      fireEvent.press(screen.getByLabelText('이전 복습 카드'));
+      expect(screen.getByText('6 / 36')).toBeTruthy();
+      expect(screen.getByText('복습 문제 6')).toBeTruthy();
+      act(() => { for (let i = 0; i < 40; i++) fireEvent.press(screen.getByLabelText('다음 복습 카드')); });
+      expect(screen.getByText('36 / 36')).toBeTruthy();
+      fireEvent.press(screen.getByLabelText('다음 복습 카드'));
+      expect(screen.getByText('36 / 36')).toBeTruthy();
+      expect(screen.queryByText('복습 완료!')).toBeNull();
+      expect(useSrsStore.getState().cards).toEqual({});
+      expect(useCollectionStore.getState().studyTotal).toBe(studyBefore);
+      expect(mockDifficultyVote).not.toHaveBeenCalled();
+    } finally { clean(); }
+  });
+
+  it('완료한 카드로 돌아가도 SRS와 적립이 중복되지 않고, 마지막 카드만 풀어도 나머지를 완료 처리하지 않는다', () => {
+    const { cards, clean } = prepare(3);
+    const studyBefore = useCollectionStore.getState().studyTotal;
+    const parallel = jest.spyOn(Animated, 'parallel').mockReturnValue({ start: cb => cb?.({ finished: true }), stop: jest.fn(), reset: jest.fn() });
+    const grade = (label: string) => {
+      fireEvent.press(screen.getByLabelText('카드 뒤집기'));
+      act(() => jest.advanceTimersByTime(400));
+      fireEvent.press(screen.getByText(label));
+    };
+    try {
+      fireEvent.press(screen.getByLabelText('다음 복습 카드'));
+      act(() => {
+        fireEvent.press(screen.getByLabelText('다음 복습 카드'));
+        fireEvent.press(screen.getByLabelText('이전 복습 카드'));
+      });
+      expect(screen.getByText('2 / 3')).toBeTruthy();
+      fireEvent.press(screen.getByLabelText('이전 복습 카드'));
+      expect(screen.getByText('1 / 3')).toBeTruthy();
+      grade('알고 있어요');
+      expect(screen.getByText('2 / 3')).toBeTruthy();
+      fireEvent.press(screen.getByLabelText('이전 복습 카드'));
+      expect(screen.getByTestId('learning-card-front').props.pointerEvents).toBe('auto');
+      grade('다음에 한번더');
+      expect(useSrsStore.getState().cards[cards[0].id].reps).toBe(1);
+      expect(useSrsStore.getState().cards[cards[0].id].firstGrade).toBe('good');
+      expect(useSrsStore.getState().cards[cards[0].id].lastGrade).toBe('good');
+      expect(useCollectionStore.getState().studyTotal).toBe(studyBefore + 1);
+      fireEvent.press(screen.getByLabelText('다음 복습 카드'));
+      expect(screen.getByText('3 / 3')).toBeTruthy();
+      grade('알고 있어요');
+      expect(screen.getByText('2 / 3')).toBeTruthy();
+      expect(screen.queryByText('복습 완료!')).toBeNull();
+      expect(useSrsStore.getState().cards[cards[1].id]).toBeUndefined();
+      grade('알고 있어요');
+      expect(screen.getByText('복습 완료!')).toBeTruthy();
+      expect(useCollectionStore.getState().studyTotal).toBe(studyBefore + 3);
+      expect(mockDifficultyVote).not.toHaveBeenCalled();
+    } finally { parallel.mockRestore(); clean(); }
+  });
+
+  it('카드 완료 애니메이션 중에는 페이지 이동을 잠그고 완료 후에는 다시 이동할 수 있다', () => {
+    const { clean } = prepare(3);
+    let complete!: (value: { finished: boolean }) => void;
+    const parallel = jest.spyOn(Animated, 'parallel').mockReturnValue({ start: cb => { complete = cb!; }, stop: jest.fn(), reset: jest.fn() });
+    try {
+      fireEvent.press(screen.getByLabelText('카드 뒤집기'));
+      act(() => jest.advanceTimersByTime(400));
+      fireEvent.press(screen.getByText('알고 있어요'));
+      fireEvent.press(screen.getByLabelText('다음 복습 카드'));
+      expect(screen.getByText('1 / 3')).toBeTruthy();
+      act(() => complete({ finished: true }));
+      expect(screen.getByText('2 / 3')).toBeTruthy();
+      fireEvent.press(screen.getByLabelText('이전 복습 카드'));
+      expect(screen.getByText('1 / 3')).toBeTruthy();
+    } finally { parallel.mockRestore(); clean(); }
+  });
+
+  it('정답을 확인한 퀴즈도 이동 후에는 앞면과 미선택 상태로 돌아온다', () => {
+    const { clean } = prepare(2, 'choice');
+    try {
+      fireEvent.press(screen.getByText('차단기를 내린다'));
+      expect(screen.getByText('정답이에요! 🎉')).toBeTruthy();
+      fireEvent.press(screen.getByLabelText('다음 복습 카드'));
+      expect(screen.queryByText('정답이에요! 🎉')).toBeNull();
+      fireEvent.press(screen.getByLabelText('이전 복습 카드'));
+      expect(screen.getByTestId('learning-card-front').props.pointerEvents).toBe('auto');
+      expect(screen.queryByText('정답이에요! 🎉')).toBeNull();
+      fireEvent.press(screen.getByText('차단기를 내린다'));
+      expect(screen.getByText('정답이에요! 🎉')).toBeTruthy();
+      expect(useSrsStore.getState().cards).toEqual({});
+    } finally { clean(); }
+  });
+});
+
+it.each([{}, { focusId: mockCard.id }])('오늘 학습·단일 카드에서는 복습 페이지 화살표를 표시하지 않는다(%j)', params => {
+  mockParams = params;
+  mockAvailableCards = [mockCard];
+  useSrsStore.getState().reset();
+  const view = wrap('이용재');
+  try {
+    expect(screen.queryByLabelText('이전 복습 카드')).toBeNull();
+    expect(screen.queryByLabelText('다음 복습 카드')).toBeNull();
+  } finally { view.unmount(); mockParams = {}; mockAvailableCards = []; }
+});
+
+it.each(['choice', 'explanation'] as const)('앞면 %s도 아래 내용이 남으면 더 있어요 안내를 표시하고 끝에서는 숨긴다', type => {
+  const originalType = mockCard.type;
+  mockCard.type = type;
+  useSrsStore.getState().reset();
+  const view = wrap('이용재');
+  try {
+    const scroll = screen.getByTestId(type === 'choice' ? 'learning-card-quiz-scroll' : 'learning-card-front-scroll');
+    const front = within(screen.getByTestId('learning-card-front'));
+    expect(front.queryByText('더 있어요 👇')).toBeNull();
+    fireEvent(scroll, 'contentSizeChange', 300, 900);
+    fireEvent(scroll, 'layout', { nativeEvent: { layout: { height: 400 } } });
+    expect(front.getByText('더 있어요 👇')).toBeTruthy();
+    fireEvent.scroll(scroll, { nativeEvent: { contentOffset: { y: 500 }, layoutMeasurement: { height: 400 }, contentSize: { height: 900 } } });
+    expect(front.queryByText('더 있어요 👇')).toBeNull();
+    fireEvent.scroll(scroll, { nativeEvent: { contentOffset: { y: 0 }, layoutMeasurement: { height: 400 }, contentSize: { height: 900 } } });
+    expect(front.getByText('더 있어요 👇')).toBeTruthy();
+    fireEvent(scroll, 'contentSizeChange', 300, 300);
+    expect(front.queryByText('더 있어요 👇')).toBeNull();
+  } finally { view.unmount(); mockCard.type = originalType; }
 });

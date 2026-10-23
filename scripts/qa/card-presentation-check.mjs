@@ -112,7 +112,7 @@ try {
     return [situation, question].map(e => { const s = getComputedStyle(e); return { size: s.fontSize, line: s.lineHeight, weight: s.fontWeight }; });
   });
   assert.deepEqual(typography[0], typography[1], 'Situation and question typography');
-  assert.equal(typography[0].size, '13px', 'Body uses the ready timer font size');
+  assert.equal(typography[0].size, '15px', 'Front body is between the previous 18–20px and reduced 13px');
   assert.equal(await front.getByText('상황설명', { exact: true }).count(), 1);
   assert.equal(await front.getByText('질문', { exact: true }).count(), 1);
   assert(!/Q\.|OX 퀴즈|준비되면|\d+\/\d+/.test(await front.innerText()), 'Removed front labels stay hidden');
@@ -121,7 +121,12 @@ try {
   const positions = ['해설은 위험', '상세설명은 원인', '발열', '가연물'].map(text => body.indexOf(text));
   assert(positions.every((p, i) => p >= 0 && (i === 0 || p > positions[i-1])), 'Back section order');
   for (const label of ['해설', '상세설명', '화재 3요소', '위험개선권고사항']) {
-    assert.equal(await back.getByText(label, { exact: true }).count(), 1, label + ' chip');
+    assert.equal(await back.getByRole('heading', { name: label, exact: true }).count(), 1, label + ' section title');
+  }
+  for (const [title, content] of [['해설', '해설은 위험을 먼저 확인합니다.'], ['상세설명', '상세설명은 원인을 설명합니다.'], ['화재 3요소', '가연물 · 산소 · 열'], ['위험개선권고사항', '계약 조건을 확인하세요']]) {
+    const section = back.getByRole('heading', { name: title, exact: true }).locator('../..');
+    assert.equal(await section.getByText(content, { exact: true }).count(), 1, title + ' card wraps its body');
+    assert.notEqual(await section.evaluate(el => getComputedStyle(el).backgroundColor), 'rgba(0, 0, 0, 0)', title + ' card has a background');
   }
   const bodyColumns = await Promise.all(['해설은 위험을 먼저 확인합니다.', '상세설명은 원인을 설명합니다.', '가연물 · 산소 · 열', '계약 조건을 확인하세요'].map(text => back.getByText(text, { exact: true }).evaluate(el => ({ x: el.getBoundingClientRect().x, size: getComputedStyle(el).fontSize }))));
   assert(bodyColumns.every(item => item.x === bodyColumns[0].x && item.size === '13px'), 'Back bodies share a left edge and font size');
@@ -192,6 +197,11 @@ try {
   assert(await page.getByLabel('적당해요 · 내 선택', { exact: true }).count(), 'Other-device server difficulty restored');
   assert.equal(await page.getByTestId('recorded-review-choice').getByLabel(/처음 선택/).count(), 0, 'No invented initial decision');
   await go('/content/qa-card-2');
+  // An absent process retains its section and explicit empty-state text.
+  deck[1].process_txt = '';
+  await page.reload();
+  await page.getByRole('heading', { name: '화재·폭발 진행 프로세스', exact: true }).waitFor();
+  assert.equal(await page.getByText('해당 없음', { exact: true }).count(), 1, 'Empty process remains visible');
   assert(await page.getByText('아직 난이도 선택 기록이 없어요', { exact: true }).count(), 'Missing difficulty is read-only too');
   assert.equal(await page.getByTestId('review-difficulty').getByRole('button').count(), 0, 'Missing difficulty cannot be voted in review');
   for (const theme of ['light', 'dark']) {

@@ -2,9 +2,8 @@ import React from 'react';
 import { View, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/ThemeProvider';
-import { fontBody } from '../../theme/tokens';
+import { fontBody, fontDisplay } from '../../theme/tokens';
 import { QuestionImage } from '../ui/QuestionImage';
-import { CardSectionChip } from './CardSectionChip';
 import { CARD_TEXT_SIZE, CARD_TEXT_LINE_HEIGHT } from './cardPresentation';
 import { resolveCardImage, hasCardImage } from '../../data/cardImages';
 import type { LearningCard } from '../../domain/models/LearningCard';
@@ -17,6 +16,24 @@ function splitSteps(text: string): string[] {
     .filter(Boolean);
 }
 
+function BackSection({ title, icon, color, backgroundColor, children }: React.PropsWithChildren<{
+  title: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  color: string;
+  backgroundColor: string;
+}>) {
+  const { fontScale: fs } = useTheme();
+  return (
+    <View style={{ alignSelf: 'stretch', backgroundColor, borderRadius: 12, padding: 12, gap: 8 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+        <Ionicons name={icon} size={16 * fs} color={color} />
+        <Text accessibilityRole="header" style={{ color, fontSize: CARD_TEXT_SIZE * fs, lineHeight: CARD_TEXT_LINE_HEIGHT * fs, fontFamily: fontDisplay, flexShrink: 1 }}>{title}</Text>
+      </View>
+      {children}
+    </View>
+  );
+}
+
 /**
  * 학습카드 뒷면(구조화 해설) 공통 렌더러.
  * 해설(conclusion/answer) → 상세설명(principle) → 진행 프로세스 → 화재 3요소 → 개선 권고 → 관리 기록 순으로 표출.
@@ -27,7 +44,8 @@ export function CardBackBody({ card }: { card: LearningCard }) {
   const c = theme.colors;
   const fs = fontScale;
   const bodyStyle = { color: c.textPrimary, fontSize: CARD_TEXT_SIZE * fs, lineHeight: CARD_TEXT_LINE_HEIGHT * fs, fontFamily: fontBody };
-  const steps = card.process ? splitSteps(card.process) : [];
+  const process = card.process?.trim() ?? '';
+  const steps = /^(?:null|undefined|n\/a|해당\s*없음)$/i.test(process) ? [] : splitSteps(process);
   // 키워드는 React key 로 쓰인다 — 같은 값이 두 번 들어오면 key 가 겹쳐 경고가 뜨고
   // 목록이 어긋난다. 원본(엑셀)에서 같은 태그를 두 번 적는 일은 드물지 않다.
   const keywords = [...new Set(card.keywords)];
@@ -41,42 +59,37 @@ export function CardBackBody({ card }: { card: LearningCard }) {
 
       {/* 해설(핵심 결론) */}
       {!!card.conclusion.trim() && (
-        <View style={{ gap: 8 }}>
-          <CardSectionChip label="해설" icon="bulb-outline" color={c.warning} />
+        <BackSection title="해설" icon="bulb-outline" color={c.warning} backgroundColor={c.warning + '12'}>
           <Text style={bodyStyle}>{card.conclusion}</Text>
-        </View>
+        </BackSection>
       )}
 
       {/* 상세설명 */}
       {!!card.principle.trim() && (
-        <View style={{ gap: 8 }}>
-          <CardSectionChip label="상세설명" icon="bulb-outline" color={c.primary} />
+        <BackSection title="상세설명" icon="bulb-outline" color={c.primary} backgroundColor={c.surfaceAlt}>
           <Text style={bodyStyle}>{card.principle}</Text>
-        </View>
+        </BackSection>
       )}
 
       {/* 진행 프로세스 */}
-      {steps.length > 0 && (
-        <View style={{ gap: 8 }}>
-          <CardSectionChip label="화재·폭발 진행 프로세스" icon="flame-outline" color={c.warning} />
-          {steps.map((s, i) => <Text key={i} style={bodyStyle}>{i + 1}. {s}</Text>)}
-        </View>
-      )}
+      <BackSection title="화재·폭발 진행 프로세스" icon="flame-outline" color={c.warning} backgroundColor={c.warning + '12'}>
+        {steps.length > 0
+          ? steps.map((s, i) => <Text key={i} style={bodyStyle}>{i + 1}. {s}</Text>)
+          : <Text style={bodyStyle}>해당 없음</Text>}
+      </BackSection>
 
       {/* 화재의 3요소 */}
       {!!card.fireTriangle?.trim() && (
-        <View style={{ gap: 8 }}>
-          <CardSectionChip label="화재 3요소" icon="warning-outline" color={c.primary} />
+        <BackSection title="화재 3요소" icon="warning-outline" color={c.primary} backgroundColor={c.primary + '12'}>
           <Text style={bodyStyle}>{card.fireTriangle}</Text>
-        </View>
+        </BackSection>
       )}
 
       {/* 위험개선 권고사항 — Windows 검수/문제 수정 화면의 뒷면5와 같은 값 */}
       {!!card.improvement?.trim() && (
-        <View style={{ gap: 8 }}>
-          <CardSectionChip label="위험개선권고사항" icon="shield-checkmark-outline" color={c.success} />
+        <BackSection title="위험개선권고사항" icon="shield-checkmark-outline" color={c.success} backgroundColor={c.success + '12'}>
           <Text style={bodyStyle}>{card.improvement}</Text>
-        </View>
+        </BackSection>
       )}
 
       {/* 키워드 */}

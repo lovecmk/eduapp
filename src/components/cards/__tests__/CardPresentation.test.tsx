@@ -19,7 +19,16 @@ it('공통 뒷면은 해설→상세→프로세스→3요소→기존 추가 �
   view.rerender(<CardBackBody card={{ ...card, conclusion: ' ', principle: '', process: '', fireTriangle: '' }} />);
   expect(view.queryByText('해설 본문')).toBeNull();
   expect(view.queryByText('상세 본문')).toBeNull();
-  expect(view.queryByText('화재·폭발 진행 프로세스')).toBeNull();
+  expect(view.getByRole('header', { name: '화재·폭발 진행 프로세스' })).toBeTruthy();
+  expect(view.getByText('해당 없음')).toBeTruthy();
+});
+
+it.each([undefined, '', '  ', ' →  → ', 'null', '해당 없음'])('빈 프로세스(%s)도 카드 제목과 해당 없음으로 표시한다', process => {
+  const view = render(<CardBackBody card={{ ...card, process }} />);
+  expect(view.getByRole('header', { name: '화재·폭발 진행 프로세스' })).toBeTruthy();
+  expect(view.getAllByText('해당 없음')).toHaveLength(1);
+  expect(view.getByRole('header', { name: '화재 3요소' })).toBeTruthy();
+  expect(view.getByRole('header', { name: '위험개선권고사항' })).toBeTruthy();
 });
 
 it('뒷면 반응은 카드별로 토글되고 신고는 현재 카드의 호출 경로를 사용한다', () => {
