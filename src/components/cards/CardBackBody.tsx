@@ -11,8 +11,8 @@ import type { LearningCard } from '../../domain/models/LearningCard';
 /** 프로세스 체인 문자열을 단계로 분리("→" 또는 원문자 기준). */
 function splitSteps(text: string): string[] {
   return text
-    .split('→')
-    .map((s) => s.replace(/^\s*(?:[①-⑳]|\d+\))\s*/, '').trim())
+    .split(/\u2192|\r?\n/)
+    .map((s) => s.replace(/^\s*(?:[①-⑳]|\d+[.)\u3001\uff0e])\s*/, '').trim())
     .filter(Boolean);
 }
 
@@ -74,7 +74,14 @@ export function CardBackBody({ card }: { card: LearningCard }) {
       {/* 진행 프로세스 */}
       <BackSection title="화재·폭발 진행 프로세스" icon="flame-outline" color={c.warning} backgroundColor={c.warning + '12'}>
         {steps.length > 0
-          ? steps.map((s, i) => <Text key={i} style={bodyStyle}>{i + 1}. {s}</Text>)
+          ? steps.map((s, i) => (
+            <View key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
+              <View style={{ width: 22 * fs, height: 22 * fs, borderRadius: 11 * fs, backgroundColor: c.warning, alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ color: '#FFFFFF', fontSize: CARD_TEXT_SIZE * fs, lineHeight: CARD_TEXT_LINE_HEIGHT * fs, fontFamily: fontDisplay }}>{i + 1}</Text>
+              </View>
+              <Text style={[bodyStyle, { flex: 1 }]}>{s}</Text>
+            </View>
+          ))
           : <Text style={bodyStyle}>해당 없음</Text>}
       </BackSection>
 

@@ -9,8 +9,8 @@ import type { LearningCompletion } from '../../domain/learningCompletion';
 
 export const LEARNING_COMPLETE_COLOR = '#15803D';
 export const LEARNING_STREAK_COLORS = {
-  light: { fill: '#DFEEE4', border: '#A7CDB4' },
-  dark: { fill: '#264635', border: '#477858' },
+  light: { fill: LEARNING_COMPLETE_COLOR + 'AA', border: '#A7CDB4' },
+  dark: { fill: LEARNING_COMPLETE_COLOR + 'AA', border: '#477858' },
 } as const;
 const SIZE = 30;
 const ROW_HEIGHT = 52;
