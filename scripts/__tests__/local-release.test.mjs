@@ -5,8 +5,28 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
 import { collect, preparedAssets, publish, sha256, verifyAsset, assertRemoteTag } from '../lib/local-release.mjs';
 import { androidBuildEnvironment } from '../lib/android-build-env.mjs';
+const withFirebaseConfig = createRequire(import.meta.url)('../../plugins/withFirebaseConfig.js');
+
+test('Firebase config uses a local package-matched file without replacing Android options', t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'firebase-config-test-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const config = { android: { package: 'com.raywon.newapp', permissions: ['existing'], versionCode: 140 } };
+  const file = path.join(root, 'google-services.json');
+  fs.writeFileSync(file, JSON.stringify({ client: [{ client_info: { android_client_info: { package_name: config.android.package } } }] }));
+  const result = withFirebaseConfig(config, { root, file: '' });
+  assert.equal(result.android.googleServicesFile, file);
+  assert.deepEqual(result.android.permissions, ['existing']);
+  assert.equal(result.android.versionCode, 140);
+  assert.equal(config.android.googleServicesFile, undefined);
+  fs.writeFileSync(file, JSON.stringify({ client: [{ client_info: { android_client_info: { package_name: 'other.app' } } }] }));
+  assert.throws(() => withFirebaseConfig(config, { root, file }), /패키지/);
+  fs.writeFileSync(file, 'invalid');
+  assert.throws(() => withFirebaseConfig(config, { root, file }), /읽을 수/);
+  assert.throws(() => withFirebaseConfig(config, { root, file: 'missing.json' }), /찾을 수/);
+});
 
 function fixture(t) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'local-release-test-'));

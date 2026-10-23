@@ -1,4 +1,5 @@
 const withInsecureApiHost = require('./plugins/withInsecureApiHost');
+const withFirebaseConfig = require('./plugins/withFirebaseConfig');
 
 /**
  * 동적 앱 설정 — app.json 을 그대로 받아 **API 주소에 따라 달라지는 부분만** 얹는다.
@@ -34,10 +35,10 @@ module.exports = ({ config }) => {
     `[app.config] API=${raw || '(미설정 · 목업 폴백)'}${insecure ? ' · 평문(http) → cleartext/ATS 예외 적용' : ''}`,
   );
 
-  const next = { ...config };
+  const next = withFirebaseConfig({ ...config });
   const buildNumber = Number(process.env.EXPO_PUBLIC_BUILD_NUMBER);
   if (Number.isSafeInteger(buildNumber) && buildNumber > 0 && buildNumber <= 2100000000) {
-    next.android = { ...config.android, versionCode: buildNumber };
+    next.android = { ...next.android, versionCode: buildNumber };
     next.ios = { ...config.ios, buildNumber: String(buildNumber) };
   }
   return insecure ? withInsecureApiHost(next, { host }) : next;

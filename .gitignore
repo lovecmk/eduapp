@@ -10,6 +10,7 @@ web-build/
 dist-release/
 /android/
 /.release-config.local
+/google-services.json
 expo-env.d.ts
 
 # Native

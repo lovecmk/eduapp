@@ -102,6 +102,12 @@ main을 원자적으로 push하고, APK·SHA256SUMS.txt·BUILD-INFO.json이 모�
 기존 테스트 APK와 동일하게 prerelease로 게시한다. GitHub 인증은 Git Credential Manager의 기존
 인증 또는 프로세스 환경의 GH_TOKEN을 사용하며 Expo/EAS 계정은 필요하지 않다.
 
+Android 원격 푸시는 `com.raywon.newapp`용 Firebase `google-services.json`과 Expo 프로젝트의
+FCM V1 발송 자격 증명이 별도로 필요하다. Firebase 클라이언트 파일은 저장소 루트의 무시된
+`google-services.json` 또는 빌드 프로세스의 `GOOGLE_SERVICES_JSON` 경로로 연결한다. 다른 패키지의
+파일은 빌드 전에 거부한다. 파일이 없으면 빌드는 가능하지만 원격 푸시는 사용할 수 없으며,
+앱 내 알림과 로컬 학습 리마인더는 별도다. 서비스 계정 비밀키를 앱에 넣거나 커밋하지 않는다.
+
 필요 도구: Node, JDK 17 (React Native Gradle plugin의 고정 toolchain), Android SDK 35·build-tools 35.0.0·NDK 26.1.10909125·
 CMake 3.22.1. Windows에서는 SDK CMake의 Ninja를 1.12 이상으로 준비한다. 기본 1.10.2는
 Reanimated 생성 경로가 260자를 넘으면 mkdir 오류가 난다. 이 PC는 공식 Ninja 1.12.1을 사용한다.

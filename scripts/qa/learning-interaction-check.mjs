@@ -114,10 +114,14 @@ try {
   await viewer.waitFor({ state: 'hidden' });
   checks.push({ case: 'image/backdrop tap, pan rejection, close button' });
 
-  const cardBox = await front.boundingBox();
+  // The compact header has less padding than the previous card design. Tap
+  // its actual label instead of a fixed coordinate that can land in a gap.
+  const headerBox = await front.getByText('현장 점검', { exact: true }).boundingBox();
+  assert(headerBox, 'Card header is missing');
+  const tapPoint = { x: headerBox.x + headerBox.width / 2, y: headerBox.y + headerBox.height / 2 };
   for (const count of [2, 3, 5]) {
     for (let i = 0; i < count; i++) {
-      await page.mouse.click(cardBox.x + 30, cardBox.y + 35);
+      await page.mouse.click(tapPoint.x, tapPoint.y);
       await page.waitForTimeout(60);
     }
     await face(count === 3);
