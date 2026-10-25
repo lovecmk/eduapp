@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, Pressable, Modal, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Modal, ScrollView, type StyleProp, type TextStyle } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -19,6 +19,8 @@ export function CenterModal({
   visible,
   onClose,
   title,
+  titleStyle,
+  contentMaxHeight,
   icon,
   children,
   position = 'center',
@@ -26,6 +28,8 @@ export function CenterModal({
   visible: boolean;
   onClose: () => void;
   title: string;
+  titleStyle?: StyleProp<TextStyle>;
+  contentMaxHeight?: number;
   icon?: keyof typeof Ionicons.glyphMap;
   children: React.ReactNode;
   /** 'center'(기본) 또는 'bottom' — 하단 시트 형태로 띄워 뒤 화면을 가리지 않게 한다. */
@@ -73,7 +77,7 @@ export function CenterModal({
           <View style={[styles.header, { borderBottomColor: c.border }]}>
             <View style={styles.headerLeft}>
               {icon ? <Ionicons name={icon} size={20} color={c.primary} /> : null}
-              <Text style={[styles.title, { color: c.textPrimary, fontSize: 17 * fontScale }]}>
+              <Text style={[styles.title, { color: c.textPrimary, fontSize: 17 * fontScale }, titleStyle]}>
                 {title}
               </Text>
             </View>
@@ -83,7 +87,7 @@ export function CenterModal({
             </Pressable>
           </View>
           <ScrollView
-            style={{ maxHeight: isBottom ? 420 : 460 }}
+            style={{ maxHeight: contentMaxHeight ?? (isBottom ? 420 : 460) }}
             contentContainerStyle={{ padding: 20 }}
             showsVerticalScrollIndicator={false}
           >

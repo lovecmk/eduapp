@@ -97,7 +97,7 @@ try {
     await page.reload(); await expect(welcome).toBeVisible(); await page.waitForTimeout(400);
     const box = await welcome.boundingBox();
     assert(box && box.x >= 0 && box.x + box.width <= width + 1 && box.y >= 0 && box.y + box.height <= 844, 'popup fits narrow viewport');
-    await expect(page.getByRole('button', { name: '좋은 하루 시작하기', exact: true })).toBeInViewport();
+    await expect(page.getByRole('button', { name: '좋은 하루 시작하기', exact: true })).toBeInViewport({ ratio: 1 });
     await page.screenshot({ path: resolve(out, 'welcome-' + theme + '-' + width + '.png') });
     checks.push({ theme, width });
   }

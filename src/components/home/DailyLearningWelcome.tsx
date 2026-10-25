@@ -1,11 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { AppState, Platform, Text, View } from 'react-native';
+import { AppState, Platform, Text, View, useWindowDimensions } from 'react-native';
 import { usePathname } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { CenterModal } from '../ui/CenterModal';
 import { Button } from '../ui/Button';
 import { useTheme } from '../../theme/ThemeProvider';
-import { fontBody, fontDisplay, fontMono } from '../../theme/tokens';
+import { fontBold, fontMono } from '../../theme/tokens';
 import { claimDailyWelcome, type DailyWelcome } from '../../data/dailyWelcome';
 import { useLearningCompletion } from '../../hooks/useLearningCompletion';
 import { useDailyAssignment } from '../../hooks/useDailyAssignment';
@@ -38,6 +38,7 @@ export function DailyWelcomeGate({ enabled }: { enabled: boolean }) {
 
 export function DailyLearningWelcome({ userId }: { userId: string }) {
   const { theme, fontScale: fs } = useTheme();
+  const { height } = useWindowDimensions();
   const c = theme.colors;
   const completion = useLearningCompletion();
   const { isSuccess, isError } = useDailyAssignment();
@@ -65,17 +66,17 @@ export function DailyLearningWelcome({ userId }: { userId: string }) {
   const message = streak === 0 ? '오늘부터 한 걸음, 함께 시작해요'
     : streak < 5 ? '좋은 시작이 쌓이고 있어요'
     : streak < 20 ? '꾸준한 배움이 힘이 되고 있어요' : '단단한 학습 습관을 이어가고 있어요';
-  return <CenterModal visible onClose={() => setWelcome(null)} title="오늘의 한 걸음" icon="sunny-outline">
+  return <CenterModal visible onClose={() => setWelcome(null)} title="오늘의 한 걸음" titleStyle={{ fontFamily: fontBold, fontWeight: '700', fontSize: 19 * fs }} contentMaxHeight={Math.max(180, Math.min(560, height - 180))} icon="sunny-outline">
     <View testID="daily-learning-welcome" accessibilityViewIsModal style={{ alignItems: 'center', gap: 12 }}>
       <View style={{ width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center', backgroundColor: c.primary + '16' }}>
         <Ionicons name={streak > 0 ? 'flame' : 'leaf'} size={34} color={c.primary} />
       </View>
-      <Text style={{ fontFamily: fontDisplay, color: c.textPrimary, fontSize: 15 * fs }}>평일 연속 학습</Text>
-      <Text testID="daily-welcome-streak" style={{ fontFamily: fontMono, fontSize: 38 * fs, fontWeight: '900', color: c.primary }}>{streak}일</Text>
-      <Text style={{ fontFamily: fontBody, color: c.textSecondary, fontSize: 12 * fs, textAlign: 'center' }}>{message}</Text>
+      <Text style={{ fontFamily: fontBold, fontWeight: '700', color: c.textPrimary, fontSize: 17 * fs }}>평일 연속 학습</Text>
+      <Text testID="daily-welcome-streak" style={{ fontFamily: fontMono, fontSize: 40 * fs, fontWeight: '900', color: c.primary }}>{streak}일</Text>
+      <Text style={{ fontFamily: fontBold, fontWeight: '700', color: c.textSecondary, fontSize: 14 * fs, textAlign: 'center' }}>{message}</Text>
       <View style={{ width: '100%', backgroundColor: c.surfaceAlt, borderRadius: 16, padding: 16, marginVertical: 4 }}>
-        <Text testID="daily-welcome-category" style={{ fontFamily: fontDisplay, color: c.primary, fontSize: 11 * fs, marginBottom: 8 }}>{welcome.category}</Text>
-        <Text testID="daily-welcome-quote" style={{ fontFamily: fontBody, color: c.textPrimary, fontSize: 15 * fs, lineHeight: 23 * fs }}>{welcome.text}</Text>
+        <Text testID="daily-welcome-category" style={{ fontFamily: fontBold, fontWeight: '700', color: c.primary, fontSize: 13 * fs, marginBottom: 8 }}>{welcome.category}</Text>
+        <Text testID="daily-welcome-quote" style={{ fontFamily: fontBold, fontWeight: '700', color: c.textPrimary, fontSize: 17 * fs, lineHeight: 25 * fs }}>{welcome.text}</Text>
       </View>
       <Button label="좋은 하루 시작하기" onPress={() => setWelcome(null)} style={{ width: '100%' }} />
     </View>
