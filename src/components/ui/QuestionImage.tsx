@@ -171,11 +171,6 @@ export function QuestionImage({
           </View>
         )}
 
-        <View style={[styles.badge, { backgroundColor: 'rgba(0,0,0,0.55)' }]}>
-          <Ionicons name="image" size={11} color="#fff" />
-          <Text style={styles.badgeText}>이미지 문제</Text>
-        </View>
-
         {canExpand && !loading && (
           <View style={[styles.expandHint, { backgroundColor: 'rgba(0,0,0,0.55)' }]}>
             <Ionicons name="expand" size={11} color="#fff" />
@@ -197,11 +192,6 @@ const styles = StyleSheet.create({
   failText: { fontSize: 12, fontFamily: fontBody },
   /** 그림 대신 남는 설명 — 그림이 문제의 일부일 때 최소한 무엇이 있어야 하는지는 알린다. */
   failAlt: { fontSize: 11, fontFamily: fontBody, opacity: 0.8, paddingHorizontal: 16, textAlign: 'center' },
-  badge: {
-    position: 'absolute', top: 10, left: 10,
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999,
-  },
   badgeText: { color: '#fff', fontSize: 10, fontWeight: '700' },
   expandHint: {
     position: 'absolute', bottom: 10, right: 10,

@@ -16,7 +16,7 @@ it('서버 빈칸형을 두 보기와 정답 그대로 표시하고 선택 후 �
   fireEvent.press(view.getByText('질소'));
   expect(pick).toHaveBeenCalledWith(1);
   view.rerender(<CardQuiz card={card} pick={1} revealed onPick={pick} />);
-  expect(view.getByText('아쉬워요 — 정답은 ①')).toBeTruthy();
+  expect(view.getByText('아쉬워요 — 정답은 (1)')).toBeTruthy();
   expect(view.getAllByRole('button', { disabled: true })).toHaveLength(2);
   view.rerender(<CardQuiz card={card} pick={0} revealed onPick={pick} />);
   expect(view.getByText('정답이에요! 🎉')).toBeTruthy();

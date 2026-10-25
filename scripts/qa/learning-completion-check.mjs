@@ -115,8 +115,8 @@ try {
     await page.getByRole('button', { name: '적용', exact: true }).click();
     await expect(page.getByRole('button', { name: '적용', exact: true })).toBeHidden();
     await expect(summary).toContainText(expected);
-    if (day) { await expect(date(day).getByTestId('learning-completed-day')).toHaveCount(1); assert(await page.getByTestId('learning-streak-connection').count() > 0, 'month boundary continuation missing'); }
-    else await expect(page.getByTestId('learning-streak-connection')).toHaveCount(0);
+    if (day) await expect(date(day).getByTestId('learning-completed-day')).toHaveCount(1);
+    await expect(page.getByTestId('learning-streak-connection')).toHaveCount(0); // Friday→Monday keeps its streak without a weekend bridge.
   }
   await page.getByRole('button', { name: '이번 달로 돌아가기', exact: true }).click();
   await page.clock.pauseAt(new Date('2026-10-23T14:59:59Z')); await page.clock.runFor(1000);

@@ -17,7 +17,7 @@ it.each(['현장판단형', '선택비교형'])('%s preserves server choices, gr
   expect(view.getByText('정답이에요! 🎉')).toBeTruthy();
   expect(view.getAllByRole('button', { disabled: true })).toHaveLength(choices.length);
   view.rerender(<CardQuiz card={card} pick={0} revealed onPick={pick} />);
-  expect(view.getByText(`아쉬워요 — 정답은 ${format === '선택비교형' ? 'B' : '②'}`)).toBeTruthy();
+  expect(view.getByText(`아쉬워요 — 정답은 ${format === '선택비교형' ? 'B' : '(2)'}`)).toBeTruthy();
 });
 
 it.each([

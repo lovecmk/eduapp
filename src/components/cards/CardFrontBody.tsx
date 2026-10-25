@@ -4,10 +4,11 @@ import { useTheme } from '../../theme/ThemeProvider';
 import { fontDisplay } from '../../theme/tokens';
 import type { LearningCard } from '../../domain/models/LearningCard';
 import { CardSectionChip } from './CardSectionChip';
+import { CardChoices } from './CardChoices';
 import { CARD_FRONT_TEXT_SIZE, CARD_FRONT_LINE_HEIGHT } from './cardPresentation';
 
 /** 퀴즈·설명형 및 복습 상세가 같은 칩/본문 정렬을 사용한다. */
-export function CardFrontBody({ card }: { card: LearningCard }) {
+export function CardFrontBody({ card, showChoices = true }: { card: LearningCard; showChoices?: boolean }) {
   const { theme, fontScale: fs } = useTheme();
   const c = theme.colors;
   const textStyle = { fontSize: CARD_FRONT_TEXT_SIZE * fs, lineHeight: CARD_FRONT_LINE_HEIGHT * fs, fontFamily: fontDisplay };
@@ -23,6 +24,7 @@ export function CardFrontBody({ card }: { card: LearningCard }) {
         <CardSectionChip label="질문" color={c.primary} />
         <Text style={[textStyle, { color: c.primary }]}>{card.question}</Text>
       </View>
+      {showChoices && <CardChoices card={card} />}
     </View>
   );
 }

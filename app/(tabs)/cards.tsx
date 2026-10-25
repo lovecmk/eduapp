@@ -1173,7 +1173,7 @@ function CardsContent() {
                       <QuestionImage source={resolveCardImage(card.imageUrl)} height={172} alt={card.title} />
                     </View>
                   )}
-                  <CardFrontBody card={card} />
+                  <CardFrontBody card={card} showChoices={false} />
                   <View style={{ marginTop: 18 }}>
                     <CardQuiz
                       card={card}

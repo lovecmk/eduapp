@@ -126,6 +126,10 @@ export class CardMapper {
       logger.warn('dto_unknown_code', { mapper: 'card', field: 'status_cd', value: dto.status_cd });
     }
     const declaredType = codeValue(CARD_TYPE_MAP, dto.card_type_cd, 'explanation');
+    // 채점할 수 없어도 정상적인 선택지는 질문 아래에서 읽을 수 있어야 한다.
+    const choiceFormat = declaredType !== 'ox' && (declaredType === 'choice' || dto.format_nm === '객관식' || dto.format_nm === '빈칸형' || isSingleChoiceFormat(dto.format_nm ?? ''));
+    const displayChoices = choiceFormat && Array.isArray(dto.choices) && dto.choices.length >= 2 &&
+      dto.choices.every(value => typeof value === 'string' && !!value.trim()) ? dto.choices : undefined;
     const answerable = declaredType === 'explanation' || quizIsAnswerable(dto);
     if (!answerable) {
       logger.warn('card_quiz_unanswerable', {
@@ -166,7 +170,7 @@ export class CardMapper {
       note: optional(dto.note_txt),
       // 풀 수 없는 퀴즈는 설명형으로 낮춘다(위 quizIsAnswerable 주석 참고).
       type: answerable ? declaredType : 'explanation',
-      choices: answerable && declaredType !== 'explanation' ? dto.choices : undefined,
+      choices: answerable && declaredType !== 'explanation' ? dto.choices : displayChoices,
       answerIndex: answerable && declaredType !== 'explanation' ? dto.answer_index : undefined,
       // 문제 사진이든 해설 사진이든 하나라도 있으면 '사진 있는 카드'다
       // (시드 생성기가 세는 방식과 같다 — 두 곳이 갈리면 목록과 상세가 어긋난다).

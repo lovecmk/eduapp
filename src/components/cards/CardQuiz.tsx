@@ -4,9 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/ThemeProvider';
 import { fontCute, fontDisplay, fontBody } from '../../theme/tokens';
 import type { LearningCard } from '../../domain/models/LearningCard';
-import { CARD_CHOICE_TEXT_SIZE, CARD_CHOICE_LINE_HEIGHT } from './cardPresentation';
-
-const CIRCLED = ['①', '②', '③', '④', '⑤'];
+import { CARD_CHOICE_TEXT_SIZE, CARD_CHOICE_LINE_HEIGHT, cardChoiceLabel } from './cardPresentation';
 
 /**
  * 퀴즈형 카드의 앞면 정답 선택 UI — OX / 객관식.
@@ -30,7 +28,7 @@ export function CardQuiz({
   const answer = card.answerIndex ?? 0;
   const isOX = card.type === 'ox';
   const isCorrect = pick === answer;
-  const labelFor = (i: number) => card.format === '선택비교형' ? String.fromCharCode(65 + i) : (CIRCLED[i] ?? String(i + 1));
+  const labelFor = (i: number) => cardChoiceLabel(card.format, i);
 
   // 정답/오답 이펙트 애니메이션.
   const shake = useRef(new Animated.Value(0)).current; // 오답 시 좌우 흔들림

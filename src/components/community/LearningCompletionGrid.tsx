@@ -15,7 +15,7 @@ export const LEARNING_STREAK_COLORS = {
 const SIZE = 30;
 const ROW_HEIGHT = 52;
 
-/** Connections travel below resting dates; resting dates never get a filled cell. */
+/** Draw only adjacent learning dates. A streak resumes after resting dates without a bridge. */
 export function completionPaths(year: number, month: number, connections: [string, string][], width: number) {
   const start = koreanDate(year, month, 1).getTime();
   const first = new Date(Date.UTC(year, month, 1)).getUTCDay();
@@ -30,16 +30,16 @@ export function completionPaths(year: number, month: number, connections: [strin
   const bands: string[] = [];
   for (const [from, to] of connections) {
     const a = position(from), b = position(to);
+    if (b.day - a.day !== 1) continue;
     const aVisible = a.day >= 0 && a.day < count, bVisible = b.day >= 0 && b.day < count;
     if (!aVisible && !bVisible) continue;
     const ay = a.row * ROW_HEIGHT + 16, by = b.row * ROW_HEIGHT + 16;
     if (a.row === b.row && aVisible && bVisible) {
-      if (b.day - a.day === 1) bands.push(`M ${a.x} ${ay} H ${b.x}`);
-      else paths.push(`M ${a.x} ${ay} H ${a.x + SIZE / 2} V ${ay + 23} H ${b.x - SIZE / 2} V ${by} H ${b.x}`);
+      bands.push(`M ${a.x} ${ay} H ${b.x}`);
     } else {
-      // At a week/month wrap, matching continuation marks retain chronological direction.
-      if (aVisible) paths.push(`M ${a.x} ${ay} H ${a.x + SIZE / 2} V ${ay + 23} H ${width - 7} V ${ay + 29} m -4 -4 l 4 4 l 4 -4`);
-      if (bVisible) paths.push(`M 7 ${by + 21} H ${b.x - SIZE / 2} V ${by} H ${b.x} M 3 ${by + 17} l 4 4 l 4 -4`);
+      // Month continuation stays within its learning-day cell, away from weekend columns.
+      if (aVisible) paths.push(`M ${a.x} ${ay} H ${a.x + SIZE / 2}`);
+      if (bVisible) paths.push(`M ${b.x - SIZE / 2} ${by} H ${b.x}`);
     }
   }
   return { paths, bands, rows };

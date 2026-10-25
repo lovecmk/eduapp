@@ -34,6 +34,7 @@ await context.addInitScript(user => {
 }, user);
 let mode = 'one';
 const card = { id: 'qa-card', category_cd: 'ELEC', format_nm: '현장판단형', card_type_cd: 'CHOICE', situation_txt: '현장 상태를 확인합니다.', title_txt: '현장 판단 시험', question_txt: '적절한 조치는?', choices: ['첫 보기', '정답 보기', '셋째 보기'], answer_index: 1, answer_txt: '정답 보기', principle_txt: '판단 근거입니다.', status_cd: 'NEW', difficulty_cd: 'EASY', study_seconds: 30, due_at: null };
+card.image_url = '1-1';
 const deck = [card, { ...card, id: 'qa-card-2', format_nm: '선택비교형', title_txt: '설명 비교 시험', choices: ['첫 보기', '정답 보기'] }, { ...card, id: 'qa-card-3', format_nm: '기초용어형', card_type_cd: 'EXPLANATION', choices: undefined, answer_index: undefined }];
 await context.route('**/*', async route => {
   const url = new URL(route.request().url());
@@ -92,9 +93,11 @@ try {
     await front.waitFor(); await face(false);
     await expect(front).toContainText(card.question_txt);
     await expect(front).toContainText('질문');
+    await expect(front.getByText('이미지 문제', { exact: true })).toHaveCount(0);
     const option = i === 0 ? '첫 보기' : '정답 보기';
     await front.getByText(option, { exact: true }).click();
-    await expect(front).toContainText(i === 0 ? '아쉬워요 — 정답은 ②' : '정답이에요!');
+    for (const choice of deck[i].choices) await expect(front.getByText(choice, { exact: true })).toHaveCount(1);
+    await expect(front).toContainText(i === 0 ? '아쉬워요 — 정답은 (2)' : '정답이에요!');
     await face(false);
     for (const label of deck[i].choices) await expect(front.getByRole('button').filter({ hasText: label }).first()).toBeDisabled();
     assert.equal(await page.getByRole('tab').count(), 5, 'bottom tabs retained');
@@ -111,6 +114,23 @@ try {
   await face(false);
   await expect(page.getByText('3 / 3', { exact: true })).toBeVisible();
   await expect(front.getByText('정답 보기', { exact: true })).toHaveCount(0);
+  for (const theme of ['light', 'dark']) for (const width of [320, 390]) {
+    await page.evaluate(theme => localStorage.setItem('app-settings', JSON.stringify({ state: { themeMode: theme, fontScale: 'xlarge' }, version: 2 })), theme);
+    await go('/content/qa-card', width);
+    await expect(page.getByRole('heading', { name: '앞면 · 질문', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: '뒷면 · 해설', exact: true })).toHaveCount(1);
+    const choices = page.getByLabel('보기', { exact: true });
+    for (const choice of card.choices) await expect(choices.getByText(choice, { exact: true })).toHaveCount(1);
+    await expect(choices.getByText('(1)', { exact: true })).toHaveCount(1);
+    await expect(choices.getByText('(3)', { exact: true })).toHaveCount(1);
+    await expect(choices.getByRole('button')).toHaveCount(0);
+    await expect(page.getByText('이미지 문제', { exact: true })).toHaveCount(0);
+    await choices.scrollIntoViewIfNeeded();
+    await page.screenshot({ path: resolve(out, `detail-${theme}-${width}.png`), fullPage: true });
+  }
+  card.answer_index = undefined;
+  await go('/content/qa-card');
+  for (const choice of card.choices) await expect(page.getByLabel('보기', { exact: true }).getByText(choice, { exact: true })).toHaveCount(1);
   assert.equal(errors.length, 0, JSON.stringify(errors));
   writeFileSync(resolve(out, 'results.json'), JSON.stringify({ checks, errors, requests, environment: 'isolated HTTP; no production writes' }, null, 2));
   console.log('PASS: both formats in real learning flow, correct/incorrect selection, lock, back face, next-card reset, 320px and bottom tabs');

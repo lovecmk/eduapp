@@ -80,13 +80,17 @@ export default function ContentDetailScreen() {
         ) : null}
 
         <Animated.View entering={FadeInDown.delay(120).duration(360)} style={{ backgroundColor: questionTint, borderRadius: 18, padding: 18, borderWidth: 1, borderColor: questionBorder, marginBottom: 14, boxShadow: cardShadow }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 12 }}>
+            <Ionicons name="document-text-outline" size={16} color={c.primary} />
+            <Text accessibilityRole="header" style={{ color: c.primary, fontSize: 12, fontWeight: '700', fontFamily: fontCute }}>앞면 · 질문</Text>
+          </View>
           <CardFrontBody card={card} />
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(180).duration(360)} style={{ backgroundColor: answerTint, borderRadius: 18, padding: 18, borderWidth: 1, borderColor: answerBorder, marginBottom: 14, boxShadow: cardShadow }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 12 }}>
             <Ionicons name="school" size={16} color={c.success} />
-            <Text style={{ color: c.success, fontSize: 12, fontWeight: '700', fontFamily: fontCute }}>뒷면 · 해설</Text>
+            <Text accessibilityRole="header" style={{ color: c.success, fontSize: 12, fontWeight: '700', fontFamily: fontCute }}>뒷면 · 해설</Text>
           </View>
           <CardBackBody card={card} />
           <CardReactionBar cardId={card.id} onReport={() => setReportOpen(true)} />

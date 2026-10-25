@@ -13,7 +13,7 @@ it.each([
 ])('잘못된 빈칸형으로 오답을 기록하지 않는다: %p', (invalid) => {
   const card = CardMapper.toDomain({ ...base, format_nm: '빈칸형', card_type_cd: 'CHOICE', question_txt: '화재에는 [빈칸]이 필요합니다.', choices: ['산소', '질소'], answer_index: 0, answer_txt: '산소', ...invalid } as CardDTO);
   expect(card.type).toBe('explanation');
-  expect(card.choices).toBeUndefined();
+  expect(card.choices).toEqual(invalid.card_type_cd === 'OX' ? undefined : invalid.choices ?? ['산소', '질소']);
   expect(card.answerIndex).toBeUndefined();
 });
 
