@@ -4,14 +4,11 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { run, npm, git, assertClean, assertRemoteTag, github, collect, preparedAssets, publish } from './lib/local-release.mjs';
 import { androidBuildEnvironment } from './lib/android-build-env.mjs';
+import { readReleaseVersion, releaseEnvironment, nodeTrustEnvironment } from './lib/release-env.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 export function releaseVersion() {
-  const app = JSON.parse(fs.readFileSync(path.join(root, 'app.json'), 'utf8')).expo;
-  const manifest = JSON.parse(fs.readFileSync(path.join(root, 'version.json'), 'utf8'));
-  const publicManifest = JSON.parse(fs.readFileSync(path.join(root, 'public/version.json'), 'utf8'));
-  if (app.version !== manifest.version || JSON.stringify(manifest) !== JSON.stringify(publicManifest) || !Number.isSafeInteger(manifest.buildNumber) || manifest.buildNumber < 1) throw new Error('앱 버전 파일 3개가 일치하지 않습니다.');
-  return manifest;
+  return readReleaseVersion(root);
 }
 
 export async function buildLocal() {
@@ -32,11 +29,8 @@ export async function buildLocal() {
     if (!(major > 1 || major === 1 && minor >= 12)) throw new Error('Windows 긴 경로를 지원하는 Ninja 1.12 이상이 필요합니다 (SDK CMake 3.22.1/bin).');
   }
   const { env, jvmArg, wrapperJvmArgs } = androidBuildEnvironment({
-    ...process.env, CI: '1', EXPO_NO_TELEMETRY: '1', EXPO_NO_DOTENV: '1',
+    ...releaseEnvironment({ version, buildNumber, buildTime }, commit, nodeTrustEnvironment(root)),
     ANDROID_HOME: sdk, ANDROID_SDK_ROOT: sdk,
-    EXPO_PUBLIC_API_BASE_URL: 'https://bridge.kfpa.or.kr', EXPO_PUBLIC_API_TIMEOUT_MS: '10000',
-    EXPO_PUBLIC_BUILD_NUMBER: String(buildNumber), EXPO_PUBLIC_APP_VERSION: version,
-    EXPO_PUBLIC_COMMIT_SHA: commit, EXPO_PUBLIC_BUILD_TIME: buildTime,
   }, localConfig);
   npm(root, ['run', 'typecheck'], env);
   npm(root, ['test', '--', '--runInBand'], env);

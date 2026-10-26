@@ -1,7 +1,7 @@
 # EAS Update: explicit manual publication only since 2026-10-16.
 # APK releases are built on the PC with `npm run release`.
 #
-# 릴리스 태그를 푸시하면 JS/에셋 변경분을 EAS Update로 게시한다.
+# PC의 npm run release가 기본 APK+OTA 경로다. 이 workflow는 명시적 수동 대체 경로다.
 # production 채널에 연결된 기존 네이티브 빌드(스토어 배포본)는 다음 실행 시
 # 자동으로 새 번들을 내려받아 적용한다(app.json 의 checkAutomatically: ON_LOAD).
 #

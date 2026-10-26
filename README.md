@@ -100,7 +100,10 @@ app.json·version.json·public/version.json을 맞추고 버전 커밋을 만든
 APK의 패키지·버전·versionCode·기존 인증서 일치를 검사한 뒤 `vX.Y.Z-<짧은 SHA>` 태그와
 main을 원자적으로 push하고, APK·SHA256SUMS.txt·BUILD-INFO.json이 모두 업로드된 초안만 공개한다.
 기존 테스트 APK와 동일하게 prerelease로 게시한다. GitHub 인증은 Git Credential Manager의 기존
-인증 또는 프로세스 환경의 GH_TOKEN을 사용하며 Expo/EAS 계정은 필요하지 않다.
+인증 또는 프로세스 환경의 GH_TOKEN을 사용한다. 이어서 같은 커밋의 Android OTA를 PC에서
+Expo production 채널에 직접 게시한다. GitHub Actions 실행 시간은 사용하지 않는다.
+Expo CLI에 미리 로그인해야 하며 운영 API·버전·빌드 번호·소스 커밋은 APK와 동일하게 고정한다.
+OTA 게시 전 네이티브 구성과 번들을 검사하고, 게시 후 커밋·런타임·채널을 다시 조회해 확인한다.
 
 Android 원격 푸시는 `com.raywon.newapp`용 Firebase `google-services.json`과 Expo 프로젝트의
 FCM V1 발송 자격 증명이 별도로 필요하다. Firebase 클라이언트 파일은 저장소 루트의 무시된
@@ -130,14 +133,21 @@ Windows의 배치/셸 따옴표 변형을 피하려고 동일한 GradleWrapperMa
 Expo SDK 52가 CI 모드에서 Metro 캐시 초기화를 무시하므로 네이티브 빌드 프로세스에서만 CI=0을
 사용해 캐시를 비우고, 완성된 번들에 현재 커밋과 운영 API가 들어 있는지도 게시 전에 검사한다.
 
-`npm run release -- --dry-run`은 버전·GitHub 사전 검사만 하고 변경을 원복한다.
+PC 최초 1회: `npm install -g eas-cli` 후 PowerShell에서 `eas.cmd login --browser`로
+기존 Expo 프로젝트에 배포 권한이 있는 계정으로 로그인한다. 토큰/비밀번호를 파일이나 로그에 넣지 않는다.
+`npm run release -- --dry-run`은 버전·GitHub·Expo 권한/채널 사전 검사만 하고 변경을 원복한다.
+`npm run release`가 APK 공개 후 OTA까지 게시하며, `--apk-only`를 붙이면 APK만 배포한다.
+네이티브 변경은 `runtimeVersion`을 올리고 APK부터 배포한다. OTA 재개 전 새 APK와 같은
+구성으로 `scripts/ota-runtime.json`의 런타임/해시/검증 태그를 갱신한다([OTA 운영](docs/EAS.md)).
 이미 push된 현재 태그는 `npm run release:local -- vX.Y.Z-SHA`로 빌드·게시할 수 있다.
 업로드 실패 후에는 같은 명령에 `--publish-only`를 붙여 기존 dist-release/<판>의 출처·체크섬을
 검증하고 재개한다. `--prepare-only`는 빌드만 한다. 빌드 실패로 버전 커밋만 남으면 원인을 해결해
 `npm run release -- --resume`으로 버전/빌드 번호를 다시 올리지 않고 검사·빌드·main+새 태그 push를 재개한다.
 기존 버전/태그/공개 자산은 덮어쓰지 않는다.
 APK·웹·OTA hosted 워크플로는 수동 실행만 가능하며 태그/main push는 빌드를 시작하지 않는다.
-이번 전환은 APK Release 배포가 대상이며 EAS OTA와 Pages 호스팅은 별도 수동 경로로 유지한다.
+OTA만 실패하면 버전을 올리지 않고 `npm run release:ota -- vX.Y.Z-SHA`로 같은 릴리스를 재개한다.
+이미 게시된 동일 업데이트는 조회·검증하며 중복 게시하지 않는다. 확인 결과는 무시된
+`dist-release/<판>/OTA-INFO.json`에 남긴다. Pages 호스팅은 별도 수동 경로로 유지한다.
 웹 번들은 gh-pages 브랜치에 게시된다. 현재 비공개 저장소의 GitHub 요금제는 Pages 호스팅을 지원하지 않아 웹 주소는 제공되지 않는다. 호스팅을 사용하려면 지원 요금제에서 Pages Source를 gh-pages로 설정하거나 별도 웹 호스트로 배포해야 한다. 저장소 공개 전환은 하지 않는다.
 
 ## 서버를 손봐야 할 때
