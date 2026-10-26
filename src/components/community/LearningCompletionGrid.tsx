@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import Svg, { G, Path } from 'react-native-svg';
 import { useTheme } from '../../theme/ThemeProvider';
-import { fontMono } from '../../theme/tokens';
+import { fontDisplay, fontMono } from '../../theme/tokens';
 import { calendarDate } from '../../domain/learningCalendar';
 import { learningDay, koreanDate, type LearningDay } from '../../utils/workday';
 import type { LearningCompletion } from '../../domain/learningCompletion';
@@ -82,10 +82,12 @@ export function LearningCompletionGrid({ year, month, todayKey, completion, lear
           accessibilityLabel={`${month + 1}월 ${day}일${rest ? ` ${name} 신규 학습 쉬는 날, 복습 가능` : ' 신규 학습 가능'}${complete ? ', 학습완료' : partial ? `, 일부완료 ${progress.done}/${progress.target}` : ''}${isToday ? ', 오늘' : ''}, 학습·복습 기록 ${historyCounts[key] ?? 0}장, 복습 일정 ${dueCounts[key] ?? 0}장`}
           accessibilityState={{ selected: isToday }} onPress={() => onSelect(key)} style={{ flex: 1, alignItems: 'center', paddingTop: 1 }}>
           <View testID={complete ? 'learning-completed-day' : partial ? 'learning-partial-day' : undefined} style={{ width: SIZE, height: SIZE, borderRadius: SIZE / 2, alignItems: 'center', justifyContent: 'center', backgroundColor: complete ? LEARNING_COMPLETE_COLOR : 'transparent', borderWidth: partial ? 2 : 0, borderColor: c.warning }}>
-            {isToday && <View pointerEvents="none" style={{ position: 'absolute', width: SIZE + 4, height: SIZE + 4, left: partial ? -4 : -2, top: partial ? -4 : -2, borderRadius: (SIZE + 4) / 2, borderWidth: 1.5, borderColor: c.primary }} />}
             <Text style={{ fontSize: 13, fontWeight: '700', fontFamily: fontMono, color: complete ? '#FFFFFF' : isToday ? c.primary : rest ? c.textSecondary : c.textPrimary, opacity: rest && !isToday ? 0.55 : 1 }}>{day}</Text>
           </View>
-          {(dueCounts[key] ?? 0) > 0 && <View testID="learning-review-dot" style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: c.warning, marginTop: 4 }} />}
+          {(isToday || (dueCounts[key] ?? 0) > 0) && <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3, height: 16, marginTop: 2 }}>
+            {isToday && <Text testID="learning-calendar-today" style={{ color: c.primary, backgroundColor: c.primary + '18', fontSize: 9, lineHeight: 12, fontFamily: fontDisplay, fontWeight: '700', paddingHorizontal: 3, borderRadius: 4 }}>오늘</Text>}
+            {(dueCounts[key] ?? 0) > 0 && <View testID="learning-review-dot" style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: c.warning }} />}
+          </View>}
         </Pressable>;
       })}
     </View>)}

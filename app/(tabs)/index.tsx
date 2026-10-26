@@ -193,6 +193,7 @@ export default function HomeScreen() {
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Ionicons name="school" size={16} color={c.primary} />
               <Text style={{ color: c.textPrimary, fontSize: 14.5 * fs, fontFamily: fontDisplay }}>오늘의 학습</Text>
+              {!completion.isRestDay && <Text testID="home-study-progress" style={{ color: c.primary, fontSize: 12.5 * fs, fontFamily: fontMono, fontWeight: '900' }}>{todayProgress}</Text>}
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.surfaceAlt, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 4 }}>
               <Ionicons name="hourglass-outline" size={11} color={c.textSecondary} />
@@ -201,15 +202,14 @@ export default function HomeScreen() {
           </View>
 
           {/* 5칸 진행 도트 — 채워진 칸 = 오늘 마친 학습. '끝이 보이는' 하루 목표를 시각화. */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 12, paddingHorizontal: 2 }}>
-            {Array.from({ length: completion.isRestDay ? 0 : completion.today.target }).map((_, i) => {
+          {!completion.isRestDay && completion.today.target > 0 && <View testID="home-study-gauge" accessibilityRole="progressbar" accessibilityLabel="오늘의 학습 진도" accessibilityValue={{ min: 0, max: completion.today.target, now: completion.today.done }} style={{ flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 12, paddingHorizontal: 2 }}>
+            {Array.from({ length: completion.today.target }).map((_, i) => {
               const done = i < completion.today.done;
               return (
                 <View key={i} style={{ flex: 1, height: 8, borderRadius: 4, backgroundColor: done ? c.primary : c.surfaceAlt, borderWidth: done ? 0 : 1, borderColor: c.border }} />
               );
             })}
-            <Text style={{ color: completion.today.complete ? c.success : c.primary, fontSize: 12.5 * fs, fontFamily: fontMono, fontWeight: '900', marginLeft: 4, minWidth: 34, textAlign: 'right' }}>{completion.isRestDay ? '신규 학습 쉬는 날' : todayProgress}</Text>
-          </View>
+          </View>}
 
           {/* 오늘의 학습 CTA — 신규(≤남은 상한) + 복습(도래)을 한 번에 이어서 진행.
               버튼 한 개로 단순화(복습은 오늘의 학습에 자동 편입). 오늘 담길 신규/복습 개수를 정직하게 표기. */}

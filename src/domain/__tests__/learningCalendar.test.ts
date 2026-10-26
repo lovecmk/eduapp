@@ -25,6 +25,14 @@ it('shows unreviewed past schedules today, never as pending on a past date', () 
   expect(result.dueByDate['2026-9-24']?.map(c => c.id)).toEqual(['late', 'today']);
 });
 
+it('counts the full backlog rather than the two-card daily allocation, without duplicate cards', () => {
+  const cards = Array.from({ length: 10 }, (_, index) => card(`due-${index}`));
+  const states = Object.fromEntries(cards.map((card, index) => [card.id, state(index < 7 ? '2026-10-21T00:00:00+09:00' : '2026-10-24T00:00:00+09:00')]));
+  const result = buildLearningCalendar([...cards, cards[0]], states, {}, NOW);
+  expect(result.dueByDate['2026-9-24']).toHaveLength(10);
+  expect(result.dueByDate['2026-9-21']).toBeUndefined();
+});
+
 it('excludes unstudied, invalid, unavailable and completed schedules', () => {
   const cards = [card('new', 'new'), card('untouched'), card('invalid'), card('done', 'mastered'), card('zero'), card('missing-state')];
   const due = '2026-10-24T00:00:00+09:00';

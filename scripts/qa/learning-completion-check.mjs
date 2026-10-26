@@ -78,6 +78,9 @@ try {
   const date = key => page.getByTestId(`learning-calendar-day-${key}`);
   await go();
   const home = page.getByTestId('home-learning-summary'), summary = page.getByTestId('calendar-learning-summary');
+  const heading = page.getByTestId('home-study-heading'), progress = page.getByTestId('home-study-progress'), gauge = page.getByTestId('home-study-gauge');
+  await expect(heading.getByTestId('home-study-progress')).toHaveText('3/5');
+  assert.equal((await gauge.innerText()).trim(), '', 'gauge contains only the progress segments');
   await expect(home).toContainText('3/5'); await expect(home).toContainText('2장'); await expect(home).toContainText('1일');
   await expect(home).not.toContainText('99');
   await expect(summary).toContainText('8일'); await expect(summary).toContainText('1일');
@@ -94,6 +97,19 @@ try {
     const grid = page.getByTestId('learning-completion-grid'); await grid.scrollIntoViewIfNeeded();
     await page.waitForTimeout(400);
     assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'small-screen overflow');
+    const marker = page.getByTestId('learning-calendar-today');
+    await expect(date('2026-9-23').getByTestId('learning-calendar-today')).toHaveText('오늘');
+    const markerBox = await marker.boundingBox(), todayBox = await date('2026-9-23').boundingBox();
+    assert(markerBox && markerBox.x >= todayBox.x && markerBox.x + markerBox.width <= todayBox.x + todayBox.width, 'today label stays within its date cell');
+    await heading.scrollIntoViewIfNeeded();
+    const titleBox = await heading.getByText('오늘의 학습', { exact: true }).boundingBox(), progressBox = await progress.boundingBox();
+    assert(progressBox.x > titleBox.x && Math.abs(progressBox.y + progressBox.height / 2 - titleBox.y - titleBox.height / 2) < 3, 'progress sits beside the title');
+    const segments = await gauge.evaluate(node => [...node.children].map(child => ({ x: child.getBoundingClientRect().x, right: child.getBoundingClientRect().right })));
+    const gaugeBox = await gauge.boundingBox();
+    assert.equal(segments.length, 5);
+    assert(segments[0].x <= gaugeBox.x + 3 && segments.at(-1).right >= gaugeBox.x + gaugeBox.width - 3, 'segments span the full gauge width');
+    await page.screenshot({ path: resolve(out, `study-${theme}-${width}.png`) });
+    await grid.scrollIntoViewIfNeeded();
     const bounds = await grid.boundingBox();
     for (const path of await page.getByTestId('learning-streak-connection').all()) {
       const box = await path.boundingBox();
@@ -106,6 +122,8 @@ try {
   await expect(page.getByText('하루 학습 목표 · 3/5', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: '닫기', exact: true }).last().click(); await page.waitForTimeout(300);
   todayDone = 5; await go();
+  await expect(progress).toHaveText('5/5');
+  assert.equal(await progress.evaluate(node => getComputedStyle(node).color), 'rgb(96, 165, 250)', 'completed count keeps the dark theme blue accent');
   await expect(home).toContainText('5/5'); await expect(home).toContainText('2일');
   await expect(summary).toContainText('9일'); await expect(summary).toContainText('2일');
   await expect(date('2026-9-23').getByTestId('learning-completed-day')).toHaveCount(1);
