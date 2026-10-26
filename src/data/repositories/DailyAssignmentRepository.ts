@@ -77,6 +77,8 @@ export class DailyAssignmentRepository implements IDailyAssignmentRepository {
       recommendScore: c.recommend_score,
     }));
     if (new Set(cards.map(c => c.card.id)).size !== cards.length) throw new ApiError(502, '오늘의 학습에 중복 카드가 있습니다', 'server');
+    // Older servers and cached decks may still put reviews first. Keep each group's order.
+    cards.sort((a, b) => Number(a.kind === 'review') - Number(b.kind === 'review'));
     // Install policy only after the entire deck has passed validation.
     setPersonalReviewPolicy(dto.personalized === true && dto.review_policy ? dto.review_policy : null);
     return {

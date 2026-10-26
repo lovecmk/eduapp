@@ -5,8 +5,20 @@ import { initialState, schedule } from '../../../domain/srs';
 
 jest.mock('../../network/ApiClient', () => ({ apiClient: { get: jest.fn() } }));
 jest.mock('../../../utils/logger', () => ({ logger: { warn: jest.fn() } }));
-const card = { id: 'contract-card', category_cd: 'ELEC', difficulty_cd: 'MEDIUM', card_type_cd: 'EXPLANATION', status_cd: 'UNSTUDIED', question_txt: '전선이란?' };
+const card = { id: 'contract-card', category_cd: 'ELEC', difficulty_cd: 'MEDIUM', card_type_cd: 'EXPLANATION', status_cd: 'NEW', question_txt: '전선이란?', due_at: null } as const;
 afterEach(() => { jest.clearAllMocks(); setPersonalReviewPolicy(null); });
+
+it('presents new cards before reviews from an older server without changing membership or completion', () => {
+  const input = [
+    { ...card, id: 'r2', kind: 'REVIEW', done: false }, { ...card, id: 'n2', kind: 'NEW', done: true },
+    { ...card, id: 'r1', kind: 'REVIEW', done: true }, { ...card, id: 'n1', kind: 'NEW', done: false },
+  ];
+  const result = new DailyAssignmentRepository().parse({ cards: input, target_count: 4, done_count: 2 });
+  expect(result.cards.map(item => item.card.id)).toEqual(['n2', 'n1', 'r2', 'r1']);
+  expect(result.cards.map(item => item.done)).toEqual([true, false, false, true]);
+  expect(input.map(item => item.id)).toEqual(['r2', 'n2', 'r1', 'n1']);
+  expect(result.doneCount).toBe(2);
+});
 
 it.each([{}, { cards: null }, { cards: {} }, { cards: [card, card] }, { cards: [card], target_count: -1 }, { cards: [card], done_count: 2 }, { cards: [card], target_count: 1.5 }])('손상된 오늘 응답을 빈 학습이나 잘못된 목표로 표시하지 않는다 (%j)', async dto => {
   (apiClient.get as jest.Mock).mockResolvedValue(dto);

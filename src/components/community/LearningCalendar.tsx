@@ -19,6 +19,7 @@ import { koreanDate, learningDay } from '../../utils/workday';
 import { useLearningDay } from '../../hooks/useLearningDay';
 import { useLearningCalendar } from '../../hooks/useLearningCalendar';
 import { useLearningCompletion } from '../../hooks/useLearningCompletion';
+import { useDailyAssignment } from '../../hooks/useDailyAssignment';
 import { LearningCompletionGrid, LEARNING_COMPLETE_COLOR, LEARNING_STREAK_COLORS } from './LearningCompletionGrid';
 
 const DAYS = ['일', '월', '화', '수', '목', '금', '토'];
@@ -46,6 +47,7 @@ export function LearningCalendar() {
   const history = useSrsStore((s) => s.history);
   const srsCards = useSrsStore((s) => s.cards);
   const completion = useLearningCompletion();
+  const { assignment, isSuccess: assignmentLoaded, isError: assignmentError, refetch: refetchAssignment } = useDailyAssignment();
 
   const cardById = useMemo(() => {
     const m = new Map<string, LearningCard>();
@@ -54,8 +56,8 @@ export function LearningCalendar() {
   }, [allCards]);
 
   const { historyByDate, dueByDate } = useMemo(
-    () => buildLearningCalendar(allCards, srsCards, history, now.getTime()),
-    [allCards, srsCards, history, today.date],
+    () => buildLearningCalendar(allCards, srsCards, history, now.getTime(), assignmentLoaded ? assignment : null),
+    [allCards, srsCards, history, today.date, assignment, assignmentLoaded],
   );
 
   const todayStr = dateKey(now);
@@ -167,9 +169,9 @@ export function LearningCalendar() {
         due={selectedCards.due}
         goal={selected ? completion.days[selected] : undefined}
         todayKey={todayStr}
-        cardsLoading={cardsLoading}
-        cardsError={!!cardsError}
-        onRetry={() => { void refetchCards(); }}
+        cardsLoading={cardsLoading || (selected === todayStr && !assignmentLoaded && !assignmentError)}
+        cardsError={!!cardsError || (selected === todayStr && !!assignmentError)}
+        onRetry={() => { void refetchCards(); void refetchAssignment(); }}
         onClose={() => setSelected(null)}
       />
     </View>

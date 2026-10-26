@@ -14,7 +14,9 @@ const mockCalendar = jest.fn();
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }) }));
 jest.mock('../../../hooks/useCards', () => ({ useAllCards: () => mockCards() }));
 jest.mock('../../../hooks/useLearningCalendar', () => ({ useLearningCalendar: () => mockCalendar() }));
-jest.mock('../../../hooks/useDailyAssignment', () => ({ useDailyAssignment: () => ({ assignment: { day: '2026-9-24', cards: [], targetCount: 0, doneCount: 0 } }) }));
+jest.mock('../../../hooks/useDailyAssignment', () => ({ useDailyAssignment: () => ({ isSuccess: true, assignment: { day: '2026-9-24', cards: [
+  { card: card('sat'), kind: 'review', done: true }, { card: card('past'), kind: 'review', done: false },
+], targetCount: 2, doneCount: 1 }, refetch: jest.fn() }) }));
 jest.mock('../../../hooks/useLearningDay', () => ({ useLearningDay: () => require('../../../utils/workday').learningDay() }));
 jest.mock('../../ui/AnimatedSheet', () => ({ AnimatedSheet: ({ visible, children }: { visible: boolean; children: React.ReactNode }) => visible ? children : null }));
 
@@ -38,12 +40,12 @@ afterEach(() => { jest.useRealTimers(); useSrsStore.getState().reset(); });
 
 it('shows Saturday review records and pending reviews while clearly retaining the new-learning rest rule', () => {
   show();
-  expect(screen.getByLabelText(/^10월 24일 .*학습·복습 기록 1장, 복습 일정 2장/)).toBeTruthy();
+  expect(screen.getByLabelText(/^10월 24일 .*학습·복습 기록 1장, 복습 일정 1장/)).toBeTruthy();
   select(24);
   expect(screen.getByText('2026년 10월 24일')).toBeTruthy();
   expect(screen.getByText('주말 · 신규 학습 쉬는 날 · 복습 가능')).toBeTruthy();
   expect(screen.getByText('학습·복습한 카드 1')).toBeTruthy();
-  expect(screen.getByText('오늘 복습 일정 2')).toBeTruthy();
+  expect(screen.getByText('오늘 복습 일정 1')).toBeTruthy();
 });
 
 it('past details show only actual records, including unavailable-card counts', () => {

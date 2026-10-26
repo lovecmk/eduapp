@@ -25,12 +25,32 @@ it('shows unreviewed past schedules today, never as pending on a past date', () 
   expect(result.dueByDate['2026-9-24']?.map(c => c.id)).toEqual(['late', 'today']);
 });
 
-it('counts the full backlog rather than the two-card daily allocation, without duplicate cards', () => {
+it('limits a ten-card backlog to two unique reviews', () => {
   const cards = Array.from({ length: 10 }, (_, index) => card(`due-${index}`));
   const states = Object.fromEntries(cards.map((card, index) => [card.id, state(index < 7 ? '2026-10-21T00:00:00+09:00' : '2026-10-24T00:00:00+09:00')]));
   const result = buildLearningCalendar([...cards, cards[0]], states, {}, NOW);
-  expect(result.dueByDate['2026-9-24']).toHaveLength(10);
+  expect(result.dueByDate['2026-9-24']?.map(card => card.id)).toEqual(['due-0', 'due-1']);
   expect(result.dueByDate['2026-9-21']).toBeUndefined();
+});
+
+it('shows the assigned pending reviews rather than two unrelated local predictions', () => {
+  const cards = ['oldest', 'selected', 'done', 'new'].map(id => card(id));
+  const states = Object.fromEntries(cards.map(card => [card.id, state('2026-10-21T00:00:00+09:00')]));
+  const assignment = { day: '2026-9-24', difficulty: 'easy' as const, targetCount: 3, doneCount: 1, cards: [
+    { card: cards[1], kind: 'review' as const, done: false },
+    { card: cards[2], kind: 'review' as const, done: true },
+    { card: cards[3], kind: 'new' as const, done: false },
+  ] };
+  expect(buildLearningCalendar(cards, states, {}, NOW, assignment).dueByDate['2026-9-24']?.map(card => card.id)).toEqual(['selected']);
+  expect(buildLearningCalendar(cards, states, { '2026-9-24': ['selected'] }, NOW, assignment).dueByDate['2026-9-24']).toBeUndefined();
+  expect(buildLearningCalendar(cards, states, {}, NOW, null).dueByDate['2026-9-24']).toBeUndefined();
+  expect(buildLearningCalendar(cards, states, {}, NOW, { ...assignment, cards: [] }).dueByDate['2026-9-24']).toBeUndefined();
+});
+
+it('limits future review predictions to two cards per date', () => {
+  const cards = ['a', 'b', 'c'].map(id => card(id));
+  const states = Object.fromEntries(cards.map(card => [card.id, state('2026-10-25T00:00:00+09:00')]));
+  expect(buildLearningCalendar(cards, states, {}, NOW, null).dueByDate['2026-9-25']?.map(card => card.id)).toEqual(['a', 'b']);
 });
 
 it('excludes unstudied, invalid, unavailable and completed schedules', () => {

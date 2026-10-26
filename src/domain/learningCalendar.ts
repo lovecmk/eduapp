@@ -2,6 +2,8 @@ import type { LearningCard } from './models/LearningCard';
 import { MASTERED_BOX, normalizeGrade, type SrsCardState } from './srs';
 import { dateKey, startOfDay } from '../utils/dateKey';
 import { koreanDate } from '../utils/workday';
+import { DAILY_REVIEW_CARDS } from '../constants/learning';
+import type { DailyAssignment } from './models/DailyAssignment';
 
 /** Persisted calendar keys use a zero-based month. Reject rolled-over/invalid dates. */
 export function calendarDate(key: string): Date | null {
@@ -17,6 +19,7 @@ export function buildLearningCalendar(
   states: Record<string, SrsCardState | undefined>,
   history: Record<string, string[]>,
   now = Date.now(),
+  assignment?: DailyAssignment | null,
 ) {
   const today = startOfDay(new Date(now)).getTime();
   const historyByDate: Record<string, string[]> = {};
@@ -40,8 +43,25 @@ export function buildLearningCalendar(
     const key = dateKey(new Date(Math.max(today, date)));
     (dueByDate[key] ??= []).push(card);
   }
-  for (const cards of Object.values(dueByDate)) {
+  for (const [key, cards] of Object.entries(dueByDate)) {
     cards.sort((a, b) => states[a.id]!.dueAt - states[b.id]!.dueAt || a.id.localeCompare(b.id));
+    dueByDate[key] = cards.slice(0, DAILY_REVIEW_CARDS);
+  }
+  // Today's actual server allocation wins over a locally predicted backlog.
+  if (assignment !== undefined) {
+    const todayKey = dateKey(new Date(today));
+    delete dueByDate[todayKey];
+    if (assignment?.day === todayKey) {
+      const available = new Set(cards.map(card => card.id));
+      const completed = new Set(historyByDate[todayKey] ?? []);
+      const selected = new Set<string>();
+      const reviews = assignment.cards.filter(item => {
+        if (item.kind !== 'review' || item.done || completed.has(item.card.id) || !available.has(item.card.id) || selected.has(item.card.id)) return false;
+        selected.add(item.card.id);
+        return true;
+      }).slice(0, DAILY_REVIEW_CARDS).map(item => item.card);
+      if (reviews.length) dueByDate[todayKey] = reviews;
+    }
   }
   return { historyByDate, dueByDate };
 }

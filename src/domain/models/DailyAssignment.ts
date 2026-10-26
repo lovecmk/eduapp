@@ -23,7 +23,7 @@ export interface DailyAssignment {
    * 화면의 "2/5" 에서 5가 이 값이라, 목표를 모르면 진도를 보여줄 수 없다.
    */
   targetCount: number;
-  /** 오늘 나가는 문제. 순서에도 뜻이 있다(복습이 앞). */
+  /** 오늘 나가는 문제. 신규 최대 3장 다음 복습 최대 2장 순서다. */
   cards: DailyCard[];
   /** 그중 오늘 이미 푼 수. */
   doneCount: number;

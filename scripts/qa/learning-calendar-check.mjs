@@ -80,7 +80,7 @@ try {
   calendarMode = true;
   await go('/');
   if (await page.getByText('나중에 할게요', { exact: true }).isVisible()) await page.getByText('나중에 할게요', { exact: true }).click();
-  await expect(page.getByText('신규 학습 쉬는 날', { exact: true })).toBeVisible();
+  await expect(page.getByText('주말 · 복습 가능', { exact: true })).toBeVisible();
   const rest = page.getByRole('button', { name: /10월 24일 주말 신규 학습 쉬는 날, 복습 가능/ });
   await expect(rest.getByTestId('learning-completed-day')).toHaveCount(0);
   for (const width of [390, 320]) {
@@ -91,8 +91,9 @@ try {
   }
   await rest.click();
   await expect(page.getByText('주말 · 신규 학습 쉬는 날 · 복습 가능', { exact: true })).toBeVisible();
-  await expect(page.getByText('오늘 복습 일정 2', { exact: true })).toBeVisible();
-  await expect(page.getByText(pastReview.question_txt, { exact: true })).toBeVisible();
+  await expect(page.getByText('오늘 복습 일정 1', { exact: true })).toBeVisible();
+  await expect(page.getByText(review.question_txt, { exact: true })).toBeVisible();
+  await expect(page.getByText(pastReview.question_txt, { exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: '닫기', exact: true }).last().click();
   await page.waitForTimeout(300);
   const sunday = page.getByRole('button', { name: /^10월 25일 .*복습 일정 1장/ });
