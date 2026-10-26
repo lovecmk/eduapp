@@ -1,4 +1,4 @@
-/** 뒷면 본문·섹션 제목·타이머의 기본 글자 크기. */
+/** 뒷면 본문·섹션 제목의 기본 글자 크기. */
 export const CARD_TEXT_SIZE = 13;
 export const CARD_TEXT_LINE_HEIGHT = 20;
 
@@ -11,6 +11,3 @@ export const CARD_CHOICE_LINE_HEIGHT = 21;
 export function cardChoiceLabel(format: string | undefined, index: number): string {
   return format === '선택비교형' ? String.fromCharCode(65 + index) : `(${index + 1})`;
 }
-
-/** 질문/보기와 타이머 간격: 직전 57.6px의 3/5. */
-export const CARD_TIMER_GAP = 32 * 1.8 * 3 / 5;

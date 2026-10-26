@@ -35,6 +35,8 @@ export function CategoryTrail({
             style={{
               color: i === 0 ? accent : c.textSecondary,
               fontSize,
+              maxWidth: '100%',
+              flexShrink: 1,
               fontFamily: i === parts.length - 1 ? fontMedium : fontBody,
             }}
           >
@@ -47,6 +49,6 @@ export function CategoryTrail({
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', gap: 4, flexWrap: 'wrap' },
+  row: { minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 4, flexWrap: 'wrap' },
   dot: { width: 7, height: 7, borderRadius: 4, marginRight: 2 },
 });

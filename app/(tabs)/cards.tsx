@@ -17,7 +17,6 @@ import { CardTimer } from '../../src/components/cards/CardTimer';
 import { CardReactionBar } from '../../src/components/cards/CardReactionBar';
 import { CardBackBody } from '../../src/components/cards/CardBackBody';
 import { CardFrontBody } from '../../src/components/cards/CardFrontBody';
-import { CARD_TIMER_GAP } from '../../src/components/cards/cardPresentation';
 import { ScrollFadeEdge } from '../../src/components/ui/ScrollFadeEdge';
 import { CuteScrollRail, ScrollMoreHint, ScrollEndStamp } from '../../src/components/ui/CuteScrollRail';
 import { useCardFlip } from '../../src/hooks/useCardFlip';
@@ -69,7 +68,7 @@ const SHADOW_FADE_MS = 420;
  * 카드 영역의 아래 여백으로 그대로 쓴다. 이보다 좁으면 그림자가 하단 컨트롤의
  * 구분선 위로 올라타 선을 지운 것처럼 흐려 보인다.
  */
-const CARD_SHADOW_SPILL = 24;
+const CARD_SHADOW_SPILL = 16;
 function haptic() {
   hapticTap();
 }
@@ -109,7 +108,7 @@ function CardsContent() {
   const { theme, fontScale } = useTheme();
   const c = theme.colors;
   const fs = fontScale;
-  const controlsHeight = Math.ceil(48 * Math.max(1, fs));
+  const controlsHeight = Math.ceil(44 * Math.max(1, fs));
   const router = useRouter();
   const tabs = useNavigation();
   const finishFlow = useCallback((target: string) => endFlow(router, target, tabs), [router, tabs]);
@@ -995,7 +994,7 @@ function CardsContent() {
   const isLight = theme.mode === 'light';
   // 그림자는 **아래로 새는 양**이 곧 카드와 하단 구분선 사이에 필요한 여백이다.
   // (offsetY + blur) 만큼 카드 밑으로 번지므로, 아래 CARD_SHADOW_SPILL 과 짝을 맞춘다.
-  const cardShadow = isLight ? '0 7px 16px rgba(15,23,42,0.14)' : '0 7px 16px rgba(0,0,0,0.5)';
+  const cardShadow = isLight ? '0 4px 10px rgba(15,23,42,0.14)' : '0 4px 10px rgba(0,0,0,0.5)';
   // 카드 면 테두리 — 라이트 모드는 카드(surface)와 배경(bg)이 둘 다 흰색이라
   // 그림자가 옅어지는 순간(뒤집는 중) 카드가 배경에 녹아 사라져 보인다.
   // 아주 옅은 테두리를 상시로 둬서 어느 각도에서든 카드의 경계가 남게 한다.
@@ -1037,8 +1036,8 @@ function CardsContent() {
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
-      <View style={{ paddingHorizontal: 20, paddingTop: 12, width: '100%', maxWidth: COLUMN_MAX, alignSelf: 'center' }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+      <View style={{ paddingHorizontal: 20, paddingTop: 8, width: '100%', maxWidth: COLUMN_MAX, alignSelf: 'center' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
           <View style={{ flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <Ionicons name={isReviewSession ? 'refresh-outline' : 'school-outline'} size={16} color={c.primary} />
             <Text numberOfLines={2} style={{ flexShrink: 1, color: c.textPrimary, fontSize: 14 * fs, fontFamily: fontCute }}>{isCategoryMode ? `${category} 복습` : isDueMode ? '복습' : '오늘의 학습'}</Text>
@@ -1067,8 +1066,8 @@ function CardsContent() {
             )}
           </View>
         </View>
-        {todayCard && <Text style={{ color: c.primary, marginBottom: 8, fontSize: 12 * fs }}>{todayCard.kind === 'review' ? '복습 카드' : '신규 카드'}{todayCard.recommendReason ? ` · ${{ JOB: '직무 핵심', WEAKNESS: '취약분야', EXPLORE: '확장·탐색', REVIEW_DUE: '복습예정일 도래', OPERATOR: '필수·우선 학습' }[todayCard.recommendReason] ?? '맞춤 추천'}` : ''}</Text>}
-        <View style={{ height: 6, backgroundColor: c.surfaceAlt, borderRadius: 3, overflow: 'hidden' }}>
+        {todayCard && <Text style={{ color: c.primary, marginBottom: 4, fontSize: 12 * fs }}>{todayCard.kind === 'review' ? '복습 카드' : '신규 카드'}{todayCard.recommendReason ? ` · ${{ JOB: '직무 핵심', WEAKNESS: '취약분야', EXPLORE: '확장·탐색', REVIEW_DUE: '복습예정일 도래', OPERATOR: '필수·우선 학습' }[todayCard.recommendReason] ?? '맞춤 추천'}` : ''}</Text>}
+        <View style={{ height: 4, backgroundColor: c.surfaceAlt, borderRadius: 3, overflow: 'hidden' }}>
           <View style={{ width: `${Math.round((index / Math.max(deck.length, 1)) * 100)}%`, height: '100%', backgroundColor: c.primary, borderRadius: 3 }} />
         </View>
       </View>
@@ -1079,7 +1078,7 @@ function CardsContent() {
           카드 밑으로 번지는데, 예전에는 그 여백이 8px 뿐이라 그림자가 하단 컨트롤의
           구분선을 덮어 선이 흐리게 지워져 보였다. 그림자가 새는 만큼을 여백으로 비워
           선이 온전히 드러나게 한다(그만큼 카드 높이가 줄어든다). */}
-      <View style={{ flex: 1, padding: 20, paddingBottom: CARD_SHADOW_SPILL, width: '100%', maxWidth: COLUMN_MAX, alignSelf: 'center' }}>
+      <View style={{ flex: 1, paddingHorizontal: 20, paddingTop: 8, paddingBottom: CARD_SHADOW_SPILL, width: '100%', maxWidth: COLUMN_MAX, alignSelf: 'center' }}>
         <Animated.View
           {...(isSwipeTrack ? panResponder.panHandlers : {})}
           style={{ flex: 1, transform: [{ translateX }, { translateY: cardTranslateY }, { scale: cardScale }], opacity: cardCombinedOpacity }}
@@ -1137,16 +1136,21 @@ function CardsContent() {
             pointerEvents={flipped ? 'none' : 'auto'}
             style={{
               position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-              backgroundColor: frontTint, borderWidth: 1, borderColor: cardEdge, borderRadius: 20, padding: 20,
+              backgroundColor: frontTint, borderWidth: 1, borderColor: cardEdge, borderRadius: 20, padding: 16,
               transform: [{ perspective: 1600 }, { rotateY: frontRotate }],
               backfaceVisibility: 'hidden',
               opacity: frontOpacity,
             }}
           >
             {/* 머리말도 톡 치면 뒤집힌다 — 본문(스크롤 영역) 밖이라 탭 판을 따로 얹는다. */}
-            <Pressable tabIndex={-1} onPress={onCardPress} disabled={exiting} style={{ marginBottom: 12 }}>
-              <CategoryTrail category={card.taxonomyCategory || card.category} subCategory={card.subCategory} topic={card.topic} size="sm" />
-            </Pressable>
+            <View testID="learning-card-header" style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 8 }}>
+              <Pressable testID="learning-card-category" tabIndex={-1} onPress={onCardPress} disabled={exiting} style={{ flex: 1, minWidth: 0, minHeight: 22, justifyContent: 'center' }}>
+                <CategoryTrail category={card.taxonomyCategory || card.category} subCategory={card.subCategory} topic={card.topic} size="sm" />
+              </Pressable>
+              <View style={{ minWidth: 64 }}>
+                {(!isQuiz || !quizRevealed) && <CardTimer seconds={card.studySeconds} resetKey={card.id} onExpire={haptic} />}
+              </View>
+            </View>
             {isQuiz ? (
               /* 퀴즈형: 상황·문제 + 앞면 정답 선택 UI.
                  답을 고르면 아래에 '정답/오답' 피드백이 새로 붙어 내용이 길어진다 —
@@ -1182,11 +1186,6 @@ function CardsContent() {
                       onPick={handleQuizPick}
                     />
                   </View>
-                  {!quizRevealed && (
-                    <View style={{ paddingTop: CARD_TIMER_GAP, alignItems: 'center' }}>
-                      <CardTimer seconds={card.studySeconds} resetKey={card.id} onExpire={haptic} />
-                    </View>
-                  )}
                  </Pressable>
                 </ScrollView>
                 <ScrollFadeEdge color={frontTint} visible={quizBody.hasMore} />
@@ -1215,9 +1214,6 @@ function CardsContent() {
                     <Ionicons name={getCategoryIcon(card.category)} size={40 * fs} color={c.primary} style={{ marginBottom: 12, opacity: 0.6 }} />
                   )}
                   <CardFrontBody card={card} />
-                  <View style={{ paddingTop: CARD_TIMER_GAP }}>
-                    <CardTimer seconds={card.studySeconds} resetKey={card.id} onExpire={haptic} />
-                  </View>
                  </Pressable>
                 </ScrollView>
                 <ScrollFadeEdge color={frontTint} visible={frontBody.hasMore} />
@@ -1238,7 +1234,7 @@ function CardsContent() {
               opacity: backOpacity,
             }}
           >
-            <Pressable testID="learning-card-back-tap" tabIndex={-1} onPress={onBackPress} disabled={exiting} style={{ flex: 1, padding: 18 }}>
+            <Pressable testID="learning-card-back-tap" tabIndex={-1} onPress={onBackPress} disabled={exiting} style={{ flex: 1, padding: 16 }}>
               <View style={{ marginBottom: 12 }}>
                 <CategoryTrail category={card.taxonomyCategory || card.category} subCategory={card.subCategory} topic={card.topic} size="sm" />
               </View>
@@ -1320,10 +1316,10 @@ function CardsContent() {
 
       {/* 하단 컨트롤 — 학습자가 조작하는 버튼(화면 중간 아래). 버튼 전환은 카드 회전 중간(backControls)에 맞춘다.
 
-          **앞면 안내와 뒷면 버튼은 같은 높이를 쓴다(기본 48, 큰 글자는 확장).** 이 블록이 비었다 찼다 하면 위의 카드 영역
+          **앞면 안내와 뒷면 버튼은 같은 높이를 쓴다(기본 44, 큰 글자는 확장).** 이 블록이 비었다 찼다 하면 위의 카드 영역
           (flex: 1)이 그만큼 늘었다 줄어, 뒤집을 때마다 카드 높이가 달라진다. 안내 줄이든
           두 개짜리 액션 행이든 같은 높이를 차지하게 두어 학습카드 높이를 항상 같게 유지한다. */}
-      <View style={{ paddingHorizontal: 20, paddingBottom: 16, paddingTop: 8, borderTopWidth: 1, borderTopColor: c.border, width: '100%', maxWidth: COLUMN_MAX, alignSelf: 'center' }}>
+      <View testID="learning-card-controls" style={{ paddingHorizontal: 20, paddingBottom: 8, paddingTop: 4, borderTopWidth: 1, borderTopColor: c.border, width: '100%', maxWidth: COLUMN_MAX, alignSelf: 'center' }}>
         {isSwipeTrack ? (
           // 스와이프 트랙(원진섭) — 뒤집기 버튼 없이 탭/스와이프로 조작.
           !backControls ? (
@@ -1346,10 +1342,10 @@ function CardsContent() {
                 size={16}
                 color={nextReviewHint ? c.primary : solveHint ? c.warning : c.textSecondary}
               />
-              <Text style={{ color: nextReviewHint ? c.primary : solveHint ? c.warning : c.textSecondary, fontSize: 13 * fs, fontFamily: fontCute, textAlign: 'center' }}>
+              <Text style={{ flexShrink: 1, color: nextReviewHint ? c.primary : solveHint ? c.warning : c.textSecondary, fontSize: 12 * fs, fontFamily: fontCute, textAlign: 'center' }}>
                 {nextReviewHint
                   ? (nextReviewHint === '복습 완료' || nextReviewHint.endsWith('후 복습') ? nextReviewHint : `다음 복습은 ${nextReviewHint} 뒤에 만나요`)
-                  : solveHint ? '문제를 먼저 풀어주세요!' : '카드를 탭해 뒤집고, 좌우로 넘겨 분류해요'}
+                  : solveHint ? '문제를 먼저 풀어주세요!' : '탭해 뒤집기 · 좌우로 분류'}
               </Text>
             </Pressable>
           ) : (
@@ -1388,7 +1384,7 @@ function CardsContent() {
                 size={16}
                 color={nextReviewHint ? c.primary : solveHint ? c.warning : c.textSecondary}
               />
-              <Text style={{ color: nextReviewHint ? c.primary : solveHint ? c.warning : c.textSecondary, fontSize: 13 * fs, fontFamily: fontCute, textAlign: 'center' }}>
+              <Text style={{ flexShrink: 1, color: nextReviewHint ? c.primary : solveHint ? c.warning : c.textSecondary, fontSize: 12 * fs, fontFamily: fontCute, textAlign: 'center' }}>
                 {nextReviewHint
                   ? (nextReviewHint === '복습 완료' || nextReviewHint.endsWith('후 복습') ? nextReviewHint : `다음 복습은 ${nextReviewHint} 뒤에 만나요`)
                   : solveHint ? '문제를 먼저 풀어주세요!' : '카드를 탭하면 해설을 볼 수 있어요'}
