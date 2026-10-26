@@ -96,10 +96,10 @@ export default function MyPageScreen() {
           <Ionicons name="ribbon-outline" size={20} color={c.textPrimary} />
           <View style={{ flex: 1 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontWeight: '700', fontFamily: fontCute }}>엠블럼</Text>
+              <Text style={{ color: c.textPrimary, fontSize: 15 * fs, fontWeight: '700', fontFamily: fontCute }}>학습 통계</Text>
               <TypeChip label="실력" color="#2563EB" />
             </View>
-            <Text style={{ color: c.textSecondary, fontSize: 12, fontFamily: fontCute }}>분야별 마스터로 오르는 실력 등급 뱃지</Text>
+            <Text style={{ color: c.textSecondary, fontSize: 12, fontFamily: fontCute }}>학습 진도와 분야별 엠블럼을 확인해요</Text>
           </View>
         </View>
         <Ionicons name="chevron-forward" size={18} color={c.primary} />
