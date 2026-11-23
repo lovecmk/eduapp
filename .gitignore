@@ -9,6 +9,7 @@ dist/
 web-build/
 dist-release/
 /android/
+/ios/
 /.release-config.local
 /google-services.json
 expo-env.d.ts
